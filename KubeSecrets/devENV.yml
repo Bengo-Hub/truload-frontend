@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: truload-frontend-env
+  namespace: truload
+type: Opaque
+stringData:
+  # Runtime env for Next.js server (standalone output). Build-time uses NEXT_PUBLIC_* args.
+  NODE_ENV: "production"
+  PORT: "3000"
+  API_URL: "https://api.truload.example.com"
+  WS_URL: "wss://api.truload.example.com/ws"
+
+
