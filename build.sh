@@ -119,7 +119,7 @@ if [[ -n "$DEVOPS_DIR" && -d "$DEVOPS_DIR" ]]; then
   git fetch origin main || true; git checkout main || git checkout -b main || true
   if [[ -f "$VALUES_FILE_PATH" ]]; then
     IMAGE_REPO_ENV="$IMAGE_REPO" IMAGE_TAG_ENV="$GIT_COMMIT_ID" \
-      yq e -i '.image.repository = env(IMAGE_REPO_ENV) | .image.tag = env(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
+      yq e -i '.image.repository = strenv(IMAGE_REPO_ENV) | .image.tag = strenv(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
     git add "$VALUES_FILE_PATH" && git commit -m "${APP_NAME}:${GIT_COMMIT_ID} released" || true
     if [[ -n "$TOKEN" ]]; then git push origin HEAD:main || warn "devops-k8s push failed"; else warn "No GH token; skipped push"; fi
     ok "Updated ${VALUES_FILE_PATH}"
