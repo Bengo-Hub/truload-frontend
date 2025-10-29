@@ -47,8 +47,8 @@ step "Filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table --skip-files "*.pem" --skip-files "*.key" --skip-files "*.crt" || true
 
 # Build args for Next.js
-NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-"https://api.truload.example.com"}
-NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-"wss://api.truload.example.com/ws"}
+NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-"https://truloadapitest.masterspace.co.ke"}
+NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-"wss://truloadapitest.masterspace.co.ke/ws"}
 
 step "Docker build"
 DOCKER_BUILDKIT=1 docker build . \
@@ -79,9 +79,13 @@ fi
 
 kubectl get ns "$NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$NAMESPACE"
 
-if [[ -f "KubeSecrets/devENV.yml" ]]; then
-  step "Applying KubeSecrets/devENV.yml"
+# CRITICAL: Do NOT apply KubeSecrets/devENV.yml in CI/CD
+# It may contain outdated configuration. Skip in CI/CD, only apply locally.
+if [[ -z "${CI:-}${GITHUB_ACTIONS:-}" && -f "KubeSecrets/devENV.yml" ]]; then
+  info "Local deployment detected - applying KubeSecrets/devENV.yml"
   kubectl apply -n "$NAMESPACE" -f KubeSecrets/devENV.yml || warn "Failed to apply devENV.yml"
+elif [[ -f "KubeSecrets/devENV.yml" ]]; then
+  info "CI/CD deployment - skipping KubeSecrets/devENV.yml (managed by deployment workflow)"
 fi
 
 if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" ]]; then
