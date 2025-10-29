@@ -88,6 +88,18 @@ elif [[ -f "KubeSecrets/devENV.yml" ]]; then
   info "CI/CD deployment - skipping KubeSecrets/devENV.yml (managed by deployment workflow)"
 fi
 
+# Create minimal environment secret for frontend (even though no database needed)
+# The Helm chart expects envFromSecret to exist
+step "Creating/updating environment secret for frontend..."
+kubectl -n "$NAMESPACE" create secret generic "$ENV_SECRET_NAME" \
+  --from-literal=NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
+  --from-literal=NEXT_PUBLIC_WS_URL="${NEXT_PUBLIC_WS_URL}" \
+  --from-literal=NODE_ENV="production" \
+  --from-literal=APP_NAME="${APP_NAME}" \
+  --dry-run=client -o yaml | kubectl apply -f - || warn "Environment secret creation failed"
+ok "Environment secret configured"
+
+# Create registry pull secret if credentials provided
 if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" ]]; then
   kubectl -n "$NAMESPACE" create secret docker-registry registry-credentials \
     --docker-server="$REGISTRY_SERVER" \
