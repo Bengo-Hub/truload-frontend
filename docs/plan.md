@@ -252,7 +252,9 @@ Each module in `app/(modules)/` follows a consistent structure:
 - Escalate to Court action
 - Case Manager interface
 - Required subfiles checklist
-- NTAC/OB number assignment
+- Required subfiles checklist
+- NTAC assignment (Driver and/or Transporter)
+- OB number assignment
 
 **Case Status Management:**
 - Case status updates
@@ -301,7 +303,10 @@ Each module in `app/(modules)/` follows a consistent structure:
 - Invoice display
 - eCitizen payment gateway integration
 - Payment status tracking
-- Receipt attachment interface
+- Invoice display
+- eCitizen payment gateway integration
+- Payment status tracking
+- Receipt attachment interface (with Idempotency Key for duplicate prevention)
 
 **Load Correction & Reweigh:**
 - Load Correction Memo generation
@@ -310,7 +315,7 @@ Each module in `app/(modules)/` follows a consistent structure:
 - Compliance Certificate generation
 
 **Court Escalation:**
-- NTAC number assignment
+- NTAC number assignment (Separate for Driver and Transporter)
 - OB number entry
 - Court case tracking
 - Case status updates
@@ -336,6 +341,19 @@ Each module in `app/(modules)/` follows a consistent structure:
 - **Subfile H:** Load Correction Memos
 - **Subfile I:** Compliance Certificates and Special Releases
 - **Subfile J:** Minute sheet & correspondences (audit trail)
+
+**Case Investigation (Court Cases Only):**
+- **Trigger:** Case escalated to Court status.
+- **Assignment:** Supervisors (OCS/Deputy OCS) assign cases to Investigating Officers.
+- **Re-assignment:** Supervisors can re-assign cases (e.g., due to transfer/compromise) with mandatory reason logging.
+- **Investigation:** Investigating Officer gathers evidence (Subfiles B-J).
+- **Closure Request:** Investigating Officer completes checklist and submits "Case Review Request".
+
+**Case Closure Review:**
+- **Review Queue:** Supervisors view pending review requests.
+- **Checklist Validation:** System enforces all required subfiles are complete before submission.
+- **Decision:** Supervisor approves (closes case) or rejects (returns to IO with notes).
+- **Finalization:** Case status updates to 'closed' only upon supervisor approval.
 
 **Court Case Tracking:**
 - Court case timeline

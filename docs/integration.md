@@ -13,6 +13,8 @@ This document provides detailed integration information for all external service
 3. [Apache Superset SDK Integration](#apache-superset-sdk-integration)
 4. [TruConnect Microservice Integration](#truconnect-microservice-integration)
 5. [Offline Sync Integration](#offline-sync-integration)
+6. [Financial Module Integration](#financial-module-integration)
+7. [Case Management Integration](#case-management-integration)
 
 ---
 
@@ -439,6 +441,47 @@ interface WeighingRecord {
 - Idempotency prevents duplicate server records
 - Show dedupe message to user
 - Option to view duplicate record details
+
+---
+
+## Financial Module Integration
+
+### Overview
+The Financial Module handles Invoices and Receipts. Critical for this module is **Payment Transaction Integrity**, ensured via `idempotency_key`.
+
+### Implementation Details
+
+**Receipt Generation:**
+- **Idempotency:** Client generates a UUID `idempotency_key` for every payment attempt.
+- **Backend Logic:** Backend checks if a receipt with the same `idempotency_key` exists.
+  - If exists: Returns existing receipt (safe retry).
+  - If new: Processes payment and creates receipt.
+- **Offline:** Receipts created offline must preserve their `idempotency_key` during sync.
+
+**Endpoints:**
+- `POST /api/v1/finance/invoices` - Create Invoice
+- `POST /api/v1/finance/receipts` - Record Payment (Requires `idempotency_key`)
+
+---
+
+## Case Management Integration
+
+### Overview
+Handles Case Registers, Assignments, and Closure Reviews.
+
+### Implementation Details
+
+**Case Assignment:**
+- **Endpoints:**
+  - `POST /api/v1/cases/{id}/assign` - Assign/Re-assign Officer
+  - `GET /api/v1/cases/{id}/assignment-logs` - View assignment history
+- **Payload:** Must include `new_officer_id`, `assignment_type`, and `reason`.
+
+**Closure Review:**
+- **Endpoints:**
+  - `POST /api/v1/cases/{id}/closure-review/request` - Submit for review
+  - `POST /api/v1/cases/{id}/closure-review/decide` - Approve/Reject
+- **Checklist:** Frontend must validate `case_closure_checklists` (Subfiles A-J) before request.
 
 ---
 
