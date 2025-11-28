@@ -88,6 +88,18 @@ elif [[ -f "KubeSecrets/devENV.yml" ]]; then
   info "CI/CD deployment - skipping KubeSecrets/devENV.yml (managed by deployment workflow)"
 fi
 
+# Create minimal environment secret for frontend (even though no database needed)
+# The Helm chart expects envFromSecret to exist
+step "Creating/updating environment secret for frontend..."
+kubectl -n "$NAMESPACE" create secret generic "$ENV_SECRET_NAME" \
+  --from-literal=NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
+  --from-literal=NEXT_PUBLIC_WS_URL="${NEXT_PUBLIC_WS_URL}" \
+  --from-literal=NODE_ENV="production" \
+  --from-literal=APP_NAME="${APP_NAME}" \
+  --dry-run=client -o yaml | kubectl apply -f - || warn "Environment secret creation failed"
+ok "Environment secret configured"
+
+# Create registry pull secret if credentials provided
 if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" ]]; then
   kubectl -n "$NAMESPACE" create secret docker-registry registry-credentials \
     --docker-server="$REGISTRY_SERVER" \
@@ -107,7 +119,7 @@ if [[ -n "$DEVOPS_DIR" && -d "$DEVOPS_DIR" ]]; then
   git fetch origin main || true; git checkout main || git checkout -b main || true
   if [[ -f "$VALUES_FILE_PATH" ]]; then
     IMAGE_REPO_ENV="$IMAGE_REPO" IMAGE_TAG_ENV="$GIT_COMMIT_ID" \
-      yq e -i '.image.repository = env(IMAGE_REPO_ENV) | .image.tag = env(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
+      yq e -i '.image.repository = strenv(IMAGE_REPO_ENV) | .image.tag = strenv(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
     git add "$VALUES_FILE_PATH" && git commit -m "${APP_NAME}:${GIT_COMMIT_ID} released" || true
     if [[ -n "$TOKEN" ]]; then git push origin HEAD:main || warn "devops-k8s push failed"; else warn "No GH token; skipped push"; fi
     ok "Updated ${VALUES_FILE_PATH}"

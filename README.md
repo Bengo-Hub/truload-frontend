@@ -6,9 +6,10 @@ Modern, offline-first Progressive Web App for field officers and back-office sta
 
 ## 📚 Documentation
 
-- **[Implementation Plan](docs/implementation-plan.md)** - Comprehensive technical specification, UI/UX flows, offline strategy, and sprint breakdown
-- **[Component Library](docs/COMPONENTS.md)** - Reusable UI components documentation
-- **[API Integration Guide](docs/API_INTEGRATION.md)** - Backend API integration patterns
+### Implementation & Architecture
+- **[Implementation Plan](docs/plan.md)** - Comprehensive technical specification, UI/UX flows, offline strategy, and sprint breakdown
+- **[Integration Guide](docs/integration.md)** - Backend API integration, Superset SDK, TruConnect, offline sync, and external service integrations
+- **[Sprint Documentation](docs/sprints/)** - Detailed sprint plans and implementation guides
 
 ## 🚀 Quick Start
 

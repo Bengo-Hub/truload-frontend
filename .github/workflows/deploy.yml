@@ -2,7 +2,7 @@ name: Build and Deploy TruLoad Frontend
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   deploy:
@@ -25,33 +25,29 @@ jobs:
       run: |
         echo "Checking which tokens are available..."
         [[ -n "${{ secrets.GH_PAT }}" ]] && echo "✅ GH_PAT is set" || echo "❌ GH_PAT not found"
-        [[ -n "${{ secrets.GITHUB_SECRET }}" ]] && echo "✅ GITHUB_SECRET is set" || echo "❌ GITHUB_SECRET not found"
-        [[ -n "${{ secrets.GITHUB_TOKEN }}" ]] && echo "✅ GITHUB_TOKEN is set (default, may lack cross-repo write)" || echo "❌ GITHUB_TOKEN not found"
-        echo "Note: At least GH_PAT or GITHUB_SECRET must be set for cross-repo push to devops-k8s"
+        [[ -n "${{ secrets.GIT_SECRET }}" ]] && echo "✅ GITHUB_SECRET is set" || echo "❌ GITHUB_SECRET not found"
+        [[ -n "${{ secrets.GITHUB_TOKEN }}" ]] && echo "✅ GITHUB_TOKEN is set (default)" || echo "❌ GITHUB_TOKEN not found"
 
     - name: Set deployment variables
       run: |
         echo "DEPLOY=true" >> $GITHUB_ENV
         echo "SETUP_DATABASES=false" >> $GITHUB_ENV
-        echo "DB_TYPES=postgres,redis" >> $GITHUB_ENV
         echo "NAMESPACE=truload" >> $GITHUB_ENV
         echo "ENV_SECRET_NAME=truload-frontend-env" >> $GITHUB_ENV
         echo "REGISTRY_SERVER=docker.io" >> $GITHUB_ENV
         echo "REGISTRY_NAMESPACE=codevertex" >> $GITHUB_ENV
         echo "VALUES_FILE_PATH=apps/truload-frontend/values.yaml" >> $GITHUB_ENV
-        echo "DEPLOYMENT_SUMMARY_TITLE=TruLoad Frontend Deployment Summary" >> $GITHUB_ENV
-        echo "DEPLOYMENT_SUCCESS_MESSAGE=TruLoad Frontend deployment completed! The UI should be accessible via the URLs above." >> $GITHUB_ENV
-        echo "APPLICATION_DISPLAY_NAME=TruLoad Frontend" >> $GITHUB_ENV
-        echo "NEXT_PUBLIC_API_URL=https://api.truload.example.com" >> $GITHUB_ENV
-        echo "NEXT_PUBLIC_WS_URL=wss://api.truload.example.com/ws" >> $GITHUB_ENV
+        echo "APP_NAME=truload-frontend" >> $GITHUB_ENV
+        echo "NEXT_PUBLIC_API_URL=https://truloadapitest.masterspace.co.ke" >> $GITHUB_ENV
+        echo "NEXT_PUBLIC_WS_URL=wss://truloadapitest.masterspace.co.ke/ws" >> $GITHUB_ENV
 
     - name: Run production deployment
       env:
-        DOCKER_SSH_KEY: ${{ secrets.DOCKER_SSH_KEY }}
         KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Use GH token for HTTPS auth in build.sh
+        GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
         GH_PAT: ${{ secrets.GH_PAT }}
-        GITHUB_SECRET: ${{ secrets.GITHUB_SECRET }}
+        GITHUB_SECRET: ${{ secrets.GIT_SECRET }}
         REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
         REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         GITHUB_SHA: ${{ github.sha }}
@@ -62,28 +58,19 @@ jobs:
         REGISTRY_SERVER: docker.io
         REGISTRY_NAMESPACE: codevertex
         VALUES_FILE_PATH: apps/truload-frontend/values.yaml
-        GIT_USER: ${{ secrets.GIT_USER }}
-        GIT_EMAIL: ${{ secrets.GIT_EMAIL }}
-        # Next.js build-time environment variables for API configuration
-        NEXT_PUBLIC_API_URL: https://api.truload.example.com
-        NEXT_PUBLIC_WS_URL: wss://api.truload.example.com/ws
-        # SSH deployment variables
-        SSH_HOST: ${{ secrets.SSH_HOST }}
-        SSH_USER: ${{ secrets.SSH_USER }}
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        PROVIDER: contabo
-        CONTABO_API: true
-        # Contabo secrets
-        CONTABO_CLIENT_ID: ${{ secrets.CONTABO_CLIENT_ID }}
-        CONTABO_CLIENT_SECRET: ${{ secrets.CONTABO_CLIENT_SECRET }}
-        CONTABO_API_USERNAME: ${{ secrets.CONTABO_API_USERNAME }}
-        CONTABO_API_PASSWORD: ${{ secrets.CONTABO_API_PASSWORD }}
-        # Deployment variables
-        DEPLOYMENT_SUMMARY_TITLE: TruLoad Frontend Deployment Summary
-        DEPLOYMENT_SUCCESS_MESSAGE: TruLoad Frontend deployment completed!
-        APPLICATION_DISPLAY_NAME: TruLoad Frontend
+        APP_NAME: truload-frontend
+        GIT_USER: ${{ secrets.GIT_USER || 'TruLoad Bot' }}
+        GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'dev@truload.io' }}
+        # Build args for Next.js
+        NEXT_PUBLIC_API_URL: https://truloadapitest.masterspace.co.ke
+        NEXT_PUBLIC_WS_URL: wss://truloadapitest.masterspace.co.ke/ws
       run: |
         chmod +x build.sh
+        # Export environment variables for build.sh
+        export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}"
+        export NEXT_PUBLIC_WS_URL="${NEXT_PUBLIC_WS_URL}"
+        export NAMESPACE="${NAMESPACE}"
+        export APP_NAME="${APP_NAME}"
         ./build.sh
 
     - name: Tag and push :latest
@@ -97,10 +84,117 @@ jobs:
         : "${REGISTRY_NAMESPACE:=codevertex}"
         IMAGE_REPO="${REGISTRY_SERVER}/${REGISTRY_NAMESPACE}/truload-frontend"
         SHORT_SHA=${GITHUB_SHA::8}
-        echo "Tagging ${IMAGE_REPO}:${SHORT_SHA} as :latest and pushing"
+        echo "Tagging ${IMAGE_REPO}:${SHORT_SHA} as :latest"
         echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY_SERVER" -u "$REGISTRY_USERNAME" --password-stdin
         docker pull "${IMAGE_REPO}:${SHORT_SHA}" || true
         docker tag "${IMAGE_REPO}:${SHORT_SHA}" "${IMAGE_REPO}:latest"
         docker push "${IMAGE_REPO}:latest"
 
+    - name: Check ArgoCD Application status
+      if: success()
+      env:
+        KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
+        NS: truload
+        APP_NAME: truload-frontend
+      run: |
+        if [ -z "${KUBE_CONFIG_B64}" ]; then
+          echo "⏭️ Skipping ArgoCD check - no KUBE_CONFIG available"
+          exit 0
+        fi
+        
+        echo "::group::ArgoCD Application Status"
+        mkdir -p ~/.kube
+        echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config
+        
+        # Note: ArgoCD applications are configured with automated sync
+        # They will automatically detect git changes and sync when repository is updated
+        echo "ℹ️ ArgoCD applications configured for automated sync - no manual intervention needed"
+        
+        # Check if ArgoCD Application exists and show its status
+        if kubectl get application ${APP_NAME} -n argocd >/dev/null 2>&1; then
+          echo "✓ ArgoCD Application '${APP_NAME}' found"
+          
+          # Trigger a hard refresh to detect values.yaml changes immediately
+          kubectl patch application ${APP_NAME} -n argocd --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}' || true
+          
+          # Show current status
+          SYNC_STATUS=$(kubectl get application ${APP_NAME} -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+          HEALTH_STATUS=$(kubectl get application ${APP_NAME} -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
+          
+          echo "Current Status - Sync: ${SYNC_STATUS}, Health: ${HEALTH_STATUS}"
+          echo "✅ ArgoCD will automatically sync within a few moments"
+          echo "📊 Monitor progress: kubectl get application ${APP_NAME} -n argocd -w"
+        else
+          echo "⚠️ ArgoCD Application '${APP_NAME}' not found"
+          echo "📝 Action Required: Run the provision workflow to create ArgoCD Applications"
+          echo ""
+          echo "Run this command to trigger provisioning:"
+          echo "  gh workflow run provision.yml --repo Bengo-Hub/devops-k8s"
+          echo ""
+          echo "Or manually apply the application:"
+          echo "  kubectl apply -f https://raw.githubusercontent.com/Bengo-Hub/devops-k8s/main/apps/truload-frontend/app.yaml"
+          
+          # Don't fail the workflow - application might not be set up yet
+          echo ""
+          echo "⚠️ Continuing without ArgoCD sync check (Application not found)"
+        fi
+        echo "::endgroup::"
 
+    - name: Verify UI health
+      if: success()
+      env:
+        KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
+        NS: truload
+      run: |
+        if [ -z "${KUBE_CONFIG_B64}" ]; then
+          echo "⏭️ Skipping health check - no KUBE_CONFIG available"
+          exit 0
+        fi
+
+        echo "::group::Health check"
+        mkdir -p ~/.kube
+        echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config
+
+        # Check if deployment exists before checking rollout status
+        if kubectl get deployment truload-frontend-app -n ${NS} >/dev/null 2>&1; then
+          echo "✓ Deployment found, checking rollout status..."
+          
+          # Wait for deployment to be rolled out
+          if kubectl rollout status deployment/truload-frontend-app -n ${NS} --timeout=300s; then
+            echo "✅ Deployment rollout successful"
+            
+            # Try ingress health endpoint
+            HOSTS=$(kubectl get ingress -n ${NS} -o jsonpath='{.items[*].spec.rules[*].host}' | tr ' ' '\n' | grep -E '^truloadtest' || true)
+            if [ -n "$HOSTS" ]; then
+              STATUS=1
+              for H in $HOSTS; do
+                echo "Checking https://$H/ ..."
+                if curl -sk --max-time 10 "https://$H/" | grep -Ei "truload|<!DOCTYPE html>" >/dev/null; then
+                  echo "✅ Health OK for $H"
+                  STATUS=0
+                  break
+                fi
+              done
+              if [ $STATUS -ne 0 ]; then
+                echo "⚠️ Health endpoint did not return expected content; rollout completed but may still be initializing"
+              fi
+            else
+              echo "No ingress host found; skipping external health probe"
+            fi
+          else
+            echo "⚠️ Deployment rollout check timed out or failed"
+            exit 1
+          fi
+        else
+          echo "⚠️ Deployment not found yet - ArgoCD may still be syncing"
+          echo "ℹ️ This is normal if the ArgoCD Application was just created"
+          echo ""
+          echo "Check ArgoCD sync status with:"
+          echo "  kubectl get application truload-frontend -n argocd"
+          echo ""
+          echo "Check deployment status with:"
+          echo "  kubectl get deployment truload-frontend-app -n ${NS}"
+          echo ""
+          echo "⚠️ Skipping health check (deployment not found)"
+        fi
+        echo "::endgroup::"
