@@ -134,6 +134,7 @@ Set up Next.js 15 project structure, configure authentication integration with c
 - [ ] User context available throughout application
 - [ ] Authentication errors handled gracefully
 - [ ] Session persists across page refreshes
+- [ ] Tokens stored in httpOnly cookies only (no localStorage/sessionStorage usage)
 - [ ] All UI components responsive and accessible
 - [ ] All tests passing (unit, integration, E2E)
 - [ ] Code review completed and approved

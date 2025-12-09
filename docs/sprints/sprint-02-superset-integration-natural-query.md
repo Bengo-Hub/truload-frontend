@@ -19,6 +19,7 @@ Integrate the frontend with the centralized DA platform using Superset SDK and b
 - [ ] Create `SupersetDashboard` component that accepts `guestToken` and `dashboardId`. <!-- id: 2 -->
 - [ ] Implement `useSupersetAuth` hook to fetch guest tokens from backend. <!-- id: 3 -->
 - [ ] Handle iframe resizing and loading states. <!-- id: 4 -->
+- [ ] Wire Superset base URL from `NEXT_PUBLIC_SUPERSET_URL`; never call Superset directly without backend-issued guest tokens. <!-- id: 4a -->
 
 ### 2. Natural Language Query Interface
 - [ ] Create `QueryInput` component with auto-complete/suggestions. <!-- id: 5 -->
