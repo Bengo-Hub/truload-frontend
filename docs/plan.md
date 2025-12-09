@@ -107,6 +107,13 @@ Each module in `app/(modules)/` follows a consistent structure:
 - `types/` - Module-specific TypeScript types
 - `utils/` - Module-specific utilities
 
+### Communication & Integration Patterns
+- All API calls go through TruLoad backend REST endpoints (no direct calls to auth-service or Superset).
+- WebSockets/SignalR reserved for TruConnect weight streaming; fallback to polling local TruConnect when offline.
+- Notifications surface from backend responses (backed by notifications-service) rather than client-generated payloads.
+- Superset dashboards embed via backend-issued guest tokens; Superset base URL provided via env (`NEXT_PUBLIC_SUPERSET_URL`).
+- Offline queue uses Dexie with client-generated idempotency keys; backend enforces idempotent writes.
+
 ---
 
 ## Module Workflows (FRD-Aligned)
@@ -672,8 +679,8 @@ For detailed integration instructions, refer to [integration.md](./integration.m
 For detailed sprint tasks and deliverables, refer to the [sprints](./sprints/) folder.
 
 **Sprint Overview:**
-- **Sprint 1:** Setup & Auth (Week 1-2)
-- **Sprint 2:** Superset Integration & Natural Query (Week 3-4)
+- **Sprint 1:** Setup & Auth (Week 1-2) — finish auth-service SSO, protected routes, and offline-safe token plumbing first.
+- **Sprint 2:** Superset Integration & Natural Query (Week 3-4) — enable guest-token embed path before heavier UI modules.
 - **Sprint 3:** Weighing Core UI + TruConnect (Week 5-6)
 - **Sprint 4:** Prosecution Forms & Charge Views (Week 7-8)
 - **Sprint 5:** Case Register & Special Release (Week 9-10)
