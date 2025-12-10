@@ -2,11 +2,12 @@
 
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm
 WORKDIR /app
 
-# Install dependencies
-COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+# Install dependencies with pnpm
+COPY pnpm-lock.yaml package.json ./
+RUN pnpm install --frozen-lockfile --prod=false
 
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -17,12 +18,12 @@ ARG NEXT_PUBLIC_WS_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
+RUN npm install -g pnpm
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Ensure standalone output
-RUN echo "module.exports = { experimental: { forceSwcTransforms: true }, output: 'standalone' }" > next.config.js || true
-RUN npm run build
+RUN pnpm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
