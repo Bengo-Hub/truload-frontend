@@ -25,16 +25,22 @@ export interface LoginResponseUser {
   id: string;
   /** Email from SSO */
   email: string;
-  /** User's full name from SSO */
-  fullName?: string;
+  /** User's first name from SSO */
+  first_name?: string;
+  /** User's last name from SSO */
+  last_name?: string;
   /** Tenant ID assigned in local database (UUID) */
   tenantId: string;
   /** Tenant slug from SSO */
   tenantSlug: string;
+  /** Tenant display name (e.g., "KURA", "Nairobi County") */
+  tenant_name?: string;
+  /** Assigned weigh station name (e.g., "Weigh Station A") */
+  station_name?: string;
   /** Role ID assigned to user (UUID) */
   roleId: string;
   /** Role name assigned to user (e.g., "Super Admin", "Operator") */
-  roleName: string;
+  role_name: string;
   /** Whether user is superuser from SSO */
   isSuperUser: boolean;
 }
@@ -81,16 +87,22 @@ export interface User {
   id: string;
   /** Email address */
   email: string;
-  /** User's full name */
-  fullName?: string;
+  /** User's first name */
+  first_name?: string;
+  /** User's last name */
+  last_name?: string;
   /** Tenant ID (UUID) */
   tenantId: string;
   /** Tenant slug */
   tenantSlug: string;
+  /** Tenant display name (e.g., "KURA", "Nairobi County") */
+  tenant_name?: string;
+  /** Assigned weigh station name (e.g., "Weigh Station A") */
+  station_name?: string;
   /** Role ID (UUID) */
   roleId: string;
   /** Role name */
-  roleName: string;
+  role_name: string;
   /** Whether user is superuser */
   isSuperUser: boolean;
 }
