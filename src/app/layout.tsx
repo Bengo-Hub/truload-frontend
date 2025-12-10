@@ -18,10 +18,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/favicon.ico',
-    apple: [
-      { url: '/icon-192.png', sizes: '192x192' },
-      { url: '/icon-512.png', sizes: '512x512' },
-    ],
+    apple: '/icon-maskable.svg',
   },
 };
 
@@ -46,8 +43,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="TruLoad" />
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" href="/icon-maskable.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icon-maskable.svg" />
         <link rel="mask-icon" href="/icon-maskable.svg" color="#0a9f3d" />
       </head>
       <body className={inter.className}>
