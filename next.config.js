@@ -8,6 +8,9 @@ const withPWA = require('next-pwa')({
 
 const nextConfig = {
   reactStrictMode: true,
+
+  // Generate standalone output for Docker runtime
+  output: 'standalone',
   
   // PWA configuration
   experimental: {
