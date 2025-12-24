@@ -37,9 +37,8 @@ const MicrosoftIcon = () => (
 
 
 const loginSchema = z.object({
-  email: z.string().min(1, 'Username is required'),
+  email: z.string().email('Valid email is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  tenantSlug: z.string().optional().default('kura'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -61,13 +60,12 @@ export function LoginForm() {
     defaultValues: {
       email: '',
       password: '',
-      tenantSlug: 'kura',
     },
   });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.email, data.password, data.tenantSlug);
+      await login(data.email, data.password);
       toast.success('Login successful!');
       router.push(redirectTo);
     } catch (error) {
@@ -133,8 +131,6 @@ export function LoginForm() {
               </p>
             )}
           </div>
-
-          <input type="hidden" {...register('tenantSlug')} />
 
           <Button
             type="submit"

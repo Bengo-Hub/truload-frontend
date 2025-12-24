@@ -4,10 +4,14 @@
  */
 
 import * as authApi from '@/lib/auth/api';
-import { hasValidToken } from '@/lib/auth/token';
+import { clearTokens } from '@/lib/auth/token';
 import type { User } from '@/types/auth/types';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+
+// Guard to prevent concurrent fetchUser calls
+let isFetchingUser = false;
+let fetchUserPromise: Promise<void> | null = null;
 
 interface AuthState {
   user: User | null;
@@ -16,7 +20,7 @@ interface AuthState {
   error: string | null;
   
   // Actions
-  login: (email: string, password: string, tenantSlug?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
   clearError: () => void;
@@ -34,11 +38,11 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Login user with email and password.
        */
-      login: async (email: string, password: string, tenantSlug = 'codevertex') => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         
         try {
-          const response = await authApi.login(email, password, tenantSlug);
+          const response = await authApi.login(email, password);
           
           set({
             user: response.user,
@@ -69,6 +73,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
+          clearTokens();
           set({
             user: null,
             isAuthenticated: false,
@@ -80,31 +85,39 @@ export const useAuthStore = create<AuthState>()(
 
       /**
        * Fetch current user profile from backend.
+       * Silently fails if unauthenticated (user not logged in yet).
+       * Prevents concurrent requests with internal guard.
        */
       fetchUser: async () => {
-        if (!hasValidToken()) {
-          set({ isAuthenticated: false, user: null });
-          return;
+        // If already fetching, return the in-progress promise
+        if (isFetchingUser && fetchUserPromise) {
+          return fetchUserPromise;
         }
 
+        isFetchingUser = true;
         set({ isLoading: true, error: null });
         
         try {
-          const user = await authApi.getCurrentUser();
-          set({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
+          fetchUserPromise = (async () => {
+            try {
+              const user = await authApi.getCurrentUser();
+              set({ user, isAuthenticated: true, isLoading: false, error: null });
+            } catch (error) {
+              // Silent fail for 401 (not logged in) to avoid unnecessary errors
+              const is401 = (error as any)?.response?.status === 401;
+              const errorMessage = !is401 && error instanceof Error ? error.message : '';
+              set({ user: null, isAuthenticated: false, isLoading: false, error: errorMessage || null });
+            } finally {
+              isFetchingUser = false;
+              fetchUserPromise = null;
+            }
+          })();
+
+          await fetchUserPromise;
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to fetch user';
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: errorMessage,
-          });
+          isFetchingUser = false;
+          fetchUserPromise = null;
+          throw error;
         }
       },
 
@@ -115,15 +128,12 @@ export const useAuthStore = create<AuthState>()(
 
       /**
        * Check authentication status on app load.
+       * Always rehydrate from backend to ensure fresh user data and permissions.
        */
       checkAuth: () => {
-        const isValid = hasValidToken();
-        if (!isValid) {
-          set({ isAuthenticated: false, user: null });
-        } else if (!get().user) {
-          // Token is valid but no user data, fetch it
-          get().fetchUser();
-        }
+        // Always attempt to rehydrate user from backend even if localStorage has user
+        // This ensures permissions and roles are current after page refresh
+        get().fetchUser();
       },
     }),
     {

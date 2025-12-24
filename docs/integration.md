@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document provides detailed integration information for all external services and systems integrated with the TruLoad frontend, including Apache Superset SDK, centralized auth-service, backend API, TruConnect microservice, and offline sync capabilities.
+This document provides detailed integration information for all external services and systems integrated with the TruLoad frontend, including Apache Superset SDK, backend API authentication (ASP.NET Core Identity), TruConnect microservice, and offline sync capabilities.
 
 ---
 
 ## Table of Contents
 
-1. [Centralized Auth-Service Integration](#centralized-auth-service-integration)
+1. [Backend Authentication Integration](#backend-authentication-integration)
 2. [Backend API Integration](#backend-api-integration)
 3. [Apache Superset SDK Integration](#apache-superset-sdk-integration)
 4. [TruConnect Microservice Integration](#truconnect-microservice-integration)
@@ -18,19 +18,19 @@ This document provides detailed integration information for all external service
 
 ---
 
-## Centralized Auth-Service Integration
+## Backend Authentication Integration
 
 ### Overview
 
-TruLoad frontend integrates with the centralized `auth-service` for authentication and user identity management. Authentication requests are proxied through the TruLoad backend, which handles communication with the auth-service.
+TruLoad frontend integrates with the TruLoad backend's ASP.NET Core Identity for authentication and user identity management. All authentication is handled directly by the backend's Identity controllers with local JWT token issuance.
 
 ### Architecture
 
 **Authentication Flow:**
 1. User submits login credentials via frontend form
 2. Frontend sends POST request to TruLoad backend `/api/v1/auth/login`
-3. Backend forwards request to centralized auth-service
-4. Auth-service validates credentials and returns JWT tokens
+3. Backend validates credentials using ASP.NET Core Identity SignInManager
+4. Backend generates JWT token with user/role/permission claims via JwtService
 5. Backend returns tokens to frontend
 6. Frontend stores tokens in secure httpOnly cookies
 7. Subsequent requests include JWT token in Authorization header

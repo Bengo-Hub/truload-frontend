@@ -20,9 +20,10 @@ export default function ProfilePage() {
   const { user } = useUser();
   const [isEditing, setIsEditing] = useState(false);
 
-  const firstName = user?.first_name || 'John';
-  const lastName = user?.last_name || 'Kamau';
-  const fullName = `${firstName} ${lastName}`.trim();
+  const fullName = user?.fullName || 'John Kamau';
+  const [firstName, lastName] = (fullName || '').split(' ').length > 1
+    ? [fullName.split(' ')[0], fullName.split(' ').slice(1).join(' ')]
+    : [fullName, ''];
 
   return (
     <ProtectedRoute>
@@ -38,7 +39,7 @@ export default function ProfilePage() {
               <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>{fullName} - {user?.role_name || 'Senior Weighbridge Officer'}</CardDescription>
+                  <CardDescription>{fullName} - {(user?.roles && user.roles[0]) || 'Senior Weighbridge Officer'}</CardDescription>
                 </div>
                 <Avatar className="h-16 w-16 bg-emerald-600 text-white">
                   <User className="h-8 w-8" />
@@ -78,19 +79,19 @@ export default function ProfilePage() {
                     <Label htmlFor="role">Role</Label>
                     <div className="relative">
                       <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input id="role" defaultValue={user?.role_name || 'Senior Weighbridge Officer'} disabled className="pl-9" />
+                      <Input id="role" defaultValue={(user?.roles && user.roles[0]) || 'Senior Weighbridge Officer'} disabled className="pl-9" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="organization">Organization</Label>
                     <div className="relative">
                       <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input id="organization" defaultValue={user?.tenant_name || 'KURA'} disabled className="pl-9" />
+                      <Input id="organization" defaultValue={user?.organizationId || '—'} disabled className="pl-9" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="station">Station</Label>
-                    <Input id="station" defaultValue={user?.station_name || 'Weigh Station A'} disabled={!isEditing} />
+                    <Input id="station" defaultValue={user?.stationId || '—'} disabled={!isEditing} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="dateJoined">Date Joined</Label>

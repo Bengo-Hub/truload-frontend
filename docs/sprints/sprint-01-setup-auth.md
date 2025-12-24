@@ -10,14 +10,14 @@
 
 ## Overview
 
-Set up Next.js 15 project structure, configure authentication integration with centralized auth-service, implement login/logout flows, and create protected route infrastructure.
+Set up Next.js 15 project structure, configure authentication integration with TruLoad backend (ASP.NET Core Identity), implement login/logout flows, and create protected route infrastructure.
 
 ---
 
 ## Objectives
 
 - Set up Next.js 15 project with TypeScript
-- Configure authentication integration with centralized auth-service
+- Configure authentication integration with TruLoad backend JWT authentication
 - Implement login/logout flows
 - Create protected route infrastructure
 - Set up state management with Zustand
@@ -69,7 +69,7 @@ Set up Next.js 15 project structure, configure authentication integration with c
 - [x] Create user profile hook (useUser)
 - [x] Store user data in Zustand store
 - [ ] Implement user profile update functionality
-- [x] Handle user profile sync with auth-service
+- [x] Handle user profile from backend Identity
 
 ### Protected Routes
 
@@ -146,7 +146,7 @@ Set up Next.js 15 project structure, configure authentication integration with c
 ## Dependencies
 
 - TruLoad backend authentication endpoints available
-- Centralized auth-service accessible via backend
+- TruLoad backend with ASP.NET Core Identity
 
 ---
 
@@ -181,7 +181,7 @@ Set up Next.js 15 project structure, configure authentication integration with c
 
 ## Notes
 
-- Authentication requests proxied through TruLoad backend to centralized auth-service
+- Authentication requests handled directly by TruLoad backend Identity controllers
 - Tokens stored in secure httpOnly cookies (not accessible to JavaScript)
 - User profile fetched from backend after authentication
 - Protected routes use Next.js middleware for server-side protection
@@ -191,7 +191,7 @@ Set up Next.js 15 project structure, configure authentication integration with c
 ## Deliverables
 
 1. Working Next.js 15 project setup
-2. Authentication integration with centralized auth-service
+2. Authentication integration with backend Identity JWT service
 3. Login/logout flows implemented
 4. Protected route infrastructure
 5. User context and profile management

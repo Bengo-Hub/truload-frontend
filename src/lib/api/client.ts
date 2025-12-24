@@ -1,25 +1,36 @@
-import { clearToken, shouldRefreshToken } from '@/lib/auth/token';
 import axios, { type AxiosError, type AxiosInstance } from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+// Prefer same-origin relative base to ensure httpOnly cookies are sent.
+// Override via NEXT_PUBLIC_API_URL when calling a different origin deliberately.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const ACCESS_TOKEN_KEY = 'truload_access_token';
 
 let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value?: unknown) => void;
-  reject: (reason?: unknown) => void;
-}> = [];
 
-const processQueue = (error: Error | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve();
+/**
+ * Get access token from cookies or localStorage
+ */
+function getAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  
+  // Try to get from localStorage first (stored by setTokens)
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch {
+    // Fallback to reading from cookie
+    const name = `${ACCESS_TOKEN_KEY}=`;
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const cookieArray = decodedCookie.split(';');
+    for (let cookie of cookieArray) {
+      cookie = cookie.trim();
+      if (cookie.indexOf(name) === 0) {
+        return cookie.substring(name.length);
+      }
     }
-  });
-
-  failedQueue = [];
-};
+  }
+  
+  return null;
+}
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -30,7 +41,7 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - check token expiry and refresh if needed
+// Request interceptor - attach token from storage
 apiClient.interceptors.request.use(
   async (config) => {
     // Skip refresh for auth endpoints
@@ -42,31 +53,12 @@ apiClient.interceptors.request.use(
       return config;
     }
 
-    // Check if token needs refresh
-    if (shouldRefreshToken() && !isRefreshing) {
-      isRefreshing = true;
-      
-      try {
-        await apiClient.post('/api/v1/auth/refresh', {}, { withCredentials: true });
-        processQueue();
-      } catch (error) {
-        processQueue(error as Error);
-        clearToken();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-      } finally {
-        isRefreshing = false;
+    // Get access token from cookies or localStorage
+    if (typeof window !== 'undefined') {
+      const accessToken = getAccessToken();
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
       }
-    }
-
-    // If refresh is in progress, queue this request
-    if (isRefreshing) {
-      return new Promise((resolve, reject) => {
-        failedQueue.push({ resolve, reject });
-      })
-        .then(() => config)
-        .catch((err) => Promise.reject(err));
     }
 
     return config;
@@ -82,49 +74,33 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // Handle 401 errors (token expired or invalid)
+    // Handle 401 errors (unauthenticated)
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Skip retry for auth endpoints
+      // Skip retry for auth endpoints - just reject without redirect
+      // Let the app handle navigation via middleware or page logic
       if (
         originalRequest.url?.includes('/auth/login') ||
         originalRequest.url?.includes('/auth/refresh')
       ) {
-        clearToken();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
         return Promise.reject(error);
       }
 
-      // Try to refresh token
+      // Attempt a simple cookie-based refresh
       if (!isRefreshing) {
         isRefreshing = true;
-
         try {
-          await apiClient.post('/api/v1/auth/refresh', {}, { withCredentials: true });
-          processQueue();
+          await apiClient.post('/api/v1/auth/refresh', {});
+          isRefreshing = false;
+          // Retry original request with new token
           return apiClient(originalRequest);
         } catch (refreshError) {
-          processQueue(refreshError as Error);
-          clearToken();
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
-          return Promise.reject(refreshError);
-        } finally {
           isRefreshing = false;
+          // Refresh failed - reject and let app handle navigation
+          return Promise.reject(refreshError);
         }
       }
-
-      // Queue request if refresh is in progress
-      return new Promise((resolve, reject) => {
-        failedQueue.push({
-          resolve: () => resolve(apiClient(originalRequest)),
-          reject: (err) => reject(err),
-        });
-      });
     }
 
     return Promise.reject(error);

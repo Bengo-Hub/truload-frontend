@@ -4,13 +4,8 @@
  */
 
 import { apiClient } from '@/lib/api/client';
-import type {
-  LoginRequest,
-  LoginResponse,
-  RefreshTokenResponse,
-  User,
-} from '../../types/auth/types';
-import { setTokenExpiry, clearToken } from './token';
+import type { LoginRequest, LoginResponse, RefreshTokenResponse, User } from '../../types/auth/types';
+import { clearTokens, setTokens } from './token';
 
 /**
  * Login user with email and password.
@@ -21,32 +16,19 @@ import { setTokenExpiry, clearToken } from './token';
  * @param tenantSlug - Tenant slug (default: 'codevertex')
  * @returns LoginResponse with user details and token expiry
  */
-export async function login(
-  email: string,
-  password: string,
-  tenantSlug: string = 'codevertex'
-): Promise<LoginResponse> {
-  const payload: LoginRequest = {
-    email,
-    password,
-    tenant_slug: tenantSlug,
-  };
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const payload: LoginRequest = { email, password };
 
-  const { data } = await apiClient.post<LoginResponse>(
-    '/api/v1/auth/login',
-    payload,
-    {
-      withCredentials: true, // Include cookies in request
-    }
-  );
+  const { data } = await apiClient.post<LoginResponse>('/api/v1/auth/login', payload);
 
-  // Check for authentication errors
-  if (data.error) {
-    throw new Error(data.error_description || 'Authentication failed');
+  // Store tokens if provided
+  if (data.accessToken && data.refreshToken && data.expiresIn) {
+    setTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      expiresIn: data.expiresIn,
+    });
   }
-
-  // Store token expiry timestamp (token is in httpOnly cookie)
-  setTokenExpiry(data.expires_at);
 
   return data;
 }
@@ -58,17 +40,7 @@ export async function login(
  * @returns RefreshTokenResponse with new token expiry
  */
 export async function refreshToken(): Promise<RefreshTokenResponse> {
-  const { data } = await apiClient.post<RefreshTokenResponse>(
-    '/api/v1/auth/refresh',
-    {},
-    {
-      withCredentials: true,
-    }
-  );
-
-  // Update token expiry
-  setTokenExpiry(data.expires_at);
-
+  const { data } = await apiClient.post<RefreshTokenResponse>('/api/v1/auth/refresh', {});
   return data;
 }
 
@@ -78,29 +50,19 @@ export async function refreshToken(): Promise<RefreshTokenResponse> {
  */
 export async function logout(): Promise<void> {
   try {
-    await apiClient.post(
-      '/api/v1/auth/logout',
-      {},
-      {
-        withCredentials: true,
-      }
-    );
+    await apiClient.post('/api/v1/auth/logout', {});
   } finally {
-    // Clear local token expiry regardless of API response
-    clearToken();
+    clearTokens();
   }
 }
 
 /**
  * Fetch current user profile from backend.
- * Requires valid authentication token.
+ * Requires valid authentication token in httpOnly cookie or Authorization header.
  * 
- * @returns User profile data
+ * @returns User profile data with roles and permissions
  */
 export async function getCurrentUser(): Promise<User> {
-  const { data } = await apiClient.get<User>('/api/v1/auth/me', {
-    withCredentials: true,
-  });
-
+  const { data } = await apiClient.get<User>('/api/v1/auth/profile');
   return data;
 }

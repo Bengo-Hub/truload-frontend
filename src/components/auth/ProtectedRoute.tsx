@@ -5,18 +5,32 @@
 
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useHasPermission, useHasRole } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRoles?: string[];
+  requiredPermissions?: string[];
+  matchAllRoles?: boolean;
+  matchAllPermissions?: boolean;
 }
 
-export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  requiredRoles,
+  requiredPermissions,
+  matchAllRoles = false,
+  matchAllPermissions = false,
+}: ProtectedRouteProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const hasRequiredRole = useHasRole(requiredRoles ?? [], matchAllRoles ? 'all' : 'any');
+  const hasRequiredPermission = useHasPermission(
+    requiredPermissions ?? [],
+    matchAllPermissions ? 'all' : 'any'
+  );
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -25,20 +39,24 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
-    if (
-      !isLoading &&
-      isAuthenticated &&
-      user &&
-      requiredRoles &&
-      requiredRoles.length > 0
-    ) {
-      const hasRequiredRole = requiredRoles.includes(user.role_name);
-      
-      if (!hasRequiredRole) {
+    if (!isLoading && isAuthenticated && user) {
+      const rolesSatisfied = !requiredRoles?.length || hasRequiredRole;
+      const permissionsSatisfied = !requiredPermissions?.length || hasRequiredPermission;
+
+      if (!rolesSatisfied || !permissionsSatisfied) {
         router.push('/unauthorized');
       }
     }
-  }, [isAuthenticated, isLoading, user, requiredRoles, router]);
+  }, [
+    hasRequiredPermission,
+    hasRequiredRole,
+    isAuthenticated,
+    isLoading,
+    requiredPermissions,
+    requiredRoles,
+    router,
+    user,
+  ]);
 
   if (isLoading) {
     return (

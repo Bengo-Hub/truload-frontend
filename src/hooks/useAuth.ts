@@ -3,10 +3,11 @@
  */
 
 import { useAuthStore } from '@/stores/auth.store';
-import { useEffect } from 'react';
 
 /**
  * Hook to access authentication state and actions.
+ * Note: Auth is initialized at the root level by AuthInitializer component.
+ * This hook just exposes the auth state without triggering additional fetches.
  */
 export function useAuth() {
   const {
@@ -18,13 +19,7 @@ export function useAuth() {
     logout,
     fetchUser,
     clearError,
-    checkAuth,
   } = useAuthStore();
-
-  // Check authentication status on mount
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
 
   return {
     user,
@@ -55,12 +50,56 @@ export function useUser() {
 
 /**
  * Hook to check if user has specific role.
+ * @param roleNames Roles to match (name or code). Accepts single or array.
+ * @param match Whether all roles must match ("all") or any ("any"). Defaults to "any".
  */
-export function useHasRole(roleNames: string | string[]) {
+export function useHasRole(roleNames: string | string[], match: 'any' | 'all' = 'any') {
   const user = useAuthStore((state) => state.user);
   
   if (!user) return false;
-  
-  const roles = Array.isArray(roleNames) ? roleNames : [roleNames];
-  return roles.includes(user.role_name);
+  if (user.isSuperUser) return true;
+
+  const required = (Array.isArray(roleNames) ? roleNames : [roleNames])
+    .filter(Boolean)
+    .map((r) => r.toLowerCase());
+
+  if (required.length === 0) return true;
+
+  const userRoles = (user.roles ?? [])
+    .filter(Boolean)
+    .map((r) => r.toLowerCase());
+
+  if (match === 'all') {
+    return required.every((role) => userRoles.includes(role));
+  }
+
+  return required.some((role) => userRoles.includes(role));
+}
+
+/**
+ * Hook to check if user has required permissions.
+ * @param permissionCodes Permission codes to validate (e.g., "weighing.create").
+ * @param match Whether all permissions are required ("all") or any ("any"). Defaults to "any".
+ */
+export function useHasPermission(permissionCodes: string | string[], match: 'any' | 'all' = 'any') {
+  const user = useAuthStore((state) => state.user);
+
+  if (!user) return false;
+  if (user.isSuperUser) return true;
+
+  const required = (Array.isArray(permissionCodes) ? permissionCodes : [permissionCodes])
+    .filter(Boolean)
+    .map((p) => p.toLowerCase());
+
+  if (required.length === 0) return true;
+
+  const userPermissions = (user.permissions ?? [])
+    .filter(Boolean)
+    .map((code) => code.toLowerCase());
+
+  if (match === 'all') {
+    return required.every((perm) => userPermissions.includes(perm));
+  }
+
+  return required.some((perm) => userPermissions.includes(perm));
 }

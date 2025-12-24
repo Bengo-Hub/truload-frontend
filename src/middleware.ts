@@ -17,37 +17,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for token expiry in localStorage (token is in httpOnly cookie)
-  // Note: We can't access httpOnly cookies in middleware, so we check localStorage timestamp
-  const tokenExpiry = request.cookies.get('truload_token_expiry');
-  
-  if (!tokenExpiry) {
-    // No token expiry means not authenticated
-    if (authPaths.includes(pathname)) {
-      return NextResponse.next();
-    }
-    
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  // Backend manages httpOnly cookies; middleware won't enforce auth here.
+  // Client pages perform auth checks and rehydrate user state on load.
 
-  const expiryTime = parseInt(tokenExpiry.value, 10);
-  const now = Math.floor(Date.now() / 1000);
-
-  // Check if token is expired
-  if (expiryTime <= now) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
-    
-    const response = NextResponse.redirect(loginUrl);
-    response.cookies.delete('truload_token_expiry');
-    return response;
-  }
-
-  // If authenticated and trying to access login, redirect to dashboard
+  // Allow login page always
   if (authPaths.includes(pathname)) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.next();
   }
 
   return NextResponse.next();

@@ -35,7 +35,12 @@ export function UserProfileDropdown() {
     }
   };
 
-  const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
+  const initials = (user.fullName || '')
+    .split(' ')
+    .slice(0, 2)
+    .map((s) => s[0])
+    .join('')
+    .toUpperCase();
 
   return (
     <DropdownMenu>
@@ -49,19 +54,17 @@ export function UserProfileDropdown() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user.first_name} {user.last_name}
-            </p>
+            <p className="text-sm font-medium leading-none">{user.fullName || 'User'}</p>
             <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-xs text-muted-foreground">Role: {user.role_name}</p>
-            <p className="text-xs text-muted-foreground">Tenant: {user.tenant_name}</p>
-            {user.station_name && (
-              <p className="text-xs text-muted-foreground">Station: {user.station_name}</p>
+            <p className="text-xs text-muted-foreground">Role: {(user.roles && user.roles[0]) || '—'}</p>
+            <p className="text-xs text-muted-foreground">Org: {user.organizationId || '—'}</p>
+            {user.stationId && (
+              <p className="text-xs text-muted-foreground">Station: {user.stationId}</p>
             )}
           </div>
         </DropdownMenuLabel>
