@@ -107,8 +107,14 @@ Each module in `app/(modules)/` follows a consistent structure:
 - `types/` - Module-specific TypeScript types
 - `utils/` - Module-specific utilities
 
+### Navigation & Scope
+
+- Setup contains configurations only: `setup/axle-configurations` and `setup/settings` (Security: Password Policy; Backup/Restore; API Settings with key–value per service).
+- Operational modules belong in main navigation: Users & Roles (`/users`) and Shift Management (`/shifts`) live at top-level routes, not under `setup/`.
+- Guard UI and routes using permission policies (e.g., `system.view_config`, `users.manage`, `shifts.manage`).
+
 ### Communication & Integration Patterns
-- All API calls go through TruLoad backend REST endpoints (no direct calls to auth-service or Superset).
+- All API calls go through TruLoad backend REST endpoints (no direct external auth service calls).
 - WebSockets/SignalR reserved for TruConnect weight streaming; fallback to polling local TruConnect when offline.
 - Notifications surface from backend responses (backed by notifications-service) rather than client-generated payloads.
 - Superset dashboards embed via backend-issued guest tokens; Superset base URL provided via env (`NEXT_PUBLIC_SUPERSET_URL`).
@@ -442,22 +448,162 @@ Each module in `app/(modules)/` follows a consistent structure:
 - Tokens included in all subsequent API requests
 - Token refresh handled automatically before expiry
 
-**Token Management:**
-- Access tokens stored in secure httpOnly cookies (not accessible to JavaScript)
-- Refresh tokens stored in secure httpOnly cookies
-- Token refresh happens automatically via axios interceptor
-- Failed authentication redirects to login page
-- Token expiration handled gracefully with user notification
 
-**User Context:**
-- User data fetched from TruLoad backend after authentication
-- User roles and permissions managed locally but synced from auth-service
-- User profile includes: name, email, roles, station assignments
-- User context available throughout app via React Context or Zustand store
+### Role-Based Access Control (RBAC) & Permission-Based UI Access
 
-**Protected Routes:**
-- Route-level protection using Next.js middleware
-- Role-based route access control
+**Permission Context Architecture:**
+- **PermissionContext:** Global React Context providing `hasPermission()`, `hasRole()`, and `canPerformAction()` utilities
+- **Populated from Login Response:** Backend login endpoint returns `user.roles[]` and `user.permissions[]` arrays
+- **Stored in Zustand Store:** Permissions and roles cached in client state store for efficient access
+- **Accessible via `usePermissions()` Hook:** Components query permissions without prop drilling
+
+**Data Flow:**
+```typescript
+// 1. User logs in → Backend returns LoginResponse with roles and permissions
+const loginResponse = await api.post('/auth/login', { email, password, tenant_slug });
+// loginResponse = { token, user: { id, email, roles: [...], permissions: [...] }, ... }
+
+// 2. Store permissions and roles in context/store
+useAuthStore().setPermissions(loginResponse.user.permissions);
+useAuthStore().setRoles(loginResponse.user.roles);
+
+// 3. Components access permissions via hook
+const { hasPermission } = usePermissions();
+if (hasPermission('weighing.create')) {
+  // Render Create Weighing button
+}
+```
+
+**Protected Component Pattern:**
+```typescript
+import { ProtectedComponent } from '@/components/auth/ProtectedComponent';
+
+// Permission-based access
+<ProtectedComponent permission="weighing.create">
+  <CreateWeighingButton />
+</ProtectedComponent>
+
+// Role-based access
+<ProtectedComponent role="STATION_MANAGER">
+  <ApproveButton />
+</ProtectedComponent>
+
+// Multiple roles (OR logic)
+<ProtectedComponent roles={["SYSTEM_ADMIN", "FINANCE_OFFICER"]}>
+  <ExportFinancialReport />
+</ProtectedComponent>
+
+// With fallback UI
+<ProtectedComponent 
+  permission="report.export" 
+  fallback={<span className="text-gray-400">No permission</span>}
+>
+  <ExportButton />
+</ProtectedComponent>
+```
+
+**Protected Routes Pattern:**
+```typescript
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+
+// In route configuration
+const router = createBrowserRouter([
+  {
+    path: '/weighing/create',
+    element: (
+      <ProtectedRoute requiredPermission="weighing.create">
+        <CreateWeighingPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/users',
+    element: (
+      <ProtectedRoute requiredPermission="user.manage">
+        <UserManagementPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reports/export',
+    element: (
+      <ProtectedRoute requiredRoles={["SYSTEM_ADMIN", "REPORT_MANAGER"]}>
+        <ReportExportPage />
+      </ProtectedRoute>
+    ),
+  },
+]);
+```
+
+**Navigation Menu Conditional Rendering:**
+- Sidebar menu items conditionally rendered based on user permissions
+- Menu items include optional `permission` and `role` properties
+- Items filtered during render: `menuItems.filter(item => hasPermission(item.permission))`
+- Permissions can be verified statically (at config time) or dynamically (at render time)
+
+**Permission Codes Available on Frontend:**
+
+| Category | Permissions |
+|----------|-----------|
+| **Weighing** | create, read_own, read_all, update_own, update_all, delete, approve |
+| **Case** | create, read_own, read_all, update_own, update_all, close |
+| **User** | read, create, update, manage, delete |
+| **Report** | read, export, delete |
+| **System** | config, audit, roles, station_manage |
+| **Station** | assign, configure, view_all |
+
+**Role Codes Available on Frontend:**
+- `SYSTEM_ADMIN` - Full system access (all permissions)
+- `STATION_MANAGER` - Station operations and user management within station
+- `ENFORCEMENT_OFFICER` - Create and manage cases, approval workflows
+- `FINANCE_OFFICER` - Financial reports and reconciliation
+- `REPORT_MANAGER` - Generate, export, and manage reports
+- `VIEWER` - Read-only access to reports and dashboards
+
+**Dynamic Permission Checks in Code:**
+```typescript
+const { hasPermission, canPerformAction } = usePermissions();
+
+// Check single permission
+if (hasPermission('weighing.approve')) {
+  // Show approve button
+}
+
+// Check resource-action pattern
+if (canPerformAction('create', 'weighing')) {
+  // Equivalent to hasPermission('weighing.create')
+}
+
+// Conditional field rendering in forms
+<input
+  type="text"
+  disabled={!hasPermission('user.update')}
+  placeholder="Name"
+/>
+
+// Conditional component mounting
+{hasPermission('case.read_all') ? (
+  <CaseListAll />
+) : (
+  <CaseListOwn />
+)}
+```
+
+**Error Handling for Permission Denial:**
+- When user navigates to restricted route without permission → redirect to unauthorized page or dashboard
+- When user clicks restricted action → show toast notification: "You don't have permission for this action"
+- API calls returning 403 Forbidden → display user-friendly error message
+- Token expiry/invalid token → redirect to login
+
+**Implementation Status:**
+- ✅ Login response includes `user.roles[]` and `user.permissions[]`
+- ✅ Permissions and roles stored in auth store
+- ⏳ PermissionContext and `usePermissions()` hook
+- ⏳ ProtectedComponent wrapper for conditional rendering
+- ⏳ ProtectedRoute wrapper for route-level protection
+- ⏳ Navigation menu permission filtering
+- ⏳ Form field and action permission gates
+- ⏳ Error handling for permission-denied scenarios
 - Redirect unauthorized users to appropriate pages
 - Session persistence across page refreshes
 
@@ -477,7 +623,7 @@ Each module in `app/(modules)/` follows a consistent structure:
 - Use `@superset-ui` packages for embedding Superset dashboards
 - Iframe embedding for full dashboard experience
 - Custom React components for specific visualizations
-- Authentication via backend JWT tokens (SSO)
+- Authentication via backend JWT tokens (local Identity)
 
 **SDK Configuration:**
 - Superset base URL: `NEXT_PUBLIC_SUPERSET_URL` (environment variable)
@@ -679,7 +825,7 @@ For detailed integration instructions, refer to [integration.md](./integration.m
 For detailed sprint tasks and deliverables, refer to the [sprints](./sprints/) folder.
 
 **Sprint Overview:**
-- **Sprint 1:** Setup & Auth (Week 1-2) — finish auth-service SSO, protected routes, and offline-safe token plumbing first.
+- **Sprint 1:** Setup & Auth (Week 1-2) — finish backend Identity JWT auth, protected routes, and offline-safe token plumbing first.
 - **Sprint 2:** Superset Integration & Natural Query (Week 3-4) — enable guest-token embed path before heavier UI modules.
 - **Sprint 3:** Weighing Core UI + TruConnect (Week 5-6)
 - **Sprint 4:** Prosecution Forms & Charge Views (Week 7-8)

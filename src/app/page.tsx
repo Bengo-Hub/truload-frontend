@@ -1,27 +1,63 @@
+/**
+ * Root dashboard page aligned to Figma design.
+ * Uses reusable chart components.
+ */
+
+'use client';
+
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import {
+  DashboardFilters,
+  RevenueChart,
+  StatCard,
+  VehicleTypesChart,
+  WeeklyActivityChart,
+} from '@/components/charts';
+import { AppShell } from '@/components/layout/AppShell';
+import { AlertTriangle, CheckCircle, FileText, Scale, TrendingUp, Users } from 'lucide-react';
+
+const stats = [
+  { title: "Today's Weighings", value: '247', icon: Scale, color: 'bg-green-600' },
+  { title: 'Overloaded Vehicles', value: '23', icon: AlertTriangle, color: 'bg-red-500' },
+  { title: 'Active Users', value: '12', icon: Users, color: 'bg-green-500' },
+  { title: 'Pending Cases', value: '8', icon: FileText, color: 'bg-yellow-500' },
+  { title: 'Processed Tickets', value: '189', icon: CheckCircle, color: 'bg-green-700' },
+  { title: 'Revenue Today', value: 'KES 1,245,000', icon: TrendingUp, color: 'bg-yellow-600' },
+];
+
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">TruLoad</h1>
-        <p className="text-xl text-muted-foreground mb-8">
-          Intelligent Weighing and Enforcement Solution
-        </p>
-        <div className="flex gap-4 justify-center">
-          <a
-            href="/weighing"
-            className="rounded-lg bg-primary px-6 py-3 text-primary-foreground hover:bg-primary/90 transition"
-          >
-            Start Weighing
-          </a>
-          <a
-            href="/dashboard"
-            className="rounded-lg border border-border px-6 py-3 hover:bg-accent transition"
-          >
-            Dashboard
-          </a>
+    <ProtectedRoute>
+      <AppShell title="Dashboard" subtitle="KURAWeigh - Vehicle Weighing & Management System">
+        <div className="space-y-8">
+          {/* Filters Section */}
+          <DashboardFilters />
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {stats.map((stat) => (
+              <StatCard
+                key={stat.title}
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                color={stat.color}
+              />
+            ))}
+          </div>
+
+          {/* Charts Row 1 */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <WeeklyActivityChart />
+            <VehicleTypesChart />
+          </div>
+
+          {/* Charts Row 2 */}
+          <div>
+            <RevenueChart />
+          </div>
         </div>
-      </div>
-    </main>
+      </AppShell>
+    </ProtectedRoute>
   );
 }
-

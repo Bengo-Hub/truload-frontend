@@ -1,144 +1,46 @@
 /**
- * Authentication-related TypeScript types and interfaces.
- * These correspond to the backend DTOs defined in TruLoad.Backend.DTOs.Auth.
+ * Authentication-related TypeScript types matching current TruLoad backend.
  */
 
-/**
- * Login request payload.
- * Sent to backend /api/v1/auth/login endpoint.
- */
 export interface LoginRequest {
-  /** User email address (e.g., admin@codevertexitsolutions.com) */
   email: string;
-  /** User password */
   password: string;
-  /** Tenant slug from SSO (e.g., "codevertex"), defaults to 'codevertex' */
-  tenant_slug: string;
 }
 
-/**
- * User information returned in login response.
- * Synced from centralized SSO service.
- */
-export interface LoginResponseUser {
-  /** Local database user ID (UUID) */
-  id: string;
-  /** Email from SSO */
-  email: string;
-  /** User's first name from SSO */
-  first_name?: string;
-  /** User's last name from SSO */
-  last_name?: string;
-  /** Tenant ID assigned in local database (UUID) */
-  tenantId: string;
-  /** Tenant slug from SSO */
-  tenantSlug: string;
-  /** Tenant display name (e.g., "KURA", "Nairobi County") */
-  tenant_name?: string;
-  /** Assigned weigh station name (e.g., "Weigh Station A") */
-  station_name?: string;
-  /** Role ID assigned to user (UUID) */
-  roleId: string;
-  /** Role name assigned to user (e.g., "Super Admin", "Operator") */
-  role_name: string;
-  /** Whether user is superuser from SSO */
-  isSuperUser: boolean;
-}
-
-/**
- * Successful login response.
- * Contains JWT token (in httpOnly cookie) and user information.
- */
-export interface LoginResponse {
-  /** JWT token for authenticated API requests (stored in httpOnly cookie by backend) */
-  token?: string;
-  /** When the token expires (Unix timestamp in seconds) */
-  expires_at: number;
-  /** User information synced from SSO */
-  user: LoginResponseUser;
-  /** Error code if authentication failed */
-  error?: string;
-  /** Error description if authentication failed */
-  error_description?: string;
-}
-
-/**
- * Token refresh response.
- * Contains new token expiry after successful refresh.
- */
-export interface RefreshTokenResponse {
-  /** When the new token expires (Unix timestamp in seconds) */
-  expires_at: number;
-  /** Refreshed JWT token for authenticated API requests (stored in httpOnly cookie) */
-  token?: string;
-  /** Error code if refresh failed */
-  error?: string;
-  /** Error description if refresh failed */
-  error_description?: string;
-}
-
-/**
- * Current user profile.
- * Returned by /api/v1/auth/me endpoint.
- * Subset of LoginResponseUser, containing only non-sensitive user data.
- */
 export interface User {
-  /** Local database user ID (UUID) */
   id: string;
-  /** Email address */
   email: string;
-  /** User's first name */
-  first_name?: string;
-  /** User's last name */
-  last_name?: string;
-  /** Tenant ID (UUID) */
-  tenantId: string;
-  /** Tenant slug */
-  tenantSlug: string;
-  /** Tenant display name (e.g., "KURA", "Nairobi County") */
-  tenant_name?: string;
-  /** Assigned weigh station name (e.g., "Weigh Station A") */
-  station_name?: string;
-  /** Role ID (UUID) */
-  roleId: string;
-  /** Role name */
-  role_name: string;
-  /** Whether user is superuser */
-  isSuperUser: boolean;
+  fullName?: string;
+  phoneNumber?: string;
+  roles: string[];
+  /** Permission codes (e.g., "user.create") embedded in JWT */
+  permissions: string[];
+  isSuperUser?: boolean;
+  organizationId?: string;
+  stationId?: string;
+  departmentId?: string;
+  lastLoginAt?: string;
 }
 
-/**
- * Standardized error response from authentication endpoints.
- * Used when login, refresh, or other auth operations fail.
- */
+export interface LoginResponse {
+  accessToken?: string;
+  refreshToken?: string;
+  /** Token lifetime in seconds */
+  expiresIn?: number;
+  user: User;
+}
+
+export interface RefreshTokenRequest {
+  accessToken?: string;
+  refreshToken?: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
+
 export interface AuthError {
-  /** Error code (e.g., "invalid_credentials", "user_not_found") */
-  error: string;
-  /** Detailed error message for debugging */
-  error_description: string;
-  /** HTTP status code */
-  statusCode?: number;
-}
-
-/**
- * JWT token payload structure.
- * Decoded from token claims (for reference, tokens are read-only).
- */
-export interface JwtPayload {
-  /** Subject (user ID) */
-  sub: string;
-  /** Email claim */
-  email: string;
-  /** Tenant slug claim */
-  tenant_slug: string;
-  /** Role name claim */
-  role: string;
-  /** Is superuser claim */
-  is_superuser: boolean;
-  /** Issued at (Unix timestamp) */
-  iat: number;
-  /** Expires at (Unix timestamp) */
-  exp: number;
-  /** JWT ID (for tracking) */
-  jti?: string;
+  message: string;
 }
