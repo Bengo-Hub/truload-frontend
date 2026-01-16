@@ -108,25 +108,62 @@ if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" ]]; then
     --dry-run=client -o yaml | kubectl apply -f - || warn "Pull secret creation failed"
 fi
 
-# Update centralized devops values if app manifest exists
-step "Updating devops-k8s values (if present)"
-TOKEN="${GH_PAT:-${GITHUB_SECRET:-${GITHUB_TOKEN:-}}}"
-CLONE_URL="https://github.com/${DEVOPS_REPO}.git"; [[ -n "$TOKEN" ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
-if [[ ! -d "$DEVOPS_DIR" ]]; then git clone "$CLONE_URL" "$DEVOPS_DIR" || { warn "Cannot clone devops repo"; DEVOPS_DIR=""; }; fi
-if [[ -n "$DEVOPS_DIR" && -d "$DEVOPS_DIR" ]]; then
-  pushd "$DEVOPS_DIR" >/dev/null || true
-  git config user.name "$GIT_USER"; git config user.email "$GIT_EMAIL" || true
-  git fetch origin main || true; git checkout main || git checkout -b main || true
-  if [[ -f "$VALUES_FILE_PATH" ]]; then
-    IMAGE_REPO_ENV="$IMAGE_REPO" IMAGE_TAG_ENV="$GIT_COMMIT_ID" \
-      yq e -i '.image.repository = strenv(IMAGE_REPO_ENV) | .image.tag = strenv(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
-    git add "$VALUES_FILE_PATH" && git commit -m "${APP_NAME}:${GIT_COMMIT_ID} released" || true
-    if [[ -n "$TOKEN" ]]; then git push origin HEAD:main || warn "devops-k8s push failed"; else warn "No GH token; skipped push"; fi
-    ok "Updated ${VALUES_FILE_PATH}"
-  else
-    warn "${VALUES_FILE_PATH} not found; create app manifests in devops-k8s/apps/${APP_NAME}"
+# Update Helm values in devops-k8s repo
+# Resolve token from available sources (priority: GH_PAT > GIT_SECRET > GIT_TOKEN > GITHUB_TOKEN)
+TOKEN="${GH_PAT:-${GIT_SECRET:-${GIT_TOKEN:-${GITHUB_TOKEN:-}}}}"
+
+if [[ -n "${GH_PAT:-}" ]]; then
+  info "Using GH_PAT for git operations"
+elif [[ -n "${GIT_SECRET:-}" ]]; then
+  info "Using GIT_SECRET for git operations"
+elif [[ -n "${GIT_TOKEN:-}" ]]; then
+  info "Using GIT_TOKEN for git operations"
+elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  info "Using GITHUB_TOKEN for git operations (may lack cross-repo write)"
+else
+  warn "No GitHub token found for devops-k8s update"
+fi
+
+if [[ -n "$TOKEN" ]]; then
+  step "Updating Helm values in devops-k8s"
+
+  CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
+
+  # Clone devops-k8s repo if it doesn't exist
+  if [[ ! -d "$DEVOPS_DIR" ]]; then
+    info "Cloning devops-k8s repo..."
+    git clone "$CLONE_URL" "$DEVOPS_DIR" || { err "Failed to clone devops-k8s"; exit 1; }
   fi
-  popd >/dev/null || true
+
+  cd "$DEVOPS_DIR"
+  git config user.email "$GIT_EMAIL"
+  git config user.name "$GIT_USER"
+
+  # Ensure we have the latest changes
+  git fetch origin main || true
+  git checkout main || git checkout -b main
+  git reset --hard origin/main
+
+  if [[ -f "$VALUES_FILE_PATH" ]]; then
+    # Update image tag using yq
+    IMAGE_TAG_ENV="$GIT_COMMIT_ID" yq e -i '.image.tag = env(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
+
+    git add "$VALUES_FILE_PATH"
+    git commit -m "${APP_NAME}:${GIT_COMMIT_ID} released" || info "No changes to commit"
+    git pull --rebase origin main || true
+
+    # Push using token
+    if git remote | grep -q push-origin; then git remote remove push-origin || true; fi
+    git remote add push-origin "$CLONE_URL"
+    git push push-origin HEAD:main || warn "Failed to push to devops repo"
+    ok "Helm values updated - ArgoCD will auto-sync"
+  else
+    warn "Values file not found at ${VALUES_FILE_PATH}"
+  fi
+
+  cd - > /dev/null
+else
+  warn "No GitHub token set - skipping devops-k8s update"
 fi
 
 step "Summary"

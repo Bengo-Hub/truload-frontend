@@ -25,8 +25,10 @@ jobs:
       run: |
         echo "Checking which tokens are available..."
         [[ -n "${{ secrets.GH_PAT }}" ]] && echo "✅ GH_PAT is set" || echo "❌ GH_PAT not found"
-        [[ -n "${{ secrets.GIT_SECRET }}" ]] && echo "✅ GITHUB_SECRET is set" || echo "❌ GITHUB_SECRET not found"
+        [[ -n "${{ secrets.GIT_SECRET }}" ]] && echo "✅ GIT_SECRET is set" || echo "❌ GIT_SECRET not found"
+        [[ -n "${{ secrets.GIT_TOKEN }}" ]] && echo "✅ GIT_TOKEN is set" || echo "❌ GIT_TOKEN not found"
         [[ -n "${{ secrets.GITHUB_TOKEN }}" ]] && echo "✅ GITHUB_TOKEN is set (default)" || echo "❌ GITHUB_TOKEN not found"
+        echo "Note: GH_PAT or GIT_SECRET required for cross-repo push to devops-k8s"
 
     - name: Set deployment variables
       run: |
@@ -44,13 +46,16 @@ jobs:
     - name: Run production deployment
       env:
         KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-        # Use GH token for HTTPS auth in build.sh
-        GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+        # GitHub tokens for cross-repo push (priority order in build.sh)
         GH_PAT: ${{ secrets.GH_PAT }}
-        GITHUB_SECRET: ${{ secrets.GIT_SECRET }}
+        GIT_SECRET: ${{ secrets.GIT_SECRET }}
+        GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Registry credentials
         REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
         REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         GITHUB_SHA: ${{ github.sha }}
+        # Deployment configuration
         DEPLOY: true
         SETUP_DATABASES: false
         NAMESPACE: truload
