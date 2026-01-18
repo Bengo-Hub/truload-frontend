@@ -4,13 +4,17 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   sw: 'sw.js',
+  disable: true, // Disable PWA to fix build issues
 });
 
 const nextConfig = {
   reactStrictMode: true,
 
-  // Generate standalone output for Docker runtime
-  output: 'standalone',
+  // Disable standalone output for Windows development (causes symlink issues)
+  // output: 'standalone',
+  
+  // Fix workspace root detection for monorepo
+  outputFileTracingRoot: require('path').join(__dirname),
   
   // PWA configuration
   experimental: {

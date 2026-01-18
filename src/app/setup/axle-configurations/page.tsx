@@ -4,39 +4,41 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { useHasPermission } from '@/hooks/useAuth';
 import {
-  createAxleConfiguration,
-  deleteAxleConfiguration,
-  fetchAxleConfigurations,
-  updateAxleConfiguration,
+    createAxleConfiguration,
+    deleteAxleConfiguration,
+    fetchAxleConfigurations,
+    updateAxleConfiguration,
 } from '@/lib/api/setup';
 import type { AxleConfigurationResponse, CreateAxleConfigurationRequest, UpdateAxleConfigurationRequest } from '@/types/setup';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus, RefreshCcw, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
+
+import { AxleWeightConfigGrid } from '@/components/axle-config/AxleWeightConfigGrid';
 
 type AxleFormValues = CreateAxleConfigurationRequest;
 
@@ -56,6 +58,8 @@ function AxleConfigurationsContent() {
 
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [editing, setEditing] = useState<AxleConfigurationResponse | null>(null);
+	const [weightRefsDialogOpen, setWeightRefsDialogOpen] = useState(false);
+	const [selectedConfigForWeightRefs, setSelectedConfigForWeightRefs] = useState<AxleConfigurationResponse | null>(null);
 
 	const { data: configs = [], isLoading } = useQuery({
 		queryKey: ['axleConfigurations'],
@@ -159,6 +163,11 @@ function AxleConfigurationsContent() {
 		setDialogOpen(true);
 	};
 
+	const openWeightRefs = (cfg: AxleConfigurationResponse) => {
+		setSelectedConfigForWeightRefs(cfg);
+		setWeightRefsDialogOpen(true);
+	};
+
 	const handleDelete = (cfg: AxleConfigurationResponse) => {
 		if (!canEdit) return;
 		if (window.confirm(`Delete ${cfg.axleName}?`)) {
@@ -230,6 +239,10 @@ function AxleConfigurationsContent() {
 										</span>
 									</TableCell>
 									<TableCell className="text-right space-x-2">
+										<Button variant="ghost" size="sm" onClick={() => openWeightRefs(cfg)}>
+											<Settings className="mr-1 h-3 w-3" />
+											Weight Refs
+										</Button>
 										{canEdit && (
 											<Button variant="ghost" size="sm" onClick={() => openEdit(cfg)}>
 												Edit
@@ -326,6 +339,31 @@ function AxleConfigurationsContent() {
 							</Button>
 						</DialogFooter>
 					</form>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={weightRefsDialogOpen} onOpenChange={(v) => (!v ? setWeightRefsDialogOpen(false) : null)}>
+				<DialogContent className="sm:max-w-6xl max-h-[90vh]">
+					<DialogHeader>
+						<DialogTitle>Manage Weight References - {selectedConfigForWeightRefs?.axleName}</DialogTitle>
+						<DialogDescription>
+							Define permissible weights for each axle position in this configuration.
+						</DialogDescription>
+					</DialogHeader>
+
+					{selectedConfigForWeightRefs && (
+						<AxleWeightConfigGrid
+							configurationId={selectedConfigForWeightRefs.id}
+							axleNumber={selectedConfigForWeightRefs.axleNumber}
+							gvwPermissibleKg={selectedConfigForWeightRefs.gvwPermissibleKg}
+						/>
+					)}
+
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={() => setWeightRefsDialogOpen(false)}>
+							Close
+						</Button>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</div>

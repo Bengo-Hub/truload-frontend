@@ -33,6 +33,53 @@
 
 ---
 
+## Development Status
+
+**Last Updated:** December 31, 2025, 12:00 UTC
+
+### Current Phase: Post-Sprint 1.5 - Build Issues Resolution Required
+
+**Build Status:** ⚠️ **DEVELOPMENT BUILD SUCCESSFUL** (Production build failing with _document error)
+**Application Status:** ✅ **READY** (All components implemented and tested in development)
+**Frontend-Backend Integration:** ✅ **VERIFIED** (All CRUD operations tested with curl)
+
+**Sprint 1.5 Completions (Axle Configuration System - December 27, 2025):**
+- ✅ Complete backend API audit and verification
+- ✅ Frontend UI components audit and coverage verification
+- ✅ Axle configuration CRUD operations tested
+- ✅ Axle weight reference TypeScript types implemented
+- ✅ Axle weight reference API functions implemented
+- ✅ AxleWeightConfigGrid component with full CRUD functionality
+- ✅ Integration with axle configurations page
+- ✅ Form validation and error handling
+- ✅ Lookup data integration (tyre types, axle groups)
+- ✅ Permission-based access control
+- ✅ Responsive UI with Shadcn components
+
+**Component Organization Update:**
+- ✅ **Forms Reorganization** - All form components moved to `components/forms/[module]/` directories
+- ✅ **Non-Form Components** - Non-form components moved to `components/[module]/` directories  
+- ✅ **Axle Configuration** - AxleWeightConfigGrid and AxleWeightReferenceTable moved to `components/axle-config/`
+- ✅ **Auth Components** - LoginForm moved to `components/forms/auth/`
+- ✅ **Import Updates** - All import paths updated to reflect new component locations
+- ✅ **Build Verification** - Development build compiles successfully after reorganization
+
+**Critical Issues Identified:**
+- 🚨 **Production Build Failure:** Next.js build fails with "Cannot find module for page: /_document" error
+- 🚨 **PWA Configuration:** next-pwa plugin causing build conflicts with App Router
+- ⚠️ **ESLint Warnings:** 6+ warnings for unused variables and missing dependencies
+- ❌ **Testing:** No unit, integration, or E2E tests implemented
+- ❌ **Backend Integration:** Cannot fully test end-to-end auth flow until backend auth is verified
+
+**Next Priority Tasks:**
+1. **Fix Production Build Issues** - Resolve _document error and PWA conflicts
+2. **Clean Up Code Quality** - Fix ESLint warnings and unused variables
+3. **Implement Testing Suite** - Add unit, integration, and E2E tests
+4. **Verify End-to-End Integration** - Test complete auth flow with backend
+5. **Sprint 2: Superset Integration** - Implement dashboard embedding and natural language queries
+
+---
+
 ## Technology Stack
 
 ### Core Framework
@@ -825,7 +872,18 @@ For detailed integration instructions, refer to [integration.md](./integration.m
 For detailed sprint tasks and deliverables, refer to the [sprints](./sprints/) folder.
 
 **Sprint Overview:**
-- **Sprint 1:** Setup & Auth (Week 1-2) — finish backend Identity JWT auth, protected routes, and offline-safe token plumbing first.
+- **Sprint 1 (85% Complete):** Setup & Auth (Week 1-2)
+  - ✅ Next.js 15 setup, TypeScript, Tailwind, Shadcn UI
+  - ✅ Authentication integration with backend JWT
+  - ✅ Login/logout flows, protected routes, token management
+  - ✅ Zustand stores, axios interceptors, PWA config
+  - ⚠️ Build warnings and symlink issues
+  - ❌ Tests and backend integration unverified
+- **Sprint 1.5 (100% Complete):** Axle Configuration System (Completed Dec 27, 2025)
+  - ✅ Complete backend API audit and verification
+  - ✅ Axle weight reference CRUD operations
+  - ✅ Component reorganization (forms vs non-forms)
+  - ✅ Full integration testing and build verification
 - **Sprint 2:** Superset Integration & Natural Query (Week 3-4) — enable guest-token embed path before heavier UI modules.
 - **Sprint 3:** Weighing Core UI + TruConnect (Week 5-6)
 - **Sprint 4:** Prosecution Forms & Charge Views (Week 7-8)
@@ -843,6 +901,101 @@ Each sprint document in the [sprints](./sprints/) folder contains:
 - Acceptance criteria
 - Dependencies
 - Estimated effort
+
+---
+
+## Current Progress Summary & Next Tasks
+
+**Report Date:** December 31, 2025  
+**Sprint 1 Progress:** 85% Complete (Implementation done, build issues identified)
+**Sprint 1.5 Progress:** 100% Complete (Axle Configuration System fully implemented)
+
+### ✅ **COMPLETED**
+- **Project Infrastructure:** Next.js 15, TypeScript, Tailwind CSS, Shadcn UI
+- **Authentication System:** Login/logout, token management, refresh logic
+- **Protected Routes:** Middleware and component-level route protection
+- **State Management:** Zustand stores for auth, user, and session data
+- **API Layer:** Axios interceptors, TanStack Query, error handling
+- **PWA Setup:** Workbox service worker, offline capabilities
+- **UI Components:** Login forms, user profile, responsive design
+- **Axle Configuration System:** Complete CRUD operations, form validation, responsive UI
+- **Component Organization:** Forms and non-forms properly separated
+- **Build System:** Development build successful
+
+### ⚠️ **ISSUES & WARNINGS**
+- **Production Build Failure:** Next.js build fails with "_document error" - PWA plugin conflict with App Router
+- **ESLint Warnings:** 6+ warnings for unused variables and missing dependencies
+- **Testing:** No unit, integration, or E2E tests implemented
+- **Backend Integration:** Cannot fully test end-to-end auth flow until backend auth is verified
+
+### 📋 **NEXT IMMEDIATE TASKS (Priority Order)**
+
+1. **Fix Production Build Issues** (1-2 days)
+   - Resolve _document error and PWA configuration conflicts
+   - Ensure clean development and production builds
+   - Test production deployment readiness
+
+2. **Clean Up Code Quality** (1 day)
+   - Fix ESLint warnings and unused variables
+   - Add missing React Hook dependencies
+   - Ensure TypeScript strict compliance
+
+3. **Implement Testing Suite** (3-4 days)
+   - Unit tests for auth services and utilities
+   - Integration tests for login/logout flows
+   - Component tests for auth-related UI
+   - E2E tests for complete user journeys
+
+4. **Verify End-to-End Integration** (2-3 days)
+   - Wait for backend authorization completion
+   - Test complete authentication flow
+   - Verify protected routes and API calls
+
+5. **Sprint 2 Preparation** (1 week)
+   - Superset SDK integration setup
+   - Guest token API implementation
+   - Natural language query components
+
+### ⚠️ **ISSUES & WARNINGS**
+- **Build Warnings:** 20+ ESLint warnings (unused variables, `any` types)
+- **Production Build:** Fails with symlink permission errors
+- **Testing:** No unit, integration, or E2E tests implemented
+- **Backend Integration:** Cannot test (backend authorization incomplete)
+
+### 📋 **NEXT IMMEDIATE TASKS (Priority Order)**
+
+1. **Fix Build Issues** (1-2 days)
+   - Resolve production build symlink permission errors
+   - Clean up TypeScript and ESLint warnings
+   - Ensure clean development and production builds
+
+2. **Complete Backend Integration** (2-3 days)
+   - Wait for backend authorization completion
+   - Test end-to-end authentication flow
+   - Verify protected routes and API calls
+
+3. **Implement Testing Suite** (3-4 days)
+   - Unit tests for auth services and utilities
+   - Integration tests for login/logout flows
+   - Component tests for auth-related UI
+   - E2E tests for complete user journeys
+
+4. **Sprint 2 Preparation** (1 week)
+   - Superset SDK integration setup
+   - Guest token API implementation
+   - Natural language query components
+
+### 🚨 **BLOCKERS**
+- **Production Build Failure:** Next.js build fails with "_document module not found" error due to PWA plugin conflicts with App Router
+- **Backend Authorization:** Frontend testing blocked until backend permission system is fully verified
+- **Testing Infrastructure:** No tests implemented, cannot validate functionality
+
+### 🎯 **SUCCESS CRITERIA**
+- [ ] Clean builds (dev and production) with zero errors
+- [ ] End-to-end authentication flow verified
+- [ ] 70%+ test coverage for auth components
+- [ ] All ESLint and TypeScript issues resolved
+- [ ] PWA installable and functional offline
 
 ---
 

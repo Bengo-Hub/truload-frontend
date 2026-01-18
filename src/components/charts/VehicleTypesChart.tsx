@@ -7,18 +7,18 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
+    Cell,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
 } from 'recharts';
 
 interface VehicleTypeData {
   name: string;
   value: number;
   color: string;
-  [key: string]: any;
+  [key: string]: string | number;
 }
 
 interface VehicleTypesChartProps {
@@ -42,7 +42,7 @@ export function VehicleTypesChart({ data = DEFAULT_DATA }: VehicleTypesChartProp
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
-              data={data as any}
+              data={data}
               cx="50%"
               cy="50%"
               labelLine={false}

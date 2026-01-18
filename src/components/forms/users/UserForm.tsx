@@ -4,15 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UpdateUserRequest } from '@/types/setup';
+import { CreateUserRequest, UpdateUserRequest } from '@/types/setup';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+interface UserFormData {
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  organizationId: string;
+  stationId: string;
+  departmentId: string;
+  password: string;
+  confirmPassword: string;
+}
+
 interface UserFormProps {
   mode: 'create' | 'edit';
   initialData?: Partial<UpdateUserRequest & { id: string; email: string }>;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: CreateUserRequest | UpdateUserRequest) => Promise<void>;
   onCancel?: () => void;
   organizations?: Array<{ id: string; name: string }>;
   stations?: Array<{ id: string; name: string }>;
@@ -28,7 +39,7 @@ export function UserForm({
   stations = [],
   departments = [],
 }: UserFormProps) {
-  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<UserFormData>({
     defaultValues: {
       email: initialData?.email || '',
       fullName: initialData?.fullName || '',
@@ -56,7 +67,7 @@ export function UserForm({
     }
   }, [initialData, reset]);
 
-  const handleFormSubmit = async (data: any) => {
+  const handleFormSubmit = async (data: UserFormData) => {
     if (mode === 'create' && data.password !== data.confirmPassword) {
       toast.error('Passwords do not match');
       return;
@@ -64,21 +75,22 @@ export function UserForm({
 
     try {
       // Remove confirmPassword before submission
-      const { confirmPassword, ...submitData } = data;
-      
-      // For edit mode, remove password if empty
+      const { confirmPassword: _, ...submitData } = data;
+
+      // For edit mode, remove password if empty and email (can't be changed)
       if (mode === 'edit' && !submitData.password) {
-        delete submitData.password;
-        delete submitData.email; // Email can't be changed
+        const { password: __, email: ___, ...editData } = submitData;
+        await onSubmit(editData);
+      } else {
+        await onSubmit(submitData);
       }
 
-      await onSubmit(submitData);
       toast.success(mode === 'create' ? 'User created successfully' : 'User updated successfully');
       
       if (mode === 'create') {
         reset();
       }
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${mode} user`);
     }
   };
