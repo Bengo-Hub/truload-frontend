@@ -3,7 +3,7 @@
  * Split layout with left form panel and right background image.
  */
 
-import { LoginForm } from '@/components/auth/LoginForm';
+import { LoginForm } from '@/components/forms/auth/LoginForm';
 import Image from 'next/image';
 import { Suspense } from 'react';
 

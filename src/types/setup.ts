@@ -31,6 +31,17 @@ export interface UpdateUserRequest {
   departmentId?: string;
 }
 
+export interface CreateUserRequest {
+  email: string;
+  fullName?: string;
+  phoneNumber?: string;
+  password?: string;
+  organizationId?: string;
+  stationId?: string;
+  departmentId?: string;
+  roleNames?: string[];
+}
+
 export interface AssignRolesRequest {
   roleNames: string[];
 }
@@ -149,4 +160,74 @@ export interface UpdateAxleConfigurationRequest {
   visualDiagramUrl?: string;
   notes?: string;
   isActive: boolean;
+}
+
+// Axle weight references
+export interface AxleWeightReferenceResponse {
+  id: string;
+  axleConfigurationId: string;
+  axlePosition: number;
+  axleLegalWeightKg: number;
+  axleGrouping: string;
+  axleGroupId: string;
+  axleGroupCode?: string;
+  axleGroupName?: string;
+  tyreTypeId?: string;
+  tyreTypeCode?: string;
+  tyreTypeName?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateAxleWeightReferenceRequest {
+  axleConfigurationId: string;
+  axlePosition: number;
+  axleLegalWeightKg: number;
+  axleGrouping: 'A' | 'B' | 'C' | 'D';
+  axleGroupId: string;
+  tyreTypeId?: string;
+}
+
+export interface UpdateAxleWeightReferenceRequest {
+  axlePosition: number;
+  axleLegalWeightKg: number;
+  axleGrouping: 'A' | 'B' | 'C' | 'D';
+  axleGroupId: string;
+  tyreTypeId?: string;
+  isActive: boolean;
+}
+
+// Lookup data types
+export interface TyreTypeLookup {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  typicalMaxWeightKg: number;
+}
+
+export interface AxleGroupLookup {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  typicalWeightKg: number;
+  minSpacingFeet?: number;
+  maxSpacingFeet?: number;
+  axleCountInGroup: number;
+}
+
+export interface AxleConfigurationLookupData {
+  configuration: {
+    id: string;
+    axleCode: string;
+    axleName: string;
+    axleNumber: number;
+    gvwPermissibleKg: number;
+    legalFramework: string;
+  };
+  tyreTypes: TyreTypeLookup[];
+  axleGroups: AxleGroupLookup[];
+  axleGroupings: string[];
+  axlePositions: number[];
 }

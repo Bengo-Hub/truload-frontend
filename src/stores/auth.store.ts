@@ -13,6 +13,12 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 let isFetchingUser = false;
 let fetchUserPromise: Promise<void> | null = null;
 
+interface ApiError {
+  response?: {
+    status: number;
+  };
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -104,7 +110,7 @@ export const useAuthStore = create<AuthState>()(
               set({ user, isAuthenticated: true, isLoading: false, error: null });
             } catch (error) {
               // Silent fail for 401 (not logged in) to avoid unnecessary errors
-              const is401 = (error as any)?.response?.status === 401;
+              const is401 = (error as ApiError)?.response?.status === 401;
               const errorMessage = !is401 && error instanceof Error ? error.message : '';
               set({ user: null, isAuthenticated: false, isLoading: false, error: errorMessage || null });
             } finally {

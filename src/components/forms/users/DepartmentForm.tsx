@@ -45,7 +45,7 @@ export function DepartmentForm({ mode, initialData, onSubmit, onCancel }: Depart
       if (mode === 'create') {
         reset();
       }
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${mode} department`);
     }
   };

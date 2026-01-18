@@ -56,7 +56,7 @@ export function AxleConfigurationForm({
       if (mode === 'create') {
         reset();
       }
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${mode} axle configuration`);
     }
   };

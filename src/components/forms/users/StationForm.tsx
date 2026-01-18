@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -48,7 +47,7 @@ export function StationForm({ mode, initialData, onSubmit, onCancel }: StationFo
       if (mode === 'create') {
         reset();
       }
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${mode} station`);
     }
   };

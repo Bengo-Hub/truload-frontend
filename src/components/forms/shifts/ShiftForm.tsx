@@ -51,7 +51,7 @@ export function ShiftForm({ mode, initialData, onSubmit, onCancel }: ShiftFormPr
       if (mode === 'create') {
         reset();
       }
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${mode} shift`);
     }
   };

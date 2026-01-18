@@ -12,7 +12,7 @@ import Image from 'next/image';
 import { ReactNode, useState } from 'react';
 import { AppSidebar } from './AppSidebar';
 
-const LOGO_COMPACT = '/public/images/logos/kuraweigh-logo.png';
+const LOGO_COMPACT = '/images/logos/kuraweigh-logo.png';
 
 interface AppShellProps {
   children: ReactNode;

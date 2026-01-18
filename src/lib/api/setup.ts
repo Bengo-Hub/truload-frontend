@@ -1,19 +1,23 @@
 import { apiClient } from '@/lib/api/client';
 import type {
-  AssignRolesRequest,
-  AxleConfigurationResponse,
-  CreateAxleConfigurationRequest,
-  CreateWorkShiftRequest,
-  DepartmentDto,
-  OrganizationDto,
-  PagedResult,
-  RoleDto,
-  StationDto,
-  UpdateAxleConfigurationRequest,
-  UpdateUserRequest,
-  UpdateWorkShiftRequest,
-  UserSummary,
-  WorkShiftDto,
+    AssignRolesRequest,
+    AxleConfigurationLookupData,
+    AxleConfigurationResponse,
+    AxleWeightReferenceResponse,
+    CreateAxleConfigurationRequest,
+    CreateAxleWeightReferenceRequest,
+    CreateWorkShiftRequest,
+    DepartmentDto,
+    OrganizationDto,
+    PagedResult,
+    RoleDto,
+    StationDto,
+    UpdateAxleConfigurationRequest,
+    UpdateAxleWeightReferenceRequest,
+    UpdateUserRequest,
+    UpdateWorkShiftRequest,
+    UserSummary,
+    WorkShiftDto,
 } from '@/types/setup';
 
 // User Management
@@ -129,6 +133,58 @@ export async function updateAxleConfiguration(
 
 export async function deleteAxleConfiguration(id: string): Promise<void> {
   await apiClient.delete(`/api/v1/AxleConfiguration/${id}`);
+}
+
+// Axle Weight References
+export async function fetchAxleWeightReferencesByConfiguration(
+  configurationId: string
+): Promise<AxleWeightReferenceResponse[]> {
+  const { data } = await apiClient.get<AxleWeightReferenceResponse[]>(
+    `/api/v1/AxleWeightReferences/by-configuration/${configurationId}`
+  );
+  return data;
+}
+
+export async function getAxleWeightReference(id: string): Promise<AxleWeightReferenceResponse> {
+  const { data } = await apiClient.get<AxleWeightReferenceResponse>(
+    `/api/v1/AxleWeightReferences/${id}`
+  );
+  return data;
+}
+
+export async function createAxleWeightReference(
+  payload: CreateAxleWeightReferenceRequest
+): Promise<AxleWeightReferenceResponse> {
+  const { data } = await apiClient.post<AxleWeightReferenceResponse>(
+    '/api/v1/AxleWeightReferences',
+    payload
+  );
+  return data;
+}
+
+export async function updateAxleWeightReference(
+  id: string,
+  payload: UpdateAxleWeightReferenceRequest
+): Promise<AxleWeightReferenceResponse> {
+  const { data } = await apiClient.put<AxleWeightReferenceResponse>(
+    `/api/v1/AxleWeightReferences/${id}`,
+    payload
+  );
+  return data;
+}
+
+export async function deleteAxleWeightReference(id: string): Promise<void> {
+  await apiClient.delete(`/api/v1/AxleWeightReferences/${id}`);
+}
+
+// Axle Configuration Lookup Data
+export async function fetchAxleConfigurationLookupData(
+  configurationId: string
+): Promise<AxleConfigurationLookupData> {
+  const { data } = await apiClient.get<AxleConfigurationLookupData>(
+    `/api/v1/AxleConfiguration/${configurationId}/lookup`
+  );
+  return data;
 }
 
 function normalizeWorkShiftTimes<T extends { schedules?: { startTime: string; endTime: string }[] }>(payload: T): T {

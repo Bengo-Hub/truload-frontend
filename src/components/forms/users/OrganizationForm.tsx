@@ -51,7 +51,7 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
       if (mode === 'create') {
         reset();
       }
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${mode} organization`);
     }
   };

@@ -24,11 +24,6 @@ interface PasswordPolicyForm {
   lockoutMinutes: number;
 }
 
-interface TwoFactorSettings {
-  enabled: boolean;
-  method: 'app' | 'sms';
-}
-
 interface ShiftSettingsForm {
   defaultShiftDuration: number;
   graceMinutes: number;
@@ -67,7 +62,7 @@ export default function SecurityPage() {
       // TODO: Wire to backend API
       console.log('Password policy:', data);
       toast.success('Password policy updated successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to update password policy');
     }
   };
@@ -77,7 +72,7 @@ export default function SecurityPage() {
       // TODO: Wire to backend 2FA setup API
       toast.success('2FA setup initiated. Check your authenticator app.');
       setTwoFactorEnabled(true);
-    } catch (error) {
+    } catch {
       toast.error('Failed to enable 2FA');
     }
   };
@@ -87,7 +82,7 @@ export default function SecurityPage() {
       // TODO: Wire to backend 2FA disable API
       toast.success('2FA disabled');
       setTwoFactorEnabled(false);
-    } catch (error) {
+    } catch {
       toast.error('Failed to disable 2FA');
     }
   };
@@ -96,7 +91,7 @@ export default function SecurityPage() {
     try {
       // TODO: Wire to backend backup API
       toast.success('Database backup initiated');
-    } catch (error) {
+    } catch {
       toast.error('Failed to trigger backup');
     }
   };
@@ -109,7 +104,7 @@ export default function SecurityPage() {
     try {
       // TODO: Wire to backend restore API
       toast.success(`Restore initiated for backup: ${backupId}`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to restore backup');
     }
   };
@@ -119,7 +114,7 @@ export default function SecurityPage() {
       // TODO: Wire to backend shift settings API
       console.log('Shift settings:', data);
       toast.success('Shift settings updated successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to update shift settings');
     }
   };
@@ -217,12 +212,12 @@ export default function SecurityPage() {
                       ].map(({ field, label }) => (
                         <div key={field} className="flex items-center space-x-2">
                           <Controller
-                            name={field as any}
+                            name={field as keyof PasswordPolicyForm}
                             control={passwordForm.control}
                             render={({ field: { value, onChange } }) => (
                               <input
                                 type="checkbox"
-                                checked={value}
+                                checked={Boolean(value)}
                                 onChange={(e) => onChange(e.target.checked)}
                                 disabled={!canEdit}
                                 className="h-4 w-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
