@@ -32,7 +32,7 @@ interface ShiftSettingsForm {
 }
 
 export default function SecurityPage() {
-  const canEdit = useHasPermission(['system.view_config', 'system.manage_security'], 'any');
+  const canEdit = useHasPermission('system.security_policy');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [backupId, setBackupId] = useState('');
 
@@ -121,7 +121,7 @@ export default function SecurityPage() {
 
   return (
     <AppShell title="Security" subtitle="Manage security settings, policies, and system backups">
-      <ProtectedRoute requiredPermissions={["system.view_config"]}>
+      <ProtectedRoute requiredPermissions={["system.security_policy"]}>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>

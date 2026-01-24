@@ -45,7 +45,7 @@ type AxleFormValues = CreateAxleConfigurationRequest;
 export default function AxleConfigurationsPage() {
 	return (
 		<AppShell title="Axle Configurations" subtitle="Manage axle types and their GVW limits">
-			<ProtectedRoute requiredPermissions={["configuration.view_axles"]}>
+			<ProtectedRoute requiredPermissions={["config.manage_axle"]}>
 				<AxleConfigurationsContent />
 			</ProtectedRoute>
 		</AppShell>
@@ -53,7 +53,7 @@ export default function AxleConfigurationsPage() {
 }
 
 function AxleConfigurationsContent() {
-	const canEdit = useHasPermission(['configuration.tolerances', 'configuration.permits'], 'any');
+	const canEdit = useHasPermission('config.manage_axle');
 	const queryClient = useQueryClient();
 
 	const [dialogOpen, setDialogOpen] = useState(false);

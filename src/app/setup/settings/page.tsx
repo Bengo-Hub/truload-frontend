@@ -34,7 +34,7 @@ const SERVICES = [
 ];
 
 export default function SystemSettingsPage() {
-  const canEdit = useHasPermission(['system.view_config', 'configuration.integrations'], 'any');
+  const canEdit = useHasPermission(['config.read', 'system.security_policy'], 'any');
 
   const [service, setService] = useState<string>(SERVICES[0].value);
 
@@ -116,7 +116,7 @@ export default function SystemSettingsPage() {
 
   return (
     <AppShell title="System Settings" subtitle="Password policy, backups, API settings">
-      <ProtectedRoute requiredPermissions={["system.view_config"]}>
+      <ProtectedRoute requiredPermissions={["config.read"]}>
         <div className="space-y-6">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

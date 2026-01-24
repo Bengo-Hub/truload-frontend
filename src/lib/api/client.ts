@@ -1,9 +1,21 @@
 import axios, { type AxiosError, type AxiosInstance } from 'axios';
+import { getOrganizationId, getStationId } from '@/lib/auth/token';
 
 // Prefer same-origin relative base to ensure httpOnly cookies are sent.
 // Override via NEXT_PUBLIC_API_URL when calling a different origin deliberately.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API_PREFIX = '/api/v1';
 const ACCESS_TOKEN_KEY = 'truload_access_token';
+
+// Multi-tenant header names (must match backend TenantContextMiddleware)
+const ORG_ID_HEADER = 'X-Org-ID';
+const STATION_ID_HEADER = 'X-Station-ID';
+
+/**
+ * Full API URL including version prefix
+ * All API calls should use paths relative to this (e.g., '/Users', '/Stations')
+ */
+export const API_URL = `${API_BASE}${API_PREFIX}`;
 
 let isRefreshing = false;
 
@@ -33,7 +45,7 @@ function getAccessToken(): string | null {
 }
 
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: API_URL, // Includes /api/v1 prefix
   timeout: 30000,
   withCredentials: true, // Include httpOnly cookies
   headers: {
@@ -41,7 +53,7 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - attach token from storage
+// Request interceptor - attach token and tenant headers
 apiClient.interceptors.request.use(
   async (config) => {
     // Skip refresh for auth endpoints
@@ -59,12 +71,35 @@ apiClient.interceptors.request.use(
       if (accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
+
+      // Add multi-tenant headers for organization and station filtering
+      const orgId = getOrganizationId();
+      const stationId = getStationId();
+
+      if (orgId) {
+        config.headers[ORG_ID_HEADER] = orgId;
+      }
+      if (stationId) {
+        config.headers[STATION_ID_HEADER] = stationId;
+      }
     }
 
     return config;
   },
   (error) => Promise.reject(error)
 );
+
+// Track pending requests waiting for token refresh
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function subscribeToRefresh(callback: (token: string) => void) {
+  refreshSubscribers.push(callback);
+}
+
+function onRefreshComplete(newToken: string) {
+  refreshSubscribers.forEach((callback) => callback(newToken));
+  refreshSubscribers = [];
+}
 
 // Response interceptor - handle authentication errors
 apiClient.interceptors.response.use(
@@ -82,24 +117,46 @@ apiClient.interceptors.response.use(
       // Let the app handle navigation via middleware or page logic
       if (
         originalRequest.url?.includes('/auth/login') ||
-        originalRequest.url?.includes('/auth/refresh')
+        originalRequest.url?.includes('/auth/refresh') ||
+        originalRequest.url?.includes('/auth/profile')
       ) {
         return Promise.reject(error);
       }
 
-      // Attempt a simple cookie-based refresh
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          await apiClient.post('/api/v1/auth/refresh', {});
-          isRefreshing = false;
+      // If already refreshing, queue this request to retry after refresh completes
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          subscribeToRefresh((newToken: string) => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            resolve(apiClient(originalRequest));
+          });
+        });
+      }
+
+      // Attempt token refresh
+      isRefreshing = true;
+      try {
+        // Import dynamically to avoid circular dependency
+        const { refreshToken } = await import('@/lib/auth/api');
+        const refreshResult = await refreshToken();
+
+        isRefreshing = false;
+
+        // Notify all queued requests with new token
+        if (refreshResult.accessToken) {
+          onRefreshComplete(refreshResult.accessToken);
+
           // Retry original request with new token
+          originalRequest.headers.Authorization = `Bearer ${refreshResult.accessToken}`;
           return apiClient(originalRequest);
-        } catch (refreshError) {
-          isRefreshing = false;
-          // Refresh failed - reject and let app handle navigation
-          return Promise.reject(refreshError);
         }
+
+        return Promise.reject(error);
+      } catch (refreshError) {
+        isRefreshing = false;
+        refreshSubscribers = [];
+        // Refresh failed - reject and let app handle navigation
+        return Promise.reject(refreshError);
       }
     }
 

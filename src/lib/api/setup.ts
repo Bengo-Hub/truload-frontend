@@ -28,53 +28,53 @@ export async function fetchUsers(params: {
   skip?: number;
   take?: number;
 }): Promise<PagedResult<UserSummary>> {
-  const { data } = await apiClient.get<PagedResult<UserSummary>>('/api/v1/user-management/users', {
+  const { data } = await apiClient.get<PagedResult<UserSummary>>('/user-management/users', {
     params,
   });
   return data;
 }
 
 export async function getUserById(id: string): Promise<UserSummary> {
-  const { data } = await apiClient.get<UserSummary>(`/api/v1/user-management/users/${id}`);
+  const { data } = await apiClient.get<UserSummary>(`/user-management/users/${id}`);
   return data;
 }
 
 export async function updateUser(id: string, payload: UpdateUserRequest): Promise<UserSummary> {
-  const { data } = await apiClient.put<UserSummary>(`/api/v1/user-management/users/${id}`, payload);
+  const { data } = await apiClient.put<UserSummary>(`/user-management/users/${id}`, payload);
   return data;
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/user-management/users/${id}`);
+  await apiClient.delete(`/user-management/users/${id}`);
 }
 
 export async function assignRoles(id: string, payload: AssignRolesRequest): Promise<void> {
-  await apiClient.post(`/api/v1/user-management/users/${id}/roles`, payload);
+  await apiClient.post(`/user-management/users/${id}/roles`, payload);
 }
 
 export async function fetchRoles(includeInactive = false): Promise<RoleDto[]> {
-  const { data } = await apiClient.get<RoleDto[]>('/api/v1/user-management/roles', {
+  const { data } = await apiClient.get<RoleDto[]>('/user-management/roles', {
     params: { includeInactive },
   });
   return data;
 }
 
 export async function fetchOrganizations(includeInactive = false): Promise<OrganizationDto[]> {
-  const { data } = await apiClient.get<OrganizationDto[]>('/api/v1/Organizations', {
+  const { data } = await apiClient.get<OrganizationDto[]>('/Organizations', {
     params: { includeInactive },
   });
   return data;
 }
 
 export async function fetchStations(includeInactive = false): Promise<StationDto[]> {
-  const { data } = await apiClient.get<StationDto[]>('/api/v1/Stations', {
+  const { data } = await apiClient.get<StationDto[]>('/Stations', {
     params: { includeInactive },
   });
   return data;
 }
 
 export async function fetchDepartments(includeInactive = false): Promise<DepartmentDto[]> {
-  const { data } = await apiClient.get<DepartmentDto[]>('/api/v1/Departments', {
+  const { data } = await apiClient.get<DepartmentDto[]>('/Departments', {
     params: { includeInactive },
   });
   return data;
@@ -82,7 +82,7 @@ export async function fetchDepartments(includeInactive = false): Promise<Departm
 
 // Work Shifts
 export async function fetchWorkShifts(includeInactive = false): Promise<WorkShiftDto[]> {
-  const { data } = await apiClient.get<WorkShiftDto[]>('/api/v1/WorkShifts', {
+  const { data } = await apiClient.get<WorkShiftDto[]>('/WorkShifts', {
     params: { includeInactive },
   });
   return data;
@@ -90,17 +90,17 @@ export async function fetchWorkShifts(includeInactive = false): Promise<WorkShif
 
 export async function createWorkShift(payload: CreateWorkShiftRequest): Promise<WorkShiftDto> {
   const body = normalizeWorkShiftTimes(payload);
-  const { data } = await apiClient.post<WorkShiftDto>('/api/v1/WorkShifts', body);
+  const { data } = await apiClient.post<WorkShiftDto>('/WorkShifts', body);
   return data;
 }
 
 export async function updateWorkShift(id: string, payload: UpdateWorkShiftRequest): Promise<WorkShiftDto> {
-  const { data } = await apiClient.put<WorkShiftDto>(`/api/v1/WorkShifts/${id}`, payload);
+  const { data } = await apiClient.put<WorkShiftDto>(`/WorkShifts/${id}`, payload);
   return data;
 }
 
 export async function deleteWorkShift(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/WorkShifts/${id}`);
+  await apiClient.delete(`/WorkShifts/${id}`);
 }
 
 // Axle Configurations
@@ -110,7 +110,7 @@ export async function fetchAxleConfigurations(params?: {
   axleCount?: number;
   includeInactive?: boolean;
 }): Promise<AxleConfigurationResponse[]> {
-  const { data } = await apiClient.get<AxleConfigurationResponse[]>('/api/v1/AxleConfiguration', {
+  const { data } = await apiClient.get<AxleConfigurationResponse[]>('/AxleConfiguration', {
     params,
   });
   return data;
@@ -119,7 +119,7 @@ export async function fetchAxleConfigurations(params?: {
 export async function createAxleConfiguration(
   payload: CreateAxleConfigurationRequest
 ): Promise<AxleConfigurationResponse> {
-  const { data } = await apiClient.post<AxleConfigurationResponse>('/api/v1/AxleConfiguration', payload);
+  const { data } = await apiClient.post<AxleConfigurationResponse>('/AxleConfiguration', payload);
   return data;
 }
 
@@ -127,12 +127,12 @@ export async function updateAxleConfiguration(
   id: string,
   payload: UpdateAxleConfigurationRequest
 ): Promise<AxleConfigurationResponse> {
-  const { data } = await apiClient.put<AxleConfigurationResponse>(`/api/v1/AxleConfiguration/${id}`, payload);
+  const { data } = await apiClient.put<AxleConfigurationResponse>(`/AxleConfiguration/${id}`, payload);
   return data;
 }
 
 export async function deleteAxleConfiguration(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/AxleConfiguration/${id}`);
+  await apiClient.delete(`/AxleConfiguration/${id}`);
 }
 
 // Axle Weight References
@@ -140,14 +140,14 @@ export async function fetchAxleWeightReferencesByConfiguration(
   configurationId: string
 ): Promise<AxleWeightReferenceResponse[]> {
   const { data } = await apiClient.get<AxleWeightReferenceResponse[]>(
-    `/api/v1/AxleWeightReferences/by-configuration/${configurationId}`
+    `/AxleWeightReferences/by-configuration/${configurationId}`
   );
   return data;
 }
 
 export async function getAxleWeightReference(id: string): Promise<AxleWeightReferenceResponse> {
   const { data } = await apiClient.get<AxleWeightReferenceResponse>(
-    `/api/v1/AxleWeightReferences/${id}`
+    `/AxleWeightReferences/${id}`
   );
   return data;
 }
@@ -156,7 +156,7 @@ export async function createAxleWeightReference(
   payload: CreateAxleWeightReferenceRequest
 ): Promise<AxleWeightReferenceResponse> {
   const { data } = await apiClient.post<AxleWeightReferenceResponse>(
-    '/api/v1/AxleWeightReferences',
+    '/AxleWeightReferences',
     payload
   );
   return data;
@@ -167,14 +167,14 @@ export async function updateAxleWeightReference(
   payload: UpdateAxleWeightReferenceRequest
 ): Promise<AxleWeightReferenceResponse> {
   const { data } = await apiClient.put<AxleWeightReferenceResponse>(
-    `/api/v1/AxleWeightReferences/${id}`,
+    `/AxleWeightReferences/${id}`,
     payload
   );
   return data;
 }
 
 export async function deleteAxleWeightReference(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/AxleWeightReferences/${id}`);
+  await apiClient.delete(`/AxleWeightReferences/${id}`);
 }
 
 // Axle Configuration Lookup Data
@@ -182,7 +182,7 @@ export async function fetchAxleConfigurationLookupData(
   configurationId: string
 ): Promise<AxleConfigurationLookupData> {
   const { data } = await apiClient.get<AxleConfigurationLookupData>(
-    `/api/v1/AxleConfiguration/${configurationId}/lookup`
+    `/AxleConfiguration/${configurationId}/lookup`
   );
   return data;
 }
@@ -225,14 +225,14 @@ export interface ApiSettingsResponse {
 
 export async function fetchApiSettings(service: string): Promise<ApiSettingsResponse> {
   // Flexible key-value API settings approach (service-based)
-  const { data } = await apiClient.get<ApiSettingsResponse>('/api/v1/SystemSettings/api', {
+  const { data } = await apiClient.get<ApiSettingsResponse>('/SystemSettings/api', {
     params: { service },
   });
   return data;
 }
 
 export async function saveApiSettings(service: string, entries: KeyValueEntry[]): Promise<void> {
-  await apiClient.put('/api/v1/SystemSettings/api', { service, entries });
+  await apiClient.put('/SystemSettings/api', { service, entries });
 }
 
 // ----------------------
@@ -250,12 +250,12 @@ export interface PasswordPolicy {
 }
 
 export async function fetchPasswordPolicy(): Promise<PasswordPolicy> {
-  const { data } = await apiClient.get<PasswordPolicy>('/api/v1/Security/PasswordPolicy');
+  const { data } = await apiClient.get<PasswordPolicy>('/Security/PasswordPolicy');
   return data;
 }
 
 export async function updatePasswordPolicy(policy: PasswordPolicy): Promise<void> {
-  await apiClient.put('/api/v1/Security/PasswordPolicy', policy);
+  await apiClient.put('/Security/PasswordPolicy', policy);
 }
 
 // ----------------------
@@ -268,10 +268,10 @@ export interface BackupInfo {
 }
 
 export async function triggerBackup(): Promise<BackupInfo> {
-  const { data } = await apiClient.post<BackupInfo>('/api/v1/System/Backup', {});
+  const { data } = await apiClient.post<BackupInfo>('/System/Backup', {});
   return data;
 }
 
 export async function restoreFromBackup(backupId: string): Promise<void> {
-  await apiClient.post('/api/v1/System/Restore', { backupId });
+  await apiClient.post('/System/Restore', { backupId });
 }

@@ -1,11 +1,7 @@
 /** @type {import('next').NextConfig} */
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  sw: 'sw.js',
-  disable: true, // Disable PWA to fix build issues
-});
+// PWA disabled - removed withPWA wrapper to prevent ServiceWorker registration errors
+// To re-enable PWA later, uncomment and configure:
+// const withPWA = require('next-pwa')({ dest: 'public', register: true, skipWaiting: true });
 
 const nextConfig = {
   reactStrictMode: true,
@@ -66,5 +62,5 @@ const nextConfig = {
   },
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = nextConfig;
 

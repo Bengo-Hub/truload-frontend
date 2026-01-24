@@ -193,26 +193,29 @@ Each module in `app/(modules)/` follows a consistent structure:
 - Road selection
 - Act selection (EAC/Traffic) with station default pre-selected
 
-**Screen 3: Weight Capture Panel**
+**Screen 3: Weight Capture & Compliance Panel**
+> **Superior Approach**: See [WEIGHING_SCREEN_SPECIFICATION.md](./WEIGHING_SCREEN_SPECIFICATION.md) for detailed UX/UI specs mandating "Dual Compliance View".
 
 **Static Mode:**
-- Per-deck weight display with TruConnect stream
-- Live weight indicators per deck
+- Two-Column Layout:
+  - **Left**: Real-time vehicle diagram ("Digital Twin") with per-deck indicators.
+  - **Right**: Unified Hierarchical Grid showing Group A/B/C/D breakdown.
+    - Explicitly displays **Group Tolerance (+5%)** column.
+    - Real-time **Pavement Damage Factor (PDF)** calculation.
+- Live weight indicators per deck/group
 - Stabilize and lock buttons per deck
-- Visual feedback when weight is stable
 - GVW running total
 
 **WIM Mode:**
 - Auto-capture timeline showing weight progression per axle
-- Highest stable weight display per axle
-- Confidence indicators
+- Highest stable weight display per axle group
+- Compliance confidence indicators
 - Capture confirmation interface
 
 **Mobile/Axle-by-Axle Mode:**
 - Axle-by-axle weight assignment interface
-- "Assign Weight" button for each axle as vehicle advances
 - Group mapping display (A/B/C/D)
-- Running GVW calculation
+- Running GVW and Group Aggregate calculation
 - Axle weight history
 
 **Decision Panel:**
@@ -229,6 +232,47 @@ Each module in `app/(modules)/` follows a consistent structure:
 - Reweigh cycle counter (max 8)
 - Redistribution/offload wizard
 - Compliance certificate generation upon zero overload
+
+### Weighing Workflow Implementation Details (January 2026)
+
+**Automatic Vehicle Creation:**
+- When weighing starts with a new vehicle plate not in the database, the system automatically creates a vehicle record
+- Only `regNo` is required for initial creation - other details can be captured later
+- Implementation: `useCreateVehicle` mutation called in `handleProceedToVehicle()` if `existingVehicle` is not found
+- Toast notification confirms successful vehicle creation
+
+**Ticket Number Generation Convention:**
+- Format: `{StationCode}{Bound}-{YYYYMMDD}{Sequence}`
+- Example: `NRB-01A-202601230001`
+- Components:
+  - `StationCode`: From current station (e.g., `NRB-01`, `MOM`, `MAR`)
+  - `Bound`: Suffix for bidirectional stations (e.g., `A` or `B`)
+  - `YYYYMMDD`: Current date from system
+  - `Sequence`: 6-digit sequence number (timestamp-based in frontend, backend should use DocumentSequence)
+- Implementation: `generateTicketNumber()` callback in both mobile and multideck pages
+- Future enhancement: Backend should provide sequence numbers via DocumentSequence/PrefixSettings pattern from ERP
+
+**Vehicle Details Card Integration:**
+- All select fields linked to backend entities via TanStack Query hooks:
+  - `useDrivers()` - Driver selection
+  - `useTransporters()` - Transporter selection
+  - `useCargoTypes()` - Cargo type selection
+  - `useOriginsDestinations()` - Origin/Destination selection
+  - `useVehicleByRegNo()` - Auto-lookup existing vehicle
+- Auto-population from existing vehicle data (transporter, axle config)
+- Geolocation support for suggested origin location via `useNearbyLocations` hook
+- Modal handlers for inline CRUD operations (add driver, transporter, location, cargo type)
+
+**State Management for Linked Entities:**
+```typescript
+// Linked entity IDs
+const [selectedDriverId, setSelectedDriverId] = useState<string | undefined>();
+const [selectedTransporterId, setSelectedTransporterId] = useState<string | undefined>();
+const [selectedCargoId, setSelectedCargoId] = useState<string | undefined>();
+const [selectedOriginId, setSelectedOriginId] = useState<string | undefined>();
+const [selectedDestinationId, setSelectedDestinationId] = useState<string | undefined>();
+const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>();
+```
 
 **Offline Handling:**
 - Local-first form capture in IndexedDB
@@ -264,14 +308,79 @@ Each module in `app/(modules)/` follows a consistent structure:
 
 ### A.3 - Scale Test UI Flow
 
-**Scale Test Screen:**
-- Daily test requirement indicator
-- Test weight input
-- Test execution interface
-- Result display (Pass/Fail)
-- Deviation display
-- Test history
-- Block weighing operations if test fails
+**Scale Test Overview:**
+Scale tests are mandatory daily calibration verifications required before weighing operations can commence. The system supports two test types:
+
+1. **Calibration Weight Tests:** Traditional approach using known calibration weights
+2. **Vehicle-Based Tests:** Using a 2-axle reference vehicle with known weight
+
+**Scale Test Screen Components:**
+
+**ScaleTestBanner:**
+- Daily test requirement indicator (Warning/Success)
+- Time since last test display
+- Last test result summary
+- Quick action button to start test
+
+**ScaleTestModal:**
+- Tab-based interface: "Calibration Weight" vs "Test Vehicle"
+- Test type selection
+- For calibration weights:
+  - Expected test weight input (kg)
+  - Actual measured weight display (real-time from scale)
+  - Deviation calculation and display
+- For vehicle-based tests:
+  - Vehicle plate input
+  - Expected vehicle weight (known reference)
+  - Weighing mode: mobile or multideck
+  - For multideck: Both axles on one deck at a time, record, move to next
+  - For mobile: Record weight on Scale A and Scale B
+- Pass/Fail determination (0.5% or 50kg minimum deviation tolerance)
+- Test execution confirmation
+- Result display with detailed breakdown
+
+**ScaleTestHistoryTab:**
+- Date range filter (today, yesterday, week, month, custom)
+- Result filter (pass/fail/all)
+- Search by test ID or vehicle plate
+- Statistics dashboard (total tests, pass rate, average deviation)
+- Export to CSV functionality
+- Sortable columns (date, type, result, deviation)
+
+**Scale Test Caching (24-Hour Persistence):**
+- Scale test status cached in localStorage with 24-hour expiration
+- Cache key format: `truload_scale_test_{stationId}_{bound}`
+- Cache validated on same calendar day (UTC)
+- Prevents unnecessary API calls on page refresh
+- Auto-clears at midnight (new test required daily)
+- Cache updated immediately when new test is performed
+
+**Tolerance Rules (Kenya Traffic Act Cap 403):**
+- Calibration weight deviation: Max 0.5% or 50kg (whichever is greater)
+- Vehicle-based test: Same tolerance applied to total vehicle weight
+- Failed test blocks all weighing operations until passed
+
+**API Endpoints:**
+- `POST /api/v1/scale-tests` - Create new scale test
+- `GET /api/v1/scale-tests/my-station/status` - Check current status
+- `GET /api/v1/scale-tests/my-station/latest` - Get latest test
+- `GET /api/v1/scale-tests/station/{id}/range` - Get tests by date range
+
+**Data Model (CreateScaleTestRequest):**
+```typescript
+{
+  stationId: string;
+  bound?: string;
+  testType: 'calibration_weight' | 'vehicle';
+  vehiclePlate?: string;        // Required for vehicle tests
+  weighingMode?: 'mobile' | 'multideck';
+  testWeightKg?: number;        // Expected weight
+  actualWeightKg?: number;      // Measured weight
+  result: 'pass' | 'fail';
+  deviationKg?: number;
+  details?: string;
+}
+```
 
 ---
 
@@ -999,9 +1108,69 @@ Each sprint document in the [sprints](./sprints/) folder contains:
 
 ---
 
+## KenloadV2 UI Comparison & Improvements (January 22, 2026)
+
+Based on the comprehensive [system comparison audit](../truload-backend/docs/KENLOAD_VS_TRULOAD_COMPARISON.md), the following UI improvements are recommended:
+
+### UI Patterns to Adopt from KenloadV2
+
+1. **Digital LCD Weight Display**
+   - Black background with yellow/green digital font (font-family: "digital-7")
+   - High contrast for outdoor/bright environments
+   - Create reusable `DigitalWeightDisplay` component
+
+2. **Dual Table Layout for Weight Tickets**
+   - Table 1: Individual axle weights (diagnostic view)
+   - Table 2: Axle group weights (PRIMARY compliance check)
+   - Use hierarchical tree view (Groups as parents, Axles as children)
+
+3. **Visual Axle Configuration**
+   - Clickable axle positions with tyre type images (S/D/W)
+   - Dynamic SVG vehicle diagrams by axle configuration
+   - Color-coded deck grouping indicators (A, B, C, D)
+
+4. **Status Color Coding**
+   - Green: LEGAL (within limits)
+   - Yellow: WARNING (within operational tolerance ≤200kg)
+   - Red: OVERLOAD (exceeds limits)
+   - Apply consistently across all status indicators
+
+### TruLoad Superior Approaches to Preserve
+
+1. **Unified Hierarchical Grid** - Superior to KenloadV2's split tables
+2. **Real-time PDF Display** - Pavement Damage Factor shown immediately
+3. **Modern Component Architecture** - Shadcn + Tailwind vs Bootstrap Vue
+4. **Responsive Design** - Card view on mobile tablets for roadside checks
+5. **Offline-First PWA** - IndexedDB queue with background sync
+
+### New Components Required
+
+1. `DigitalWeightDisplay` - LCD-style weight readout
+2. `AxleGroupHierarchyGrid` - Hierarchical weight display
+3. `VehicleDiagramSVG` - Dynamic vehicle configuration diagram
+4. `ComplianceStatusBadge` - Color-coded status indicator
+5. `PavementDamageIndicator` - PDF visualization component
+6. `DemeritPointsCard` - Driver demerit points display (Sprint 15+)
+
+### Priority Implementation Order
+
+| Sprint | UI Component | Priority |
+|--------|--------------|----------|
+| Sprint 3 | Weighing Screen Core | P0 |
+| Sprint 3 | AxleGroupHierarchyGrid | P0 |
+| Sprint 4 | VehicleDiagramSVG | P1 |
+| Sprint 4 | DigitalWeightDisplay | P1 |
+| Sprint 5 | Weight Ticket PDF Preview | P1 |
+| Sprint 6 | Prosecution Screens | P1 |
+| Sprint 7 | Case Subfile Management | P2 |
+
+---
+
 ## References
 
 - [Integration Guide](./integration.md)
+- [Weighing Screen Specification](./WEIGHING_SCREEN_SPECIFICATION.md) - Detailed UX/UI specs with KenloadV2 comparison
+- [Backend System Comparison](../truload-backend/docs/KENLOAD_VS_TRULOAD_COMPARISON.md) - Comprehensive KenloadV2 vs TruLoad analysis
 - [Sprint Plans](./sprints/)
-- [FRD Document](../../resources/Master%20FRD%20KURAWEIGH.docx.md)
+- [FRD Document](../truload-backend/docs/Master-FRD-KURAWEIGH.md)
 - [Backend Plan](../truload-backend/docs/plan.md)
