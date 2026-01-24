@@ -7,7 +7,7 @@ const nextConfig = {
   reactStrictMode: true,
 
   // Disable standalone output for Windows development (causes symlink issues)
-  // output: 'standalone',
+   output: 'standalone',
   
   // Fix workspace root detection for monorepo
   outputFileTracingRoot: require('path').join(__dirname),
