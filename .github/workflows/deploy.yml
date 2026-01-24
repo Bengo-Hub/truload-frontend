@@ -40,8 +40,8 @@ jobs:
         echo "REGISTRY_NAMESPACE=codevertex" >> $GITHUB_ENV
         echo "VALUES_FILE_PATH=apps/truload-frontend/values.yaml" >> $GITHUB_ENV
         echo "APP_NAME=truload-frontend" >> $GITHUB_ENV
-        echo "NEXT_PUBLIC_API_URL=https://truloadapitest.masterspace.co.ke" >> $GITHUB_ENV
-        echo "NEXT_PUBLIC_WS_URL=wss://truloadapitest.masterspace.co.ke/ws" >> $GITHUB_ENV
+        echo "NEXT_PUBLIC_API_URL=https://kuraweighapitest.masterspace.co.ke" >> $GITHUB_ENV
+        echo "NEXT_PUBLIC_WS_URL=wss://kuraweighapitest.masterspace.co.ke/ws" >> $GITHUB_ENV
 
     - name: Run production deployment
       env:
@@ -67,8 +67,8 @@ jobs:
         GIT_USER: ${{ secrets.GIT_USER || 'TruLoad Bot' }}
         GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'dev@truload.io' }}
         # Build args for Next.js
-        NEXT_PUBLIC_API_URL: https://truloadapitest.masterspace.co.ke
-        NEXT_PUBLIC_WS_URL: wss://truloadapitest.masterspace.co.ke/ws
+        NEXT_PUBLIC_API_URL: https://kuraweighapitest.masterspace.co.ke
+        NEXT_PUBLIC_WS_URL: wss://kuraweighapitest.masterspace.co.ke/ws
       run: |
         chmod +x build.sh
         # Export environment variables for build.sh
@@ -169,7 +169,7 @@ jobs:
             echo "✅ Deployment rollout successful"
             
             # Try ingress health endpoint
-            HOSTS=$(kubectl get ingress -n ${NS} -o jsonpath='{.items[*].spec.rules[*].host}' | tr ' ' '\n' | grep -E '^truloadtest' || true)
+            HOSTS=$(kubectl get ingress -n ${NS} -o jsonpath='{.items[*].spec.rules[*].host}' | tr ' ' '\n' | grep -E '^kuraweightest' || true)
             if [ -n "$HOSTS" ]; then
               STATUS=1
               for H in $HOSTS; do

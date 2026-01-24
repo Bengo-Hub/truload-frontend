@@ -47,8 +47,8 @@ step "Filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table --skip-files "*.pem" --skip-files "*.key" --skip-files "*.crt" || true
 
 # Build args for Next.js
-NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-"https://truloadapitest.masterspace.co.ke"}
-NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-"wss://truloadapitest.masterspace.co.ke/ws"}
+NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-"https://kuraweighapitest.masterspace.co.ke"}
+NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-"wss://kuraweighapitest.masterspace.co.ke/ws"}
 
 step "Docker build"
 DOCKER_BUILDKIT=1 docker build . \
