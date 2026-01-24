@@ -124,46 +124,14 @@ else
   warn "No GitHub token found for devops-k8s update"
 fi
 
-if [[ -n "$TOKEN" ]]; then
-  step "Updating Helm values in devops-k8s"
-
-  CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
-
-  # Clone devops-k8s repo if it doesn't exist
-  if [[ ! -d "$DEVOPS_DIR" ]]; then
-    info "Cloning devops-k8s repo..."
-    git clone "$CLONE_URL" "$DEVOPS_DIR" || { err "Failed to clone devops-k8s"; exit 1; }
-  fi
-
-  cd "$DEVOPS_DIR"
-  git config user.email "$GIT_EMAIL"
-  git config user.name "$GIT_USER"
-
-  # Ensure we have the latest changes
-  git fetch origin main || true
-  git checkout main || git checkout -b main
-  git reset --hard origin/main
-
-  if [[ -f "$VALUES_FILE_PATH" ]]; then
-    # Update image tag using yq
-    IMAGE_TAG_ENV="$GIT_COMMIT_ID" yq e -i '.image.tag = env(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
-
-    git add "$VALUES_FILE_PATH"
-    git commit -m "${APP_NAME}:${GIT_COMMIT_ID} released" || info "No changes to commit"
-    git pull --rebase origin main || true
-
-    # Push using token
-    if git remote | grep -q push-origin; then git remote remove push-origin || true; fi
-    git remote add push-origin "$CLONE_URL"
-    git push push-origin HEAD:main || warn "Failed to push to devops repo"
-    ok "Helm values updated - ArgoCD will auto-sync"
-  else
-    warn "Values file not found at ${VALUES_FILE_PATH}"
-  fi
-
-  cd - > /dev/null
+# Update Helm values using centralized script
+source "${HOME}/devops-k8s/scripts/helm/update-values.sh" 2>/dev/null || {
+  warn "Centralized helm update script not available"
+}
+if declare -f update_helm_values >/dev/null 2>&1; then
+  update_helm_values "$APP_NAME" "$GIT_COMMIT_ID" "$IMAGE_REPO"
 else
-  warn "No GitHub token set - skipping devops-k8s update"
+  warn "update_helm_values function not available - helm values not updated"
 fi
 
 step "Summary"
