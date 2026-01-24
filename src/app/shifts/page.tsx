@@ -56,7 +56,7 @@ type ShiftFormValues = CreateWorkShiftRequest;
 export default function ShiftsPage() {
   return (
     <AppShell title="Shift Management" subtitle="Configure work shifts and schedules">
-      <ProtectedRoute requiredPermissions={["workshift.view"]}>
+      <ProtectedRoute requiredPermissions={["user.manage_shifts"]}>
         <ShiftsContent />
       </ProtectedRoute>
     </AppShell>
@@ -64,10 +64,10 @@ export default function ShiftsPage() {
 }
 
 function ShiftsContent() {
-  const canUpdate = useHasPermission('workshift.update');
-  const canCreate = useHasPermission('workshift.create');
-  const canEdit = canUpdate || canCreate;
-  const canDelete = useHasPermission('workshift.delete');
+  // user.manage_shifts covers all shift CRUD operations
+  const canManageShifts = useHasPermission('user.manage_shifts');
+  const canEdit = canManageShifts;
+  const canDelete = canManageShifts;
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);

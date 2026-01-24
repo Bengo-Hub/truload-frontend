@@ -6,11 +6,18 @@
 const TOKEN_EXPIRY_KEY = 'truload_token_expiry';
 const ACCESS_TOKEN_KEY = 'truload_access_token';
 const REFRESH_TOKEN_KEY = 'truload_refresh_token';
+const ORG_ID_KEY = 'truload_org_id';
+const STATION_ID_KEY = 'truload_station_id';
 
 interface TokenBundle {
   accessToken: string;
   refreshToken: string;
   expiresIn: number; // seconds
+}
+
+interface TenantContext {
+  organizationId?: string;
+  stationId?: string;
 }
 
 export function setTokens({ accessToken, refreshToken, expiresIn }: TokenBundle): void {
@@ -38,12 +45,53 @@ export function clearTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  localStorage.removeItem(ORG_ID_KEY);
+  localStorage.removeItem(STATION_ID_KEY);
 
   // Clear cookies
   const now = new Date(0).toUTCString();
   document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; expires=${now}; SameSite=Strict`;
   document.cookie = `${REFRESH_TOKEN_KEY}=; path=/; expires=${now}; SameSite=Strict`;
   document.cookie = `${TOKEN_EXPIRY_KEY}=; path=/; expires=${now}; SameSite=Strict`;
+}
+
+/**
+ * Store tenant context (organization and station IDs) from logged-in user.
+ * These are sent as X-Org-ID and X-Station-ID headers on all API requests.
+ */
+export function setTenantContext({ organizationId, stationId }: TenantContext): void {
+  if (typeof window === 'undefined') return;
+
+  if (organizationId) {
+    localStorage.setItem(ORG_ID_KEY, organizationId);
+  }
+  if (stationId) {
+    localStorage.setItem(STATION_ID_KEY, stationId);
+  }
+}
+
+/**
+ * Get current organization ID for API headers.
+ */
+export function getOrganizationId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(ORG_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get current station ID for API headers.
+ */
+export function getStationId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(STATION_ID_KEY);
+  } catch {
+    return null;
+  }
 }
 
 export function getAccessToken(): string | null {

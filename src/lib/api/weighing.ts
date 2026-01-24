@@ -1,0 +1,681 @@
+import { apiClient } from '@/lib/api/client';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface Vehicle {
+  id: string;
+  regNo: string;
+  vehicleType?: string;
+  axleConfigurationId?: string;
+  transporterId?: string;
+  makeModel?: string;
+  chassisNo?: string;
+  tareWeight?: number;
+  isActive?: boolean;
+}
+
+export interface Driver {
+  id: string;
+  fullName: string;
+  idNumber: string;
+  drivingLicenseNo: string;
+  phoneNumber?: string;
+  email?: string;
+  transporterId?: string;
+  isActive?: boolean;
+}
+
+export interface Transporter {
+  id: string;
+  name: string;
+  code?: string;
+  address?: string;
+  contactPerson?: string;
+  phoneNumber?: string;
+  email?: string;
+  isActive?: boolean;
+}
+
+export interface WeighingAxle {
+  id?: string;
+  axleNumber: number;
+  measuredWeightKg: number;
+  permissibleWeightKg?: number;
+  overloadKg?: number;
+  axleConfigurationId?: string;
+  axleWeightReferenceId?: string;
+  capturedAt?: string;
+}
+
+export interface WeighingTransaction {
+  id: string;
+  ticketNumber: string;
+  vehicleId: string;
+  vehicleRegNumber: string;
+  driverId?: string;
+  transporterId?: string;
+  stationId: string;
+  weighedByUserId: string;
+  weighingType?: string;
+  actId?: string;
+  bound?: string;
+  gvwMeasuredKg: number;
+  gvwPermissibleKg: number;
+  overloadKg: number;
+  controlStatus: string;
+  totalFeeUsd: number;
+  weighedAt: string;
+  isSync: boolean;
+  isCompliant: boolean;
+  isSentToYard: boolean;
+  violationReason?: string;
+  reweighCycleNo: number;
+  originalWeighingId?: string;
+  hasPermit: boolean;
+  originId?: string;
+  destinationId?: string;
+  cargoId?: string;
+  toleranceApplied?: boolean;
+  reweighLimit?: number;
+  weighingAxles: WeighingAxle[];
+}
+
+export interface WeighingResult {
+  weighingId: string;
+  ticketNumber: string;
+  vehicleRegNumber: string;
+  gvwMeasuredKg: number;
+  gvwPermissibleKg: number;
+  gvwOverloadKg: number;
+  isCompliant: boolean;
+  controlStatus: string;
+  /** Overall compliance status: LEGAL, WARNING, or OVERLOAD */
+  overallStatus?: string;
+  violationReason?: string;
+  totalFeeUsd: number;
+  hasPermit: boolean;
+  reweighCycleNo: number;
+  weighedAt: string;
+  axleCompliance: {
+    axleNumber: number;
+    measuredWeightKg: number;
+    permissibleWeightKg: number;
+    overloadKg: number;
+    isCompliant: boolean;
+  }[];
+}
+
+export interface SearchWeighingParams {
+  stationId?: string;
+  vehicleRegNo?: string;
+  fromDate?: string;
+  toDate?: string;
+  controlStatus?: string;
+  isCompliant?: boolean;
+  operatorId?: string;
+  skip?: number;
+  take?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  totalCount: number;
+  skip: number;
+  take: number;
+}
+
+export interface CreateWeighingRequest {
+  ticketNumber?: string;
+  stationId: string;
+  vehicleId?: string;
+  vehicleRegNumber?: string;
+  driverId?: string;
+  transporterId?: string;
+  weighingType?: string;
+  bound?: string;
+  originId?: string;
+  destinationId?: string;
+  cargoId?: string;
+}
+
+export interface UpdateWeighingRequest {
+  vehicleRegNumber?: string;
+  driverId?: string;
+  transporterId?: string;
+  originId?: string;
+  destinationId?: string;
+  cargoId?: string;
+}
+
+export interface CaptureWeightsRequest {
+  axles: {
+    axleNumber: number;
+    measuredWeightKg: number;
+    axleConfigurationId?: string;
+  }[];
+}
+
+export interface InitiateReweighRequest {
+  originalWeighingId: string;
+  reweighTicketNumber?: string;
+}
+
+// ============================================================================
+// Vehicle API
+// ============================================================================
+
+export async function getVehicleById(id: string): Promise<Vehicle> {
+  const { data } = await apiClient.get<Vehicle>(`/Vehicle/${id}`);
+  return data;
+}
+
+export async function getVehicleByRegNo(regNo: string): Promise<Vehicle | null> {
+  try {
+    const { data } = await apiClient.get<Vehicle>(`/Vehicle/reg/${encodeURIComponent(regNo)}`);
+    return data;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const err = error as { response?: { status?: number } };
+      if (err.response?.status === 404) return null;
+    }
+    throw error;
+  }
+}
+
+export async function searchVehicles(query: string): Promise<Vehicle[]> {
+  const { data } = await apiClient.get<Vehicle[]>('/Vehicle/search', {
+    params: { query },
+  });
+  return data;
+}
+
+export async function createVehicle(vehicle: Partial<Vehicle>): Promise<Vehicle> {
+  const { data } = await apiClient.post<Vehicle>('/Vehicle', vehicle);
+  return data;
+}
+
+export async function updateVehicle(id: string, vehicle: Partial<Vehicle>): Promise<void> {
+  await apiClient.put(`/Vehicle/${id}`, { ...vehicle, id });
+}
+
+// ============================================================================
+// Driver API
+// ============================================================================
+
+export async function getDriverById(id: string): Promise<Driver> {
+  const { data } = await apiClient.get<Driver>(`/Driver/${id}`);
+  return data;
+}
+
+export async function searchDrivers(query: string): Promise<Driver[]> {
+  const { data } = await apiClient.get<Driver[]>('/Driver/search', {
+    params: { query },
+  });
+  return data;
+}
+
+export async function createDriver(driver: Partial<Driver>): Promise<Driver> {
+  const { data } = await apiClient.post<Driver>('/Driver', driver);
+  return data;
+}
+
+export async function updateDriver(id: string, driver: Partial<Driver>): Promise<void> {
+  await apiClient.put(`/Driver/${id}`, { ...driver, id });
+}
+
+// ============================================================================
+// Transporter API
+// ============================================================================
+
+export async function getTransporterById(id: string): Promise<Transporter> {
+  const { data } = await apiClient.get<Transporter>(`/Transporter/${id}`);
+  return data;
+}
+
+export async function searchTransporters(query: string): Promise<Transporter[]> {
+  const { data } = await apiClient.get<Transporter[]>('/Transporter/search', {
+    params: { query },
+  });
+  return data;
+}
+
+export async function createTransporter(transporter: Partial<Transporter>): Promise<Transporter> {
+  const { data } = await apiClient.post<Transporter>('/Transporter', transporter);
+  return data;
+}
+
+// ============================================================================
+// Weighing Transaction API
+// ============================================================================
+
+export async function searchWeighingTransactions(
+  params: SearchWeighingParams
+): Promise<PagedResult<WeighingTransaction>> {
+  const { data } = await apiClient.get<PagedResult<WeighingTransaction>>(
+    '/WeighingTransaction',
+    { params }
+  );
+  return data;
+}
+
+export async function getWeighingTransaction(id: string): Promise<WeighingTransaction> {
+  const { data } = await apiClient.get<WeighingTransaction>(`/WeighingTransaction/${id}`);
+  return data;
+}
+
+export async function createWeighingTransaction(
+  request: CreateWeighingRequest
+): Promise<WeighingTransaction> {
+  const { data } = await apiClient.post<WeighingTransaction>(
+    '/WeighingTransaction',
+    request
+  );
+  return data;
+}
+
+export async function updateWeighingTransaction(
+  id: string,
+  request: UpdateWeighingRequest
+): Promise<WeighingTransaction> {
+  const { data } = await apiClient.put<WeighingTransaction>(
+    `/WeighingTransaction/${id}`,
+    request
+  );
+  return data;
+}
+
+export async function deleteWeighingTransaction(id: string): Promise<void> {
+  await apiClient.delete(`/WeighingTransaction/${id}`);
+}
+
+export async function captureWeights(
+  transactionId: string,
+  request: CaptureWeightsRequest
+): Promise<WeighingResult> {
+  const { data } = await apiClient.post<WeighingResult>(
+    `/WeighingTransaction/${transactionId}/capture-weights`,
+    request
+  );
+  return data;
+}
+
+export async function initiateReweigh(request: InitiateReweighRequest): Promise<WeighingTransaction> {
+  const { data } = await apiClient.post<WeighingTransaction>(
+    '/WeighingTransaction/reweigh',
+    request
+  );
+  return data;
+}
+
+// ============================================================================
+// Lookup APIs (Cargo, Origins/Destinations)
+// ============================================================================
+
+export interface CargoType {
+  id: string;
+  name: string;
+  code?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface OriginDestination {
+  id: string;
+  name: string;
+  code?: string;
+  country?: string;
+  region?: string;
+  isActive?: boolean;
+}
+
+export async function fetchCargoTypes(): Promise<CargoType[]> {
+  const { data } = await apiClient.get<CargoType[]>('/CargoTypes');
+  return data;
+}
+
+export async function fetchOriginsDestinations(): Promise<OriginDestination[]> {
+  const { data } = await apiClient.get<OriginDestination[]>('/OriginsDestinations');
+  return data;
+}
+
+// ============================================================================
+// Station API
+// ============================================================================
+
+export interface Station {
+  id: string;
+  code: string;
+  stationCode: string;
+  name: string;
+  stationType: string;
+  organizationId: string;
+  organizationName?: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  supportsBidirectional: boolean;
+  boundACode?: string;
+  boundBCode?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchStations(): Promise<Station[]> {
+  const { data } = await apiClient.get<Station[]>('/Stations');
+  return data;
+}
+
+/**
+ * Fetch the station linked to the current authenticated user.
+ * Uses the station_id from the user's JWT claims.
+ */
+export async function fetchMyStation(): Promise<Station | null> {
+  try {
+    const { data } = await apiClient.get<Station>('/Stations/my-station');
+    return data;
+  } catch (error) {
+    // Return null if user has no linked station (404)
+    console.warn('No station linked to current user');
+    return null;
+  }
+}
+
+export async function getStationById(id: string): Promise<Station> {
+  const { data } = await apiClient.get<Station>(`/Stations/${id}`);
+  return data;
+}
+
+export async function getStationsByType(stationType: string): Promise<Station[]> {
+  const { data } = await apiClient.get<Station[]>(`/Stations/type/${stationType}`);
+  return data;
+}
+
+export async function getStationsByOrganization(organizationId: string): Promise<Station[]> {
+  const { data } = await apiClient.get<Station[]>(`/Stations/organization/${organizationId}`);
+  return data;
+}
+
+// ============================================================================
+// Axle Configuration API
+// ============================================================================
+
+export interface AxleWeightReference {
+  id: string;
+  axleConfigurationId: string;
+  axlePosition: number;
+  axleGrouping: string;
+  axleGroupId?: string;
+  tyreTypeId?: string;
+  axleLegalWeightKg: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface AxleConfiguration {
+  id: string;
+  axleCode: string;
+  axleName: string;
+  description?: string;
+  axleNumber: number;
+  gvwPermissibleKg: number;
+  isStandard: boolean;
+  legalFramework: string;
+  visualDiagramUrl?: string;
+  notes?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdByUserId?: string;
+  weightReferenceCount: number;
+  weightReferences?: AxleWeightReference[];
+}
+
+export async function fetchAxleConfigurations(): Promise<AxleConfiguration[]> {
+  const { data } = await apiClient.get<AxleConfiguration[]>('/AxleConfiguration');
+  return data;
+}
+
+export async function getAxleConfigurationById(id: string): Promise<AxleConfiguration> {
+  const { data } = await apiClient.get<AxleConfiguration>(`/AxleConfiguration/${id}`);
+  return data;
+}
+
+export async function getAxleConfigurationByCode(code: string): Promise<AxleConfiguration | null> {
+  try {
+    const { data } = await apiClient.get<AxleConfiguration>(`/AxleConfiguration/code/${code}`);
+    return data;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const err = error as { response?: { status?: number } };
+      if (err.response?.status === 404) return null;
+    }
+    throw error;
+  }
+}
+
+// ============================================================================
+// Compliance API
+// ============================================================================
+
+export interface AxleDetailResult {
+  axleNumber: number;
+  measuredWeightKg: number;
+  permissibleWeightKg: number;
+  overloadKg: number;
+  tyreType?: string;
+  spacingMeters?: number;
+}
+
+export interface AxleGroupResult {
+  groupLabel: string;
+  axleType: string;
+  axleCount: number;
+  groupWeightKg: number;
+  groupPermissibleKg: number;
+  toleranceKg: number;
+  effectiveLimitKg: number;
+  overloadKg: number;
+  pavementDamageFactor: number;
+  status: string;
+  feeUsd: number;
+  demeritPoints: number;
+  axles: AxleDetailResult[];
+}
+
+export interface DemeritPointBreakdown {
+  violationType: string;
+  overloadKg: number;
+  points: number;
+}
+
+export interface PenaltyInfo {
+  description: string;
+  suspensionDays?: number;
+  requiresCourt: boolean;
+  additionalFineUsd: number;
+  additionalFineKes: number;
+}
+
+export interface DemeritPointsResult {
+  totalPoints: number;
+  breakdown: DemeritPointBreakdown[];
+  applicablePenalty?: PenaltyInfo;
+  requiresCourt: boolean;
+  suspensionDays?: number;
+}
+
+export interface ComplianceResult {
+  weighingId: string;
+  ticketNumber: string;
+  vehicleRegNumber?: string;
+  groupResults: AxleGroupResult[];
+  gvwMeasuredKg: number;
+  gvwPermissibleKg: number;
+  gvwOverloadKg: number;
+  totalAxleFeeUsd: number;
+  gvwFeeUsd: number;
+  totalFeeUsd: number;
+  demeritPoints: DemeritPointsResult;
+  overallStatus: string;
+  isCompliant: boolean;
+  shouldSendToYard: boolean;
+  violationReasons: string[];
+}
+
+export async function getComplianceResult(weighingId: string): Promise<ComplianceResult> {
+  const { data } = await apiClient.get<ComplianceResult>(
+    `/WeighingTransaction/${weighingId}/compliance`
+  );
+  return data;
+}
+
+export async function calculateCompliance(weighingId: string): Promise<ComplianceResult> {
+  const { data } = await apiClient.post<ComplianceResult>(
+    `/WeighingTransaction/${weighingId}/calculate-compliance`
+  );
+  return data;
+}
+
+// ============================================================================
+// Scale Test API
+// ============================================================================
+
+export type ScaleTestType = 'calibration_weight' | 'vehicle';
+export type WeighingModeType = 'mobile' | 'multideck';
+
+export interface ScaleTest {
+  id: string;
+  stationId: string;
+  stationName?: string;
+  stationCode?: string;
+  bound?: string;
+  /** Type of test: calibration_weight or vehicle */
+  testType: ScaleTestType;
+  /** Vehicle plate for vehicle-based tests */
+  vehiclePlate?: string;
+  /** Weighing mode: mobile or multideck */
+  weighingMode?: WeighingModeType;
+  /** Expected test weight in kg */
+  testWeightKg?: number;
+  /** Actual measured weight in kg */
+  actualWeightKg?: number;
+  result: string; // 'pass' | 'fail'
+  deviationKg?: number;
+  details?: string;
+  carriedAt: string;
+  carriedById: string;
+  carriedByName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScaleTestStatus {
+  hasValidTest: boolean;
+  latestTest?: ScaleTest;
+  weighingAllowed: boolean;
+  message: string;
+  stationId: string;
+  bound?: string;
+}
+
+export interface CreateScaleTestRequest {
+  stationId: string;
+  bound?: string;
+  /** Type of test: calibration_weight or vehicle */
+  testType?: ScaleTestType;
+  /** Vehicle plate for vehicle-based tests */
+  vehiclePlate?: string;
+  /** Weighing mode: mobile or multideck */
+  weighingMode?: WeighingModeType;
+  /** Expected test weight in kg */
+  testWeightKg?: number;
+  /** Actual measured weight in kg */
+  actualWeightKg?: number;
+  result: string; // 'pass' | 'fail'
+  deviationKg?: number;
+  details?: string;
+}
+
+/**
+ * Create a new scale test record
+ */
+export async function createScaleTest(request: CreateScaleTestRequest): Promise<ScaleTest> {
+  const { data } = await apiClient.post<ScaleTest>('/scale-tests', request);
+  return data;
+}
+
+/**
+ * Get scale test status for current user's station
+ */
+export async function getMyStationScaleTestStatus(bound?: string): Promise<ScaleTestStatus> {
+  const { data } = await apiClient.get<ScaleTestStatus>('/scale-tests/my-station/status', {
+    params: bound ? { bound } : undefined,
+  });
+  return data;
+}
+
+/**
+ * Get latest scale test for current user's station
+ */
+export async function getMyLatestScaleTest(bound?: string): Promise<ScaleTest | null> {
+  try {
+    const { data } = await apiClient.get<ScaleTest>('/scale-tests/my-station/latest', {
+      params: bound ? { bound } : undefined,
+    });
+    return data;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const err = error as { response?: { status?: number } };
+      if (err.response?.status === 404) return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get latest scale test for a station
+ */
+export async function getLatestScaleTest(stationId: string, bound?: string): Promise<ScaleTest | null> {
+  try {
+    const { data } = await apiClient.get<ScaleTest>(`/scale-tests/station/${stationId}/latest`, {
+      params: bound ? { bound } : undefined,
+    });
+    return data;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const err = error as { response?: { status?: number } };
+      if (err.response?.status === 404) return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check scale test status for a station
+ */
+export async function getScaleTestStatus(stationId: string, bound?: string): Promise<ScaleTestStatus> {
+  const { data } = await apiClient.get<ScaleTestStatus>(`/scale-tests/station/${stationId}/status`, {
+    params: bound ? { bound } : undefined,
+  });
+  return data;
+}
+
+/**
+ * Get scale tests for a station by date range
+ */
+export async function getScaleTestsByDateRange(
+  stationId: string,
+  fromDate: string,
+  toDate: string,
+  bound?: string
+): Promise<ScaleTest[]> {
+  const { data } = await apiClient.get<ScaleTest[]>(`/scale-tests/station/${stationId}/range`, {
+    params: { fromDate, toDate, ...(bound ? { bound } : {}) },
+  });
+  return data;
+}
