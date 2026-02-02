@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial Next.js 15 project setup with App Router
+- Initial Next.js 16 project setup with App Router
 - PWA support with next-pwa and Workbox
 - Offline-first architecture with IndexedDB queue (Dexie.js)
 - Shadcn UI component library integration
@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-10-28
 
 ### Added
-- Project initialization with Next.js 15
+- Project initialization with Next.js 16
 - Basic folder structure (app/, components/, lib/, stores/)
 - Documentation framework (README, Implementation Plan, Integration Guide)
 - Build and deployment scripts
