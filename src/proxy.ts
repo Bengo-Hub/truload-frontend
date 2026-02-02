@@ -1,5 +1,5 @@
 /**
- * Next.js middleware for authentication and route protection.
+ * Next.js 16 proxy for authentication and route protection.
  * Validates token expiry and redirects unauthorized users to login.
  */
 
@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
 const publicPaths = ['/login', '/api/health'];
 const authPaths = ['/login'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Allow public paths without authentication
