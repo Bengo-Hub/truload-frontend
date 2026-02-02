@@ -12,11 +12,6 @@ const nextConfig = {
   // Fix workspace root detection for monorepo
   outputFileTracingRoot: require('path').join(__dirname),
   
-  // PWA configuration
-  experimental: {
-    forceSwcTransforms: true,
-  },
-
   // Environment variables validation
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
