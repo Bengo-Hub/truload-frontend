@@ -300,7 +300,7 @@ console.log('User credentials:', { email, password, token });
 
 ### Implemented
 
-- ✅ Next.js 15 with built-in security features
+- ✅ Next.js 16 with built-in security features
 - ✅ Middleware-based route protection
 - ✅ httpOnly cookies for authentication tokens
 - ✅ HTTPS enforcement (production)

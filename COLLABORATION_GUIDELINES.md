@@ -401,7 +401,7 @@ export function WeighingForm({ weighingId, onSubmit, onCancel }: WeighingFormPro
 }
 ```
 
-### Server vs Client Components (Next.js 15)
+### Server vs Client Components (Next.js 16)
 
 ```typescript
 // Server Component (default in App Router)

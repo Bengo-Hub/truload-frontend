@@ -18,13 +18,13 @@
 
 ## Overview
 
-Set up Next.js 15 project structure, configure authentication integration with TruLoad backend (ASP.NET Core Identity), implement login/logout flows, and create protected route infrastructure.
+Set up Next.js 16 project structure, configure authentication integration with TruLoad backend (ASP.NET Core Identity), implement login/logout flows, and create protected route infrastructure.
 
 ---
 
 ## Objectives
 
-- Set up Next.js 15 project with TypeScript
+- Set up Next.js 16 project with TypeScript
 - Configure authentication integration with TruLoad backend JWT authentication
 - Implement login/logout flows
 - Create protected route infrastructure
@@ -39,7 +39,7 @@ Set up Next.js 15 project structure, configure authentication integration with T
 
 ### Project Setup
 
-- [x] Initialize Next.js 15 project with TypeScript
+- [x] Initialize Next.js 16 project with TypeScript
 - [x] Configure ESLint and Prettier
 - [x] Set up folder structure (app router, components, lib, stores)
 - [x] Install and configure Tailwind CSS
@@ -198,7 +198,7 @@ Set up Next.js 15 project structure, configure authentication integration with T
 
 ## Deliverables
 
-1. Working Next.js 15 project setup
+1. Working Next.js 16 project setup
 2. Authentication integration with backend Identity JWT service
 3. Login/logout flows implemented
 4. Protected route infrastructure

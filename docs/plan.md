@@ -83,7 +83,7 @@
 ## Technology Stack
 
 ### Core Framework
-- **Framework:** Next.js 15 (App Router, RSC, Server Actions where useful)
+- **Framework:** Next.js 16 (App Router, RSC, Server Actions where useful)
 - **Language:** TypeScript
 - **Code Quality:** ESLint, Prettier
 
@@ -982,7 +982,7 @@ For detailed sprint tasks and deliverables, refer to the [sprints](./sprints/) f
 
 **Sprint Overview:**
 - **Sprint 1 (85% Complete):** Setup & Auth (Week 1-2)
-  - ✅ Next.js 15 setup, TypeScript, Tailwind, Shadcn UI
+  - ✅ Next.js 16 setup, TypeScript, Tailwind, Shadcn UI
   - ✅ Authentication integration with backend JWT
   - ✅ Login/logout flows, protected routes, token management
   - ✅ Zustand stores, axios interceptors, PWA config
@@ -1015,27 +1015,30 @@ Each sprint document in the [sprints](./sprints/) folder contains:
 
 ## Current Progress Summary & Next Tasks
 
-**Report Date:** December 31, 2025  
-**Sprint 1 Progress:** 85% Complete (Implementation done, build issues identified)
+**Report Date:** February 2, 2026  
+**Sprint 1 Progress:** 90% Complete (Implementation done, security updates applied)
 **Sprint 1.5 Progress:** 100% Complete (Axle Configuration System fully implemented)
 
 ### ✅ **COMPLETED**
-- **Project Infrastructure:** Next.js 15, TypeScript, Tailwind CSS, Shadcn UI
+- **Project Infrastructure:** Next.js 16, TypeScript, Tailwind CSS, Shadcn UI
 - **Authentication System:** Login/logout, token management, refresh logic
 - **Protected Routes:** Middleware and component-level route protection
 - **State Management:** Zustand stores for auth, user, and session data
-- **API Layer:** Axios interceptors, TanStack Query, error handling
+- **API Layer:** Axios 1.13.4 interceptors, TanStack Query, error handling
 - **PWA Setup:** Workbox service worker, offline capabilities
 - **UI Components:** Login forms, user profile, responsive design
 - **Axle Configuration System:** Complete CRUD operations, form validation, responsive UI
 - **Component Organization:** Forms and non-forms properly separated
 - **Build System:** Development build successful
+- **Security Updates:** Upgraded Next.js 16.1.6, axios 1.13.4, fixed critical vulnerabilities
+- **Yard Management:** Vehicle tracking, bound selectors, yard operations
+- **Weighing Enhancements:** Mobile/multideck weighing, tags, tickets modules
 
 ### ⚠️ **ISSUES & WARNINGS**
-- **Production Build Failure:** Next.js build fails with "_document error" - PWA plugin conflict with App Router
-- **ESLint Warnings:** 6+ warnings for unused variables and missing dependencies
+- **ESLint Warnings:** Some warnings for unused variables and missing dependencies
 - **Testing:** No unit, integration, or E2E tests implemented
 - **Backend Integration:** Cannot fully test end-to-end auth flow until backend auth is verified
+- **Minor Vulnerabilities:** 1 moderate vulnerability in js-yaml (transitive dev dependency)
 
 ### 📋 **NEXT IMMEDIATE TASKS (Priority Order)**
 

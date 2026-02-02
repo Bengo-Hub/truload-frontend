@@ -2,7 +2,7 @@
 
 **Intelligent Weighing and Enforcement Solution - PWA Client**
 
-Modern, offline-first Progressive Web App for field officers and back-office staff. Built with Next.js 15, provides real-time weight capture, prosecution management, and comprehensive reporting.
+Modern, offline-first Progressive Web App for field officers and back-office staff. Built with Next.js 16, provides real-time weight capture, prosecution management, and comprehensive reporting.
 
 ## 📚 Documentation
 
@@ -68,7 +68,7 @@ docker run -p 3000:3000 truload-frontend:dev
 
 ```
 truload-frontend/
-├── app/                      # Next.js 15 App Router
+├── app/                      # Next.js 16 App Router
 │   ├── (auth)/              # Auth routes group
 │   ├── (dashboard)/         # Protected dashboard routes
 │   ├── (modules)/           # Feature modules
