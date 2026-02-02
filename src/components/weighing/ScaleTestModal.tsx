@@ -35,14 +35,42 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  createScaleTest,
   CreateScaleTestRequest,
   ScaleTest,
   Station,
   AxleConfiguration,
 } from '@/lib/api/weighing';
+import { useCreateScaleTest } from '@/hooks/queries/useWeighingQueries';
 
 type TestType = 'calibration_weight' | 'vehicle';
+
+/** Middleware weight data for live readings */
+interface MiddlewareWeights {
+  deck1?: number;
+  deck2?: number;
+  deck3?: number;
+  deck4?: number;
+  gvw?: number;
+  currentWeight?: number;
+  /**
+   * Individual scale weights for mobile mode
+   *
+   * PAW scales return combined weight, so middleware derives:
+   *   scaleA = total / 2, scaleB = total - scaleA
+   *
+   * Haenni may return separate weights directly.
+   */
+  scaleA?: number;
+  scaleB?: number;
+  /** 'combined' (PAW - derived from total) or 'separate' (Haenni - direct) */
+  scaleWeightMode?: 'combined' | 'separate';
+}
+
+/** Scale status for mobile mode */
+interface ScaleStatus {
+  scaleA?: { weight: number; connected: boolean };
+  scaleB?: { weight: number; connected: boolean };
+}
 
 interface ScaleTestModalProps {
   open: boolean;
@@ -54,6 +82,12 @@ interface ScaleTestModalProps {
   weighingMode?: 'mobile' | 'multideck';
   /** Selected axle configuration for the test */
   axleConfiguration?: AxleConfiguration;
+  /** Live weight data from middleware (for real scale readings) */
+  middlewareWeights?: MiddlewareWeights | null;
+  /** Live scale status from middleware (for mobile mode) */
+  middlewareScaleStatus?: ScaleStatus | null;
+  /** Whether middleware is connected */
+  middlewareConnected?: boolean;
 }
 
 interface DeckReading {
@@ -62,10 +96,22 @@ interface DeckReading {
   status: 'pending' | 'reading' | 'captured' | 'error';
 }
 
-// Simulated scale reading (in production, this would come from hardware via WebSocket/TCP)
+// Fallback simulated scale reading (used when middleware is not connected)
 const simulateScaleReading = (targetWeight: number, variance: number = 10): number => {
   const v = (Math.random() - 0.5) * variance;
   return Math.round(targetWeight + v);
+};
+
+// Helper to get live deck weight from middleware (returns 0 if not available)
+const getLiveDeckWeight = (weights: MiddlewareWeights | null | undefined, deck: number): number => {
+  if (!weights) return 0;
+  switch (deck) {
+    case 1: return weights.deck1 || 0;
+    case 2: return weights.deck2 || 0;
+    case 3: return weights.deck3 || 0;
+    case 4: return weights.deck4 || 0;
+    default: return 0;
+  }
 };
 
 const TEST_WEIGHTS = [1000, 2000, 5000, 10000, 20000]; // Common calibration weights in kg
@@ -94,9 +140,15 @@ export function ScaleTestModal({
   onTestComplete,
   weighingMode = 'mobile',
   axleConfiguration,
+  middlewareWeights,
+  middlewareScaleStatus,
+  middlewareConnected = false,
 }: ScaleTestModalProps) {
   const [step, setStep] = useState<'setup' | 'testing' | 'result'>('setup');
   const [testType, setTestType] = useState<TestType>('calibration_weight');
+
+  // Use mutation hook for creating scale tests - automatically invalidates query cache
+  const createScaleTestMutation = useCreateScaleTest();
 
   // Common fields
   const [loadUsed, setLoadUsed] = useState('');
@@ -174,25 +226,40 @@ export function ScaleTestModal({
   };
 
   // Multideck test - vehicle placed on each deck sequentially
+  // Uses live data from middleware when connected, falls back to simulation otherwise
   const runMultideckTest = useCallback(async () => {
     setStep('testing');
     setIsTesting(true);
     const expectedWeight = getExpectedWeight();
+    const useLiveData = middlewareConnected && middlewareWeights;
 
-    // Simulate reading each deck sequentially
+    // Read each deck sequentially
     // For vehicle test: 2-axle vehicle placed on one deck at a time
     const newReadings: DeckReading[] = [];
     for (let i = 0; i < 4; i++) {
-      setCurrentDeck(i + 1);
+      const deckNumber = i + 1;
+      setCurrentDeck(deckNumber);
       setDeckReadings(prev => prev.map((d, idx) =>
         idx === i ? { ...d, status: 'reading' } : d
       ));
 
+      // Wait for operator to position load/vehicle on deck
       // In real implementation, operator moves vehicle to next deck and confirms
       await new Promise(resolve => setTimeout(resolve, 1200));
 
-      const reading = simulateScaleReading(expectedWeight, 30);
-      newReadings.push({ deck: i + 1, weight: reading, status: 'captured' });
+      // Get reading - use live data from middleware or simulate
+      let reading: number;
+      if (useLiveData) {
+        // Read live weight from middleware
+        reading = getLiveDeckWeight(middlewareWeights, deckNumber);
+        console.log(`[ScaleTest] Deck ${deckNumber} live reading: ${reading}kg from middleware`);
+      } else {
+        // Fallback to simulation when middleware not connected
+        reading = simulateScaleReading(expectedWeight, 30);
+        console.log(`[ScaleTest] Deck ${deckNumber} simulated reading: ${reading}kg (middleware not connected)`);
+      }
+
+      newReadings.push({ deck: deckNumber, weight: reading, status: 'captured' });
 
       setDeckReadings(prev => prev.map((d, idx) =>
         idx === i ? { ...d, weight: reading, status: 'captured' } : d
@@ -214,32 +281,77 @@ export function ScaleTestModal({
     setDeviationKg(Math.round(avgWeight - expectedWeight));
     setResult(isPassed ? 'pass' : 'fail');
     setDeviationDetails(
-      `Deck readings: ${weights.join(', ')} kg | ` +
+      `${useLiveData ? '[LIVE]' : '[SIMULATED]'} Deck readings: ${weights.join(', ')} kg | ` +
       `Average: ${avgWeight.toFixed(0)} kg | ` +
       `Max deviation from expected: ${maxDeviation.toFixed(0)} kg | ` +
       `Tolerance: ±${acceptableDeviation.toFixed(0)} kg`
     );
     setStep('result');
-  }, [testType, vehicleKnownWeight, testWeightKg]);
+  }, [testType, vehicleKnownWeight, testWeightKg, middlewareConnected, middlewareWeights]);
 
   // Mobile test - both scales should read combined weight
+  // Uses live data from middleware when connected, falls back to simulation otherwise
+  //
+  // Scale Weight Handling:
+  // - PAW: Returns combined weight. Middleware derives scaleA = total/2, scaleB = total - scaleA
+  // - Haenni: May return separate scaleA/scaleB weights directly
+  // - The scaleWeightMode field indicates which mode ('combined' or 'separate')
   const runMobileTest = useCallback(async () => {
     setStep('testing');
     setIsTesting(true);
     const expectedWeight = getExpectedWeight();
     const expectedPerScale = expectedWeight / 2;
+    // Check for live data - prefer middlewareWeights with scaleA/scaleB, fall back to scaleStatus
+    const hasWeightScales = middlewareConnected && middlewareWeights && (middlewareWeights.scaleA !== undefined || middlewareWeights.scaleB !== undefined);
+    const hasScaleStatus = middlewareConnected && middlewareScaleStatus;
+    const useLiveData = hasWeightScales || hasScaleStatus;
 
-    // Simulate reading Scale A
+    // Initialize readings
     setMobileReadings({ scaleA: 0, scaleB: 0 });
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const scaleAReading = simulateScaleReading(expectedPerScale, 20);
+    // Read Scale A
+    let scaleAReading: number;
+    if (hasWeightScales && middlewareWeights?.scaleA !== undefined) {
+      // Use scaleA from weight data (PAW: derived from combined, Haenni: direct)
+      scaleAReading = middlewareWeights.scaleA;
+      const mode = middlewareWeights.scaleWeightMode || 'combined';
+      console.log(`[ScaleTest] Scale A live reading: ${scaleAReading}kg from middleware (${mode} mode)`);
+    } else if (hasScaleStatus && middlewareScaleStatus?.scaleA) {
+      scaleAReading = middlewareScaleStatus.scaleA.weight || 0;
+      console.log(`[ScaleTest] Scale A live reading: ${scaleAReading}kg from scale status`);
+    } else if (middlewareConnected && middlewareWeights?.currentWeight) {
+      // Fallback: derive from combined weight (PAW behavior)
+      scaleAReading = Math.round((middlewareWeights.currentWeight || 0) / 2);
+      console.log(`[ScaleTest] Scale A derived reading: ${scaleAReading}kg (from combined weight)`);
+    } else {
+      scaleAReading = simulateScaleReading(expectedPerScale, 20);
+      console.log(`[ScaleTest] Scale A simulated reading: ${scaleAReading}kg (middleware not connected)`);
+    }
     setMobileReadings(prev => ({ ...prev, scaleA: scaleAReading }));
 
-    // Simulate reading Scale B
+    // Read Scale B
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const scaleBReading = simulateScaleReading(expectedPerScale, 20);
+    let scaleBReading: number;
+    if (hasWeightScales && middlewareWeights?.scaleB !== undefined) {
+      // Use scaleB from weight data (PAW: derived from combined, Haenni: direct)
+      scaleBReading = middlewareWeights.scaleB;
+      const mode = middlewareWeights.scaleWeightMode || 'combined';
+      console.log(`[ScaleTest] Scale B live reading: ${scaleBReading}kg from middleware (${mode} mode)`);
+    } else if (hasScaleStatus && middlewareScaleStatus?.scaleB) {
+      scaleBReading = middlewareScaleStatus.scaleB.weight || 0;
+      console.log(`[ScaleTest] Scale B live reading: ${scaleBReading}kg from scale status`);
+    } else if (middlewareConnected && middlewareWeights?.currentWeight) {
+      // Fallback: derive from combined weight (PAW behavior - second half)
+      const total = middlewareWeights.currentWeight || 0;
+      const scaleA = Math.round(total / 2);
+      scaleBReading = total - scaleA;
+      console.log(`[ScaleTest] Scale B derived reading: ${scaleBReading}kg (from combined weight)`);
+    } else {
+      scaleBReading = simulateScaleReading(expectedPerScale, 20);
+      console.log(`[ScaleTest] Scale B simulated reading: ${scaleBReading}kg (middleware not connected)`);
+    }
     setMobileReadings(prev => ({ ...prev, scaleB: scaleBReading }));
 
     setIsTesting(false);
@@ -250,19 +362,24 @@ export function ScaleTestModal({
     const scaleDeviation = Math.abs(scaleAReading - scaleBReading);
     const acceptableDeviation = getAcceptableDeviation(expectedWeight);
 
-    // Pass if combined weight is within tolerance AND scales are balanced
-    const isPassed = deviation <= acceptableDeviation && scaleDeviation <= acceptableDeviation;
+    // Pass if combined weight is within tolerance AND scales are balanced (for dual-scale)
+    // For single scale mode, skip balance check
+    const isSingleScaleMode = scaleBReading === 0 && scaleAReading > 0;
+    const isPassed = isSingleScaleMode
+      ? Math.abs(scaleAReading - expectedWeight) <= acceptableDeviation
+      : (deviation <= acceptableDeviation && scaleDeviation <= acceptableDeviation);
 
-    setActualWeightKg(combined);
-    setDeviationKg(combined - expectedWeight);
+    setActualWeightKg(combined || scaleAReading);
+    setDeviationKg((combined || scaleAReading) - expectedWeight);
     setResult(isPassed ? 'pass' : 'fail');
     setDeviationDetails(
+      `${useLiveData ? '[LIVE]' : middlewareConnected ? '[LIVE-SINGLE]' : '[SIMULATED]'} ` +
       `Scale A: ${scaleAReading} kg | Scale B: ${scaleBReading} kg | ` +
       `Combined: ${combined} kg | Balance deviation: ${scaleDeviation} kg | ` +
       `Tolerance: ±${acceptableDeviation.toFixed(0)} kg`
     );
     setStep('result');
-  }, [testType, vehicleKnownWeight, testWeightKg]);
+  }, [testType, vehicleKnownWeight, testWeightKg, middlewareConnected, middlewareScaleStatus, middlewareWeights]);
 
   const handleStartTest = () => {
     const expectedWeight = getExpectedWeight();
@@ -317,7 +434,9 @@ export function ScaleTestModal({
         ].filter(Boolean).join('\n'),
       };
 
-      const test = await createScaleTest(request);
+      // Use mutation which automatically invalidates scale test queries
+      // This ensures weighing screens update immediately after test completion
+      const test = await createScaleTestMutation.mutateAsync(request);
       toast.success(
         result === 'pass'
           ? 'Scale test passed! Weighing operations enabled.'

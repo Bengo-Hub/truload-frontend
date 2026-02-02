@@ -22,6 +22,7 @@ import {
   WeighingPageHeader,
   WeighingStepper,
 } from '@/components/weighing';
+import { BoundSelector } from '@/components/weighing/BoundSelector';
 import { ScaleHealthPanel, ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
 import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
@@ -38,6 +39,7 @@ import {
   useVehicleByRegNo,
 } from '@/hooks/queries';
 import { useWeighing } from '@/hooks/useWeighing';
+import { useMiddleware } from '@/hooks/useMiddleware';
 import {
   ScaleTest,
   Station,
@@ -102,6 +104,34 @@ export default function MultideckWeighingPage() {
   // Derive bound from station data
   const currentBound = currentBoundState ?? (currentStation?.supportsBidirectional ? currentStation.boundACode : undefined);
 
+  // Indicator health state - MUST be declared before useMiddleware hook
+  const [indicators, setIndicators] = useState<ScaleInfo[]>([
+    {
+      id: 'indicator-1',
+      name: 'Weight Indicator',
+      status: 'disconnected',
+      weight: 0,
+      signalStrength: 0,
+      capacity: 80000,
+      lastReading: new Date(),
+      isActive: false,
+      make: 'Zedem',
+      model: 'ZM-400',
+      syncType: 'TCP',
+    },
+  ]);
+  const [isIndicatorConnected, setIsIndicatorConnected] = useState(false);
+  const [middlewareConnected, setMiddlewareConnected] = useState(false);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+
+  // Live deck weights state (updated from WebSocket)
+  const [liveDeckWeights, setLiveDeckWeights] = useState<{ deck: number; weight: number; status: 'stable' | 'unstable' }[]>([
+    { deck: 1, weight: 0, status: 'stable' },
+    { deck: 2, weight: 0, status: 'stable' },
+    { deck: 3, weight: 0, status: 'stable' },
+    { deck: 4, weight: 0, status: 'stable' },
+  ]);
+
   // Scale test status query (depends on currentBound)
   const {
     data: scaleTestStatus,
@@ -137,6 +167,66 @@ export default function MultideckWeighingPage() {
     error: weighingError,
   } = weighingHook;
 
+  // useMiddleware hook for real-time WebSocket connection to TruConnect middleware
+  const middleware = useMiddleware({
+    stationCode: currentStation?.code || 'DEFAULT',
+    bound: (currentBound as 'A' | 'B') || 'A',
+    mode: 'multideck',
+    autoConnect: true,
+    clientName: `TruLoad Frontend - ${currentStation?.name || 'Multideck'}`,
+    clientType: 'truload-frontend',
+    onWeightUpdate: (weight) => {
+      // Update deck weights from middleware for multideck mode
+      if (weight.mode === 'multideck') {
+        setLiveDeckWeights([
+          { deck: 1, weight: weight.deck1 || 0, status: weight.stable ? 'stable' : 'unstable' },
+          { deck: 2, weight: weight.deck2 || 0, status: weight.stable ? 'stable' : 'unstable' },
+          { deck: 3, weight: weight.deck3 || 0, status: weight.stable ? 'stable' : 'unstable' },
+          { deck: 4, weight: weight.deck4 || 0, status: weight.stable ? 'stable' : 'unstable' },
+        ]);
+      }
+      // Update simulation mode from weight data
+      setIsSimulationMode(weight.simulation || false);
+      // Update connection status from weight data
+      if (weight.connection?.connected !== undefined) {
+        setIsIndicatorConnected(weight.connection.connected);
+      }
+      console.log('[Multideck] Weight update from middleware:', weight);
+    },
+    onScaleStatusChange: (status) => {
+      console.log('[Multideck] Scale status from middleware:', status);
+      setIsIndicatorConnected(status.connected);
+      setIsSimulationMode(status.simulation || false);
+    },
+    onConnectionModeChange: (mode, url) => {
+      console.log(`[Multideck] Connection mode changed: ${mode} (${url})`);
+      setMiddlewareConnected(mode !== 'disconnected');
+    },
+  });
+
+  // Sync middleware hook state with component state
+  useEffect(() => {
+    setMiddlewareConnected(middleware.connected);
+
+    // Update deck weights from middleware if available
+    if (middleware.weights?.mode === 'multideck') {
+      setLiveDeckWeights([
+        { deck: 1, weight: middleware.weights.deck1 || 0, status: middleware.weights.stable ? 'stable' : 'unstable' },
+        { deck: 2, weight: middleware.weights.deck2 || 0, status: middleware.weights.stable ? 'stable' : 'unstable' },
+        { deck: 3, weight: middleware.weights.deck3 || 0, status: middleware.weights.stable ? 'stable' : 'unstable' },
+        { deck: 4, weight: middleware.weights.deck4 || 0, status: middleware.weights.stable ? 'stable' : 'unstable' },
+      ]);
+
+      // Sync simulation mode
+      setIsSimulationMode(middleware.weights.simulation || false);
+
+      // Sync connection status from weight data
+      if (middleware.weights.connection?.connected !== undefined) {
+        setIsIndicatorConnected(middleware.weights.connection.connected);
+      }
+    }
+  }, [middleware.connected, middleware.weights]);
+
   // Update scale test from query result
   useEffect(() => {
     if (scaleTestStatus?.latestTest) {
@@ -147,8 +237,8 @@ export default function MultideckWeighingPage() {
   // Vehicle state - declared before useEffects that reference them
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [isPlateDisabled, setIsPlateDisabled] = useState(false);
-  const [selectedConfig, setSelectedConfig] = useState<string>('6C');
-  const [axleConfig, setAxleConfig] = useState(getDefaultAxleConfig('6C'));
+  const [selectedConfig, setSelectedConfig] = useState<string>('');
+  const [axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
   const [ticketNumber, setTicketNumber] = useState('');
 
   // Set bound when station loads
@@ -161,9 +251,12 @@ export default function MultideckWeighingPage() {
   // Set default axle config when data loads
   useEffect(() => {
     if (axleConfigurations.length > 0 && !selectedConfig) {
+      // Prefer 6C as default if available, otherwise use first config
       const defaultConfig = axleConfigurations.find(c => c.axleCode === '6C') || axleConfigurations[0];
-      setSelectedConfig(defaultConfig.axleCode);
-      setAxleConfig(getDefaultAxleConfig(defaultConfig.axleCode));
+      if (defaultConfig) {
+        setSelectedConfig(defaultConfig.axleCode);
+        setAxleConfig(getDefaultAxleConfig(defaultConfig.axleCode));
+      }
     }
   }, [axleConfigurations, selectedConfig]);
 
@@ -221,24 +314,67 @@ export default function MultideckWeighingPage() {
   // Capture state
   const [isCaptured, setIsCaptured] = useState(false);
 
-  // Indicator health state (for multideck via TruConnect TCP/WebSocket)
-  // Note: Indicators are mains-powered, so no battery field
-  const [indicators, setIndicators] = useState<ScaleInfo[]>([
-    {
-      id: 'indicator-1',
-      name: 'Weight Indicator',
-      status: 'connected',
-      weight: 0,
-      signalStrength: 98, // Connection quality
-      capacity: 80000,
-      lastReading: new Date(),
-      isActive: true,
-      make: 'Zedem',
-      model: 'ZM-400',
-      syncType: 'TCP',
-    },
-  ]);
-  const [isIndicatorConnected, setIsIndicatorConnected] = useState(true);
+  // Electron IPC fallback for indicator sync (only used when running in Electron app)
+  // WebSocket connection is handled by useMiddleware hook for PWA/browser mode
+  useEffect(() => {
+    // Check if we're in an Electron environment
+    const electronAPI = (window as { electronAPI?: {
+      getScaleStatus: () => Promise<{ success: boolean; scales: {
+        scaleA: { connected: boolean; weight: number; signalStrength: number };
+        anyConnected: boolean;
+      }}>;
+      onScaleStatusChanged: (callback: (data: {
+        allScales: {
+          scaleA: { connected: boolean; weight: number; signalStrength: number };
+          anyConnected: boolean;
+        };
+      }) => void) => () => void;
+    }}).electronAPI;
+
+    // If not in Electron, the useMiddleware hook handles WebSocket connection
+    // No need for direct API fetch here - it would duplicate the connection
+    if (!electronAPI) {
+      console.log('[Multideck] Running in browser/PWA mode - WebSocket handled by useMiddleware');
+      return;
+    }
+
+    // Get initial status from middleware (Electron only)
+    electronAPI.getScaleStatus().then(result => {
+      if (result.success && result.scales) {
+        setIndicators(prev => prev.map(ind => ({
+          ...ind,
+          status: result.scales.anyConnected ? 'connected' : 'disconnected',
+          signalStrength: result.scales.scaleA?.signalStrength || 0,
+          weight: result.scales.scaleA?.weight || 0,
+          isActive: result.scales.anyConnected,
+          lastReading: new Date(),
+        })));
+        setIsIndicatorConnected(result.scales.anyConnected);
+        setMiddlewareConnected(true);
+      }
+    }).catch(err => {
+      console.error('[Multideck] Failed to get scale status:', err);
+    });
+
+    // Listen for scale status changes (Electron only)
+    const unsubscribeStatus = electronAPI.onScaleStatusChanged?.((data) => {
+      console.log('[Multideck] Scale status changed:', data);
+      setIndicators(prev => prev.map(ind => ({
+        ...ind,
+        status: data.allScales?.anyConnected ? 'connected' : 'disconnected',
+        signalStrength: data.allScales?.scaleA?.signalStrength || 0,
+        weight: data.allScales?.scaleA?.weight || 0,
+        isActive: data.allScales?.anyConnected || false,
+        lastReading: new Date(),
+      })));
+      setIsIndicatorConnected(data.allScales?.anyConnected || false);
+      setMiddlewareConnected(true);
+    });
+
+    return () => {
+      unsubscribeStatus?.();
+    };
+  }, []);
 
   // Scale test modal state
   const [isScaleTestModalOpen, setIsScaleTestModalOpen] = useState(false);
@@ -258,14 +394,9 @@ export default function MultideckWeighingPage() {
 
   const scaleStatus: ScaleStatus = 'connected';
 
-  // Mock deck weights (would come from WebSocket in real implementation)
-  const deckWeights: DeckWeight[] = [
-    { deck: 1, weight: 8200, status: 'stable' },
-    { deck: 2, weight: 10040, status: 'stable' },
-    { deck: 3, weight: 8060, status: 'stable' },
-    { deck: 4, weight: 9000, status: 'stable' },
-  ];
-  const totalGVW = deckWeights.reduce((sum, d) => sum + d.weight, 0);
+  // Deck weights from middleware - show zeros when not connected (no mock data)
+  const deckWeights: DeckWeight[] = liveDeckWeights;
+  const totalGVW = middleware.weights?.gvw || deckWeights.reduce((sum, d) => sum + d.weight, 0);
 
   // Mock compliance data
   const mockGroupResults: AxleGroupResult[] = [
@@ -422,7 +553,7 @@ export default function MultideckWeighingPage() {
     const dateStr = `${year}${month}${day}`;
 
     // Use station code if available, fallback to MUL for multideck
-    const stationCode = currentStation?.code || currentStation?.stationCode || 'MUL';
+    const stationCode = currentStation?.code || 'MUL';
 
     // Add bound if bidirectional station
     const boundSuffix = currentBound || '';
@@ -465,6 +596,25 @@ export default function MultideckWeighingPage() {
   const handleChangeWeighingType = useCallback(() => {
     router.push('/weighing/mobile');
   }, [router]);
+
+  // Handle bound change - updates local state, notifies middleware, and syncs backend
+  const handleBoundChange = useCallback((newBound: string) => {
+    // Update local state
+    setCurrentBoundState(newBound);
+
+    // Notify middleware via WebSocket (if connected)
+    if (middleware.connected) {
+      middleware.switchBound(newBound as 'A' | 'B');
+      console.log(`[Multideck] Bound switched to ${newBound}, notified middleware`);
+    }
+
+    // TODO: Update backend API when endpoint is available
+    toast.info(`Switched to Bound ${newBound}`, {
+      description: currentStation?.supportsBidirectional
+        ? `Now weighing on direction ${newBound}`
+        : undefined,
+    });
+  }, [middleware, currentStation]);
 
   // Scale test handlers
   const handleStartScaleTest = useCallback(() => {
@@ -699,7 +849,7 @@ export default function MultideckWeighingPage() {
                   onStartScaleTest={handleStartScaleTest}
                 />
 
-                {/* Indicator Health Panel - Ultra compact status bar */}
+                {/* Indicator Health Panel - Ultra compact status bar with sync indicator */}
                 <ScaleHealthPanel
                   scales={indicators}
                   isConnected={isIndicatorConnected}
@@ -710,6 +860,8 @@ export default function MultideckWeighingPage() {
                   displayMode="indicator"
                   connectionType="TCP"
                   ultraCompact={true}
+                  middlewareSynced={middlewareConnected}
+                  simulation={isSimulationMode}
                 />
 
                 {/* Vehicle Image Capture */}
@@ -728,10 +880,25 @@ export default function MultideckWeighingPage() {
                   <CardContent className="p-6">
                     {/* Vehicle Plate Entry */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                        <Truck className="h-4 w-4 text-blue-600" />
-                        Vehicle Identification
-                      </h3>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          <Truck className="h-4 w-4 text-blue-600" />
+                          Vehicle Identification
+                        </h3>
+                      </div>
+
+                      {/* Bound Selector - positioned before plate input for bidirectional stations */}
+                      {currentStation?.supportsBidirectional && (
+                        <div className="mb-4">
+                          <BoundSelector
+                            station={currentStation}
+                            selectedBound={currentBound}
+                            onBoundChange={handleBoundChange}
+                            compact={false}
+                          />
+                        </div>
+                      )}
+
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <div className="flex-1 flex items-center gap-3 flex-wrap">
                           <input
@@ -933,7 +1100,7 @@ export default function MultideckWeighingPage() {
               </div>
             )}
 
-            {/* Scale Test Modal */}
+            {/* Scale Test Modal - Connected to middleware for live weight readings */}
             <ScaleTestModal
               open={isScaleTestModalOpen}
               onOpenChange={setIsScaleTestModalOpen}
@@ -941,6 +1108,14 @@ export default function MultideckWeighingPage() {
               bound={currentBound}
               onTestComplete={handleScaleTestComplete}
               weighingMode="multideck"
+              middlewareConnected={middleware.connected}
+              middlewareWeights={middleware.weights ? {
+                deck1: middleware.weights.deck1,
+                deck2: middleware.weights.deck2,
+                deck3: middleware.weights.deck3,
+                deck4: middleware.weights.deck4,
+                gvw: middleware.weights.gvw,
+              } : null}
             />
 
             {/* Entity Modals */}

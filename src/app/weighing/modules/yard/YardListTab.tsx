@@ -5,11 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Pagination, usePagination } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchInput, StatusBadge, SummaryCard } from '@/components/weighing';
 import { useHasPermission } from '@/hooks/useAuth';
+import {
+  useReleaseYardEntry,
+  useUpdateYardEntryStatus,
+  useYardEntries,
+  YARD_QUERY_KEYS,
+} from '@/hooks/queries/useYardQueries';
+import type { YardEntryDto } from '@/lib/api/yard';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowRightFromLine,
@@ -18,40 +27,14 @@ import {
   Eye,
   FileCheck,
   Filter,
+  Loader2,
   Package,
   RefreshCcw,
   Truck,
   Weight,
 } from 'lucide-react';
-import { useState } from 'react';
-
-/**
- * YardEntry interface matching backend model
- * @see TruLoad.Backend.Models.Yard.YardEntry
- */
-interface YardEntryDto {
-  id: string;
-  weighingId: string;
-  stationId: string;
-  stationName?: string;
-  reason: 'redistribution' | 'gvw_overload' | 'permit_check' | 'offload';
-  status: 'pending' | 'processing' | 'released' | 'escalated';
-  enteredAt: string;
-  releasedAt?: string;
-  // Denormalized from WeighingTransaction for display
-  weighing?: {
-    ticketNumber: string;
-    vehicleRegNumber: string;
-    driverName?: string;
-    transporterName?: string;
-    cargoName?: string;
-    gvwMeasuredKg: number;
-    gvwPermissibleKg: number;
-    overloadKg: number;
-    totalFeeUsd: number;
-    reweighCycleNo: number;
-  };
-}
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const YARD_REASON_LABELS: Record<string, string> = {
   redistribution: 'Redistribution',
@@ -71,15 +54,19 @@ const YARD_STATUS_LABELS: Record<string, string> = {
  * Yard List Tab
  *
  * Displays vehicles currently in the yard awaiting offloading/correction.
- * Maps to YardEntry backend model with denormalized WeighingTransaction data.
+ * Connected to YardController backend API with real-time data.
  */
 export default function YardListTab() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [reasonFilter, setReasonFilter] = useState<string>('all');
   const [viewingEntry, setViewingEntry] = useState<YardEntryDto | null>(null);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<YardEntryDto | null>(null);
+
+  const { page, pageSize, skip, setPage, setPageSize, reset: resetPagination } = usePagination(25);
+  const queryClient = useQueryClient();
 
   // Correct permissions matching backend
   const canRelease = useHasPermission('yard.release');
@@ -88,104 +75,43 @@ export default function YardListTab() {
   const canUpdate = useHasPermission('yard.update');
   const canEscalate = useHasPermission('yard.escalate');
 
-  // Mock data matching YardEntry model structure with denormalized weighing data
-  const mockYardEntries: YardEntryDto[] = [
-    {
-      id: '1',
-      weighingId: 'weighing-2',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      reason: 'gvw_overload',
-      status: 'pending',
-      enteredAt: '2026-01-23T09:50:00Z',
-      weighing: {
-        ticketNumber: 'WT-2026-00124',
-        vehicleRegNumber: 'KBB 456B',
-        driverName: 'Peter Kamau',
-        transporterName: 'XYZ Logistics',
-        cargoName: 'Cement (50kg bags)',
-        gvwMeasuredKg: 52300,
-        gvwPermissibleKg: 48000,
-        overloadKg: 4300,
-        totalFeeUsd: 850,
-        reweighCycleNo: 1,
-      },
-    },
-    {
-      id: '2',
-      weighingId: 'weighing-5',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      reason: 'redistribution',
-      status: 'processing',
-      enteredAt: '2026-01-23T07:30:00Z',
-      weighing: {
-        ticketNumber: 'WT-2026-00120',
-        vehicleRegNumber: 'KEE 555E',
-        driverName: 'James Omondi',
-        transporterName: 'Heavy Haulers Ltd',
-        cargoName: 'Steel bars',
-        gvwMeasuredKg: 54500,
-        gvwPermissibleKg: 48000,
-        overloadKg: 6500,
-        totalFeeUsd: 1250,
-        reweighCycleNo: 1,
-      },
-    },
-    {
-      id: '3',
-      weighingId: 'weighing-8',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      reason: 'offload',
-      status: 'pending',
-      enteredAt: '2026-01-22T16:00:00Z',
-      weighing: {
-        ticketNumber: 'WT-2026-00118',
-        vehicleRegNumber: 'KFF 666F',
-        driverName: 'David Mwangi',
-        transporterName: 'Fast Cargo Kenya',
-        cargoName: 'Agricultural produce',
-        gvwMeasuredKg: 50100,
-        gvwPermissibleKg: 48000,
-        overloadKg: 2100,
-        totalFeeUsd: 420,
-        reweighCycleNo: 2,
-      },
-    },
-    {
-      id: '4',
-      weighingId: 'weighing-10',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      reason: 'permit_check',
-      status: 'escalated',
-      enteredAt: '2026-01-22T14:00:00Z',
-      weighing: {
-        ticketNumber: 'WT-2026-00115',
-        vehicleRegNumber: 'KGG 777G',
-        driverName: 'Michael Njoroge',
-        transporterName: 'Permit Haulers Ltd',
-        cargoName: 'Abnormal Load - Machinery',
-        gvwMeasuredKg: 62000,
-        gvwPermissibleKg: 56000,
-        overloadKg: 6000,
-        totalFeeUsd: 0,
-        reweighCycleNo: 1,
-      },
-    },
-  ];
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      resetPagination();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, resetPagination]);
 
-  const filteredEntries = mockYardEntries.filter((entry) => {
-    const matchesSearch =
-      (entry.weighing?.vehicleRegNumber.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-      (entry.weighing?.transporterName?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-      (entry.weighing?.driverName?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-      (entry.weighing?.ticketNumber.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
-    const matchesReason = reasonFilter === 'all' || entry.reason === reasonFilter;
-    return matchesSearch && matchesStatus && matchesReason;
+  // Reset pagination when filters change
+  useEffect(() => {
+    resetPagination();
+  }, [statusFilter, reasonFilter, resetPagination]);
+
+  // Fetch yard entries with server-side filtering and pagination
+  const { data: yardResult, isLoading, isFetching, refetch } = useYardEntries({
+    vehicleRegNo: debouncedSearch || undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    reason: reasonFilter !== 'all' ? reasonFilter : undefined,
+    skip,
+    take: pageSize,
+    sortBy: 'EnteredAt',
+    sortOrder: 'desc',
   });
+
+  // Mutations
+  const releaseMutation = useReleaseYardEntry();
+  const updateStatusMutation = useUpdateYardEntryStatus();
+
+  const entries = yardResult?.items ?? [];
+  const totalCount = yardResult?.totalCount ?? 0;
+
+  // Calculate summary counts from all entries (we need separate queries for this)
+  // For now, we'll show counts from the current filtered result
+  const pendingCount = entries.filter((e) => e.status === 'pending').length;
+  const processingCount = entries.filter((e) => e.status === 'processing').length;
+  const escalatedCount = entries.filter((e) => e.status === 'escalated').length;
 
   const formatDuration = (dateStr: string) => {
     const start = new Date(dateStr);
@@ -229,10 +155,36 @@ export default function YardListTab() {
     setReleaseDialogOpen(true);
   };
 
-  // Summary counts
-  const pendingCount = mockYardEntries.filter((e) => e.status === 'pending').length;
-  const processingCount = mockYardEntries.filter((e) => e.status === 'processing').length;
-  const escalatedCount = mockYardEntries.filter((e) => e.status === 'escalated').length;
+  const handleStartProcessing = async (entry: YardEntryDto) => {
+    try {
+      await updateStatusMutation.mutateAsync({ id: entry.id, status: 'processing' });
+      toast.success('Processing started');
+    } catch {
+      toast.error('Failed to start processing');
+    }
+  };
+
+  const handleMarkDone = async (entry: YardEntryDto) => {
+    try {
+      await updateStatusMutation.mutateAsync({ id: entry.id, status: 'completed' });
+      toast.success('Marked as completed');
+    } catch {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleEscalate = async (entry: YardEntryDto) => {
+    try {
+      await updateStatusMutation.mutateAsync({ id: entry.id, status: 'escalated' });
+      toast.success('Entry escalated');
+    } catch {
+      toast.error('Failed to escalate');
+    }
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: YARD_QUERY_KEYS.YARD_ENTRIES });
+  };
 
   return (
     <div className="space-y-6">
@@ -298,8 +250,8 @@ export default function YardListTab() {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="icon">
-              <RefreshCcw className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isFetching}>
+              <RefreshCcw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </CardContent>
@@ -308,8 +260,9 @@ export default function YardListTab() {
       {/* Yard List Table */}
       <Card className="border border-gray-200 rounded-xl">
         <CardHeader className="pb-2 pt-5 px-6">
-          <CardTitle className="text-base font-semibold text-gray-900">
-            Yard Entries ({filteredEntries.length})
+          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+            Yard Entries ({totalCount})
+            {isFetching && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -319,7 +272,6 @@ export default function YardListTab() {
                 <TableHead className="font-semibold text-gray-900 h-12 pl-6">Ticket</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12">Vehicle</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12">Driver / Transporter</TableHead>
-                <TableHead className="font-semibold text-gray-900 h-12">Cargo</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12">Reason</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12 text-right">Overload</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12 text-right">Fee</TableHead>
@@ -332,47 +284,46 @@ export default function YardListTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEntries.length === 0 ? (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={9} className="text-center text-gray-500 py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    Loading yard entries...
+                  </TableCell>
+                </TableRow>
+              ) : entries.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                     No vehicles in yard.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEntries.map((entry) => (
+                entries.map((entry) => (
                   <TableRow key={entry.id} className="hover:bg-gray-50 border-b border-gray-50">
                     <TableCell className="py-4 pl-6">
                       <div className="font-mono font-medium text-gray-900">
-                        {entry.weighing?.ticketNumber}
+                        {entry.ticketNumber || '-'}
                       </div>
-                      {entry.weighing && entry.weighing.reweighCycleNo > 1 && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 mt-1">
-                          Reweigh #{entry.weighing.reweighCycleNo}
-                        </span>
-                      )}
                     </TableCell>
                     <TableCell className="py-4">
                       <div className="font-mono font-medium text-gray-900">
-                        {entry.weighing?.vehicleRegNumber}
+                        {entry.vehicleRegNumber || '-'}
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="text-sm text-gray-900">{entry.weighing?.driverName || '-'}</div>
-                      <div className="text-xs text-gray-500">{entry.weighing?.transporterName}</div>
-                    </TableCell>
-                    <TableCell className="text-gray-600 py-4 text-sm max-w-[150px] truncate">
-                      {entry.weighing?.cargoName || '-'}
+                      <div className="text-sm text-gray-900">{entry.driverName || '-'}</div>
+                      <div className="text-xs text-gray-500">{entry.transporterName || '-'}</div>
                     </TableCell>
                     <TableCell className="py-4">
                       <Badge variant="outline" className="rounded-md">
-                        {YARD_REASON_LABELS[entry.reason]}
+                        {YARD_REASON_LABELS[entry.reason] || entry.reason}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono font-bold text-red-600 py-4 text-right">
-                      +{entry.weighing?.overloadKg.toLocaleString()} kg
+                      {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'}
                     </TableCell>
                     <TableCell className="font-mono text-gray-600 py-4 text-right">
-                      {entry.weighing?.totalFeeUsd ? `$${entry.weighing.totalFeeUsd.toLocaleString()}` : '-'}
+                      {entry.totalFeeUsd ? `$${entry.totalFeeUsd.toLocaleString()}` : '-'}
                     </TableCell>
                     <TableCell className="py-4">
                       <StatusBadge status={getYardStatusBadge(entry.status)} />
@@ -389,12 +340,22 @@ export default function YardListTab() {
                           </Button>
                         )}
                         {entry.status === 'pending' && canUpdate && (
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleStartProcessing(entry)}
+                            disabled={updateStatusMutation.isPending}
+                          >
                             Start
                           </Button>
                         )}
                         {entry.status === 'processing' && canUpdate && (
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleMarkDone(entry)}
+                            disabled={updateStatusMutation.isPending}
+                          >
                             <FileCheck className="mr-1 h-4 w-4" />
                             Done
                           </Button>
@@ -406,7 +367,13 @@ export default function YardListTab() {
                           </Button>
                         )}
                         {entry.status !== 'released' && entry.status !== 'escalated' && canEscalate && (
-                          <Button variant="ghost" size="sm" title="Escalate">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Escalate"
+                            onClick={() => handleEscalate(entry)}
+                            disabled={updateStatusMutation.isPending}
+                          >
                             <ArrowUpRight className="h-4 w-4 text-orange-600" />
                           </Button>
                         )}
@@ -423,6 +390,18 @@ export default function YardListTab() {
             </TableBody>
           </Table>
         </CardContent>
+
+        {/* Pagination */}
+        <div className="border-t border-gray-200 px-4 py-3">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            isLoading={isLoading}
+          />
+        </div>
       </Card>
 
       {/* View Entry Dialog */}
@@ -439,6 +418,16 @@ export default function YardListTab() {
             setReleaseDialogOpen(false);
             setSelectedEntry(null);
           }}
+          onRelease={async (notes) => {
+            await releaseMutation.mutateAsync({
+              id: selectedEntry.id,
+              request: { notes },
+            });
+            toast.success('Vehicle released from yard');
+            setReleaseDialogOpen(false);
+            setSelectedEntry(null);
+          }}
+          isSubmitting={releaseMutation.isPending}
         />
       )}
     </div>
@@ -470,7 +459,7 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
             Yard Entry Details
           </DialogTitle>
           <DialogDescription>
-            Ticket: {entry.weighing?.ticketNumber}
+            Ticket: {entry.ticketNumber || '-'}
           </DialogDescription>
         </DialogHeader>
 
@@ -478,7 +467,7 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-xs text-gray-500">Vehicle</Label>
-              <p className="font-mono font-medium">{entry.weighing?.vehicleRegNumber}</p>
+              <p className="font-mono font-medium">{entry.vehicleRegNumber || '-'}</p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Status</Label>
@@ -486,19 +475,19 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
             </div>
             <div>
               <Label className="text-xs text-gray-500">Driver</Label>
-              <p className="text-sm">{entry.weighing?.driverName || '-'}</p>
+              <p className="text-sm">{entry.driverName || '-'}</p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Transporter</Label>
-              <p className="text-sm">{entry.weighing?.transporterName || '-'}</p>
+              <p className="text-sm">{entry.transporterName || '-'}</p>
             </div>
             <div>
-              <Label className="text-xs text-gray-500">Cargo</Label>
-              <p className="text-sm">{entry.weighing?.cargoName || '-'}</p>
+              <Label className="text-xs text-gray-500">Station</Label>
+              <p className="text-sm">{entry.stationName || '-'}</p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Reason</Label>
-              <p className="text-sm">{YARD_REASON_LABELS[entry.reason]}</p>
+              <p className="text-sm">{YARD_REASON_LABELS[entry.reason] || entry.reason}</p>
             </div>
           </div>
 
@@ -507,15 +496,21 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
             <div className="grid grid-cols-3 gap-4 mt-2">
               <div className="bg-gray-50 p-3 rounded-lg text-center">
                 <p className="text-xs text-gray-500">Measured</p>
-                <p className="font-mono font-medium">{entry.weighing?.gvwMeasuredKg.toLocaleString()} kg</p>
+                <p className="font-mono font-medium">
+                  {entry.gvwMeasuredKg ? `${entry.gvwMeasuredKg.toLocaleString()} kg` : '-'}
+                </p>
               </div>
               <div className="bg-gray-50 p-3 rounded-lg text-center">
                 <p className="text-xs text-gray-500">Permissible</p>
-                <p className="font-mono font-medium">{entry.weighing?.gvwPermissibleKg.toLocaleString()} kg</p>
+                <p className="font-mono font-medium">
+                  {entry.gvwPermissibleKg ? `${entry.gvwPermissibleKg.toLocaleString()} kg` : '-'}
+                </p>
               </div>
               <div className="bg-red-50 p-3 rounded-lg text-center">
                 <p className="text-xs text-red-500">Overload</p>
-                <p className="font-mono font-bold text-red-600">+{entry.weighing?.overloadKg.toLocaleString()} kg</p>
+                <p className="font-mono font-bold text-red-600">
+                  {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'}
+                </p>
               </div>
             </div>
           </div>
@@ -529,7 +524,7 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
               <div>
                 <Label className="text-xs text-gray-500">Fee</Label>
                 <p className="font-mono font-medium">
-                  {entry.weighing?.totalFeeUsd ? `$${entry.weighing.totalFeeUsd.toLocaleString()}` : '-'}
+                  {entry.totalFeeUsd ? `$${entry.totalFeeUsd.toLocaleString()}` : '-'}
                 </p>
               </div>
               {entry.releasedAt && (
@@ -556,16 +551,16 @@ interface ReleaseDialogProps {
   entry: YardEntryDto;
   open: boolean;
   onClose: () => void;
+  onRelease: (notes: string) => Promise<void>;
+  isSubmitting: boolean;
 }
 
-function ReleaseDialog({ entry, open, onClose }: ReleaseDialogProps) {
+function ReleaseDialog({ entry, open, onClose, onRelease, isSubmitting }: ReleaseDialogProps) {
   const [releaseNotes, setReleaseNotes] = useState('');
 
-  const handleRelease = (e: React.FormEvent) => {
+  const handleRelease = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement yard release API call
-    console.log('Releasing yard entry:', entry.id, { notes: releaseNotes });
-    onClose();
+    await onRelease(releaseNotes);
     setReleaseNotes('');
   };
 
@@ -575,7 +570,7 @@ function ReleaseDialog({ entry, open, onClose }: ReleaseDialogProps) {
         <DialogHeader>
           <DialogTitle>Release Vehicle from Yard</DialogTitle>
           <DialogDescription>
-            Release {entry.weighing?.vehicleRegNumber} ({entry.weighing?.ticketNumber})
+            Release {entry.vehicleRegNumber} ({entry.ticketNumber})
           </DialogDescription>
         </DialogHeader>
 
@@ -586,8 +581,8 @@ function ReleaseDialog({ entry, open, onClose }: ReleaseDialogProps) {
               <div>
                 <p className="text-sm font-medium text-yellow-800">Confirm Release</p>
                 <p className="text-xs text-yellow-700 mt-1">
-                  Overload: +{entry.weighing?.overloadKg.toLocaleString()} kg |
-                  Fee: ${entry.weighing?.totalFeeUsd?.toLocaleString() || 0}
+                  Overload: {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'} |
+                  Fee: ${entry.totalFeeUsd?.toLocaleString() || 0}
                 </p>
               </div>
             </div>
@@ -605,12 +600,21 @@ function ReleaseDialog({ entry, open, onClose }: ReleaseDialogProps) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">
-              <ArrowRightFromLine className="mr-2 h-4 w-4" />
-              Release Vehicle
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Releasing...
+                </>
+              ) : (
+                <>
+                  <ArrowRightFromLine className="mr-2 h-4 w-4" />
+                  Release Vehicle
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
