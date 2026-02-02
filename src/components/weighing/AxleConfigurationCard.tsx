@@ -93,7 +93,10 @@ export function AxleConfigurationCard({
   permissibleWeights = [8000, 9000, 8000, 8000, 8000, 8000, 8000],
   className,
 }: AxleConfigurationCardProps) {
-  const axleGroups = AXLE_CONFIGS[selectedConfig] || AXLE_CONFIGS['6C'];
+  // Use selected config, fallback to 6C only for rendering (not for computation)
+  const axleGroups = selectedConfig
+    ? (AXLE_CONFIGS[selectedConfig] || AXLE_CONFIGS['6C'])
+    : AXLE_CONFIGS['6C'];
 
   // Calculate group permissible weights from individual axle weights
   const getGroupPermissible = (groupIndex: number): number => {

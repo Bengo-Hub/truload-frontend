@@ -6,73 +6,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination, usePagination } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchInput, StatusBadge, SummaryCard } from '@/components/weighing';
 import { useHasPermission } from '@/hooks/useAuth';
 import {
+  useCloseVehicleTag,
+  useCreateVehicleTag,
+  useTagCategories,
+  useVehicleTags,
+  YARD_QUERY_KEYS,
+} from '@/hooks/queries/useYardQueries';
+import type { VehicleTagDto, TagCategoryDto } from '@/lib/api/yard';
+import { useQueryClient } from '@tanstack/react-query';
+import {
   AlertTriangle,
   Check,
   Eye,
   Filter,
   ImageIcon,
+  Loader2,
   Plus,
   RefreshCcw,
   Tag,
   Upload,
 } from 'lucide-react';
-import { useState } from 'react';
-
-/**
- * VehicleTag interface matching backend model
- * @see TruLoad.Backend.Models.Yard.VehicleTag
- */
-interface VehicleTagDto {
-  id: string;
-  regNo: string;
-  tagType: 'automatic' | 'manual';
-  tagCategoryId: string;
-  tagCategoryCode?: string;
-  tagCategoryName?: string;
-  reason: string;
-  stationCode: string;
-  stationName?: string;
-  status: 'open' | 'closed';
-  tagPhotoPath?: string;
-  effectiveTimePeriod?: string; // Duration string like "30.00:00:00"
-  effectiveDays?: number;
-  createdById: string;
-  createdByName?: string;
-  closedById?: string;
-  closedByName?: string;
-  closedReason?: string;
-  openedAt: string;
-  closedAt?: string;
-  exported: boolean;
-}
-
-/**
- * TagCategory interface matching backend model
- * @see TruLoad.Backend.Models.Yard.TagCategory
- */
-interface TagCategory {
-  id: string;
-  code: string;
-  name: string;
-  description?: string;
-}
-
-// Default tag categories (would be fetched from API)
-const TAG_CATEGORIES: TagCategory[] = [
-  { id: 'cat-1', code: 'OVERLOAD', name: 'Overload Violation', description: 'Vehicle exceeded weight limits' },
-  { id: 'cat-2', code: 'HABITUAL', name: 'Habitual Offender', description: 'Repeat violation offender' },
-  { id: 'cat-3', code: 'STOLEN', name: 'Stolen Vehicle', description: 'Reported stolen vehicle' },
-  { id: 'cat-4', code: 'DOCUMENT', name: 'Document Issue', description: 'Missing or invalid documents' },
-  { id: 'cat-5', code: 'MECHANICAL', name: 'Mechanical Defect', description: 'Vehicle safety issues' },
-  { id: 'cat-6', code: 'PERMIT', name: 'Permit Issue', description: 'Permit expired or invalid' },
-  { id: 'cat-7', code: 'OTHER', name: 'Other', description: 'Other compliance issues' },
-];
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const TAG_TYPE_LABELS: Record<string, string> = {
   automatic: 'Automatic',
@@ -83,110 +45,68 @@ const TAG_TYPE_LABELS: Record<string, string> = {
  * Tags Tab
  *
  * Manages vehicle tags for tracking violations and compliance issues.
- * Maps to VehicleTag backend model with TagCategory reference.
+ * Connected to VehicleTagController backend API with real-time data.
  */
 export default function TagsTab() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [tagTypeFilter, setTagTypeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [viewingTag, setViewingTag] = useState<VehicleTagDto | null>(null);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<VehicleTagDto | null>(null);
 
-  // Correct permissions matching backend
+  const { page, pageSize, skip, setPage, setPageSize, reset: resetPagination } = usePagination(25);
+  const queryClient = useQueryClient();
+
+  // Permissions matching backend
   const canCreateTag = useHasPermission('tag.create');
   const canUpdateTag = useHasPermission('tag.update');
   const canReadTag = useHasPermission('tag.read');
   const canExportTag = useHasPermission('tag.export');
 
-  // Mock data matching VehicleTag model structure
-  const mockTags: VehicleTagDto[] = [
-    {
-      id: '1',
-      regNo: 'KBB 456B',
-      tagType: 'automatic',
-      tagCategoryId: 'cat-1',
-      tagCategoryCode: 'OVERLOAD',
-      tagCategoryName: 'Overload Violation',
-      reason: 'Vehicle exceeded GVW by 4,300kg. Sent to yard for offloading. Axle weights: A1=8500kg, A2=9200kg, A3=12100kg, A4=11800kg, A5=10700kg. Total measured: 52,300kg vs Permissible: 48,000kg.',
-      stationCode: 'MRK',
-      stationName: 'Mariakani',
-      status: 'open',
-      effectiveDays: 30,
-      createdById: 'user-2',
-      createdByName: 'Jane Smith',
-      openedAt: '2026-01-23T09:52:00Z',
-      exported: false,
-    },
-    {
-      id: '2',
-      regNo: 'KEE 555E',
-      tagType: 'automatic',
-      tagCategoryId: 'cat-2',
-      tagCategoryCode: 'HABITUAL',
-      tagCategoryName: 'Habitual Offender',
-      reason: 'Third overload violation in 30 days. Axle Group B exceeded limit by 6,500kg. Previous violations on 2026-01-05 and 2026-01-15.',
-      stationCode: 'MRK',
-      stationName: 'Mariakani',
-      status: 'open',
-      effectiveDays: 90,
-      createdById: 'user-1',
-      createdByName: 'John Doe',
-      openedAt: '2026-01-23T07:35:00Z',
-      exported: true,
-    },
-    {
-      id: '3',
-      regNo: 'KGG 777G',
-      tagType: 'manual',
-      tagCategoryId: 'cat-4',
-      tagCategoryCode: 'DOCUMENT',
-      tagCategoryName: 'Document Issue',
-      reason: 'Vehicle insurance expired on 2026-01-10. Driver presented invalid insurance certificate.',
-      stationCode: 'MRK',
-      stationName: 'Mariakani',
-      status: 'closed',
-      effectiveDays: 7,
-      createdById: 'user-2',
-      createdByName: 'Jane Smith',
-      closedById: 'user-1',
-      closedByName: 'John Doe',
-      closedReason: 'Driver presented valid renewed insurance certificate.',
-      openedAt: '2026-01-22T14:20:00Z',
-      closedAt: '2026-01-23T10:30:00Z',
-      exported: true,
-    },
-    {
-      id: '4',
-      regNo: 'KHH 888H',
-      tagType: 'manual',
-      tagCategoryId: 'cat-5',
-      tagCategoryCode: 'MECHANICAL',
-      tagCategoryName: 'Mechanical Defect',
-      reason: 'Brake lights not functioning. Rear reflectors missing. Vehicle poses safety risk.',
-      stationCode: 'ATR',
-      stationName: 'Athi River',
-      status: 'open',
-      tagPhotoPath: '/uploads/tags/khh888h-brake-lights.jpg',
-      effectiveDays: 14,
-      createdById: 'user-1',
-      createdByName: 'John Doe',
-      openedAt: '2026-01-15T11:00:00Z',
-      exported: false,
-    },
-  ];
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      resetPagination();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, resetPagination]);
 
-  const filteredTags = mockTags.filter((tag) => {
-    const matchesSearch =
-      tag.id.toLowerCase().includes(search.toLowerCase()) ||
-      tag.regNo.toLowerCase().includes(search.toLowerCase()) ||
-      tag.reason.toLowerCase().includes(search.toLowerCase()) ||
-      (tag.tagCategoryName?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === 'all' || tag.status === statusFilter;
-    const matchesType = tagTypeFilter === 'all' || tag.tagType === tagTypeFilter;
-    const matchesCategory = categoryFilter === 'all' || tag.tagCategoryId === categoryFilter;
-    return matchesSearch && matchesStatus && matchesType && matchesCategory;
+  // Reset pagination when filters change
+  useEffect(() => {
+    resetPagination();
+  }, [statusFilter, tagTypeFilter, categoryFilter, resetPagination]);
+
+  // Fetch tag categories
+  const { data: categories = [] } = useTagCategories();
+
+  // Fetch vehicle tags with server-side filtering and pagination
+  const { data: tagsResult, isLoading, isFetching } = useVehicleTags({
+    regNo: debouncedSearch || undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    tagType: tagTypeFilter !== 'all' ? tagTypeFilter : undefined,
+    tagCategoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
+    skip,
+    take: pageSize,
+    sortBy: 'OpenedAt',
+    sortOrder: 'desc',
   });
+
+  // Mutations
+  const createMutation = useCreateVehicleTag();
+  const closeMutation = useCloseVehicleTag();
+
+  const tags = tagsResult?.items ?? [];
+  const totalCount = tagsResult?.totalCount ?? 0;
+
+  // Summary counts from current filtered result
+  const openCount = tags.filter((t) => t.status === 'open').length;
+  const closedCount = tags.filter((t) => t.status === 'closed').length;
+  const exportedCount = tags.filter((t) => t.exported).length;
 
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-KE', {
@@ -202,10 +122,21 @@ export default function TagsTab() {
     return status === 'open' ? 'ACTIVE' : 'RESOLVED';
   };
 
-  // Summary counts
-  const openCount = mockTags.filter((t) => t.status === 'open').length;
-  const closedCount = mockTags.filter((t) => t.status === 'closed').length;
-  const exportedCount = mockTags.filter((t) => t.exported).length;
+  const parseEffectiveDays = (effectiveTimePeriod?: string): number | null => {
+    if (!effectiveTimePeriod) return null;
+    // Parse TimeSpan format like "30.00:00:00"
+    const match = effectiveTimePeriod.match(/^(\d+)\./);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  const handleCloseTag = (tag: VehicleTagDto) => {
+    setSelectedTag(tag);
+    setCloseDialogOpen(true);
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: YARD_QUERY_KEYS.VEHICLE_TAGS });
+  };
 
   return (
     <div className="space-y-6">
@@ -272,7 +203,7 @@ export default function TagsTab() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {TAG_CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
                     </SelectItem>
@@ -293,8 +224,8 @@ export default function TagsTab() {
                   Export
                 </Button>
               )}
-              <Button variant="outline" size="icon">
-                <RefreshCcw className="h-4 w-4" />
+              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isFetching}>
+                <RefreshCcw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </div>
@@ -304,8 +235,9 @@ export default function TagsTab() {
       {/* Tags Table */}
       <Card className="border border-gray-200 rounded-xl">
         <CardHeader className="pb-2 pt-5 px-6">
-          <CardTitle className="text-base font-semibold text-gray-900">
-            Vehicle Tags ({filteredTags.length})
+          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+            Vehicle Tags ({totalCount})
+            {isFetching && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -324,92 +256,150 @@ export default function TagsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTags.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center text-gray-500 py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    Loading tags...
+                  </TableCell>
+                </TableRow>
+              ) : tags.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                     No tags found.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTags.map((tag) => (
-                  <TableRow key={tag.id} className="hover:bg-gray-50 border-b border-gray-50">
-                    <TableCell className="py-4 pl-6">
-                      <div className="font-mono font-medium text-gray-900">{tag.regNo}</div>
-                      {tag.tagPhotoPath && (
-                        <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
-                          <ImageIcon className="h-3 w-3" />
-                          <span>Photo attached</span>
+                tags.map((tag) => {
+                  const effectiveDays = parseEffectiveDays(tag.effectiveTimePeriod);
+                  return (
+                    <TableRow key={tag.id} className="hover:bg-gray-50 border-b border-gray-50">
+                      <TableCell className="py-4 pl-6">
+                        <div className="font-mono font-medium text-gray-900">{tag.regNo}</div>
+                        {tag.tagPhotoPath && (
+                          <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
+                            <ImageIcon className="h-3 w-3" />
+                            <span>Photo attached</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <Badge variant={tag.tagType === 'automatic' ? 'secondary' : 'outline'} className="rounded-md">
+                          {TAG_TYPE_LABELS[tag.tagType] || tag.tagType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <Badge variant="secondary" className="rounded-md">
+                          {tag.tagCategoryName || tag.tagCategoryCode}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-4 max-w-xs">
+                        <div className="text-sm text-gray-600 line-clamp-2">{tag.reason}</div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="text-sm text-gray-600">{tag.stationCode}</div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        {effectiveDays ? (
+                          <span className="text-sm text-gray-600">{effectiveDays} days</span>
+                        ) : (
+                          <span className="text-sm text-gray-400">Indefinite</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="text-sm text-gray-600">{formatDateTime(tag.openedAt)}</div>
+                        <div className="text-xs text-gray-500">by {tag.createdByName || '-'}</div>
+                        {tag.closedAt && (
+                          <div className="text-xs text-green-600 mt-1">
+                            Closed: {formatDateTime(tag.closedAt)}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-col gap-1">
+                          <StatusBadge status={getTagStatusBadge(tag.status)} />
+                          {tag.exported && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                              Exported
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <Badge variant={tag.tagType === 'automatic' ? 'secondary' : 'outline'} className="rounded-md">
-                        {TAG_TYPE_LABELS[tag.tagType]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <Badge variant="secondary" className="rounded-md">
-                        {tag.tagCategoryName || tag.tagCategoryCode}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-4 max-w-xs">
-                      <div className="text-sm text-gray-600 line-clamp-2">{tag.reason}</div>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <div className="text-sm text-gray-600">{tag.stationName}</div>
-                      <div className="text-xs text-gray-500">{tag.stationCode}</div>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      {tag.effectiveDays ? (
-                        <span className="text-sm text-gray-600">{tag.effectiveDays} days</span>
-                      ) : (
-                        <span className="text-sm text-gray-400">Indefinite</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <div className="text-sm text-gray-600">{formatDateTime(tag.openedAt)}</div>
-                      <div className="text-xs text-gray-500">by {tag.createdByName}</div>
-                      {tag.closedAt && (
-                        <div className="text-xs text-green-600 mt-1">
-                          Closed: {formatDateTime(tag.closedAt)}
+                      </TableCell>
+                      <TableCell className="py-4 pr-6 text-right">
+                        <div className="flex justify-end gap-1">
+                          {canReadTag && (
+                            <Button variant="ghost" size="sm" onClick={() => setViewingTag(tag)} title="View Details">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {tag.status === 'open' && canUpdateTag && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCloseTag(tag)}
+                              disabled={closeMutation.isPending}
+                            >
+                              <Check className="mr-1 h-4 w-4" />
+                              Close
+                            </Button>
+                          )}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <div className="flex flex-col gap-1">
-                        <StatusBadge status={getTagStatusBadge(tag.status)} />
-                        {tag.exported && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                            Exported
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4 pr-6 text-right">
-                      <div className="flex justify-end gap-1">
-                        {canReadTag && (
-                          <Button variant="ghost" size="sm" onClick={() => setViewingTag(tag)} title="View Details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {tag.status === 'open' && canUpdateTag && (
-                          <Button variant="outline" size="sm">
-                            <Check className="mr-1 h-4 w-4" />
-                            Close
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </CardContent>
+
+        {/* Pagination */}
+        <div className="border-t border-gray-200 px-4 py-3">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            isLoading={isLoading}
+          />
+        </div>
       </Card>
 
       {/* Create Tag Dialog */}
-      <CreateTagDialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} />
+      <CreateTagDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        categories={categories}
+        onSubmit={async (data) => {
+          await createMutation.mutateAsync(data);
+          toast.success('Tag created successfully');
+          setCreateDialogOpen(false);
+        }}
+        isSubmitting={createMutation.isPending}
+      />
+
+      {/* Close Tag Dialog */}
+      {selectedTag && (
+        <CloseTagDialog
+          tag={selectedTag}
+          open={closeDialogOpen}
+          onClose={() => {
+            setCloseDialogOpen(false);
+            setSelectedTag(null);
+          }}
+          onSubmit={async (closedReason) => {
+            await closeMutation.mutateAsync({
+              id: selectedTag.id,
+              request: { closedReason },
+            });
+            toast.success('Tag closed successfully');
+            setCloseDialogOpen(false);
+            setSelectedTag(null);
+          }}
+          isSubmitting={closeMutation.isPending}
+        />
+      )}
 
       {/* View Tag Dialog */}
       {viewingTag && (
@@ -422,30 +412,37 @@ export default function TagsTab() {
 interface CreateTagDialogProps {
   open: boolean;
   onClose: () => void;
+  categories: TagCategoryDto[];
+  onSubmit: (data: {
+    regNo: string;
+    tagType: string;
+    tagCategoryId: string;
+    reason: string;
+    stationCode: string;
+    effectiveDays?: number;
+  }) => Promise<void>;
+  isSubmitting: boolean;
 }
 
 /**
  * CreateTagDialog - Create new vehicle tag
- * Matches VehicleTag backend model fields
  */
-function CreateTagDialog({ open, onClose }: CreateTagDialogProps) {
+function CreateTagDialog({ open, onClose, categories, onSubmit, isSubmitting }: CreateTagDialogProps) {
   const [regNo, setRegNo] = useState('');
   const [tagCategoryId, setTagCategoryId] = useState<string>('');
   const [reason, setReason] = useState('');
   const [effectiveDays, setEffectiveDays] = useState<number>(30);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement tag creation API call
-    console.log('Creating tag:', {
-      regNo,
-      tagType: 'manual', // Manual tags are created by users
+    await onSubmit({
+      regNo: regNo.toUpperCase(),
+      tagType: 'manual',
       tagCategoryId,
       reason,
-      effectiveTimePeriod: `${effectiveDays}.00:00:00`, // Duration format
-      status: 'open',
+      stationCode: 'MRK', // TODO: Get from user's station context
+      effectiveDays: effectiveDays > 0 ? effectiveDays : undefined,
     });
-    onClose();
     // Reset form
     setRegNo('');
     setTagCategoryId('');
@@ -483,7 +480,7 @@ function CreateTagDialog({ open, onClose }: CreateTagDialogProps) {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {TAG_CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     <div className="flex flex-col">
                       <span>{cat.name}</span>
@@ -517,23 +514,108 @@ function CreateTagDialog({ open, onClose }: CreateTagDialogProps) {
             <Input
               id="effectiveDays"
               type="number"
-              min={1}
+              min={0}
               max={365}
               value={effectiveDays}
-              onChange={(e) => setEffectiveDays(parseInt(e.target.value) || 30)}
+              onChange={(e) => setEffectiveDays(parseInt(e.target.value) || 0)}
             />
             <p className="text-xs text-gray-500">
-              How long this tag should remain active. Leave empty for indefinite.
+              How long this tag should remain active. Set to 0 for indefinite.
             </p>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">
-              <Tag className="mr-2 h-4 w-4" />
-              Create Tag
+            <Button type="submit" disabled={isSubmitting || !regNo || !tagCategoryId || !reason}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Tag className="mr-2 h-4 w-4" />
+                  Create Tag
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface CloseTagDialogProps {
+  tag: VehicleTagDto;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (closedReason: string) => Promise<void>;
+  isSubmitting: boolean;
+}
+
+/**
+ * CloseTagDialog - Close an open tag
+ */
+function CloseTagDialog({ tag, open, onClose, onSubmit, isSubmitting }: CloseTagDialogProps) {
+  const [closedReason, setClosedReason] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onSubmit(closedReason);
+    setClosedReason('');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(value) => (!value ? onClose() : undefined)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Close Tag</DialogTitle>
+          <DialogDescription>
+            Close tag for vehicle {tag.regNo}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <div className="text-sm">
+              <strong>Category:</strong> {tag.tagCategoryName}
+            </div>
+            <div className="text-sm text-gray-600 mt-1">
+              <strong>Reason:</strong> {tag.reason}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="closedReason">Closure Reason <span className="text-red-500">*</span></Label>
+            <Textarea
+              id="closedReason"
+              placeholder="Provide reason for closing this tag..."
+              value={closedReason}
+              onChange={(e) => setClosedReason(e.target.value)}
+              rows={3}
+              required
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting || !closedReason}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Closing...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Close Tag
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -561,6 +643,14 @@ function ViewTagDialog({ tag, onClose }: ViewTagDialogProps) {
     });
   };
 
+  const parseEffectiveDays = (effectiveTimePeriod?: string): number | null => {
+    if (!effectiveTimePeriod) return null;
+    const match = effectiveTimePeriod.match(/^(\d+)\./);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  const effectiveDays = parseEffectiveDays(tag.effectiveTimePeriod);
+
   return (
     <Dialog open onOpenChange={(value) => (!value ? onClose() : undefined)}>
       <DialogContent className="sm:max-w-lg">
@@ -584,19 +674,19 @@ function ViewTagDialog({ tag, onClose }: ViewTagDialogProps) {
             </div>
             <div>
               <Label className="text-xs text-gray-500">Tag Type</Label>
-              <p className="text-sm font-medium">{TAG_TYPE_LABELS[tag.tagType]}</p>
+              <p className="text-sm font-medium">{TAG_TYPE_LABELS[tag.tagType] || tag.tagType}</p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Category</Label>
-              <p className="text-sm font-medium">{tag.tagCategoryName}</p>
+              <p className="text-sm font-medium">{tag.tagCategoryName || tag.tagCategoryCode}</p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Station</Label>
-              <p className="text-sm font-medium">{tag.stationName} ({tag.stationCode})</p>
+              <p className="text-sm font-medium">{tag.stationCode}</p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Effective Duration</Label>
-              <p className="text-sm font-medium">{tag.effectiveDays ? `${tag.effectiveDays} days` : 'Indefinite'}</p>
+              <p className="text-sm font-medium">{effectiveDays ? `${effectiveDays} days` : 'Indefinite'}</p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Exported</Label>
@@ -611,13 +701,13 @@ function ViewTagDialog({ tag, onClose }: ViewTagDialogProps) {
 
           <div className="border-t pt-4">
             <Label className="text-xs text-gray-500">Created</Label>
-            <p className="text-sm">{formatDateTime(tag.openedAt)} by {tag.createdByName}</p>
+            <p className="text-sm">{formatDateTime(tag.openedAt)} by {tag.createdByName || '-'}</p>
           </div>
 
           {tag.closedAt && (
             <div>
               <Label className="text-xs text-gray-500">Closed</Label>
-              <p className="text-sm">{formatDateTime(tag.closedAt)} by {tag.closedByName}</p>
+              <p className="text-sm">{formatDateTime(tag.closedAt)} by {tag.closedByName || '-'}</p>
               {tag.closedReason && (
                 <p className="text-sm mt-1 bg-green-50 p-3 rounded-lg">{tag.closedReason}</p>
               )}

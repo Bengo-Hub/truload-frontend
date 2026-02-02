@@ -302,57 +302,60 @@ TruConnect is a Node.js/Electron microservice running on client machines that co
 **Weight Data Format:**
 ```json
 {
-  "deck": 1,
-  "weight": 7950,
-  "stable": true,
+  "mode": "multideck" | "mobile",
+  "decks": [
+    { "index": 1, "weight": 7950, "stable": true, "live": true }
+  ],
+  "gvw": 7950,
+  "status": "stable" | "unstable",
   "timestamp": "2025-10-28T12:34:56Z"
 }
 ```
 
-**Weight Polling:**
+**Connection Strategy:**
+1. **Real-time (Default)**: Frontend establishes a WebSocket connection to TruConnect `ws://localhost:8080`.
+2. **Polling Fallback**: If WebSocket fails OR polling mode is explicitly enabled in TruConnect, frontend polls `/api/weights/stream`.
+3. **Backend Proxy**: For remote sites, `truload-backend` acts as a proxy to poll the local TruConnect instance and serve the data to the frontend.
+
+**Real-time Implementation (WebSocket):**
 ```typescript
-// Pseudo-code
-const useWeightStream = (deck: number) => {
-  const [weight, setWeight] = useState<WeightData | null>(null);
+const useWeightStream = () => {
+  const [data, setData] = useState<WeightData | null>(null);
   
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_TRUCONNECT_URL}/api/weights/stream?deck=${deck}`
-        );
-        const data = await response.json();
-        setWeight(data);
-      } catch (error) {
-        console.error('Failed to fetch weight:', error);
-      }
-    }, 500);
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_TRUCONNECT_WS_URL || 'ws://localhost:8080');
     
-    return () => clearInterval(interval);
-  }, [deck]);
+    ws.onmessage = (event) => {
+      const payload = JSON.parse(event.data);
+      if (payload.type === 'weights') setData(payload.data);
+    };
+    
+    return () => ws.close();
+  }, []);
   
-  return weight;
+  return data;
 };
 ```
 
-**Integration Points:**
-- Frontend polls TruConnect directly (client-side)
-- Real-time weight display in weighing UI
-- Weight stabilization detection
-- Lock weight button when stable
-- Finalized weights sent to backend when weighing session completes
+**Mobile Scale Workflow:**
+For portable axle weighers (Haenni/PAW), weights are captured sequentially:
+1. Frontend detects `mode: "mobile"`.
+2. UI displays "Ready for Axle 1".
+3. TruConnect detects stability and sends `captured: true` for the specific axle.
+4. Frontend moves to "Ready for Axle 2" and stores captured weight locally.
+5. Once all axles are captured, GVW is finalized and weighing session completes.
 
-**Error Handling:**
-- TruConnect unavailability: Show "Scales Off" message
-- Connection timeout: Retry with exponential backoff
-- Invalid data: Log error, request retry
-- Scale disconnection: Show warning, allow retry or abort
+**Integration Points:**
+- Frontend connects to TruConnect (default: WebSocket)
+- Real-time display for all decks (or live axle in mobile mode)
+- Automatic stabilization capture
+- Finalized weights submitted to backend API after session closure
 
 **Status Indicators:**
-- Green indicator when TruConnect connected and scale active
-- Red indicator when TruConnect unavailable or scale disconnected
-- Connection status displayed in weighing screen header
-- Scale test enforcement check before allowing weighing
+- **Green**: Connection active, scale responding.
+- **Yellow**: Polling mode fallback active.
+- **Red**: TruConnect or scale unavailable.
+- **Scale Test**: Required periodically to ensure accuracy before weighing.
 
 ---
 

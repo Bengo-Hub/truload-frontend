@@ -4,250 +4,114 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination, usePagination } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SearchInput, StatusBadge } from '@/components/weighing';
 import { useHasPermission } from '@/hooks/useAuth';
-import { Download, Eye, Filter, Printer, RefreshCcw, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
-
-/**
- * WeighingTransaction interface matching backend model
- * @see TruLoad.Backend.Models.Weighing.WeighingTransaction
- */
-interface WeighingTicket {
-  id: string;
-  ticketNumber: string;
-  vehicleId?: string;
-  vehicleRegNumber: string;
-  driverId?: string;
-  driverName?: string;
-  transporterId?: string;
-  transporterName?: string;
-  stationId: string;
-  stationName?: string;
-  weighedByUserId: string;
-  operatorName?: string;
-  weighingType: 'static' | 'wim' | 'axle';
-  actId?: string;
-  bound?: string;
-  gvwMeasuredKg: number;
-  gvwPermissibleKg: number;
-  overloadKg: number;
-  controlStatus: 'Pending' | 'Compliant' | 'Overload' | 'Charged' | 'Released';
-  totalFeeUsd: number;
-  weighedAt: string;
-  isSync: boolean;
-  isCompliant: boolean;
-  isSentToYard: boolean;
-  violationReason?: string;
-  reweighCycleNo: number;
-  originalWeighingId?: string;
-  hasPermit: boolean;
-  originId?: string;
-  originName?: string;
-  destinationId?: string;
-  destinationName?: string;
-  cargoId?: string;
-  cargoName?: string;
-  toleranceApplied: boolean;
-}
-
-const CONTROL_STATUS_LABELS: Record<string, string> = {
-  Pending: 'Pending',
-  Compliant: 'Compliant',
-  Overload: 'Overload',
-  Charged: 'Charged',
-  Released: 'Released',
-};
+import { useWeighingTransactions, useMyStation } from '@/hooks/queries/useWeighingQueries';
+import type { WeighingTransaction } from '@/lib/api/weighing';
+import { useQueryClient } from '@tanstack/react-query';
+import { QUERY_KEYS } from '@/lib/query/config';
+import { Download, Eye, Filter, Loader2, Printer, RefreshCcw, RotateCcw } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
 
 const WEIGHING_TYPE_LABELS: Record<string, string> = {
   static: 'Static',
   wim: 'WIM',
   axle: 'Axle-by-Axle',
+  mobile: 'Mobile',
+  multideck: 'Multideck',
 };
 
 /**
  * Weight Tickets Tab
  *
  * Displays history of all weight tickets generated at the station.
- * Maps to WeighingTransaction backend model.
+ * Connected to real backend API with pagination.
  */
 export default function TicketsTab() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [weighingTypeFilter, setWeighingTypeFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const { page, pageSize, skip, setPage, setPageSize, reset: resetPagination } = usePagination(25);
+  const queryClient = useQueryClient();
 
-  // Correct permissions matching backend
+  // Permissions
   const canPrint = useHasPermission('weighing.export');
   const canRead = useHasPermission('weighing.read');
 
-  // Mock data matching WeighingTransaction model structure
-  const mockTickets: WeighingTicket[] = [
-    {
-      id: '1',
-      ticketNumber: 'WT-2026-00125',
-      vehicleRegNumber: 'KAA 123A',
-      transporterName: 'ABC Transport Ltd',
-      driverName: 'Peter Kamau',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      weighedByUserId: 'user-1',
-      operatorName: 'John Doe',
-      weighingType: 'static',
-      gvwMeasuredKg: 48100,
-      gvwPermissibleKg: 48000,
-      overloadKg: 100,
-      controlStatus: 'Compliant',
-      totalFeeUsd: 0,
-      weighedAt: '2026-01-23T10:15:00Z',
-      isSync: true,
-      isCompliant: true,
-      isSentToYard: false,
-      reweighCycleNo: 1,
-      hasPermit: false,
-      toleranceApplied: true,
-      originName: 'Mombasa Port',
-      destinationName: 'Nairobi CBD',
-      cargoName: 'Cement',
-    },
-    {
-      id: '2',
-      ticketNumber: 'WT-2026-00124',
-      vehicleRegNumber: 'KBB 456B',
-      transporterName: 'XYZ Logistics',
-      driverName: 'James Omondi',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      weighedByUserId: 'user-2',
-      operatorName: 'Jane Smith',
-      weighingType: 'static',
-      gvwMeasuredKg: 52300,
-      gvwPermissibleKg: 48000,
-      overloadKg: 4300,
-      controlStatus: 'Overload',
-      totalFeeUsd: 850,
-      weighedAt: '2026-01-23T09:45:00Z',
-      isSync: true,
-      isCompliant: false,
-      isSentToYard: true,
-      violationReason: 'GVW exceeded by 4,300kg',
-      reweighCycleNo: 1,
-      hasPermit: false,
-      toleranceApplied: true,
-      originName: 'Mombasa Port',
-      destinationName: 'Kampala',
-      cargoName: 'Steel Bars',
-    },
-    {
-      id: '3',
-      ticketNumber: 'WT-2026-00123',
-      vehicleRegNumber: 'KCC 789C',
-      transporterName: 'Fast Movers Kenya',
-      driverName: 'David Mwangi',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      weighedByUserId: 'user-1',
-      operatorName: 'John Doe',
-      weighingType: 'wim',
-      gvwMeasuredKg: 35200,
-      gvwPermissibleKg: 35000,
-      overloadKg: 200,
-      controlStatus: 'Charged',
-      totalFeeUsd: 40,
-      weighedAt: '2026-01-23T08:30:00Z',
-      isSync: true,
-      isCompliant: false,
-      isSentToYard: false,
-      violationReason: 'Minor GVW overload',
-      reweighCycleNo: 1,
-      hasPermit: false,
-      toleranceApplied: true,
-      originName: 'Nairobi',
-      destinationName: 'Kisumu',
-      cargoName: 'Agricultural Produce',
-    },
-    {
-      id: '4',
-      ticketNumber: 'WT-2026-00122',
-      vehicleRegNumber: 'KDD 012D',
-      transporterName: 'Cargo Express',
-      driverName: 'Samuel Kibet',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      weighedByUserId: 'user-2',
-      operatorName: 'Jane Smith',
-      weighingType: 'static',
-      gvwMeasuredKg: 45000,
-      gvwPermissibleKg: 48000,
-      overloadKg: -3000,
-      controlStatus: 'Compliant',
-      totalFeeUsd: 0,
-      weighedAt: '2026-01-22T16:20:00Z',
-      isSync: true,
-      isCompliant: true,
-      isSentToYard: false,
-      reweighCycleNo: 1,
-      hasPermit: false,
-      toleranceApplied: false,
-      originName: 'Eldoret',
-      destinationName: 'Mombasa',
-      cargoName: 'Tea',
-    },
-    {
-      id: '5',
-      ticketNumber: 'WT-2026-00121',
-      vehicleRegNumber: 'KBB 456B',
-      transporterName: 'XYZ Logistics',
-      driverName: 'James Omondi',
-      stationId: 'station-1',
-      stationName: 'Mariakani',
-      weighedByUserId: 'user-2',
-      operatorName: 'Jane Smith',
-      weighingType: 'static',
-      gvwMeasuredKg: 47500,
-      gvwPermissibleKg: 48000,
-      overloadKg: -500,
-      controlStatus: 'Released',
-      totalFeeUsd: 850,
-      weighedAt: '2026-01-23T14:30:00Z',
-      isSync: true,
-      isCompliant: true,
-      isSentToYard: false,
-      reweighCycleNo: 2,
-      originalWeighingId: '2',
-      hasPermit: false,
-      toleranceApplied: true,
-      originName: 'Mombasa Port',
-      destinationName: 'Kampala',
-      cargoName: 'Steel Bars',
-    },
-  ];
+  // Get current user's station
+  const { data: myStation } = useMyStation();
 
-  const filteredTickets = mockTickets.filter((ticket) => {
-    const matchesSearch =
-      ticket.ticketNumber.toLowerCase().includes(search.toLowerCase()) ||
-      ticket.vehicleRegNumber.toLowerCase().includes(search.toLowerCase()) ||
-      (ticket.transporterName?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-      (ticket.driverName?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === 'all' || ticket.controlStatus === statusFilter;
-    const matchesType = weighingTypeFilter === 'all' || ticket.weighingType === weighingTypeFilter;
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-    // Date range filter
-    let matchesDateRange = true;
+  // Reset pagination when filters change
+  useEffect(() => {
+    resetPagination();
+  }, [debouncedSearch, statusFilter, dateFrom, dateTo, resetPagination]);
+
+  // Build search params
+  const searchParams = useMemo(() => {
+    const params: Parameters<typeof useWeighingTransactions>[0] = {
+      skip,
+      take: pageSize,
+      sortBy: 'weighedAt',
+      sortOrder: 'desc',
+    };
+
+    // Add station filter if user has a station
+    if (myStation?.id) {
+      params.stationId = myStation.id;
+    }
+
+    // Add vehicle search
+    if (debouncedSearch) {
+      params.vehicleRegNo = debouncedSearch;
+    }
+
+    // Add status filter
+    if (statusFilter !== 'all') {
+      params.controlStatus = statusFilter;
+    }
+
+    // Add date filters
     if (dateFrom) {
-      matchesDateRange = matchesDateRange && new Date(ticket.weighedAt) >= new Date(dateFrom);
+      params.fromDate = new Date(dateFrom).toISOString();
     }
     if (dateTo) {
       const toDate = new Date(dateTo);
       toDate.setHours(23, 59, 59, 999);
-      matchesDateRange = matchesDateRange && new Date(ticket.weighedAt) <= toDate;
+      params.toDate = toDate.toISOString();
     }
 
-    return matchesSearch && matchesStatus && matchesType && matchesDateRange;
-  });
+    return params;
+  }, [skip, pageSize, myStation?.id, debouncedSearch, statusFilter, dateFrom, dateTo]);
+
+  // Fetch weighing transactions
+  const { data: result, isLoading, isFetching, error } = useWeighingTransactions(searchParams);
+
+  const tickets = result?.items ?? [];
+  const totalItems = result?.totalCount ?? 0;
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
+  };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setStatusFilter('all');
+  };
 
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-KE', {
@@ -259,11 +123,13 @@ export default function TicketsTab() {
     });
   };
 
-  const getComplianceStatus = (ticket: WeighingTicket): 'LEGAL' | 'WARNING' | 'OVERLOAD' => {
+  const getComplianceStatus = (ticket: WeighingTransaction): 'LEGAL' | 'WARNING' | 'OVERLOAD' => {
     if (ticket.isCompliant) return 'LEGAL';
     if (ticket.overloadKg > 2000) return 'OVERLOAD';
     return 'WARNING';
   };
+
+  const hasActiveFilters = dateFrom || dateTo || statusFilter !== 'all' || search;
 
   return (
     <div className="space-y-6">
@@ -274,7 +140,7 @@ export default function TicketsTab() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-1 gap-3 flex-wrap">
                 <SearchInput
-                  placeholder="Search by ticket, vehicle, transporter, driver..."
+                  placeholder="Search by vehicle registration..."
                   value={search}
                   onChange={setSearch}
                   className="flex-1 max-w-sm"
@@ -293,17 +159,6 @@ export default function TicketsTab() {
                     <SelectItem value="Released">Released</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={weighingTypeFilter} onValueChange={setWeighingTypeFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="static">Static</SelectItem>
-                    <SelectItem value="wim">WIM</SelectItem>
-                    <SelectItem value="axle">Axle-by-Axle</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               <div className="flex gap-2">
                 {canPrint && (
@@ -312,8 +167,8 @@ export default function TicketsTab() {
                     Export
                   </Button>
                 )}
-                <Button variant="outline" size="icon">
-                  <RefreshCcw className="h-4 w-4" />
+                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isFetching}>
+                  <RefreshCcw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </div>
@@ -337,17 +192,8 @@ export default function TicketsTab() {
                   className="w-[150px]"
                 />
               </div>
-              {(dateFrom || dateTo || statusFilter !== 'all' || weighingTypeFilter !== 'all') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setDateFrom('');
-                    setDateTo('');
-                    setStatusFilter('all');
-                    setWeighingTypeFilter('all');
-                  }}
-                >
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={handleClearFilters}>
                   Clear Filters
                 </Button>
               )}
@@ -360,7 +206,8 @@ export default function TicketsTab() {
       <Card className="border border-gray-200 rounded-xl">
         <CardHeader className="pb-2 pt-5 px-6">
           <CardTitle className="text-base font-semibold text-gray-900">
-            Weighing Transactions ({filteredTickets.length})
+            Weighing Transactions
+            {!isLoading && ` (${totalItems.toLocaleString()})`}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -369,9 +216,6 @@ export default function TicketsTab() {
               <TableRow className="hover:bg-transparent border-b border-gray-100">
                 <TableHead className="font-semibold text-gray-900 h-12 pl-6">Ticket #</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12">Vehicle</TableHead>
-                <TableHead className="font-semibold text-gray-900 h-12">Driver</TableHead>
-                <TableHead className="font-semibold text-gray-900 h-12">Transporter</TableHead>
-                <TableHead className="font-semibold text-gray-900 h-12">Origin → Dest</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12">Type</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12 text-right">GVW (kg)</TableHead>
                 <TableHead className="font-semibold text-gray-900 h-12 text-right">Overload</TableHead>
@@ -382,14 +226,29 @@ export default function TicketsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTickets.length === 0 ? (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={9} className="text-center text-gray-500 py-8">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading transactions...
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center text-red-500 py-8">
+                    Failed to load transactions. Please try again.
+                  </TableCell>
+                </TableRow>
+              ) : tickets.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                     No weighing transactions found.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTickets.map((ticket) => (
+                tickets.map((ticket) => (
                   <TableRow key={ticket.id} className="hover:bg-gray-50 border-b border-gray-50">
                     <TableCell className="font-mono font-medium text-gray-900 py-4 pl-6">
                       <div className="flex items-center gap-2">
@@ -404,22 +263,10 @@ export default function TicketsTab() {
                     </TableCell>
                     <TableCell className="py-4">
                       <div className="font-mono text-gray-900">{ticket.vehicleRegNumber}</div>
-                      {ticket.cargoName && (
-                        <div className="text-xs text-gray-500">{ticket.cargoName}</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-gray-600 py-4">{ticket.driverName || '-'}</TableCell>
-                    <TableCell className="text-gray-600 py-4">{ticket.transporterName || '-'}</TableCell>
-                    <TableCell className="text-gray-600 py-4 text-sm">
-                      {ticket.originName && ticket.destinationName ? (
-                        <span>{ticket.originName} → {ticket.destinationName}</span>
-                      ) : (
-                        '-'
-                      )}
                     </TableCell>
                     <TableCell className="py-4">
                       <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
-                        {WEIGHING_TYPE_LABELS[ticket.weighingType]}
+                        {WEIGHING_TYPE_LABELS[ticket.weighingType ?? 'static'] ?? ticket.weighingType}
                       </span>
                     </TableCell>
                     <TableCell className="font-mono text-gray-600 py-4 text-right">
@@ -453,7 +300,6 @@ export default function TicketsTab() {
                     </TableCell>
                     <TableCell className="py-4">
                       <div className="text-sm text-gray-600">{formatDateTime(ticket.weighedAt)}</div>
-                      <div className="text-xs text-gray-500">by {ticket.operatorName}</div>
                     </TableCell>
                     <TableCell className="py-4 pr-6 text-right">
                       <div className="flex justify-end gap-1">
@@ -475,6 +321,16 @@ export default function TicketsTab() {
             </TableBody>
           </Table>
         </CardContent>
+        <div className="border-t border-gray-200 px-6 py-3">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            isLoading={isFetching}
+          />
+        </div>
       </Card>
     </div>
   );

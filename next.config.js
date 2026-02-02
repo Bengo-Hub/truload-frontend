@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 // PWA disabled - removed withPWA wrapper to prevent ServiceWorker registration errors
 // To re-enable PWA later, uncomment and configure:
-// const withPWA = require('next-pwa')({ dest: 'public', register: true, skipWaiting: true });
+// const withPWA = require('@ducanh2912/next-pwa').default({ dest: 'public', register: true, skipWaiting: true });
 
 const nextConfig = {
   reactStrictMode: true,

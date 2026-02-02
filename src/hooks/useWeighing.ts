@@ -140,9 +140,9 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
 
   // Get total axles from configuration
   const totalAxles = useMemo(() => {
-    if (!session?.axleConfigCode) return 6;
+    if (!session?.axleConfigCode) return 0;
     const config = axleConfigurations.find(c => c.axleCode === session.axleConfigCode);
-    return config?.axleNumber || 6;
+    return config?.axleNumber || 0;
   }, [session?.axleConfigCode, axleConfigurations]);
 
   const capturedAxles = session?.capturedAxles || [];
@@ -150,12 +150,18 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
 
   // Calculate compliance from captured weights
   const { gvwMeasured, gvwPermissible, gvwOverload, overallStatus } = useMemo(() => {
+    // Get permissible weight from configuration
+    const config = session?.axleConfigCode
+      ? axleConfigurations.find(c => c.axleCode === session.axleConfigCode)
+      : null;
+    const permissibleFromConfig = config?.gvwPermissibleKg || 0;
+
     if (!complianceResult) {
       const totalWeight = capturedAxles.reduce((sum, a) => sum + a.weightKg, 0);
       return {
         gvwMeasured: totalWeight,
-        gvwPermissible: 48000, // Default, should come from config
-        gvwOverload: Math.max(0, totalWeight - 48000),
+        gvwPermissible: permissibleFromConfig,
+        gvwOverload: permissibleFromConfig > 0 ? Math.max(0, totalWeight - permissibleFromConfig) : 0,
         overallStatus: 'PENDING' as ComplianceStatus,
       };
     }
@@ -166,7 +172,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
       gvwOverload: complianceResult.gvwOverloadKg,
       overallStatus: complianceResult.overallStatus as ComplianceStatus,
     };
-  }, [capturedAxles, complianceResult]);
+  }, [capturedAxles, complianceResult, session?.axleConfigCode, axleConfigurations]);
 
   // Persist session to localStorage
   const persistSession = useCallback((sessionState: WeighingSessionState | null) => {

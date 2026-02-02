@@ -205,6 +205,19 @@ export function useRecentWeighings(stationId?: string, limit: number = 10) {
 }
 
 /**
+ * Fetch weighing transactions with pagination and filtering
+ * Used for the tickets list view
+ */
+export function useWeighingTransactions(params: weighingApi.SearchWeighingParams) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.WEIGHING_TRANSACTIONS, 'search', params],
+    queryFn: () => weighingApi.searchWeighingTransactions(params),
+    ...QUERY_OPTIONS.dynamic,
+    placeholderData: (previousData) => previousData, // Keep showing old data while fetching new page
+  });
+}
+
+/**
  * Fetch today's weighing statistics for dashboard
  * Cached for 5 minutes
  */

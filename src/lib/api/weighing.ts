@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client';
+import { AxleWeightReferenceDto } from '@/types/weighing';
 
 // ============================================================================
 // Types
@@ -232,19 +233,29 @@ export async function updateDriver(id: string, driver: Partial<Driver>): Promise
 // ============================================================================
 
 export async function getTransporterById(id: string): Promise<Transporter> {
-  const { data } = await apiClient.get<Transporter>(`/Transporter/${id}`);
+  const { data } = await apiClient.get<Transporter>(`/transporters/${id}`);
   return data;
 }
 
 export async function searchTransporters(query: string): Promise<Transporter[]> {
-  const { data } = await apiClient.get<Transporter[]>('/Transporter/search', {
+  const { data } = await apiClient.get<Transporter[]>('/transporters/search', {
     params: { query },
   });
   return data;
 }
 
 export async function createTransporter(transporter: Partial<Transporter>): Promise<Transporter> {
-  const { data } = await apiClient.post<Transporter>('/Transporter', transporter);
+  const { data } = await apiClient.post<Transporter>('/transporters', transporter);
+  return data;
+}
+
+export async function fetchTransporters(): Promise<Transporter[]> {
+  const { data } = await apiClient.get<Transporter[]>('/transporters');
+  return data;
+}
+
+export async function updateTransporter(id: string, transporter: Partial<Transporter>): Promise<Transporter> {
+  const { data } = await apiClient.put<Transporter>(`/transporters/${id}`, { ...transporter, id });
   return data;
 }
 
@@ -256,14 +267,14 @@ export async function searchWeighingTransactions(
   params: SearchWeighingParams
 ): Promise<PagedResult<WeighingTransaction>> {
   const { data } = await apiClient.get<PagedResult<WeighingTransaction>>(
-    '/WeighingTransaction',
+    '/weighing-transactions',
     { params }
   );
   return data;
 }
 
 export async function getWeighingTransaction(id: string): Promise<WeighingTransaction> {
-  const { data } = await apiClient.get<WeighingTransaction>(`/WeighingTransaction/${id}`);
+  const { data } = await apiClient.get<WeighingTransaction>(`/weighing-transactions/${id}`);
   return data;
 }
 
@@ -271,7 +282,7 @@ export async function createWeighingTransaction(
   request: CreateWeighingRequest
 ): Promise<WeighingTransaction> {
   const { data } = await apiClient.post<WeighingTransaction>(
-    '/WeighingTransaction',
+    '/weighing-transactions',
     request
   );
   return data;
@@ -282,14 +293,14 @@ export async function updateWeighingTransaction(
   request: UpdateWeighingRequest
 ): Promise<WeighingTransaction> {
   const { data } = await apiClient.put<WeighingTransaction>(
-    `/WeighingTransaction/${id}`,
+    `/weighing-transactions/${id}`,
     request
   );
   return data;
 }
 
 export async function deleteWeighingTransaction(id: string): Promise<void> {
-  await apiClient.delete(`/WeighingTransaction/${id}`);
+  await apiClient.delete(`/weighing-transactions/${id}`);
 }
 
 export async function captureWeights(
@@ -297,7 +308,7 @@ export async function captureWeights(
   request: CaptureWeightsRequest
 ): Promise<WeighingResult> {
   const { data } = await apiClient.post<WeighingResult>(
-    `/WeighingTransaction/${transactionId}/capture-weights`,
+    `/weighing-transactions/${transactionId}/capture-weights`,
     request
   );
   return data;
@@ -305,7 +316,7 @@ export async function captureWeights(
 
 export async function initiateReweigh(request: InitiateReweighRequest): Promise<WeighingTransaction> {
   const { data } = await apiClient.post<WeighingTransaction>(
-    '/WeighingTransaction/reweigh',
+    '/weighing-transactions/reweigh',
     request
   );
   return data;
@@ -333,12 +344,12 @@ export interface OriginDestination {
 }
 
 export async function fetchCargoTypes(): Promise<CargoType[]> {
-  const { data } = await apiClient.get<CargoType[]>('/CargoTypes');
+  const { data } = await apiClient.get<CargoType[]>('/cargo-types');
   return data;
 }
 
 export async function fetchOriginsDestinations(): Promise<OriginDestination[]> {
-  const { data } = await apiClient.get<OriginDestination[]>('/OriginsDestinations');
+  const { data } = await apiClient.get<OriginDestination[]>('/origins-destinations');
   return data;
 }
 
@@ -349,7 +360,6 @@ export async function fetchOriginsDestinations(): Promise<OriginDestination[]> {
 export interface Station {
   id: string;
   code: string;
-  stationCode: string;
   name: string;
   stationType: string;
   organizationId: string;
@@ -404,18 +414,6 @@ export async function getStationsByOrganization(organizationId: string): Promise
 // Axle Configuration API
 // ============================================================================
 
-export interface AxleWeightReference {
-  id: string;
-  axleConfigurationId: string;
-  axlePosition: number;
-  axleGrouping: string;
-  axleGroupId?: string;
-  tyreTypeId?: string;
-  axleLegalWeightKg: number;
-  isActive: boolean;
-  createdAt?: string;
-}
-
 export interface AxleConfiguration {
   id: string;
   axleCode: string;
@@ -432,7 +430,7 @@ export interface AxleConfiguration {
   updatedAt: string;
   createdByUserId?: string;
   weightReferenceCount: number;
-  weightReferences?: AxleWeightReference[];
+  weightReferences?: AxleWeightReferenceDto[];
 }
 
 export async function fetchAxleConfigurations(): Promise<AxleConfiguration[]> {
@@ -529,14 +527,14 @@ export interface ComplianceResult {
 
 export async function getComplianceResult(weighingId: string): Promise<ComplianceResult> {
   const { data } = await apiClient.get<ComplianceResult>(
-    `/WeighingTransaction/${weighingId}/compliance`
+    `/weighing-transactions/${weighingId}/compliance`
   );
   return data;
 }
 
 export async function calculateCompliance(weighingId: string): Promise<ComplianceResult> {
   const { data } = await apiClient.post<ComplianceResult>(
-    `/WeighingTransaction/${weighingId}/calculate-compliance`
+    `/weighing-transactions/${weighingId}/calculate-compliance`
   );
   return data;
 }

@@ -107,7 +107,10 @@ export function AxleGroupVisual({
   className,
 }: AxleGroupVisualProps) {
   // Get configuration from references or defaults
-  const config = DEFAULT_AXLE_CONFIGS[configCode.toUpperCase()] || DEFAULT_AXLE_CONFIGS['6C'];
+  // Only fallback to 6C when rendering, not when computing defaults
+  const config = configCode
+    ? (DEFAULT_AXLE_CONFIGS[configCode.toUpperCase()] || DEFAULT_AXLE_CONFIGS['6C'])
+    : DEFAULT_AXLE_CONFIGS['6C'];
 
   // Build groups from axleReferences if provided
   const groups = axleReferences?.length
@@ -336,10 +339,15 @@ function AxleFallbackSVG({ tyreType }: { tyreType: TyreType }) {
 }
 
 /**
- * Get default axle configuration references for a given config code
+ * Get default axle configuration references for a given config code.
+ * Returns empty array if config code is empty or not found (instead of defaulting to 6C).
  */
 export function getDefaultAxleConfig(configCode: string): AxleWeightReference[] {
-  const config = DEFAULT_AXLE_CONFIGS[configCode.toUpperCase()] || DEFAULT_AXLE_CONFIGS['6C'];
+  if (!configCode) return [];
+
+  const config = DEFAULT_AXLE_CONFIGS[configCode.toUpperCase()];
+  if (!config) return [];
+
   const refs: AxleWeightReference[] = [];
 
   config.groups.forEach((group) => {

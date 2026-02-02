@@ -21,6 +21,7 @@ import {
   WeighingPageHeader,
   WeighingStepper,
 } from '@/components/weighing';
+import { BoundSelector } from '@/components/weighing/BoundSelector';
 import { ScaleHealthPanel, ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
 import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
@@ -38,6 +39,7 @@ import {
   useVehicleByRegNo,
 } from '@/hooks/queries';
 import { useWeighing } from '@/hooks/useWeighing';
+import { useMiddleware } from '@/hooks/useMiddleware';
 import { ScaleTest, Station } from '@/lib/api/weighing';
 import { calculateOverallStatus } from '@/lib/weighing-utils';
 import {
@@ -98,11 +100,120 @@ export default function MobileWeighingPage() {
   // Derive bound from station data
   const currentBound = currentBoundState ?? (currentStation?.supportsBidirectional ? currentStation.boundACode : undefined);
 
+  // Weight state - MUST be declared before useMiddleware hook
+  const [currentAxleWeight, setCurrentAxleWeight] = useState(0);
+
+  // Scale health panel state - MUST be declared before useMiddleware hook
+  const [scales, setScales] = useState<ScaleInfo[]>([
+    {
+      id: 'scale-a',
+      name: 'Scale A',
+      status: 'disconnected',
+      weight: 0,
+      temperature: 0,
+      battery: 0,
+      signalStrength: 0,
+      capacity: 15000,
+      lastReading: new Date(),
+      isActive: false,
+      make: 'Intercomp',
+      model: 'LP600',
+      syncType: 'API',
+    },
+    {
+      id: 'scale-b',
+      name: 'Scale B',
+      status: 'disconnected',
+      weight: 0,
+      temperature: 0,
+      battery: 0,
+      signalStrength: 0,
+      capacity: 15000,
+      lastReading: new Date(),
+      isActive: false,
+      make: 'Intercomp',
+      model: 'LP600',
+      syncType: 'API',
+    },
+  ]);
+  const [isScalesConnected, setIsScalesConnected] = useState(false);
+  const [middlewareConnected, setMiddlewareConnected] = useState(false);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [weighingType, setWeighingType] = useState<'mobile' | 'multideck'>('mobile');
+
+  // Scale metadata from middleware (make/model)
+  const [scaleMetadata, setScaleMetadata] = useState<{ make: string | null; model: string | null }>({
+    make: null,
+    model: null,
+  });
+
   // useWeighing hook for backend persistence
   const weighingHook = useWeighing({
     weighingMode: 'mobile',
     bound: currentBound,
     autoInitialize: true,
+  });
+
+  // useMiddleware hook for real-time WebSocket connection to TruConnect middleware
+  const middleware = useMiddleware({
+    stationCode: currentStation?.code || 'DEFAULT',
+    bound: (currentBound as 'A' | 'B') || 'A',
+    mode: 'mobile',
+    autoConnect: true,
+    clientName: `TruLoad Frontend - ${currentStation?.name || 'Mobile'}`,
+    clientType: 'truload-frontend',
+    onWeightUpdate: (weight) => {
+      // Update current axle weight from middleware
+      if (weight.weight !== undefined) {
+        setCurrentAxleWeight(weight.weight);
+      }
+      // Update simulation mode from weight data
+      setIsSimulationMode(weight.simulation || false);
+      // Update connection status from weight data
+      if (weight.connection?.connected !== undefined) {
+        setIsScalesConnected(weight.connection.connected);
+      }
+      // Update scale info from weight data if available
+      if (weight.scaleInfo) {
+        setScales(prev => [
+          {
+            ...prev[0],
+            status: weight.connection?.connected ? 'connected' : 'disconnected',
+            weight: weight.weight || 0,
+            battery: weight.scaleInfo?.battery || prev[0].battery,
+            temperature: weight.scaleInfo?.temperature || prev[0].temperature,
+            signalStrength: weight.scaleInfo?.signalStrength || prev[0].signalStrength,
+            make: weight.scaleInfo?.make || prev[0].make,
+            model: weight.scaleInfo?.model || prev[0].model,
+          },
+          prev[1],
+        ]);
+      }
+      console.log('[Mobile] Weight update from middleware:', weight);
+    },
+    onScaleStatusChange: (status) => {
+      console.log('[Mobile] Scale status from middleware:', status);
+      // Update simulation mode
+      setIsSimulationMode(status.simulation || false);
+      // Update scale connection status
+      if (status.scaleA) {
+        setScales(prev => [
+          {
+            ...prev[0],
+            status: status.scaleA?.status === 'connected' ? 'connected' : 'disconnected',
+            weight: status.scaleA?.weight || 0,
+            battery: status.scaleA?.battery || prev[0].battery,
+            temperature: status.scaleA?.temp || prev[0].temperature,
+          },
+          prev[1],
+        ]);
+      }
+      setIsScalesConnected(status.connected);
+    },
+    onConnectionModeChange: (mode, url) => {
+      console.log(`[Mobile] Connection mode changed: ${mode} (${url})`);
+      setMiddlewareConnected(mode !== 'disconnected');
+    },
   });
 
   // Scale test status query (depends on currentBound)
@@ -126,7 +237,7 @@ export default function MobileWeighingPage() {
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [isPlateDisabled, setIsPlateDisabled] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<string>('');
-  const [axleConfig, setAxleConfig] = useState(getDefaultAxleConfig('6C'));
+  const [axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
   const [ticketNumber, setTicketNumber] = useState('');
 
   // Update scale test from query result
@@ -235,44 +346,132 @@ export default function MobileWeighingPage() {
   const [frontViewImage, setFrontViewImage] = useState<string | undefined>();
   const [overviewImage, setOverviewImage] = useState<string | undefined>();
 
-  // Weight state
-  const [currentAxleWeight, setCurrentAxleWeight] = useState(0);
+  // Sync middleware hook state with component state
+  useEffect(() => {
+    // Update middleware connection status from the hook
+    setMiddlewareConnected(middleware.connected);
 
-  // Scale health panel state
-  const [scales, setScales] = useState<ScaleInfo[]>([
-    {
-      id: 'scale-a',
-      name: 'Scale A',
-      status: 'connected',
-      weight: 0,
-      temperature: 25,
-      battery: 95,
-      signalStrength: 85,
-      capacity: 15000,
-      lastReading: new Date(),
-      isActive: true,
-      make: 'Intercomp',
-      model: 'LP600',
-      syncType: 'API',
-    },
-    {
-      id: 'scale-b',
-      name: 'Scale B',
-      status: 'connected',
-      weight: 0,
-      temperature: 24,
-      battery: 90,
-      signalStrength: 78,
-      capacity: 15000,
-      lastReading: new Date(),
-      isActive: true,
-      make: 'Intercomp',
-      model: 'LP600',
-      syncType: 'API',
-    },
-  ]);
-  const [isScalesConnected, setIsScalesConnected] = useState(true);
-  const [weighingType, setWeighingType] = useState<'mobile' | 'multideck'>('mobile');
+    // Sync simulation mode from middleware state or weight data
+    const simMode = middleware.simulation || middleware.weights?.simulation || false;
+    setIsSimulationMode(simMode);
+
+    if (simMode) {
+      console.log('[Mobile] Running in simulation mode');
+    }
+
+    // Update weight from middleware if available
+    if (middleware.weights?.weight !== undefined) {
+      setCurrentAxleWeight(middleware.weights.weight);
+    }
+
+    // Sync connection status from weight data
+    if (middleware.weights?.connection?.connected !== undefined) {
+      setIsScalesConnected(middleware.weights.connection.connected);
+    }
+  }, [middleware.connected, middleware.simulation, middleware.weights]);
+
+  // Electron IPC fallback for scale sync (only used when running in Electron app)
+  // WebSocket connection is handled by useMiddleware hook for PWA/browser mode
+  useEffect(() => {
+    // Define type for scale status with make/model
+    interface ScaleStatusData {
+      connected: boolean;
+      weight: number;
+      battery: number;
+      temperature: number;
+      signalStrength: number;
+      make?: string;
+      model?: string;
+    }
+
+    // Check if we're in an Electron environment
+    const electronAPI = (window as { electronAPI?: {
+      getScaleStatus: () => Promise<{ success: boolean; scales: {
+        scaleA: ScaleStatusData;
+        scaleB: ScaleStatusData;
+        anyConnected: boolean;
+      }}>;
+      onScaleStatusChanged: (callback: (data: {
+        scaleId: string;
+        status: ScaleStatusData;
+        allScales: {
+          scaleA: ScaleStatusData;
+          scaleB: ScaleStatusData;
+          anyConnected: boolean;
+        };
+      }) => void) => () => void;
+    }}).electronAPI;
+
+    // If not in Electron, the useMiddleware hook handles WebSocket connection
+    // No need for direct API fetch here - it would duplicate the connection
+    if (!electronAPI) {
+      console.log('[Mobile] Running in browser/PWA mode - WebSocket handled by useMiddleware');
+      return;
+    }
+
+    // Get initial scale status from middleware (Electron only)
+    electronAPI.getScaleStatus().then(result => {
+      if (result.success && result.scales) {
+        updateScalesFromMiddleware(result.scales);
+        // Update metadata from first scale that has it
+        if (result.scales.scaleA?.make || result.scales.scaleB?.make) {
+          setScaleMetadata({
+            make: result.scales.scaleA?.make || result.scales.scaleB?.make || null,
+            model: result.scales.scaleA?.model || result.scales.scaleB?.model || null,
+          });
+        }
+        setMiddlewareConnected(true);
+      }
+    }).catch(err => {
+      console.error('[Mobile] Failed to get scale status:', err);
+    });
+
+    // Listen for scale status changes (Electron only)
+    const unsubscribe = electronAPI.onScaleStatusChanged((data) => {
+      console.log('[Mobile] Scale status changed:', data);
+      updateScalesFromMiddleware(data.allScales);
+      setMiddlewareConnected(true);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
+  // Helper to update scales from middleware data
+  const updateScalesFromMiddleware = useCallback((allScales: {
+    scaleA: { connected: boolean; weight: number; battery: number; temperature: number; signalStrength: number; make?: string; model?: string };
+    scaleB: { connected: boolean; weight: number; battery: number; temperature: number; signalStrength: number; make?: string; model?: string };
+    anyConnected: boolean;
+  }) => {
+    setScales(prev => [
+      {
+        ...prev[0],
+        status: allScales.scaleA?.connected ? 'connected' : 'disconnected',
+        weight: allScales.scaleA?.weight || 0,
+        battery: allScales.scaleA?.battery || 0,
+        temperature: allScales.scaleA?.temperature || 0,
+        signalStrength: allScales.scaleA?.signalStrength || 0,
+        isActive: allScales.scaleA?.connected || false,
+        make: allScales.scaleA?.make || scaleMetadata.make || prev[0].make,
+        model: allScales.scaleA?.model || scaleMetadata.model || prev[0].model,
+        lastReading: new Date(),
+      },
+      {
+        ...prev[1],
+        status: allScales.scaleB?.connected ? 'connected' : 'disconnected',
+        weight: allScales.scaleB?.weight || 0,
+        battery: allScales.scaleB?.battery || 0,
+        temperature: allScales.scaleB?.temperature || 0,
+        signalStrength: allScales.scaleB?.signalStrength || 0,
+        isActive: allScales.scaleB?.connected || false,
+        make: allScales.scaleB?.make || scaleMetadata.make || prev[1].make,
+        model: allScales.scaleB?.model || scaleMetadata.model || prev[1].model,
+        lastReading: new Date(),
+      },
+    ]);
+    setIsScalesConnected(allScales.anyConnected);
+  }, [scaleMetadata]);
 
   // Entity Modal States
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
@@ -435,7 +634,7 @@ export default function MobileWeighingPage() {
     const dateStr = `${year}${month}${day}`;
 
     // Use station code if available, fallback to MOB for mobile
-    const stationCode = currentStation?.code || currentStation?.stationCode || 'MOB';
+    const stationCode = currentStation?.code || 'MOB';
 
     // Add bound if bidirectional station
     const boundSuffix = currentBound || '';
@@ -480,6 +679,26 @@ export default function MobileWeighingPage() {
   const handleChangeWeighingType = useCallback(() => {
     router.push('/weighing/multideck');
   }, [router]);
+
+  // Handle bound change - updates local state, notifies middleware, and syncs backend
+  const handleBoundChange = useCallback((newBound: string) => {
+    // Update local state
+    setCurrentBoundState(newBound);
+
+    // Notify middleware via WebSocket (if connected)
+    if (middleware.connected) {
+      middleware.switchBound(newBound as 'A' | 'B');
+      console.log(`[Mobile] Bound switched to ${newBound}, notified middleware`);
+    }
+
+    // TODO: Update backend API when endpoint is available
+    // For now, the middleware will handle bound persistence if needed
+    toast.info(`Switched to Bound ${newBound}`, {
+      description: currentStation?.supportsBidirectional
+        ? `Now weighing on direction ${newBound}`
+        : undefined,
+    });
+  }, [middleware, currentStation]);
 
   // Scale test handler - opens the modal
   const handleStartScaleTest = useCallback(() => {
@@ -534,7 +753,9 @@ export default function MobileWeighingPage() {
     }
 
     // Initialize transaction via useWeighing hook
-    const transaction = await initializeTransaction(vehiclePlate, selectedConfig || '6C');
+    // Use selected config, or fallback to first available config from loaded configurations
+    const configToUse = selectedConfig || axleConfigurations[0]?.axleCode || '6C';
+    const transaction = await initializeTransaction(vehiclePlate, configToUse);
 
     if (transaction) {
       // Use ticket number from transaction or generate one
@@ -752,18 +973,34 @@ export default function MobileWeighingPage() {
                     weighingType={weighingType}
                     compact
                     showDetailedCards={false}
+                    middlewareSynced={middlewareConnected}
+                    simulation={isSimulationMode}
                   />
                 </div>
 
-                {/* Scale A and B Status Cards */}
+                {/* Scale A and B Status Cards with Sync Indicator */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {scales.map((scale) => (
-                    <Card key={scale.id} className={`border-2 ${scale.status === 'connected' ? 'border-green-200' : 'border-gray-200'}`}>
+                    <Card key={scale.id} className={`border-2 transition-colors ${scale.status === 'connected' ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50/30'}`}>
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <Scale className={`h-5 w-5 ${scale.status === 'connected' ? 'text-green-600' : 'text-gray-400'}`} />
+                            {/* Connection bubble indicator */}
+                            <div className="relative">
+                              <Scale className={`h-5 w-5 ${scale.status === 'connected' ? 'text-green-600' : 'text-gray-400'}`} />
+                              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                                scale.status === 'connected' && middlewareConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                              }`} />
+                            </div>
                             <span className="font-semibold">{scale.name}</span>
+                            {/* Sync status badge */}
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              scale.status === 'connected' && middlewareConnected
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {scale.status === 'connected' && middlewareConnected ? 'Synced' : 'Offline'}
+                            </span>
                           </div>
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
                             scale.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
@@ -778,11 +1015,13 @@ export default function MobileWeighingPage() {
                           </div>
                           <div>
                             <p className="text-gray-500">Battery</p>
-                            <p className="font-medium">{scale.battery}%</p>
+                            <p className={`font-medium ${(scale.battery ?? 0) < 20 ? 'text-red-600' : (scale.battery ?? 0) < 50 ? 'text-yellow-600' : 'text-green-600'}`}>
+                              {scale.battery ?? 0}%
+                            </p>
                           </div>
                           <div>
                             <p className="text-gray-500">Temp</p>
-                            <p className="font-medium">{scale.temperature}°C</p>
+                            <p className="font-medium">{scale.temperature ?? 0}°C</p>
                           </div>
                         </div>
                       </CardContent>
@@ -804,10 +1043,24 @@ export default function MobileWeighingPage() {
                 {/* Vehicle Plate Entry Card */}
                 <Card className="border-gray-200 shadow-sm">
                   <CardContent className="p-6">
-                    <h3 className="text-base font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                      <Truck className="h-5 w-5 text-blue-600" />
-                      Vehicle Identification
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                        <Truck className="h-5 w-5 text-blue-600" />
+                        Vehicle Identification
+                      </h3>
+                    </div>
+
+                    {/* Bound Selector - positioned before plate input for bidirectional stations */}
+                    {currentStation?.supportsBidirectional && (
+                      <div className="mb-4">
+                        <BoundSelector
+                          station={currentStation}
+                          selectedBound={currentBound}
+                          onBoundChange={handleBoundChange}
+                          compact={false}
+                        />
+                      </div>
+                    )}
 
                     {/* Plate Input */}
                     <div className="flex items-center gap-3 mb-4">
@@ -1014,7 +1267,9 @@ export default function MobileWeighingPage() {
               </div>
             )}
 
-            {/* Scale Test Modal */}
+            {/* Scale Test Modal - Connected to middleware for live weight readings */}
+            {/* PAW scales: middleware derives scaleA/scaleB from combined weight (total/2) */}
+            {/* Haenni scales: middleware may provide scaleA/scaleB directly if supported */}
             <ScaleTestModal
               open={isScaleTestModalOpen}
               onOpenChange={setIsScaleTestModalOpen}
@@ -1022,6 +1277,18 @@ export default function MobileWeighingPage() {
               bound={currentBound}
               onTestComplete={handleScaleTestComplete}
               weighingMode="mobile"
+              middlewareConnected={middleware.connected}
+              middlewareWeights={middleware.weights ? {
+                currentWeight: middleware.weights.weight || middleware.weights.currentWeight,
+                // Individual scale weights - PAW: derived from combined, Haenni: may be direct
+                scaleA: middleware.weights.scaleA,
+                scaleB: middleware.weights.scaleB,
+                scaleWeightMode: middleware.weights.scaleWeightMode,
+              } : null}
+              middlewareScaleStatus={middleware.scaleStatus ? {
+                scaleA: middleware.scaleStatus.scaleA,
+                scaleB: middleware.scaleStatus.scaleB,
+              } : undefined}
             />
 
             {/* Weight Confirmation Modal */}

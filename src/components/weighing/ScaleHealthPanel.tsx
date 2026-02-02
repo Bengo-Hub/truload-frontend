@@ -50,6 +50,10 @@ interface ScaleHealthPanelProps {
   showDetailedCards?: boolean;
   /** Ultra-compact horizontal status bar showing make, sync, count, battery, temp, signal */
   ultraCompact?: boolean;
+  /** Middleware sync status - shows sync bubble indicator */
+  middlewareSynced?: boolean;
+  /** Simulation mode active - shows "SIMULATED" badge instead of make/model */
+  simulation?: boolean;
 }
 
 /**
@@ -80,6 +84,8 @@ export function ScaleHealthPanel({
   compact = false,
   showDetailedCards,
   ultraCompact = false,
+  middlewareSynced = true,
+  simulation = false,
 }: ScaleHealthPanelProps) {
   // Derive display labels based on mode
   const isIndicatorMode = displayMode === 'indicator';
@@ -123,31 +129,53 @@ export function ScaleHealthPanel({
     return (
       <Card className={cn(
         'shadow-sm border transition-colors',
-        isConnected ? 'border-green-200 bg-gradient-to-r from-green-50/50 to-white' : 'border-gray-200 bg-gray-50',
+        isConnected ? 'border-green-200 bg-gradient-to-r from-green-50/50 to-white' : 'border-red-200 bg-gradient-to-r from-red-50/50 to-white',
         className
       )}>
         <CardContent className="py-2.5 px-4">
           <div className="flex items-center justify-between gap-4">
             {/* Left: Connection status + Make/Model */}
             <div className="flex items-center gap-3">
-              {/* Status dot */}
-              <div className={cn(
-                'w-2.5 h-2.5 rounded-full',
-                isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-              )} />
-
-              {/* Make & Model */}
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-gray-800 text-sm">
-                  {primaryIndicator?.make || 'Unknown'} {primaryIndicator?.model || ''}
-                </span>
-                <span className="text-gray-300">|</span>
+              {/* Sync status bubble */}
+              <div className="flex items-center gap-1.5">
+                <div className={cn(
+                  'w-2.5 h-2.5 rounded-full',
+                  middlewareSynced && isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                )} />
                 <span className={cn(
-                  'text-xs px-1.5 py-0.5 rounded font-medium',
-                  isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                  'text-[10px] font-medium uppercase tracking-wide',
+                  middlewareSynced && isConnected ? 'text-green-600' : 'text-red-500'
                 )}>
-                  {primaryIndicator?.syncType || connectionType || 'TCP'}
+                  {middlewareSynced && isConnected ? 'Synced' : 'Offline'}
                 </span>
+              </div>
+
+              {/* Make & Model (or Simulation badge) */}
+              <div className="flex items-center gap-2">
+                {simulation ? (
+                  <>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 font-semibold text-xs rounded-md border border-amber-300 animate-pulse">
+                      SIMULATED
+                    </span>
+                    <span className="text-gray-400 text-sm">|</span>
+                    <span className="text-gray-600 text-sm">
+                      {displayMode === 'indicator' ? 'Virtual Indicator' : 'Virtual Scale'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-gray-800 text-sm">
+                      {primaryIndicator?.make || 'Unknown'} {primaryIndicator?.model || ''}
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className={cn(
+                      'text-xs px-1.5 py-0.5 rounded font-medium',
+                      isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                    )}>
+                      {primaryIndicator?.syncType || connectionType || 'TCP'}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -223,7 +251,7 @@ export function ScaleHealthPanel({
       {/* Compact Connection Status Card */}
       <Card className={cn(
         'shadow-sm transition-colors',
-        isConnected ? 'border-green-200 bg-green-50/50' : 'border-gray-200 bg-gray-50'
+        isConnected ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'
       )}>
         <CardContent className={cn('flex items-center justify-between', compact ? 'p-3' : 'p-4')}>
           <div className="flex items-center gap-3">
@@ -231,24 +259,39 @@ export function ScaleHealthPanel({
             <div className={cn(
               'flex items-center justify-center rounded-lg',
               compact ? 'w-10 h-10' : 'w-12 h-12',
-              isConnected ? 'bg-green-100' : 'bg-gray-100'
+              isConnected ? 'bg-green-100' : 'bg-red-100'
             )}>
               {isConnected ? (
                 <Wifi className={cn('text-green-600', compact ? 'h-5 w-5' : 'h-6 w-6')} />
               ) : (
-                <WifiOff className={cn('text-gray-400', compact ? 'h-5 w-5' : 'h-6 w-6')} />
+                <WifiOff className={cn('text-red-500', compact ? 'h-5 w-5' : 'h-6 w-6')} />
               )}
             </div>
 
             {/* Status Text */}
             <div>
-              <p className={cn(
-                'font-semibold text-gray-800',
-                compact ? 'text-sm' : 'text-base'
-              )}>
-                {weighingType === 'mobile' ? 'Mobile Weighing' : 'Multideck Weighing'}
-              </p>
-              <p className={cn('text-gray-500', compact ? 'text-xs' : 'text-sm')}>
+              <div className="flex items-center gap-2">
+                <p className={cn(
+                  'font-semibold text-gray-800',
+                  compact ? 'text-sm' : 'text-base'
+                )}>
+                  {weighingType === 'mobile' ? 'Mobile Weighing' : 'Multideck Weighing'}
+                </p>
+                {/* Sync bubble */}
+                <span className={cn(
+                  'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium',
+                  middlewareSynced && isConnected
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-600'
+                )}>
+                  <span className={cn(
+                    'w-1.5 h-1.5 rounded-full',
+                    middlewareSynced && isConnected ? 'bg-green-500' : 'bg-red-500'
+                  )} />
+                  {middlewareSynced && isConnected ? 'Synced' : 'Offline'}
+                </span>
+              </div>
+              <p className={cn(isConnected ? 'text-gray-500' : 'text-red-500', compact ? 'text-xs' : 'text-sm')}>
                 {isConnected
                   ? `${connectedCount}/${totalCount} ${devicesLabel.toLowerCase()} active`
                   : 'Not connected'}
@@ -316,13 +359,13 @@ function ScaleCard({ scale, onToggle, compact = false }: ScaleCardProps) {
       case 'connected':
         return 'bg-green-100 text-green-700';
       case 'disconnected':
-        return 'bg-red-100 text-red-700';
+        return 'bg-red-100 text-red-600 font-semibold';
       case 'error':
-        return 'bg-red-100 text-red-700';
+        return 'bg-red-100 text-red-600 font-semibold';
       case 'calibrating':
         return 'bg-blue-100 text-blue-700';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-red-100 text-red-600';
     }
   };
 
@@ -337,14 +380,14 @@ function ScaleCard({ scale, onToggle, compact = false }: ScaleCardProps) {
         'border rounded-lg transition-colors',
         scale.isActive && scale.status === 'connected'
           ? 'border-green-200 bg-green-50/30'
-          : 'border-gray-200 bg-gray-50/50'
+          : 'border-red-200 bg-red-50/30'
       )}>
         <CardContent className="p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Scale className={cn(
                 'h-4 w-4',
-                scale.status === 'connected' ? 'text-green-600' : 'text-gray-400'
+                scale.status === 'connected' ? 'text-green-600' : 'text-red-500'
               )} />
               <span className="font-medium text-sm text-gray-800">{scale.name}</span>
               <span className={cn(

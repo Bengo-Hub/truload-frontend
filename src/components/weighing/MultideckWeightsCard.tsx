@@ -2,12 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-interface DeckWeight {
-  deck: number;
-  weight: number;
-  status: 'stable' | 'unstable' | 'offline';
-}
+import { DeckWeight } from '@/types/weighing';
 
 interface MultideckWeightsCardProps {
   platformName: string;

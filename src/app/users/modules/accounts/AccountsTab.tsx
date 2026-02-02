@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination, usePagination } from '@/components/ui/pagination';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -22,14 +23,20 @@ export default function AccountsTab() {
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { page, pageSize, skip, setPage, setPageSize, reset: resetPagination } = usePagination(25);
   const canEdit = useHasPermission('user.update');
   const canDelete = useHasPermission('user.delete');
   const canAssignRoles = useHasPermission('system.manage_roles');
   const queryClient = useQueryClient();
 
+  // Reset pagination when search changes
+  useEffect(() => {
+    resetPagination();
+  }, [search, resetPagination]);
+
   const { data: usersResult, isLoading } = useQuery({
-    queryKey: ['users', search],
-    queryFn: () => fetchUsers({ search, take: 100 }),
+    queryKey: ['users', search, skip, pageSize],
+    queryFn: () => fetchUsers({ search, skip, take: pageSize }),
   });
 
   const { data: roles = [] } = useQuery({ queryKey: ['roles'], queryFn: () => fetchRoles() });
@@ -150,6 +157,16 @@ export default function AccountsTab() {
             </TableBody>
           </Table>
         </ScrollArea>
+        <div className="border-t border-gray-200 px-4 py-3">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={usersResult?.total ?? 0}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
 
       <EditUserDialog
