@@ -180,6 +180,7 @@ export interface PlateData {
 }
 
 export interface VehicleCompleteData {
+  transactionId?: string;
   totalAxles: number;
   axleWeights: number[];
   gvw: number;
@@ -189,12 +190,23 @@ export interface VehicleCompleteData {
   transporterId?: string;
 }
 
+export interface TransactionSyncData {
+  transactionId: string;
+  vehicleRegNumber: string;
+  axleConfigCode: string;
+  totalAxles: number;
+  stationId: string;
+  bound?: string;
+  weighingMode: 'mobile' | 'multideck';
+}
+
 export interface UseMiddlewareReturn extends MiddlewareState {
   connect: () => void;
   disconnect: () => void;
   sendPlate: (plateNumber: string, data?: Partial<PlateData>) => void;
   captureAxle: (axleNumber: number, weight: number, axleConfigurationId?: string) => void;
   completeVehicle: (data: VehicleCompleteData) => void;
+  syncTransaction: (data: TransactionSyncData) => void;
   queryWeight: (type?: 'current' | 'next-axle') => void;
   resetSession: () => void;
   switchBound: (bound: 'A' | 'B') => void;
@@ -440,6 +452,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       case 'plate-ack':
       case 'axle-captured-ack':
       case 'vehicle-complete-ack':
+      case 'transaction-sync-ack':
         // Handle acknowledgements - could emit events here
         break;
 
@@ -1015,6 +1028,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     sendMessage('query-weight', { type });
   }, [sendMessage]);
 
+  const syncTransaction = useCallback((data: TransactionSyncData) => {
+    sendMessage('transaction-sync', { ...data });
+  }, [sendMessage]);
+
   const resetSession = useCallback(() => {
     sendMessage('reset-session', {});
   }, [sendMessage]);
@@ -1074,6 +1091,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     sendPlate,
     captureAxle,
     completeVehicle,
+    syncTransaction,
     queryWeight,
     resetSession,
     switchBound,

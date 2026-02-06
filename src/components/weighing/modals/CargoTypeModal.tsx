@@ -117,7 +117,7 @@ export function CargoTypeModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
             {mode === 'create' ? 'Add New Cargo Type' : 'Edit Cargo Type'}
@@ -129,7 +129,7 @@ export function CargoTypeModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
           {/* Code */}
           <div className="space-y-2">
             <Label htmlFor="cargo-code">Code *</Label>

@@ -569,13 +569,13 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
       {/* Payment Modal */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
         <DialogContent>
-          <DialogHeader>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
               Record payment for invoice {selectedInvoice?.invoiceNo}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="flex justify-between">
                 <span className="text-gray-500">Amount Due:</span>
@@ -647,7 +647,7 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
               Cancel
             </Button>

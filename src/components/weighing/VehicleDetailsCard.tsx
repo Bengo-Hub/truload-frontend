@@ -16,7 +16,7 @@ import {
   Vehicle,
 } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { Eye, Locate, MapPin, Package, Pencil, Plus, Scan, Truck, User, Building2, FileText, Car } from 'lucide-react';
+import { Eye, Locate, MapPin, Package, Pencil, Plus, RefreshCw, Scan, Truck, User, Building2, FileText, Car } from 'lucide-react';
 
 // Vehicle makes list
 const VEHICLE_MAKES = [
@@ -35,6 +35,7 @@ interface SelectFieldWithCrudProps {
   onAdd?: () => void;
   onEdit?: () => void;
   onView?: () => void;
+  onRefresh?: () => void;
   required?: boolean;
 }
 
@@ -52,6 +53,7 @@ function SelectFieldWithCrud({
   onAdd,
   onEdit,
   onView,
+  onRefresh,
   required = false,
 }: SelectFieldWithCrudProps) {
   return (
@@ -79,6 +81,18 @@ function SelectFieldWithCrud({
         </Select>
         {!isReadOnly && (
           <div className="flex gap-1">
+            {onRefresh && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={onRefresh}
+                title={`Refresh ${label.toLowerCase()} list`}
+                className="h-10 w-10"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
             {onAdd && (
               <Button
                 type="button"
@@ -194,11 +208,18 @@ interface VehicleDetailsCardProps {
   onEditCargoType?: () => void;
   onViewCargoType?: () => void;
   onAddLocation?: () => void;
+  onAddOriginLocation?: () => void;
+  onAddDestinationLocation?: () => void;
   onEditOrigin?: () => void;
   onViewOrigin?: () => void;
   onEditDestination?: () => void;
   onViewDestination?: () => void;
   onAddVehicleMake?: () => void;
+  // Refresh handlers for manual refetch
+  onRefreshDrivers?: () => void;
+  onRefreshTransporters?: () => void;
+  onRefreshCargoTypes?: () => void;
+  onRefreshLocations?: () => void;
 
   // Other
   onScanANPR?: () => void;
@@ -276,11 +297,17 @@ export function VehicleDetailsCard({
   onEditCargoType,
   onViewCargoType,
   onAddLocation,
+  onAddOriginLocation,
+  onAddDestinationLocation,
   onEditOrigin,
   onViewOrigin,
   onEditDestination,
   onViewDestination,
   onAddVehicleMake,
+  onRefreshDrivers,
+  onRefreshTransporters,
+  onRefreshCargoTypes,
+  onRefreshLocations,
   onScanANPR,
   showExtendedDetails = true,
   showPermitSection = false,
@@ -492,12 +519,13 @@ export function VehicleDetailsCard({
                 onChange={onDriverIdChange}
                 options={drivers.map(d => ({
                   id: d.id,
-                  label: d.fullName,
+                  label: `${d.fullNames || ''} ${d.surname || ''}`.trim() || d.idNumber,
                   sublabel: d.drivingLicenseNo || d.idNumber,
                 }))}
                 placeholder="Select driver"
                 isReadOnly={isReadOnly}
                 onAdd={onAddDriver}
+                onRefresh={onRefreshDrivers}
                 onEdit={selectedDriverId ? onEditDriver : undefined}
                 onView={selectedDriverId ? onViewDriver : undefined}
               />
@@ -518,6 +546,7 @@ export function VehicleDetailsCard({
                 placeholder="Select transporter"
                 isReadOnly={isReadOnly}
                 onAdd={onAddTransporter}
+                onRefresh={onRefreshTransporters}
                 onEdit={selectedTransporterId ? onEditTransporter : undefined}
                 onView={selectedTransporterId ? onViewTransporter : undefined}
               />
@@ -538,6 +567,7 @@ export function VehicleDetailsCard({
                 placeholder="Select cargo type"
                 isReadOnly={isReadOnly}
                 onAdd={onAddCargoType}
+                onRefresh={onRefreshCargoTypes}
                 onEdit={selectedCargoId ? onEditCargoType : undefined}
                 onView={selectedCargoId ? onViewCargoType : undefined}
               />
@@ -594,7 +624,8 @@ export function VehicleDetailsCard({
                   }))}
                   placeholder="Select origin"
                   isReadOnly={isReadOnly}
-                  onAdd={onAddLocation}
+                  onAdd={onAddOriginLocation || onAddLocation}
+                  onRefresh={onRefreshLocations}
                   onEdit={selectedOriginId ? onEditOrigin : undefined}
                   onView={selectedOriginId ? onViewOrigin : undefined}
                 />
@@ -615,7 +646,8 @@ export function VehicleDetailsCard({
                 }))}
                 placeholder="Select destination"
                 isReadOnly={isReadOnly}
-                onAdd={onAddLocation}
+                onAdd={onAddDestinationLocation || onAddLocation}
+                onRefresh={onRefreshLocations}
                 onEdit={selectedDestinationId ? onEditDestination : undefined}
                 onView={selectedDestinationId ? onViewDestination : undefined}
               />

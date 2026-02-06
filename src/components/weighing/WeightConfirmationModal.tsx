@@ -62,8 +62,8 @@ export function WeightConfirmationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[700px] md:max-w-[800px] lg:max-w-[900px]">
+        <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-center mb-2">
             <div className={cn(
               "p-3 rounded-full",
@@ -82,7 +82,7 @@ export function WeightConfirmationModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
           {/* Axle Type Display */}
           <div className="flex items-center justify-center gap-2 py-2 bg-gray-50 rounded-lg">
             <span className="text-sm text-gray-600">Axle Type:</span>
@@ -90,34 +90,34 @@ export function WeightConfirmationModal({
           </div>
 
           {/* Compliance Summary Table */}
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="border rounded-lg overflow-x-auto">
+            <table className="w-full text-sm min-w-[550px]">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">Group</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">Permissible</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">Tolerance</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">Actual</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">Overload</th>
-                  <th className="px-3 py-2 text-center font-medium text-gray-700">Result</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-gray-700">Group</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-gray-700">Permissible</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-gray-700">Tolerance</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-gray-700">Actual</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-gray-700">Overload</th>
+                  <th className="px-4 py-2.5 text-center font-medium text-gray-700">Result</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {axleGroups.map((group, index) => (
                   <tr key={index} className={group.result === 'Overload' ? 'bg-red-50' : ''}>
-                    <td className="px-3 py-2 font-medium">{group.group}</td>
-                    <td className="px-3 py-2 text-right">{formatWeight(group.permissible)}</td>
-                    <td className="px-3 py-2 text-right">{group.tolerance}%</td>
-                    <td className="px-3 py-2 text-right font-medium">{formatWeight(group.actual)}</td>
+                    <td className="px-4 py-2.5 font-medium">{group.group}</td>
+                    <td className="px-4 py-2.5 text-right font-mono">{formatWeight(group.permissible)}</td>
+                    <td className="px-4 py-2.5 text-right">{group.tolerance}%</td>
+                    <td className="px-4 py-2.5 text-right font-mono font-medium">{formatWeight(group.actual)}</td>
                     <td className={cn(
-                      "px-3 py-2 text-right font-medium",
+                      "px-4 py-2.5 text-right font-mono font-medium",
                       group.overload > 0 ? "text-red-600" : "text-gray-600"
                     )}>
                       {group.overload > 0 ? `+${formatWeight(group.overload)}` : '-'}
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <span className={cn(
-                        "px-2 py-0.5 rounded-full text-xs font-medium",
+                        "px-2.5 py-1 rounded-full text-xs font-medium",
                         group.result === 'Legal'
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
@@ -132,19 +132,19 @@ export function WeightConfirmationModal({
                   "font-semibold",
                   gvw.result === 'Overload' ? 'bg-red-100' : 'bg-gray-50'
                 )}>
-                  <td className="px-3 py-2">GVW</td>
-                  <td className="px-3 py-2 text-right">{formatWeight(gvw.permissible)}</td>
-                  <td className="px-3 py-2 text-right">{gvw.tolerance}%</td>
-                  <td className="px-3 py-2 text-right">{formatWeight(gvw.actual)}</td>
+                  <td className="px-4 py-2.5">GVW</td>
+                  <td className="px-4 py-2.5 text-right font-mono">{formatWeight(gvw.permissible)}</td>
+                  <td className="px-4 py-2.5 text-right">{gvw.tolerance}%</td>
+                  <td className="px-4 py-2.5 text-right font-mono">{formatWeight(gvw.actual)}</td>
                   <td className={cn(
-                    "px-3 py-2 text-right",
+                    "px-4 py-2.5 text-right font-mono",
                     gvw.overload > 0 ? "text-red-600" : "text-gray-600"
                   )}>
                     {gvw.overload > 0 ? `+${formatWeight(gvw.overload)}` : '-'}
                   </td>
-                  <td className="px-3 py-2 text-center">
+                  <td className="px-4 py-2.5 text-center">
                     <span className={cn(
-                      "px-2 py-0.5 rounded-full text-xs font-medium",
+                      "px-2.5 py-1 rounded-full text-xs font-medium",
                       gvw.result === 'Legal'
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
@@ -171,7 +171,7 @@ export function WeightConfirmationModal({
           )}
         </div>
 
-        <DialogFooter className="flex gap-2 sm:gap-2">
+        <DialogFooter className="flex-shrink-0 flex gap-3 sm:gap-3">
           <Button
             variant="outline"
             onClick={onClose}

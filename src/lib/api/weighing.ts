@@ -19,11 +19,23 @@ export interface Vehicle {
 
 export interface Driver {
   id: string;
-  fullName: string;
+  ntsaId?: string;
   idNumber: string;
   drivingLicenseNo: string;
+  fullNames: string;
+  surname: string;
+  gender?: string;
+  nationality?: string;
+  dateOfBirth?: string;
+  address?: string;
   phoneNumber?: string;
   email?: string;
+  licenseClass?: string;
+  licenseIssueDate?: string;
+  licenseExpiryDate?: string;
+  licenseStatus?: string;
+  isProfessionalDriver?: boolean;
+  currentDemeritPoints?: number;
   transporterId?: string;
   isActive?: boolean;
 }
@@ -65,6 +77,7 @@ export interface WeighingTransaction {
   gvwMeasuredKg: number;
   gvwPermissibleKg: number;
   overloadKg: number;
+  excessKg?: number;
   controlStatus: string;
   totalFeeUsd: number;
   weighedAt: string;
@@ -72,6 +85,8 @@ export interface WeighingTransaction {
   isCompliant: boolean;
   isSentToYard: boolean;
   violationReason?: string;
+  captureStatus?: string;
+  captureSource?: string;
   reweighCycleNo: number;
   originalWeighingId?: string;
   hasPermit: boolean;
@@ -81,6 +96,55 @@ export interface WeighingTransaction {
   toleranceApplied?: boolean;
   reweighLimit?: number;
   weighingAxles: WeighingAxle[];
+
+  // Vehicle details
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleType?: string;
+  axleConfiguration?: string;
+  isMultiDeck?: boolean;
+  deckType?: string;
+
+  // People
+  driverName?: string;
+  transporterName?: string;
+
+  // Station
+  stationName?: string;
+  stationCode?: string;
+  weighedByUserName?: string;
+
+  // Deck weights
+  deckAWeightKg?: number;
+  deckBWeightKg?: number;
+  deckCWeightKg?: number;
+  deckDWeightKg?: number;
+
+  // ANPR
+  anprRegistration?: string;
+  anprCheckCount?: number;
+  anprMatch?: boolean;
+
+  // Route & Cargo
+  sourceLocation?: string;
+  destinationLocation?: string;
+  cargoType?: string;
+  cargoDescription?: string;
+
+  // Timing
+  timeTakenSeconds?: number;
+
+  // Permit
+  permitNumber?: string;
+
+  // Scale test
+  scaleTestId?: string;
+  scaleTestResult?: string;
+  scaleTestCarriedAt?: string;
+
+  // Images
+  vehicleThumbnailUrl?: string;
+  vehicleImageUrls?: string[];
 }
 
 export interface WeighingResult {
@@ -113,9 +177,26 @@ export interface SearchWeighingParams {
   vehicleRegNo?: string;
   fromDate?: string;
   toDate?: string;
+  fromTime?: string;
+  toTime?: string;
   controlStatus?: string;
   isCompliant?: boolean;
   operatorId?: string;
+  weighingType?: string;
+  stationCode?: string;
+  axleConfiguration?: string;
+  transporterId?: string;
+  state?: string;
+  searchTicketNo?: string;
+  searchVehicleReg?: string;
+  cargoType?: string;
+  sourceLocation?: string;
+  destinationLocation?: string;
+  hasPermit?: boolean;
+  isSentToYard?: boolean;
+  minOverloadKg?: number;
+  maxOverloadKg?: number;
+  viewMode?: 'list' | 'images' | 'line';
   pageNumber?: number;
   pageSize?: number;
   sortBy?: string;
@@ -318,6 +399,90 @@ export async function captureWeights(
 export async function initiateReweigh(request: InitiateReweighRequest): Promise<WeighingTransaction> {
   const { data } = await apiClient.post<WeighingTransaction>(
     '/weighing-transactions/reweigh',
+    request
+  );
+  return data;
+}
+
+// ============================================================================
+// Weighing Statistics API
+// ============================================================================
+
+export interface WeighingStatistics {
+  totalWeighings: number;
+  legalCount: number;
+  overloadedCount: number;
+  warningCount: number;
+  complianceRate: number;
+  totalFeesKes: number;
+  avgOverloadKg: number;
+}
+
+export async function getWeighingStatistics(params: {
+  dateFrom?: string;
+  dateTo?: string;
+  stationId?: string;
+}): Promise<WeighingStatistics> {
+  const { data } = await apiClient.get<WeighingStatistics>(
+    '/weighing-transactions/statistics',
+    { params }
+  );
+  return data;
+}
+
+// ============================================================================
+// Autoweigh API (TruConnect middleware integration)
+// ============================================================================
+
+export interface AutoweighCaptureRequest {
+  stationId: string;
+  bound?: string;
+  vehicleRegNumber: string;
+  vehicleId?: string;
+  axles: { axleNumber: number; measuredWeightKg: number; axleConfigurationId?: string }[];
+  weighingMode?: string;
+  capturedAt?: string;
+  source?: string;
+  sourceDeviceId?: string;
+  clientLocalId?: string;
+  captureSource?: string;
+  isFinalCapture?: boolean;
+  weighingTransactionId?: string;
+}
+
+export interface AutoweighResult {
+  weighingId: string;
+  ticketNumber: string;
+  vehicleRegNumber: string;
+  vehicleId?: string;
+  vehicleFound: boolean;
+  gvwMeasuredKg: number;
+  gvwPermissibleKg: number;
+  gvwOverloadKg: number;
+  isCompliant: boolean;
+  controlStatus: string;
+  violationReason: string;
+  captureStatus: string;
+  captureSource: string;
+  totalFeeUsd: number;
+  hasPermit: boolean;
+  axleCompliance: {
+    axleNumber: number;
+    measuredWeightKg: number;
+    permissibleWeightKg: number;
+    overloadKg: number;
+    isCompliant: boolean;
+  }[];
+  capturedAt: string;
+  processedAt: string;
+  source?: string;
+}
+
+export async function autoweighCapture(
+  request: AutoweighCaptureRequest
+): Promise<AutoweighResult> {
+  const { data } = await apiClient.post<AutoweighResult>(
+    '/weighing-transactions/autoweigh',
     request
   );
   return data;

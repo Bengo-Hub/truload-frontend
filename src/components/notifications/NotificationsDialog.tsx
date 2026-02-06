@@ -140,10 +140,10 @@ export default function NotificationsDialog({ isOpen, onClose }: NotificationsDi
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Notifications</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs defaultValue="all" className="flex-1 overflow-hidden flex flex-col min-h-0 w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="unread">
@@ -157,7 +157,7 @@ export default function NotificationsDialog({ isOpen, onClose }: NotificationsDi
             <TabsTrigger value="read">Read</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="max-h-96 overflow-y-auto">
+          <TabsContent value="all" className="flex-1 overflow-y-auto min-h-0">
             {notifications.length === 0 ? (
               <div className="py-8 text-center text-gray-500">No notifications</div>
             ) : (
@@ -167,7 +167,7 @@ export default function NotificationsDialog({ isOpen, onClose }: NotificationsDi
             )}
           </TabsContent>
 
-          <TabsContent value="unread" className="max-h-96 overflow-y-auto">
+          <TabsContent value="unread" className="flex-1 overflow-y-auto min-h-0">
             {unreadNotifications.length === 0 ? (
               <div className="py-8 text-center text-gray-500">No unread notifications</div>
             ) : (
@@ -177,7 +177,7 @@ export default function NotificationsDialog({ isOpen, onClose }: NotificationsDi
             )}
           </TabsContent>
 
-          <TabsContent value="read" className="max-h-96 overflow-y-auto">
+          <TabsContent value="read" className="flex-1 overflow-y-auto min-h-0">
             {readNotifications.length === 0 ? (
               <div className="py-8 text-center text-gray-500">No read notifications</div>
             ) : (

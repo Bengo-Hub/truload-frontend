@@ -386,13 +386,13 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
       {/* Schedule Hearing Modal */}
       <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Schedule Hearing</DialogTitle>
             <DialogDescription>
               Schedule a new court hearing for this case.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Hearing Date *</Label>
@@ -477,7 +477,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={() => setShowScheduleModal(false)}>
               Cancel
             </Button>
@@ -499,13 +499,13 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
       {/* Adjourn Hearing Modal */}
       <Dialog open={showAdjournModal} onOpenChange={setShowAdjournModal}>
         <DialogContent>
-          <DialogHeader>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Adjourn Hearing</DialogTitle>
             <DialogDescription>
               Set a new date and provide a reason for adjournment.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
             <div className="space-y-2">
               <Label>Next Hearing Date *</Label>
               <Input
@@ -528,7 +528,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={() => setShowAdjournModal(false)}>
               Cancel
             </Button>
@@ -550,13 +550,13 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
       {/* Complete Hearing Modal */}
       <Dialog open={showCompleteModal} onOpenChange={setShowCompleteModal}>
         <DialogContent>
-          <DialogHeader>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Complete Hearing</DialogTitle>
             <DialogDescription>
               Record the outcome of this hearing.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
             <div className="space-y-2">
               <Label>Outcome *</Label>
               <Select
@@ -589,7 +589,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={() => setShowCompleteModal(false)}>
               Cancel
             </Button>

@@ -37,7 +37,7 @@
 
 **Last Updated:** February 6, 2026
 
-### Current Phase: Sprint 14 Complete - Users, Roles, Shifts & Settings Revamp
+### Current Phase: Sprint 16b Complete - Middleware Implementation & Migration
 
 **Build Status:** ✅ **PRODUCTION BUILD SUCCESSFUL** (All pages compile without errors)
 **Application Status:** ✅ **READY** (All components implemented and tested in development)
@@ -45,6 +45,41 @@
 **Overall Frontend Completion:** 99%
 
 ---
+
+### Sprint 16b Completions (February 6, 2026) - Middleware Implementation & Migration:
+- ✅ **Backend: ReweighCycleNo Migration** - Fixed HasDefaultValue(1) → HasDefaultValue(0) in DbContext config; EF Core migration `FixReweighCycleNoDefault` created with data migration SQL for existing rows
+- ✅ **TruConnect: StateManager Transaction Sync** - Added `transactionSync` state, `setTransactionSync()`, `clearTransactionSync()` methods; `resetMobileSession()` now clears transaction sync data
+- ✅ **TruConnect: BackendClient Enhanced** - Added `weighingTransactionId` and `weighingMode` to session; `sendAutoweigh()` and `completeSession()` now include `weighingTransactionId` in payload; new `syncFromTransaction()` method
+- ✅ **TruConnect: WebSocket transaction-sync** - New `handleTransactionSync` handler processes frontend transaction sync, updates StateManager + BackendClient + axle config, responds with `transaction-sync-ack`
+- ✅ **TruConnect: Mobile Auto-Submit** - `handleAxleCaptured` now tracks axles in StateManager; when all expected axles captured, auto-submits autoweigh to backend via BackendClient
+- ✅ **TruConnect: Multideck Auto-Submit** - `handleVehicleComplete` now auto-submits autoweigh to backend when receiving all deck weights; sends `autoweigh-submitted` event back to client
+- ✅ **TruConnect: Reset Session Cleanup** - `handleResetSession` now clears transaction sync data and resets BackendClient session
+- ✅ **All Builds Clean** - Frontend (tsc 0 errors), Backend (dotnet build 0 errors), TruConnect (all modules load successfully)
+
+### Sprint 16 Completions (February 6, 2026) - Auto-Weigh & Middleware Sync:
+- ✅ **Backend: WeighingTransactionId** - Added optional `WeighingTransactionId` field to `AutoweighCaptureRequest` DTO; middleware can now link autoweigh to frontend-created transactions
+- ✅ **Backend: ProcessAutoweighAsync** - Extended to look up existing transaction by ID before fallback to vehicle+station+bound lookup; prevents duplicate transactions
+- ✅ **Backend: CaptureStatus Transition** - `CaptureWeightsAsync` now updates CaptureStatus from `"auto"` to `"captured"` and CaptureSource to `"frontend"` when operator confirms weights
+- ✅ **useMiddleware: TransactionSyncData** - New interface and `syncTransaction()` method; sends `transaction-sync` WebSocket event with transactionId, axleConfig, totalAxles, stationId, bound, weighingMode
+- ✅ **useMiddleware: VehicleCompleteData Extended** - Added `transactionId` field for linking autoweigh to frontend transaction
+- ✅ **Frontend API: autoweighCapture()** - New API function with `AutoweighCaptureRequest` and `AutoweighResult` TypeScript types
+- ✅ **Mobile Page: Middleware Sync** - Wired `sendPlate` (plate entry), `syncTransaction` (after transaction creation), `captureAxle` (each axle capture), `resetSession` (cancel/finish); all guarded by `middleware.connected`
+- ✅ **Multideck Page: Middleware Sync** - Wired `sendPlate`, `syncTransaction`, `completeVehicle` (after all deck weights captured), `resetSession`; all guarded by `middleware.connected`
+- ✅ **TypeScript Clean** - 0 type errors verified with tsc --noEmit
+
+### Sprint 15 Completions (February 6, 2026) - Weighing Workflow Overhaul:
+- ✅ **CRITICAL BUG FIX: GVW 48,000** - Removed hardcoded 48,000 kg fallback in mobile/page.tsx; now uses axle config lookup for correct GVW (e.g., 2A = 18,000 kg)
+- ✅ **Tolerance Logic Fix** - 5% tolerance now applied to ALL single-axle groups (not just Group A), matching backend Kenya Traffic Act Cap 403 logic
+- ✅ **Backend ReweighCycleNo Fix** - Default changed from 1 to 0; first weigh = cycle 0, reweighs increment (1, 2, ... up to 8)
+- ✅ **useWeighing Hook Enhanced** - Added reweighCycleNo, isWeightConfirmed state; confirmWeight() submits weights + sets confirmed; initiateReweigh() calls API and creates new session
+- ✅ **Required Fields Validation** - validateRequiredFields() utility in weighing-utils.ts; blocks decisions when driver/transporter/origin/destination missing
+- ✅ **ComplianceBanner Dynamic Reweigh** - RE-WEIGH badge hidden on first weigh (cycle 0), only shows for actual reweighs (cycle 1+)
+- ✅ **DecisionPanel Restructured** - 3 clear options: Finish & Print Ticket (green/LEGAL), Send to Yard (red/OVERLOAD), Special Release (amber/admin auth); inline missing fields warning
+- ✅ **MissingFieldsWarningModal** - New component warning users about missing required fields before decision actions
+- ✅ **Mobile Page Rewired** - Take Weight → confirmation modal → Proceed to Decision flow; mock weights removed (uses actual scale data); reweigh handler connected to backend API
+- ✅ **Multideck Page Rewired** - Mirrors all mobile workflow changes for multideck/static weighing mode
+- ✅ **Pending Transaction Resume** - PendingTransactionCard component + usePendingWeighings query hook; shows incomplete transactions in capture step with Resume button
+- ✅ **TypeScript Clean** - 0 type errors verified with tsc --noEmit
 
 ### Sprint 14b Completions (February 6, 2026):
 - ✅ **Entity CRUD** - Full Create/Edit/Delete for Organizations, Stations, Departments with modern form dialogs
@@ -114,8 +149,8 @@
 | Axle Configuration | Complete | 100% |
 | Organizations/Stations | Complete | 100% |
 | Shifts Management | Complete | 100% |
-| Mobile Weighing | Complete | 100% |
-| Multideck/Static Weighing | Complete | 100% |
+| Mobile Weighing | Complete (Sprint 15 overhaul) | 100% |
+| Multideck/Static Weighing | Complete (Sprint 15 overhaul) | 100% |
 | Yard Management | Complete | 100% |
 | Tags Management | Complete | 100% |
 | Case Register | Complete | 100% |
@@ -1114,6 +1149,9 @@ Each sprint document in the [sprints](./sprints/) folder contains:
 **Sprint 1.5 Progress:** 100% Complete (Axle Configuration System fully implemented)
 **Sprint 3 Progress:** 100% Complete (Weighing Operations production-ready)
 **Sprint 14 Progress:** 100% Complete (Users, Roles, Shifts & Settings Revamp)
+**Sprint 15 Progress:** 100% Complete (Weighing Workflow Overhaul - GVW bug fix, reweigh, decisions, pending resume)
+**Sprint 16 Progress:** 100% Complete (Auto-Weigh & Middleware Sync - frontend/backend/middleware integration)
+**Sprint 16b Progress:** 100% Complete (TruConnect middleware implementation + ReweighCycleNo migration)
 
 ### ✅ **COMPLETED**
 - **Project Infrastructure:** Next.js 16, TypeScript, Tailwind CSS, Shadcn UI
@@ -1138,6 +1176,14 @@ Each sprint document in the [sprints](./sprints/) folder contains:
 - **PDF Printing (Mobile/Multideck):** Weight ticket download/print wired to backend (Feb 5, 2026)
 - **Multideck Dynamic Compliance:** Real-time compliance calculation from deck weights + weight references (Feb 5, 2026)
 - **Location Creation (Multideck):** Origin/Destination modal wired to backend mutation (Feb 5, 2026)
+- **GVW Bug Fix:** Removed hardcoded 48,000 fallback; uses axle config lookup for correct permissible GVW (Feb 6, 2026)
+- **Tolerance Logic Fix:** 5% tolerance applied to all single-axle groups per Kenya Traffic Act Cap 403 (Feb 6, 2026)
+- **Weighing Workflow Overhaul:** Take Weight → confirmation → decision flow; 3-option DecisionPanel; reweigh connected to backend API (Feb 6, 2026)
+- **Pending Transaction Resume:** PendingTransactionCard + usePendingWeighings hook for resuming incomplete transactions (Feb 6, 2026)
+- **Required Fields Validation:** Blocks decision actions when driver/transporter/origin/destination are missing (Feb 6, 2026)
+- **Auto-Weigh & Middleware Sync:** Frontend sends plate, transaction-sync, axle-captured, vehicle-complete events to TruConnect; backend handles WeighingTransactionId linking and CaptureStatus transitions (Feb 6, 2026)
+- **TruConnect Middleware Implementation:** StateManager transaction sync, BackendClient autoweigh with weighingTransactionId, WebSocket handlers for transaction-sync/axle-captured/vehicle-complete auto-submit (Feb 6, 2026)
+- **ReweighCycleNo Migration:** EF Core migration fixing HasDefaultValue(1→0) with data migration for existing original weighings (Feb 6, 2026)
 
 ### ⚠️ **ISSUES & WARNINGS**
 - **ESLint Warnings:** Some warnings for unused variables and missing dependencies
