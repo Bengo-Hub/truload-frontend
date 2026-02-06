@@ -1,25 +1,41 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * useMiddleware - Hybrid Connection Hook for TruConnect Middleware
  *
  * Implements a smart connection strategy that works in all scenarios:
+ * - Development: Local WebSocket (TruConnect) as PRIMARY, no backend fallback
  * - Online (Production): Backend WebSocket relay → Local WebSocket fallback
  * - Offline (PWA): Direct localhost WebSocket → API polling fallback
- * - Development: Direct localhost WebSocket
  *
- * Connection Priority Chain:
+ * Connection Priority Chain (Production):
  * 1. Backend WebSocket (wss://backend/ws/weights) - when online & configured
  * 2. Local WebSocket (ws://localhost:3030) - offline or backend unavailable
  * 3. Local API Polling (http://localhost:3031/weights) - WebSocket unavailable
+ *
+ * Connection Priority Chain (Development):
+ * 1. Local WebSocket (ws://localhost:3030) - TruConnect middleware
+ * 2. Local API Polling (http://localhost:3031/weights) - WebSocket unavailable
  *
  * Key Insight: When PWA is installed and running offline, the browser runs
  * locally on the user's machine, so it CAN connect to localhost even without internet!
  */
 
 // Types
+
+/**
+ * Individual scale status (for mobile mode - PAW/Haenni wheel pads)
+ */
+export interface ScaleStatusInfo {
+  connected: boolean;
+  weight: number;
+  battery?: number;
+  temperature?: number;
+  signalStrength?: number;
+}
+
 export interface WeightData {
   mode: 'mobile' | 'multideck';
   // Multideck fields (flat format for backward compatibility)
@@ -51,6 +67,12 @@ export interface WeightData {
   scaleA?: number;
   scaleB?: number;
   scaleWeightMode?: 'combined' | 'separate'; // 'combined' (PAW) or 'separate' (Haenni)
+  /**
+   * Full scale status including connection state (for scale test and diagnostics)
+   * Both scales are connected for PAW/simulation (they report combined weight split in half)
+   */
+  scaleAStatus?: ScaleStatusInfo;
+  scaleBStatus?: ScaleStatusInfo;
   // Session state (for mobile mode)
   session?: {
     currentAxle: number;
@@ -188,8 +210,23 @@ const DEFAULT_LOCAL_API_URL = 'http://localhost:3031/api/v1/weights';
 const DEFAULT_RECONNECT_INTERVAL = 5000;
 const DEFAULT_POLLING_INTERVAL = 500;
 
+// Check if we're in development mode
+const isDevelopment = () => {
+  if (typeof window !== 'undefined') {
+    return process.env.NODE_ENV === 'development' ||
+           window.location.hostname === 'localhost' ||
+           window.location.hostname === '127.0.0.1';
+  }
+  return process.env.NODE_ENV === 'development';
+};
+
 // Get backend WS URL from environment
 const getBackendWsUrl = () => {
+  // In development, don't use backend WebSocket - TruConnect is the primary
+  if (isDevelopment()) {
+    return null;
+  }
+  
   if (typeof window !== 'undefined') {
     // Check for environment variable
     const envUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
@@ -321,7 +358,8 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         const weightData = message.data as WeightData;
 
         // Extract scale status from enhanced weight events (if available)
-        if (weightData.connection || weightData.scaleInfo || weightData.indicatorInfo) {
+        if (weightData.connection || weightData.scaleInfo || weightData.indicatorInfo || 
+            weightData.scaleAStatus || weightData.scaleBStatus) {
           const scaleStatus: ScaleStatus = {
             mode: weightData.mode,
             connected: weightData.connection?.connected ?? true,
@@ -330,13 +368,45 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           };
 
           // Add scale info for mobile mode
-          if (weightData.mode === 'mobile' && weightData.scaleInfo) {
-            scaleStatus.scaleA = {
-              status: weightData.connection?.connected ? 'connected' : 'disconnected',
-              weight: weightData.weight || weightData.currentWeight || 0,
-              battery: weightData.scaleInfo.battery,
-              temp: weightData.scaleInfo.temperature,
-            };
+          // Now using enhanced scaleAStatus/scaleBStatus from middleware
+          if (weightData.mode === 'mobile') {
+            const currentWeight = weightData.weight || weightData.currentWeight || 0;
+            
+            // Scale A status
+            if (weightData.scaleAStatus) {
+              scaleStatus.scaleA = {
+                status: weightData.scaleAStatus.connected ? 'connected' : 'disconnected',
+                weight: weightData.scaleAStatus.weight ?? (weightData.scaleA || currentWeight / 2),
+                battery: weightData.scaleAStatus.battery ?? weightData.scaleInfo?.battery,
+                temp: weightData.scaleAStatus.temperature ?? weightData.scaleInfo?.temperature,
+              };
+            } else if (weightData.scaleInfo) {
+              // Legacy fallback
+              scaleStatus.scaleA = {
+                status: weightData.connection?.connected ? 'connected' : 'disconnected',
+                weight: weightData.scaleA || currentWeight / 2,
+                battery: weightData.scaleInfo.battery,
+                temp: weightData.scaleInfo.temperature,
+              };
+            }
+
+            // Scale B status
+            if (weightData.scaleBStatus) {
+              scaleStatus.scaleB = {
+                status: weightData.scaleBStatus.connected ? 'connected' : 'disconnected',
+                weight: weightData.scaleBStatus.weight ?? (weightData.scaleB || currentWeight / 2),
+                battery: weightData.scaleBStatus.battery ?? weightData.scaleInfo?.battery,
+                temp: weightData.scaleBStatus.temperature ?? weightData.scaleInfo?.temperature,
+              };
+            } else if (weightData.scaleInfo) {
+              // Legacy fallback - derive scale B from combined weight
+              scaleStatus.scaleB = {
+                status: weightData.connection?.connected ? 'connected' : 'disconnected',
+                weight: weightData.scaleB || (currentWeight - (weightData.scaleA || currentWeight / 2)),
+                battery: weightData.scaleInfo.battery,
+                temp: weightData.scaleInfo.temperature,
+              };
+            }
           }
 
           setState(s => ({
@@ -508,20 +578,39 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         wsRef.current = null;
       }
 
+      let resolved = false;
+      const safeResolve = (value: boolean) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(value);
+        }
+      };
+
       try {
         console.log(`[useMiddleware] Connecting to ${connectionMode}: ${url}`);
         const ws = new WebSocket(url);
+        
+        // Use a shorter timeout for initial connection attempt (2 seconds)
+        // This gives WebSocket priority but doesn't block fallback too long
         const timeoutId = setTimeout(() => {
           if (ws.readyState !== WebSocket.OPEN) {
+            console.log(`[useMiddleware] WebSocket connection timeout for ${url}`);
             ws.close();
-            resolve(false);
+            safeResolve(false);
           }
-        }, 5000); // 5 second timeout
+        }, 2000); // 2 second timeout for faster fallback while still giving WS priority
 
         ws.onopen = () => {
           clearTimeout(timeoutId);
           currentUrlRef.current = url;
           connectionAttemptsRef.current = 0;
+
+          // IMPORTANT: If we were polling, stop it now - WebSocket takes over
+          if (pollingTimer.current) {
+            console.log('[useMiddleware] WebSocket connected, stopping API polling');
+            clearInterval(pollingTimer.current);
+            pollingTimer.current = null;
+          }
 
           setState(s => ({
             ...s,
@@ -542,7 +631,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           // Track what we registered with to avoid duplicate registrations
           lastRegisteredRef.current = { stationCode, bound, mode };
 
-          resolve(true);
+          safeResolve(true);
         };
 
         ws.onmessage = (event) => {
@@ -568,18 +657,20 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
               scheduleReconnectRef.current();
             }
           }
-          resolve(false);
+          safeResolve(false);
         };
 
-        ws.onerror = () => {
-          clearTimeout(timeoutId);
-          resolve(false);
+        ws.onerror = (error) => {
+          // Don't resolve on error alone - wait for onclose or timeout
+          // onerror is always followed by onclose, so we let onclose handle resolution
+          console.log(`[useMiddleware] WebSocket error for ${url}:`, error);
+          // Note: We do NOT call safeResolve here - onclose will be called after onerror
         };
 
         wsRef.current = ws;
       } catch (e) {
         console.error('[useMiddleware] WebSocket creation error:', e);
-        resolve(false);
+        safeResolve(false);
       }
     });
   }, [stationCode, bound, mode, clientName, clientType, handleMessage, onConnectionModeChange]);
@@ -644,11 +735,106 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     // Schedule recurring polls
     pollingTimer.current = setInterval(poll, pollingInterval);
-  }, [localApiUrl, pollingInterval, handlePollingResponse, state.connected, state.connectionMode, onConnectionModeChange]);
+    
+    // Background WebSocket retry: periodically try to upgrade from polling to WebSocket
+    // This runs every 10 seconds while polling is active
+    const wsRetryInterval = setInterval(async () => {
+      if (pollingTimer.current && !wsRef.current) {
+        console.log('[useMiddleware] Background retry: attempting WebSocket upgrade from polling...');
+        // Try WebSocket silently - if it connects, it will stop polling automatically
+        const ws = new WebSocket(localWsUrl);
+        
+        const retryTimeout = setTimeout(() => {
+          if (ws.readyState !== WebSocket.OPEN) {
+            ws.close();
+          }
+        }, 2000);
+        
+        ws.onopen = () => {
+          clearTimeout(retryTimeout);
+          console.log('[useMiddleware] Background WebSocket connected! Upgrading from polling...');
+          // Stop polling
+          if (pollingTimer.current) {
+            clearInterval(pollingTimer.current);
+            pollingTimer.current = null;
+          }
+          clearInterval(wsRetryInterval);
+          
+          // Set up this WebSocket as primary
+          currentUrlRef.current = localWsUrl;
+          wsRef.current = ws;
+          connectionAttemptsRef.current = 0;
+          
+          setState(s => ({
+            ...s,
+            connected: true,
+            connectionMode: 'local_ws',
+            isLocalFallback: true,
+            error: null,
+          }));
+          
+          onConnectionModeChange?.('local_ws', localWsUrl);
+          
+          // Register
+          ws.send(JSON.stringify({
+            event: 'register',
+            data: { stationCode, bound, mode, clientName, clientType },
+          }));
+          lastRegisteredRef.current = { stationCode, bound, mode };
+          
+          // Set up message handler
+          ws.onmessage = (event) => {
+            try {
+              const message = JSON.parse(event.data);
+              handleMessage(message);
+            } catch (e) {
+              console.error('[useMiddleware] Failed to parse message:', e);
+            }
+          };
+          
+          ws.onclose = () => {
+            if (currentUrlRef.current === localWsUrl) {
+              setState(s => ({
+                ...s,
+                connected: false,
+                registered: false,
+                connectionMode: 'disconnected',
+              }));
+              if (shouldReconnect.current) {
+                scheduleReconnectRef.current();
+              }
+            }
+          };
+        };
+        
+        ws.onerror = () => {
+          clearTimeout(retryTimeout);
+          // Silent failure - we're still polling
+        };
+        
+        ws.onclose = () => {
+          clearTimeout(retryTimeout);
+          // Silent failure - we're still polling
+        };
+      } else if (!pollingTimer.current) {
+        // Polling stopped (maybe WS connected), clear this interval
+        clearInterval(wsRetryInterval);
+      }
+    }, 10000); // Try every 10 seconds
+    
+    // Store the retry interval reference for cleanup
+    // We'll clear it when stopPolling is called
+    (pollingTimer.current as NodeJS.Timeout & { wsRetry?: NodeJS.Timeout }).wsRetry = wsRetryInterval;
+  }, [localApiUrl, localWsUrl, pollingInterval, handlePollingResponse, handleMessage, state.connected, state.connectionMode, stationCode, bound, mode, clientName, clientType, onConnectionModeChange]);
 
   // Stop API polling
   const stopPolling = useCallback(() => {
     if (pollingTimer.current) {
+      // Also clear the background WebSocket retry interval
+      const timer = pollingTimer.current as NodeJS.Timeout & { wsRetry?: NodeJS.Timeout };
+      if (timer.wsRetry) {
+        clearInterval(timer.wsRetry);
+      }
       clearInterval(pollingTimer.current);
       pollingTimer.current = null;
     }
@@ -702,8 +888,11 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     shouldReconnect.current = true;
 
-    // If forced to local, skip backend
-    if (forceLocalRef.current) {
+    // If forced to local OR in development mode, skip backend
+    if (forceLocalRef.current || isDevelopment()) {
+      if (isDevelopment() && !forceLocalRef.current) {
+        console.log('[useMiddleware] Development mode detected, using local WebSocket as primary');
+      }
       stopPolling();
       const localSuccess = await connectToLocal();
       if (!localSuccess && currentlyPolling) {
@@ -714,7 +903,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       return;
     }
 
-    // Try backend WebSocket first if online and configured
+    // Try backend WebSocket first if online and configured (production only)
     if (state.isOnline && backendWsUrl && preferBackend) {
       console.log('[useMiddleware] Trying backend WebSocket...');
       const backendConnected = await connectWebSocket(backendWsUrl, 'backend_ws');

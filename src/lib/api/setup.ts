@@ -1,21 +1,39 @@
 import { apiClient } from '@/lib/api/client';
 import type {
+    AssignPermissionsRequest,
     AssignRolesRequest,
     AxleConfigurationLookupData,
     AxleConfigurationResponse,
     AxleWeightReferenceResponse,
     CreateAxleConfigurationRequest,
     CreateAxleWeightReferenceRequest,
+    CreateDepartmentRequest,
+    CreateOrganizationRequest,
+    CreateRoleRequest,
+    CreateShiftRotationRequest,
+    CreateStationRequest,
+    CreateUserRequest,
+    CreateUserShiftRequest,
     CreateWorkShiftRequest,
     DepartmentDto,
     OrganizationDto,
-    PagedResult,
+    PagedResponse,
+    PermissionDto,
     RoleDto,
+    RolePermissionsDto,
+    ShiftRotationDto,
     StationDto,
     UpdateAxleConfigurationRequest,
     UpdateAxleWeightReferenceRequest,
+    UpdateDepartmentRequest,
+    UpdateOrganizationRequest,
+    UpdateRoleRequest,
+    UpdateShiftRotationRequest,
+    UpdateStationRequest,
     UpdateUserRequest,
+    UpdateUserShiftRequest,
     UpdateWorkShiftRequest,
+    UserShiftDto,
     UserSummary,
     WorkShiftDto,
 } from '@/types/setup';
@@ -25,10 +43,10 @@ export async function fetchUsers(params: {
   search?: string;
   organizationId?: string;
   stationId?: string;
-  skip?: number;
-  take?: number;
-}): Promise<PagedResult<UserSummary>> {
-  const { data } = await apiClient.get<PagedResult<UserSummary>>('/user-management/users', {
+  pageNumber?: number;
+  pageSize?: number;
+}): Promise<PagedResponse<UserSummary>> {
+  const { data } = await apiClient.get<PagedResponse<UserSummary>>('/user-management/users', {
     params,
   });
   return data;
@@ -48,10 +66,20 @@ export async function deleteUser(id: string): Promise<void> {
   await apiClient.delete(`/user-management/users/${id}`);
 }
 
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  await apiClient.post('/auth/forgot-password', { email });
+}
+
+export async function createUser(payload: CreateUserRequest): Promise<UserSummary> {
+  const { data } = await apiClient.post<UserSummary>('/user-management/users', payload);
+  return data;
+}
+
 export async function assignRoles(id: string, payload: AssignRolesRequest): Promise<void> {
   await apiClient.post(`/user-management/users/${id}/roles`, payload);
 }
 
+// Role Management
 export async function fetchRoles(includeInactive = false): Promise<RoleDto[]> {
   const { data } = await apiClient.get<RoleDto[]>('/user-management/roles', {
     params: { includeInactive },
@@ -59,6 +87,45 @@ export async function fetchRoles(includeInactive = false): Promise<RoleDto[]> {
   return data;
 }
 
+export async function createRole(payload: CreateRoleRequest): Promise<RoleDto> {
+  const { data } = await apiClient.post<RoleDto>('/user-management/roles', payload);
+  return data;
+}
+
+export async function updateRole(id: string, payload: UpdateRoleRequest): Promise<RoleDto> {
+  const { data } = await apiClient.put<RoleDto>(`/user-management/roles/${id}`, payload);
+  return data;
+}
+
+export async function deleteRole(id: string): Promise<void> {
+  await apiClient.delete(`/user-management/roles/${id}`);
+}
+
+export async function fetchRolePermissions(roleId: string): Promise<RolePermissionsDto> {
+  const { data } = await apiClient.get<RolePermissionsDto>(`/user-management/roles/${roleId}/permissions`);
+  return data;
+}
+
+export async function assignPermissionsToRole(roleId: string, payload: AssignPermissionsRequest): Promise<void> {
+  await apiClient.post(`/user-management/roles/${roleId}/permissions`, payload);
+}
+
+export async function removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
+  await apiClient.delete(`/user-management/roles/${roleId}/permissions/${permissionId}`);
+}
+
+// Permissions
+export async function fetchPermissions(): Promise<PermissionDto[]> {
+  const { data } = await apiClient.get<PermissionDto[]>('/permissions');
+  return data;
+}
+
+export async function fetchPermissionsByCategory(category: string): Promise<PermissionDto[]> {
+  const { data } = await apiClient.get<PermissionDto[]>(`/permissions/category/${category}`);
+  return data;
+}
+
+// Organizations, Stations, Departments
 export async function fetchOrganizations(includeInactive = false): Promise<OrganizationDto[]> {
   const { data } = await apiClient.get<OrganizationDto[]>('/Organizations', {
     params: { includeInactive },
@@ -78,6 +145,51 @@ export async function fetchDepartments(includeInactive = false): Promise<Departm
     params: { includeInactive },
   });
   return data;
+}
+
+// Organizations CRUD
+export async function createOrganization(payload: CreateOrganizationRequest): Promise<OrganizationDto> {
+  const { data } = await apiClient.post<OrganizationDto>('/Organizations', payload);
+  return data;
+}
+
+export async function updateOrganization(id: string, payload: UpdateOrganizationRequest): Promise<OrganizationDto> {
+  const { data } = await apiClient.put<OrganizationDto>(`/Organizations/${id}`, payload);
+  return data;
+}
+
+export async function deleteOrganization(id: string): Promise<void> {
+  await apiClient.delete(`/Organizations/${id}`);
+}
+
+// Stations CRUD
+export async function createStation(payload: CreateStationRequest): Promise<StationDto> {
+  const { data } = await apiClient.post<StationDto>('/Stations', payload);
+  return data;
+}
+
+export async function updateStation(id: string, payload: UpdateStationRequest): Promise<StationDto> {
+  const { data } = await apiClient.put<StationDto>(`/Stations/${id}`, payload);
+  return data;
+}
+
+export async function deleteStation(id: string): Promise<void> {
+  await apiClient.delete(`/Stations/${id}`);
+}
+
+// Departments CRUD
+export async function createDepartment(payload: CreateDepartmentRequest): Promise<DepartmentDto> {
+  const { data } = await apiClient.post<DepartmentDto>('/Departments', payload);
+  return data;
+}
+
+export async function updateDepartment(id: string, payload: UpdateDepartmentRequest): Promise<DepartmentDto> {
+  const { data } = await apiClient.put<DepartmentDto>(`/Departments/${id}`, payload);
+  return data;
+}
+
+export async function deleteDepartment(id: string): Promise<void> {
+  await apiClient.delete(`/Departments/${id}`);
 }
 
 // Work Shifts
@@ -101,6 +213,59 @@ export async function updateWorkShift(id: string, payload: UpdateWorkShiftReques
 
 export async function deleteWorkShift(id: string): Promise<void> {
   await apiClient.delete(`/WorkShifts/${id}`);
+}
+
+// User Shift Assignments
+export async function fetchUserShifts(userId: string, activeOnly = true): Promise<UserShiftDto[]> {
+  const { data } = await apiClient.get<UserShiftDto[]>(`/user-shifts/user/${userId}`, {
+    params: { activeOnly },
+  });
+  return data;
+}
+
+export async function fetchActiveUserShift(userId: string): Promise<UserShiftDto | null> {
+  try {
+    const { data } = await apiClient.get<UserShiftDto>(`/user-shifts/user/${userId}/active`);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function assignUserShift(payload: CreateUserShiftRequest): Promise<UserShiftDto> {
+  const { data } = await apiClient.post<UserShiftDto>('/user-shifts', payload);
+  return data;
+}
+
+export async function updateUserShift(id: string, payload: UpdateUserShiftRequest): Promise<UserShiftDto> {
+  const { data } = await apiClient.put<UserShiftDto>(`/user-shifts/${id}`, payload);
+  return data;
+}
+
+export async function deleteUserShift(id: string): Promise<void> {
+  await apiClient.delete(`/user-shifts/${id}`);
+}
+
+// Shift Rotations
+export async function fetchShiftRotations(includeInactive = false): Promise<ShiftRotationDto[]> {
+  const { data } = await apiClient.get<ShiftRotationDto[]>('/shift-rotations', {
+    params: { includeInactive },
+  });
+  return data;
+}
+
+export async function createShiftRotation(payload: CreateShiftRotationRequest): Promise<ShiftRotationDto> {
+  const { data } = await apiClient.post<ShiftRotationDto>('/shift-rotations', payload);
+  return data;
+}
+
+export async function updateShiftRotation(id: string, payload: UpdateShiftRotationRequest): Promise<ShiftRotationDto> {
+  const { data } = await apiClient.put<ShiftRotationDto>(`/shift-rotations/${id}`, payload);
+  return data;
+}
+
+export async function deleteShiftRotation(id: string): Promise<void> {
+  await apiClient.delete(`/shift-rotations/${id}`);
 }
 
 // Axle Configurations
@@ -136,6 +301,24 @@ export async function deleteAxleConfiguration(id: string): Promise<void> {
 }
 
 // Axle Weight References
+export interface SearchAxleWeightReferencesParams {
+  configurationId?: string;
+  axleGrouping?: string;
+  includeInactive?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export async function searchAxleWeightReferences(
+  params: SearchAxleWeightReferencesParams
+): Promise<PagedResponse<AxleWeightReferenceResponse>> {
+  const { data } = await apiClient.get<PagedResponse<AxleWeightReferenceResponse>>(
+    '/AxleWeightReferences',
+    { params }
+  );
+  return data;
+}
+
 export async function fetchAxleWeightReferencesByConfiguration(
   configurationId: string
 ): Promise<AxleWeightReferenceResponse[]> {
@@ -178,6 +361,19 @@ export async function deleteAxleWeightReference(id: string): Promise<void> {
 }
 
 // Axle Configuration Lookup Data
+export interface WeightRefLookupData {
+  tyreTypes: { id: string; code: string; name: string; description?: string; typicalMaxWeightKg?: number }[];
+  axleGroups: { id: string; code: string; name: string; description?: string; typicalWeightKg: number }[];
+  axleGroupings: string[];
+}
+
+export async function fetchWeightRefLookupData(): Promise<WeightRefLookupData> {
+  const { data } = await apiClient.get<WeightRefLookupData>(
+    '/AxleConfiguration/lookup/weight-ref-data'
+  );
+  return data;
+}
+
 export async function fetchAxleConfigurationLookupData(
   configurationId: string
 ): Promise<AxleConfigurationLookupData> {

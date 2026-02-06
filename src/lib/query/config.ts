@@ -54,6 +54,7 @@ export const QUERY_KEYS = {
   // Lookup/Reference Data (Static)
   AXLE_CONFIGURATIONS: ['axle-configurations'] as const,
   CARGO_TYPES: ['cargo-types'] as const,
+  VEHICLE_MAKES: ['vehicle-makes'] as const,
   VEHICLE_CLASSES: ['vehicle-classes'] as const,
   ORIGINS_DESTINATIONS: ['origins-destinations'] as const,
 
@@ -65,6 +66,9 @@ export const QUERY_KEYS = {
   USERS: ['users'] as const,
   TRANSPORTERS: ['transporters'] as const,
   DRIVERS: ['drivers'] as const,
+
+  // Axle Weight References (Dynamic - changes when configs are edited)
+  AXLE_WEIGHT_REFERENCES: ['axle-weight-references'] as const,
 
   // Weighing Data (Dynamic)
   VEHICLES: ['vehicles'] as const,
@@ -90,31 +94,31 @@ export const QUERY_OPTIONS = {
     retry: 2,
   },
 
-  /** Semi-static organization data - orgs, stations, users */
+  /** Semi-static organization data - orgs, stations, users (5 min cache) */
   semiStatic: {
     staleTime: CACHE_TIMES.SEMI_STATIC,
     gcTime: GC_TIMES.SEMI_STATIC,
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always' as const,
+    refetchOnMount: true, // Refetch on mount only if stale (respects cache)
     refetchOnReconnect: true,
     retry: 2,
   },
 
-  /** Dynamic operational data - transactions, tests */
+  /** Dynamic operational data - transactions, tests (1 min cache) */
   dynamic: {
     staleTime: CACHE_TIMES.DYNAMIC,
     gcTime: GC_TIMES.DYNAMIC,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    refetchOnWindowFocus: false, // Prevent rate limit hits on tab switch
+    refetchOnMount: true, // Refetch on mount only if stale
     refetchOnReconnect: true,
-    retry: 3,
+    retry: 2,
   },
 
-  /** Real-time data - auth state */
+  /** Real-time data - auth state (30s cache) */
   realTime: {
     staleTime: CACHE_TIMES.REAL_TIME,
     gcTime: GC_TIMES.REAL_TIME,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Prevent rate limit hits on tab switch
     refetchOnMount: 'always' as const,
     refetchOnReconnect: true,
     retry: 1,

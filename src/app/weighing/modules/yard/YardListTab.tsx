@@ -65,7 +65,7 @@ export default function YardListTab() {
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<YardEntryDto | null>(null);
 
-  const { page, pageSize, skip, setPage, setPageSize, reset: resetPagination } = usePagination(25);
+  const { page, pageNumber, pageSize, setPage, setPageSize, reset: resetPagination } = usePagination();
   const queryClient = useQueryClient();
 
   // Correct permissions matching backend
@@ -94,8 +94,8 @@ export default function YardListTab() {
     vehicleRegNo: debouncedSearch || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     reason: reasonFilter !== 'all' ? reasonFilter : undefined,
-    skip,
-    take: pageSize,
+    pageNumber,
+    pageSize,
     sortBy: 'EnteredAt',
     sortOrder: 'desc',
   });

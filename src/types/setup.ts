@@ -1,8 +1,9 @@
-export interface PagedResult<T> {
-  total: number;
-  skip: number;
-  take: number;
-  data: T[];
+export interface PagedResponse<T> {
+  items: T[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 // User management
@@ -69,19 +70,98 @@ export interface OrganizationDto {
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateOrganizationRequest {
+  code: string;
+  name: string;
+  orgType?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+}
+
+export interface UpdateOrganizationRequest {
+  code?: string;
+  name?: string;
+  orgType?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+  isActive?: boolean;
 }
 
 export interface StationDto {
   id: string;
   code: string;
   name: string;
+  stationType: string;
+  organizationId: string;
+  organizationName?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
+  supportsBidirectional: boolean;
+  boundACode?: string;
+  boundBCode?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateStationRequest {
+  code: string;
+  name: string;
+  organizationId: string;
+  stationType?: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  supportsBidirectional?: boolean;
+  boundACode?: string;
+  boundBCode?: string;
+}
+
+export interface UpdateStationRequest {
+  code?: string;
+  name?: string;
+  stationType?: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  supportsBidirectional?: boolean;
+  boundACode?: string;
+  boundBCode?: string;
+  isActive?: boolean;
 }
 
 export interface DepartmentDto {
   id: string;
+  organizationId: string;
+  organizationName?: string;
+  code: string;
   name: string;
   description?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateDepartmentRequest {
+  organizationId: string;
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export interface UpdateDepartmentRequest {
+  code?: string;
+  name?: string;
+  description?: string;
+  isActive?: boolean;
 }
 
 // Work shifts
@@ -122,6 +202,104 @@ export interface UpdateWorkShiftRequest {
   isActive?: boolean;
 }
 
+// Role management
+export interface CreateRoleRequest {
+  name: string;
+  code?: string;
+  description?: string;
+}
+
+export interface UpdateRoleRequest {
+  name?: string;
+  code?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface RolePermissionsDto {
+  roleId: string;
+  roleName: string;
+  permissions: PermissionDto[];
+}
+
+export interface AssignPermissionsRequest {
+  permissionIds: string[];
+}
+
+// User shift assignments
+export interface UserShiftDto {
+  id: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  workShiftId?: string;
+  workShiftName?: string;
+  shiftRotationId?: string;
+  shiftRotationTitle?: string;
+  startsOn: string;
+  endsOn?: string;
+  createdAt?: string;
+}
+
+export interface CreateUserShiftRequest {
+  userId: string;
+  workShiftId?: string;
+  shiftRotationId?: string;
+  startsOn: string;
+  endsOn?: string;
+}
+
+export interface UpdateUserShiftRequest {
+  workShiftId?: string;
+  shiftRotationId?: string;
+  startsOn?: string;
+  endsOn?: string;
+}
+
+// Shift rotations
+export interface RotationShiftDto {
+  id: string;
+  workShiftId: string;
+  workShiftName?: string;
+  sequenceOrder: number;
+}
+
+export interface ShiftRotationDto {
+  id: string;
+  title: string;
+  runDuration: number;
+  runUnit: string;
+  breakDuration: number;
+  breakUnit: string;
+  currentActiveShiftId?: string;
+  currentActiveShiftName?: string;
+  nextChangeDate?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  rotationShifts: RotationShiftDto[];
+}
+
+export interface CreateShiftRotationRequest {
+  title: string;
+  runDuration: number;
+  runUnit: string;
+  breakDuration: number;
+  breakUnit: string;
+  rotationShifts: { workShiftId: string; sequenceOrder: number }[];
+}
+
+export interface UpdateShiftRotationRequest {
+  title?: string;
+  currentActiveShiftId?: string;
+  runDuration?: number;
+  runUnit?: string;
+  breakDuration?: number;
+  breakUnit?: string;
+  nextChangeDate?: string;
+  isActive?: boolean;
+}
+
 // Axle configurations
 export interface AxleConfigurationResponse {
   id: string;
@@ -141,25 +319,42 @@ export interface AxleConfigurationResponse {
   weightReferenceCount: number;
 }
 
+export interface WeightReferenceInline {
+  axlePosition: number;
+  axleLegalWeightKg: number;
+  axleGrouping: 'A' | 'B' | 'C' | 'D';
+  axleGroupId: string;
+  tyreTypeId?: string;
+}
+
 export interface CreateAxleConfigurationRequest {
   axleCode: string;
   axleName: string;
   description?: string;
   axleNumber: number;
-  gvwPermissibleKg: number;
   legalFramework?: string;
   visualDiagramUrl?: string;
   notes?: string;
+  weightReferences?: WeightReferenceInline[];
+}
+
+export interface UpdateAxleWeightReferenceInline {
+  id?: string;
+  axlePosition: number;
+  axleLegalWeightKg: number;
+  axleGrouping: 'A' | 'B' | 'C' | 'D';
+  axleGroupId: string;
+  tyreTypeId?: string;
 }
 
 export interface UpdateAxleConfigurationRequest {
   axleName: string;
   description?: string;
-  gvwPermissibleKg: number;
   legalFramework?: string;
   visualDiagramUrl?: string;
   notes?: string;
   isActive: boolean;
+  weightReferences?: UpdateAxleWeightReferenceInline[];
 }
 
 // Axle weight references

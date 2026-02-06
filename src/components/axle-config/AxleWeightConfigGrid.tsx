@@ -1,14 +1,20 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AxleWeightReferenceForm } from '../forms/axle-config/AxleWeightReferenceForm';
 import { AxleWeightReferenceTable } from './AxleWeightReferenceTable';
+import {
+  useAxleWeightReferences,
+  useAxleConfigLookupData,
+  useCreateAxleWeightReference,
+  useUpdateAxleWeightReference,
+  useDeleteAxleWeightReference,
+} from '@/hooks/queries';
 
 import type {
-  AxleConfigurationLookupData,
   AxleWeightReferenceResponse,
   CreateAxleWeightReferenceRequest,
   UpdateAxleWeightReferenceRequest,
@@ -35,39 +41,30 @@ export function AxleWeightConfigGrid({
   gvwPermissibleKg,
   onWeightReferencesChange,
 }: AxleWeightConfigGridProps) {
-  const [weightReferences, setWeightReferences] = useState<AxleWeightReferenceResponse[]>([]);
-  const [lookupData, setLookupData] = useState<AxleConfigurationLookupData | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Load existing weight references and lookup data
+  // TanStack Query hooks
+  const {
+    data: weightReferences = [],
+    isLoading: isLoadingReferences,
+  } = useAxleWeightReferences(configurationId);
+
+  const {
+    data: lookupData,
+    isLoading: isLoadingLookup,
+  } = useAxleConfigLookupData(configurationId);
+
+  // Mutations
+  const createMutation = useCreateAxleWeightReference();
+  const updateMutation = useUpdateAxleWeightReference();
+  const deleteMutation = useDeleteAxleWeightReference();
+
+  // Notify parent when weight references change
   useEffect(() => {
-    loadWeightReferences();
-    loadLookupData();
-  }, [configurationId]);
-
-  const loadWeightReferences = useCallback(async () => {
-    try {
-      const { fetchAxleWeightReferencesByConfiguration } = await import('@/lib/api/setup');
-      const references = await fetchAxleWeightReferencesByConfiguration(configurationId);
-      setWeightReferences(references);
-      onWeightReferencesChange?.(references);
-    } catch (error) {
-      console.error('Failed to load weight references:', error);
-      toast.error('Failed to load weight references');
+    if (weightReferences.length > 0) {
+      onWeightReferencesChange?.(weightReferences);
     }
-  }, [configurationId, onWeightReferencesChange]);
-
-  const loadLookupData = useCallback(async () => {
-    try {
-      const { fetchAxleConfigurationLookupData } = await import('@/lib/api/setup');
-      const data = await fetchAxleConfigurationLookupData(configurationId);
-      setLookupData(data);
-    } catch (error) {
-      console.error('Failed to load lookup data:', error);
-      toast.error('Failed to load lookup data');
-    }
-  }, [configurationId]);
+  }, [weightReferences, onWeightReferencesChange]);
 
   const onSubmit = async (data: WeightReferenceFormData) => {
     if (!data.axleGroupId) {
@@ -75,10 +72,7 @@ export function AxleWeightConfigGrid({
       return;
     }
 
-    setIsLoading(true);
     try {
-      const { createAxleWeightReference, updateAxleWeightReference } = await import('@/lib/api/setup');
-
       if (editingId) {
         // Update existing
         const updatePayload: UpdateAxleWeightReferenceRequest = {
@@ -89,7 +83,7 @@ export function AxleWeightConfigGrid({
           tyreTypeId: data.tyreTypeId,
           isActive: true,
         };
-        await updateAxleWeightReference(editingId, updatePayload);
+        await updateMutation.mutateAsync({ id: editingId, payload: updatePayload });
         toast.success('Weight reference updated');
       } else {
         // Create new
@@ -101,17 +95,14 @@ export function AxleWeightConfigGrid({
           axleGroupId: data.axleGroupId,
           tyreTypeId: data.tyreTypeId,
         };
-        await createAxleWeightReference(createPayload);
+        await createMutation.mutateAsync(createPayload);
         toast.success('Weight reference created');
       }
 
-      await loadWeightReferences();
       resetForm();
     } catch (error) {
       console.error('Failed to create/update weight reference:', error);
       toast.error(editingId ? 'Failed to update weight reference' : 'Failed to create weight reference');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -127,10 +118,8 @@ export function AxleWeightConfigGrid({
     if (!window.confirm('Delete this weight reference?')) return;
 
     try {
-      const { deleteAxleWeightReference } = await import('@/lib/api/setup');
-      await deleteAxleWeightReference(id);
+      await deleteMutation.mutateAsync(id);
       toast.success('Weight reference deleted');
-      await loadWeightReferences();
     } catch (error) {
       console.error('Failed to delete weight reference:', error);
       toast.error('Failed to delete weight reference');
@@ -146,9 +135,12 @@ export function AxleWeightConfigGrid({
     return weightReferences.find(ref => ref.id === editingId) || null;
   };
 
-  if (!lookupData) {
+  // Loading state
+  if (isLoadingLookup || !lookupData) {
     return <div className="text-center py-4">Loading lookup data...</div>;
   }
+
+  const isLoading = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
     <Card className="p-6">

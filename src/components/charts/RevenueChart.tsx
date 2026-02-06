@@ -47,7 +47,7 @@ export function RevenueChart({ data = DEFAULT_DATA }: RevenueChartProps) {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
             <YAxis />
-            <Tooltip formatter={(value) => `KES ${value.toLocaleString()}`} />
+            <Tooltip formatter={(value) => `KES ${(value as number)?.toLocaleString() ?? '0'}`} />
             <Legend />
             <Line
               type="monotone"

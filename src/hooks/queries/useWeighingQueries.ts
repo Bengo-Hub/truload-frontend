@@ -36,6 +36,17 @@ export function useCargoTypes() {
   });
 }
 
+/**
+ * Fetch all vehicle makes (static data)
+ */
+export function useVehicleMakes() {
+  return useQuery({
+    queryKey: QUERY_KEYS.VEHICLE_MAKES,
+    queryFn: weighingApi.fetchVehicleMakes,
+    ...QUERY_OPTIONS.static,
+  });
+}
+
 // ============================================================================
 // SEMI-STATIC DATA HOOKS
 // These change occasionally and are cached for 5 minutes
@@ -195,12 +206,24 @@ export function useRecentWeighings(stationId?: string, limit: number = 10) {
     queryKey: [...QUERY_KEYS.WEIGHING_TRANSACTIONS, 'recent', stationId ?? 'all', limit],
     queryFn: () => weighingApi.searchWeighingTransactions({
       stationId,
-      take: limit,
+      pageSize: limit,
       sortBy: 'weighedAt',
       sortOrder: 'desc',
     }),
     ...QUERY_OPTIONS.semiStatic,
     enabled: true, // Always fetch
+  });
+}
+
+/**
+ * Fetch a single weighing transaction by ID
+ */
+export function useWeighingTransaction(id?: string) {
+  return useQuery({
+    queryKey: queryKeys.transaction(id ?? ''),
+    queryFn: () => weighingApi.getWeighingTransaction(id!),
+    ...QUERY_OPTIONS.dynamic,
+    enabled: !!id,
   });
 }
 
@@ -233,7 +256,7 @@ export function useTodayWeighingStats(stationId?: string) {
         stationId,
         fromDate,
         toDate,
-        take: 1000, // Get all for stats calculation
+        pageSize: 1000, // Get all for stats calculation
       });
 
       // Calculate statistics
@@ -307,6 +330,48 @@ export function useCreateDriver() {
     mutationFn: weighingApi.createDriver,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS });
+    },
+  });
+}
+
+/**
+ * Create cargo type mutation
+ */
+export function useCreateCargoType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.createCargoType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CARGO_TYPES });
+    },
+  });
+}
+
+/**
+ * Create vehicle make mutation
+ */
+export function useCreateVehicleMake() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.createVehicleMake,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLE_MAKES });
+    },
+  });
+}
+
+/**
+ * Create origin/destination mutation
+ */
+export function useCreateOriginDestination() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.createOriginDestination,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS });
     },
   });
 }

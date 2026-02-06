@@ -1,11 +1,12 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PWARegister } from '@/components/PWARegister';
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Orbitron } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'] });
+const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron', weight: ['400', '500', '600', '700'] });
 
 export const metadata: Metadata = {
   title: 'TruLoad - Intelligent Weighing Solution',
@@ -48,7 +49,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-maskable.svg" />
         <link rel="mask-icon" href="/icon-maskable.svg" color="#0a9f3d" />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} ${orbitron.variable}`}>
         <ErrorBoundary>
           <Providers>{children}</Providers>
           <PWARegister />

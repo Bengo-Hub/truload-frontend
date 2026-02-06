@@ -62,16 +62,19 @@ export function AxleWeightReferenceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 p-4 border rounded-lg bg-gray-50">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 p-4 border rounded-lg bg-muted/30">
+      {/* Row 1: Position, Grouping, Weight */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="axlePosition">Position</Label>
+          <Label htmlFor="axlePosition">
+            Position <span className="text-red-500">*</span>
+          </Label>
           <Select
             value={watch('axlePosition')?.toString()}
             onValueChange={(value) => setValue('axlePosition', parseInt(value))}
             disabled={!!editingReference}
           >
-            <SelectTrigger>
+            <SelectTrigger className={editingReference ? 'bg-muted' : ''}>
               <SelectValue placeholder="Select position" />
             </SelectTrigger>
             <SelectContent>
@@ -82,10 +85,15 @@ export function AxleWeightReferenceForm({
               ))}
             </SelectContent>
           </Select>
+          {editingReference && (
+            <p className="text-xs text-muted-foreground">Position cannot be changed</p>
+          )}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="axleGrouping">Grouping</Label>
+          <Label htmlFor="axleGrouping">
+            Deck Grouping <span className="text-red-500">*</span>
+          </Label>
           <Select
             value={watch('axleGrouping')}
             onValueChange={(value) => setValue('axleGrouping', value as 'A' | 'B' | 'C' | 'D')}
@@ -94,16 +102,62 @@ export function AxleWeightReferenceForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="A">A (Front)</SelectItem>
-              <SelectItem value="B">B (Coupling)</SelectItem>
-              <SelectItem value="C">C (Mid)</SelectItem>
-              <SelectItem value="D">D (Rear)</SelectItem>
+              <SelectItem value="A">
+                <span className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-blue-500 text-white text-xs flex items-center justify-center font-bold">A</span>
+                  Front (Steering)
+                </span>
+              </SelectItem>
+              <SelectItem value="B">
+                <span className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-green-500 text-white text-xs flex items-center justify-center font-bold">B</span>
+                  Coupling
+                </span>
+              </SelectItem>
+              <SelectItem value="C">
+                <span className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-orange-500 text-white text-xs flex items-center justify-center font-bold">C</span>
+                  Mid Section
+                </span>
+              </SelectItem>
+              <SelectItem value="D">
+                <span className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-purple-500 text-white text-xs flex items-center justify-center font-bold">D</span>
+                  Rear
+                </span>
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="axleGroupId">Axle Group</Label>
+          <Label htmlFor="axleLegalWeightKg">
+            Permissible Weight (kg) <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="axleLegalWeightKg"
+            type="number"
+            min="1"
+            max="15000"
+            placeholder="e.g., 8000"
+            {...register('axleLegalWeightKg', {
+              valueAsNumber: true,
+              validate: validateWeight
+            })}
+            className={errors.axleLegalWeightKg ? 'border-red-500 focus-visible:ring-red-500' : ''}
+          />
+          {errors.axleLegalWeightKg && (
+            <p className="text-sm text-red-600">{errors.axleLegalWeightKg.message}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Row 2: Axle Group, Tyre Type */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="axleGroupId">
+            Axle Group <span className="text-red-500">*</span>
+          </Label>
           <Select
             value={watch('axleGroupId')}
             onValueChange={(value) => setValue('axleGroupId', value)}
@@ -114,7 +168,7 @@ export function AxleWeightReferenceForm({
             <SelectContent>
               {lookupData.axleGroups.map(group => (
                 <SelectItem key={group.id} value={group.id}>
-                  {group.code} - {group.name}
+                  <span className="font-mono">{group.code}</span> - {group.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -122,50 +176,33 @@ export function AxleWeightReferenceForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="tyreTypeId">Tyre Type (Optional)</Label>
+          <Label htmlFor="tyreTypeId">Tyre Type</Label>
           <Select
-            value={watch('tyreTypeId') || ''}
-            onValueChange={(value) => setValue('tyreTypeId', value || undefined)}
+            value={watch('tyreTypeId') || 'none'}
+            onValueChange={(value) => setValue('tyreTypeId', value === 'none' ? undefined : value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="No selection" />
+              <SelectValue placeholder="Optional - No selection" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No selection</SelectItem>
+              <SelectItem value="none">No selection</SelectItem>
               {lookupData.tyreTypes.map(tyre => (
                 <SelectItem key={tyre.id} value={tyre.id}>
-                  {tyre.code} - {tyre.name}
+                  <span className="font-mono">{tyre.code}</span> - {tyre.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="axleLegalWeightKg">Weight (kg)</Label>
-          <Input
-            id="axleLegalWeightKg"
-            type="number"
-            min="1"
-            max="15000"
-            {...register('axleLegalWeightKg', {
-              valueAsNumber: true,
-              validate: validateWeight
-            })}
-            className={errors.axleLegalWeightKg ? 'border-red-500' : ''}
-          />
-          {errors.axleLegalWeightKg && (
-            <p className="text-sm text-red-600">{errors.axleLegalWeightKg.message}</p>
-          )}
         </div>
       </div>
 
-      <div className="flex justify-end space-x-2">
+      {/* Actions */}
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
-          {editingReference ? 'Update' : 'Add'} Reference
+          {isLoading ? 'Saving...' : editingReference ? 'Update Reference' : 'Add Reference'}
         </Button>
       </div>
     </form>

@@ -8,22 +8,31 @@ import { useState } from 'react';
 import { Toaster } from 'sonner';
 
 /**
- * Create QueryClient with optimized configuration
- * - Default stale time: 1 minute (balance between freshness and performance)
- * - Garbage collection: 5 minutes (keep unused data briefly for back navigation)
- * - Retry: 3 times with exponential backoff
- * - No auto-refetch on window focus (controlled by individual queries)
+ * Create QueryClient with optimized caching configuration.
+ *
+ * Cache strategy to prevent API rate limits:
+ * - Default staleTime: 5 minutes (serve cached data, only refetch after expiry)
+ * - gcTime: 15 minutes (keep unused cache for back-navigation)
+ * - refetchOnWindowFocus: false (prevent spikes on tab switching)
+ * - refetchOnMount: true (refetch only if stale when component mounts)
+ * - structuralSharing: true (avoid re-renders for identical data)
+ * - Retry: 2 with exponential backoff (cap at 30s)
+ *
+ * Individual hooks override with QUERY_OPTIONS from config.ts:
+ *   static (30min), semiStatic (5min), dynamic (1min), realTime (30s)
  */
 function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: CACHE_TIMES.DYNAMIC, // 1 minute default
-        gcTime: GC_TIMES.DYNAMIC, // 5 minutes before garbage collection
-        retry: 3,
+        staleTime: CACHE_TIMES.SEMI_STATIC, // 5 min - serve from cache while fresh
+        gcTime: GC_TIMES.SEMI_STATIC, // 15 min before garbage collection
+        retry: 2,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-        refetchOnWindowFocus: false,
+        refetchOnWindowFocus: false, // Prevent refetch storms on tab switching
+        refetchOnMount: true, // Only refetch on mount if data is stale
         refetchOnReconnect: true,
+        structuralSharing: true, // Avoid re-renders when data hasn't changed
       },
       mutations: {
         retry: 1,

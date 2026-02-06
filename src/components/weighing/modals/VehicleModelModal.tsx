@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { CreateVehicleModelRequest, VehicleMake, VehicleModel, AxleConfiguration } from '@/types/weighing';
+import { AxleConfiguration, CreateVehicleModelRequest, VehicleMake, VehicleModel } from '@/types/weighing';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { EntityModal, ModalMode } from './EntityModal';
@@ -183,15 +183,15 @@ export function VehicleModelModal({
                 Default Axle Configuration
               </Label>
               <Select
-                value={watch('axleConfigurationId') || ''}
-                onValueChange={(value) => setValue('axleConfigurationId', value)}
+                value={watch('axleConfigurationId') || 'none'}
+                onValueChange={(value) => setValue('axleConfigurationId', value === 'none' ? '' : value)}
                 disabled={isViewMode}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select default axle config (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {axleConfigurations.map((config) => (
                     <SelectItem key={config.id} value={config.id}>
                       {config.axleCode} - {config.axleName} ({config.axleNumber} axles)

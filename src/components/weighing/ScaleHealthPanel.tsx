@@ -206,7 +206,10 @@ export function ScaleHealthPanel({
 
                   {/* Current weight display */}
                   {primaryIndicator?.weight !== undefined && (
-                    <div className="font-mono text-sm font-semibold text-gray-800 bg-gray-50 px-2 py-0.5 rounded">
+                    <div
+                      className="text-sm font-bold tracking-wider bg-gray-900 px-3 py-1 rounded-md border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.15)]"
+                      style={{ fontFamily: 'var(--font-orbitron), monospace', color: '#f59e0b' }}
+                    >
                       {primaryIndicator.weight.toLocaleString()} kg
                     </div>
                   )}
@@ -467,11 +470,16 @@ function ScaleCard({ scale, onToggle, compact = false }: ScaleCardProps) {
         </div>
 
         {/* Current Weight Reading */}
-        <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg">
-          <Scale className="h-5 w-5 text-blue-600" />
+        <div className="flex items-center gap-3 mb-3 p-3 bg-gray-900 rounded-lg border border-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.1)]">
+          <Scale className="h-5 w-5 text-amber-400" />
           <div className="flex-1">
-            <p className="text-xs text-gray-500">Current Reading</p>
-            <p className="text-lg font-bold text-gray-900">{formatWeight(scale.weight)}</p>
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">Current Reading</p>
+            <p
+              className="text-2xl font-bold tracking-wider tabular-nums"
+              style={{ fontFamily: 'var(--font-orbitron), monospace', color: '#f59e0b', textShadow: '0 0 10px rgba(245,158,11,0.4)' }}
+            >
+              {formatWeight(scale.weight)}
+            </p>
           </div>
         </div>
 

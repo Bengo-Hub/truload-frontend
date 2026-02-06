@@ -1,8 +1,10 @@
 /**
- * TanStack Query hooks for yard and tag-related data
+ * TanStack Query hooks for yard and tag-related data.
+ * Uses centralized QUERY_OPTIONS for consistent caching.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { QUERY_OPTIONS } from '@/lib/query/config';
 import * as yardApi from '@/lib/api/yard';
 
 // Query keys
@@ -10,18 +12,6 @@ export const YARD_QUERY_KEYS = {
   YARD_ENTRIES: ['yard-entries'] as const,
   VEHICLE_TAGS: ['vehicle-tags'] as const,
   TAG_CATEGORIES: ['tag-categories'] as const,
-};
-
-// Query options
-const QUERY_OPTIONS = {
-  dynamic: {
-    staleTime: 1000 * 60, // 1 minute
-    gcTime: 1000 * 60 * 5, // 5 minutes
-  },
-  semiStatic: {
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes
-  },
 };
 
 // ============================================================================

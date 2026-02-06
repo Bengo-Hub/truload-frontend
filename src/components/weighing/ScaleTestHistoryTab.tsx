@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,11 +38,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
-import {
-  ScaleTest,
-  Station,
-  getScaleTestsByDateRange,
-} from '@/lib/api/weighing';
+import { useScaleTests } from '@/hooks/queries';
+import { Station, ScaleTest } from '@/lib/api/weighing';
 
 interface ScaleTestHistoryTabProps {
   station: Station | null;
@@ -68,10 +65,6 @@ export function ScaleTestHistoryTab({
   bound,
   className,
 }: ScaleTestHistoryTabProps) {
-  const [tests, setTests] = useState<ScaleTest[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   // Filters
   const [datePreset, setDatePreset] = useState<DateRangePreset>('today');
   const [customFromDate, setCustomFromDate] = useState('');
@@ -80,100 +73,80 @@ export function ScaleTestHistoryTab({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Get date range based on preset
-  const getDateRange = useCallback(() => {
+  const dateRange = useMemo(() => {
     const now = new Date();
     switch (datePreset) {
       case 'today':
         return {
-          from: startOfDay(now),
-          to: endOfDay(now),
+          from: format(startOfDay(now), 'yyyy-MM-dd'),
+          to: format(endOfDay(now), 'yyyy-MM-dd'),
         };
       case 'yesterday':
         const yesterday = subDays(now, 1);
         return {
-          from: startOfDay(yesterday),
-          to: endOfDay(yesterday),
+          from: format(startOfDay(yesterday), 'yyyy-MM-dd'),
+          to: format(endOfDay(yesterday), 'yyyy-MM-dd'),
         };
       case 'week':
         return {
-          from: startOfDay(subDays(now, 7)),
-          to: endOfDay(now),
+          from: format(startOfDay(subDays(now, 7)), 'yyyy-MM-dd'),
+          to: format(endOfDay(now), 'yyyy-MM-dd'),
         };
       case 'month':
         return {
-          from: startOfDay(subDays(now, 30)),
-          to: endOfDay(now),
+          from: format(startOfDay(subDays(now, 30)), 'yyyy-MM-dd'),
+          to: format(endOfDay(now), 'yyyy-MM-dd'),
         };
       case 'custom':
         return {
-          from: customFromDate ? new Date(customFromDate) : subDays(now, 7),
-          to: customToDate ? new Date(customToDate) : now,
+          from: customFromDate || format(subDays(now, 7), 'yyyy-MM-dd'),
+          to: customToDate || format(now, 'yyyy-MM-dd'),
         };
       default:
         return {
-          from: startOfDay(now),
-          to: endOfDay(now),
+          from: format(startOfDay(now), 'yyyy-MM-dd'),
+          to: format(endOfDay(now), 'yyyy-MM-dd'),
         };
     }
   }, [datePreset, customFromDate, customToDate]);
 
-  // Fetch scale tests
-  const fetchTests = useCallback(async () => {
-    if (!station?.id) return;
+  // Use TanStack Query hook for fetching scale tests
+  const {
+    data: tests = [],
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } = useScaleTests(station?.id, dateRange.from, dateRange.to, bound);
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { from, to } = getDateRange();
-      const data = await getScaleTestsByDateRange(
-        station.id,
-        format(from, 'yyyy-MM-dd'),
-        format(to, 'yyyy-MM-dd'),
-        bound
-      );
-      setTests(data);
-    } catch (err) {
-      console.error('Failed to fetch scale tests:', err);
-      setError('Failed to load scale test history');
-      // For demo, show mock data
-      setTests(getMockTests());
-    } finally {
-      setIsLoading(false);
-    }
-  }, [station?.id, bound, getDateRange]);
-
-  // Initial fetch and refetch on filter change
-  useEffect(() => {
-    fetchTests();
-  }, [fetchTests]);
-
-  // Filter tests
-  const filteredTests = tests.filter((test) => {
-    // Result filter
-    if (resultFilter !== 'all' && test.result !== resultFilter) {
-      return false;
-    }
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesId = test.id.toLowerCase().includes(query);
-      const matchesDetails = test.details?.toLowerCase().includes(query);
-      if (!matchesId && !matchesDetails) {
+  // Filter tests locally
+  const filteredTests = useMemo(() => {
+    return tests.filter((test) => {
+      // Result filter
+      if (resultFilter !== 'all' && test.result !== resultFilter) {
         return false;
       }
-    }
 
-    return true;
-  });
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesId = test.id.toLowerCase().includes(query);
+        const matchesDetails = test.details?.toLowerCase().includes(query);
+        if (!matchesId && !matchesDetails) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [tests, resultFilter, searchQuery]);
 
   // Statistics
-  const stats = {
+  const stats = useMemo(() => ({
     total: tests.length,
     passed: tests.filter((t) => t.result === 'pass').length,
     failed: tests.filter((t) => t.result === 'fail').length,
-  };
+  }), [tests]);
 
   // Export to CSV
   const handleExport = () => {
@@ -226,10 +199,10 @@ export function ScaleTestHistoryTab({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchTests}
-                disabled={isLoading}
+                onClick={() => refetch()}
+                disabled={isFetching}
               >
-                <RefreshCw className={cn('h-4 w-4 mr-1.5', isLoading && 'animate-spin')} />
+                <RefreshCw className={cn('h-4 w-4 mr-1.5', isFetching && 'animate-spin')} />
                 Refresh
               </Button>
               <Button
@@ -349,11 +322,11 @@ export function ScaleTestHistoryTab({
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-4 flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-red-600" />
-            <span className="text-red-700">{error}</span>
+            <span className="text-red-700">Failed to load scale test history</span>
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchTests}
+              onClick={() => refetch()}
               className="ml-auto"
             >
               Retry
@@ -479,68 +452,6 @@ export function ScaleTestHistoryTab({
       )}
     </div>
   );
-}
-
-// Mock data for demo/development
-function getMockTests(): ScaleTest[] {
-  const now = new Date();
-  return [
-    {
-      id: 'st-001',
-      stationId: 'station-1',
-      stationName: 'Mariakani Station',
-      stationCode: 'MAR',
-      bound: 'A',
-      testType: 'calibration_weight',
-      testWeightKg: 5000,
-      actualWeightKg: 4985,
-      deviationKg: -15,
-      result: 'pass',
-      details: 'Test Type: Calibration Weight\nLoad Used: TW-5000-A\nMode: multideck\nDeck readings: 4985, 4990, 4982, 4988 kg',
-      carriedAt: now.toISOString(),
-      carriedById: 'user-1',
-      carriedByName: 'John Operator',
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    },
-    {
-      id: 'st-002',
-      stationId: 'station-1',
-      stationName: 'Mariakani Station',
-      stationCode: 'MAR',
-      bound: 'A',
-      testType: 'vehicle',
-      vehiclePlate: 'KCZ 015N',
-      testWeightKg: 8500,
-      actualWeightKg: 8650,
-      deviationKg: 150,
-      result: 'fail',
-      details: 'Test Type: Vehicle-Based\nVehicle: KCZ 015N\nMode: multideck\nExpected Weight: 8500 kg\nDeck readings: 8650, 8720, 8580, 8640 kg',
-      carriedAt: subDays(now, 1).toISOString(),
-      carriedById: 'user-2',
-      carriedByName: 'Jane Supervisor',
-      createdAt: subDays(now, 1).toISOString(),
-      updatedAt: subDays(now, 1).toISOString(),
-    },
-    {
-      id: 'st-003',
-      stationId: 'station-1',
-      stationName: 'Mariakani Station',
-      stationCode: 'MAR',
-      bound: 'A',
-      testType: 'calibration_weight',
-      testWeightKg: 10000,
-      actualWeightKg: 9980,
-      deviationKg: -20,
-      result: 'pass',
-      details: 'Test Type: Calibration Weight\nLoad Used: TW-10T-B\nMode: mobile\nScale A: 4990 kg | Scale B: 4990 kg | Combined: 9980 kg',
-      carriedAt: subDays(now, 2).toISOString(),
-      carriedById: 'user-1',
-      carriedByName: 'John Operator',
-      createdAt: subDays(now, 2).toISOString(),
-      updatedAt: subDays(now, 2).toISOString(),
-    },
-  ];
 }
 
 export default ScaleTestHistoryTab;

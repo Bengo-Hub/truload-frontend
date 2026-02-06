@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { AxleGroupResult, ComplianceStatus } from '@/types/weighing';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Scale, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 interface ComplianceTableProps {
   groupResults: AxleGroupResult[];
@@ -181,10 +181,9 @@ export function ComplianceTable({
                 const groupPdf = calculatePDF(group.measuredKg, group.permissibleKg);
 
                 return (
-                  <>
+                  <Fragment key={group.groupLabel}>
                     {/* Group Row (Parent) */}
                     <tr
-                      key={group.groupLabel}
                       className={cn(
                         'cursor-pointer hover:bg-slate-50 transition-colors',
                         groupStatusConfig.bg,
@@ -309,7 +308,7 @@ export function ComplianceTable({
                         </tr>
                       );
                     })}
-                  </>
+                  </Fragment>
                 );
               })}
 
