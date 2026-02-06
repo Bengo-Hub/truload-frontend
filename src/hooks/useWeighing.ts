@@ -4,6 +4,7 @@ import {
     AxleConfiguration,
     captureWeights,
     CreateWeighingRequest,
+    initiateReweigh as initiateReweighApi,
     UpdateWeighingRequest,
     WeighingResult,
     WeighingTransaction,
@@ -41,6 +42,9 @@ export interface WeighingSessionState {
   weighingMode: 'mobile' | 'multideck';
   bound?: string;
   startedAt: Date;
+  reweighCycleNo: number;
+  originalWeighingId: string | null;
+  isWeightConfirmed: boolean;
 }
 
 export interface UseWeighingOptions {
@@ -74,10 +78,16 @@ export interface UseWeighingReturn {
   gvwPermissible: number;
   gvwOverload: number;
 
+  // Reweigh & confirmation
+  reweighCycleNo: number;
+  isWeightConfirmed: boolean;
+
   // Actions
   initializeTransaction: (vehiclePlate: string, axleConfigCode?: string) => Promise<WeighingTransaction | null>;
   captureAxleWeight: (axleNumber: number, weightKg: number, axleConfigId?: string) => Promise<boolean>;
   submitWeights: () => Promise<WeighingResult | null>;
+  confirmWeight: () => Promise<WeighingResult | null>;
+  initiateReweigh: () => Promise<WeighingTransaction | null>;
   updateVehicleDetails: (details: Partial<UpdateWeighingRequest>) => Promise<boolean>;
   setVehiclePlate: (plate: string) => void;
   setAxleConfig: (configCode: string) => void;
@@ -198,6 +208,9 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
               ...a,
               capturedAt: new Date(a.capturedAt),
             })),
+            reweighCycleNo: restored.reweighCycleNo ?? 0,
+            originalWeighingId: restored.originalWeighingId ?? null,
+            isWeightConfirmed: restored.isWeightConfirmed ?? false,
           });
           return true;
         }
@@ -257,6 +270,9 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
         weighingMode,
         bound,
         startedAt: new Date(),
+        reweighCycleNo: newTransaction.reweighCycleNo ?? 0,
+        originalWeighingId: newTransaction.originalWeighingId ?? null,
+        isWeightConfirmed: false,
       };
 
       setSession(newSession);
@@ -382,6 +398,77 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     }
   }, [session, updateTransactionMutation]);
 
+  // Confirm weight: submit weights to backend and mark as confirmed
+  const confirmWeight = useCallback(async (): Promise<WeighingResult | null> => {
+    const result = await submitWeights();
+    if (result) {
+      setSession(prev => {
+        if (!prev) return null;
+        const updated = { ...prev, isWeightConfirmed: true };
+        persistSession(updated);
+        return updated;
+      });
+    }
+    return result;
+  }, [submitWeights, persistSession]);
+
+  // Initiate a reweigh for the current transaction
+  const initiateReweighTransaction = useCallback(async (): Promise<WeighingTransaction | null> => {
+    if (!session?.transactionId) {
+      setError(new Error('No active transaction to reweigh'));
+      return null;
+    }
+
+    const reweighCycle = session.reweighCycleNo ?? 0;
+    if (reweighCycle >= 8) {
+      setError(new Error('Maximum reweigh limit (8) reached'));
+      return null;
+    }
+
+    try {
+      setError(null);
+      const ticketNumber = generateTicketNumber();
+
+      const newTransaction = await initiateReweighApi({
+        originalWeighingId: session.transactionId,
+        reweighTicketNumber: ticketNumber,
+      });
+
+      // Create a new session for the reweigh, keeping vehicle details
+      const reweighSession: WeighingSessionState = {
+        transactionId: newTransaction.id,
+        ticketNumber: newTransaction.ticketNumber || ticketNumber,
+        vehiclePlate: session.vehiclePlate,
+        vehicleId: session.vehicleId,
+        driverId: session.driverId,
+        transporterId: session.transporterId,
+        axleConfigCode: session.axleConfigCode,
+        capturedAxles: [],
+        weighingMode: session.weighingMode,
+        bound: session.bound,
+        startedAt: new Date(),
+        reweighCycleNo: newTransaction.reweighCycleNo ?? reweighCycle + 1,
+        originalWeighingId: newTransaction.originalWeighingId ?? session.transactionId,
+        isWeightConfirmed: false,
+      };
+
+      setSession(reweighSession);
+      setTransaction(newTransaction);
+      setComplianceResult(null);
+      setCurrentAxle(1);
+      persistSession(reweighSession);
+
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
+
+      return newTransaction;
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error('Failed to initiate reweigh');
+      setError(error);
+      console.error('Failed to initiate reweigh:', e);
+      return null;
+    }
+  }, [session, generateTicketNumber, persistSession, queryClient]);
+
   // Set vehicle plate (before transaction initialization)
   const setVehiclePlate = useCallback((plate: string) => {
     setSession(prev => prev ? { ...prev, vehiclePlate: plate } : null);
@@ -440,10 +527,16 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     gvwPermissible,
     gvwOverload,
 
+    // Reweigh & confirmation
+    reweighCycleNo: session?.reweighCycleNo ?? 0,
+    isWeightConfirmed: session?.isWeightConfirmed ?? false,
+
     // Actions
     initializeTransaction,
     captureAxleWeight,
     submitWeights,
+    confirmWeight,
+    initiateReweigh: initiateReweighTransaction,
     updateVehicleDetails,
     setVehiclePlate,
     setAxleConfig,

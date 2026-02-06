@@ -216,6 +216,27 @@ export function useRecentWeighings(stationId?: string, limit: number = 10) {
 }
 
 /**
+ * Fetch pending weighing transactions for the current station
+ * Used for "Resume" functionality in the capture step.
+ * When weighingType is provided, only shows pending transactions of that type.
+ */
+export function usePendingWeighings(stationId?: string, weighingType?: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.WEIGHING_TRANSACTIONS, 'pending', stationId ?? 'all', weighingType ?? 'all'],
+    queryFn: () => weighingApi.searchWeighingTransactions({
+      stationId,
+      controlStatus: 'Pending',
+      weighingType,
+      pageSize: 20,
+      sortBy: 'weighedAt',
+      sortOrder: 'desc',
+    }),
+    ...QUERY_OPTIONS.dynamic,
+    enabled: !!stationId,
+  });
+}
+
+/**
  * Fetch a single weighing transaction by ID
  */
 export function useWeighingTransaction(id?: string) {
@@ -277,6 +298,22 @@ export function useTodayWeighingStats(stationId?: string) {
     },
     ...QUERY_OPTIONS.semiStatic,
     enabled: true,
+  });
+}
+
+/**
+ * Fetch weighing statistics from the dedicated backend statistics endpoint.
+ * More efficient than fetching all transactions and computing client-side.
+ */
+export function useWeighingStatistics(params: {
+  dateFrom?: string;
+  dateTo?: string;
+  stationId?: string;
+}) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.WEIGHING_TRANSACTIONS, 'statistics', params],
+    queryFn: () => weighingApi.getWeighingStatistics(params),
+    ...QUERY_OPTIONS.semiStatic,
   });
 }
 

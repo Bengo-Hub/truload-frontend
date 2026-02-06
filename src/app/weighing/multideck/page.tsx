@@ -41,6 +41,7 @@ import {
   useMyScaleTestStatus,
   useMyStation,
   useOriginsDestinations,
+  usePendingWeighings,
   useTransporters,
   useVehicleByRegNo,
 } from '@/hooks/queries';
@@ -49,11 +50,20 @@ import { useMiddleware } from '@/hooks/useMiddleware';
 import {
   ScaleTest,
   Station,
+  WeighingTransaction,
   downloadWeightTicketPdf,
   downloadAndSavePdf,
+  Driver,
+  Transporter,
+  CargoType,
+  OriginDestination,
 } from '@/lib/api/weighing';
+import { QUERY_KEYS } from '@/lib/query/config';
+import { useQueryClient } from '@tanstack/react-query';
 import { createYardEntry, createVehicleTag, fetchTagCategories } from '@/lib/api/yard';
-import { calculateOverallStatus } from '@/lib/weighing-utils';
+import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
+import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
+import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
 import {
   AxleGroupResult,
   ComplianceStatus,
@@ -80,6 +90,7 @@ import { toast } from 'sonner';
  */
 export default function MultideckWeighingPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Workflow state - 3 steps: capture → vehicle → decision
   const [currentStep, setCurrentStep] = useState<WeighingStep>('capture');
@@ -97,6 +108,10 @@ export default function MultideckWeighingPage() {
     isLoading: isLoadingAxleConfigs,
     error: axleConfigError,
   } = useAxleConfigurations();
+
+  // Fetch pending transactions for resume (only multideck type)
+  const { data: pendingWeighings } = usePendingWeighings(currentStation?.id, 'multideck');
+  const pendingTransactions = pendingWeighings?.items ?? [];
 
   // Fetch drivers, transporters, cargo types, and locations for VehicleDetailsCard
   const { data: drivers = [] } = useDrivers();
@@ -176,10 +191,14 @@ export default function MultideckWeighingPage() {
     initializeTransaction,
     captureAxleWeight,
     submitWeights,
+    confirmWeight,
+    initiateReweigh,
     updateVehicleDetails,
     resetSession,
     session: weighingSession,
     complianceResult,
+    reweighCycleNo,
+    isWeightConfirmed,
     isLoading: isWeighingLoading,
     error: weighingError,
   } = weighingHook;
@@ -444,6 +463,7 @@ export default function MultideckWeighingPage() {
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [isTransporterModalOpen, setIsTransporterModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [locationModalTarget, setLocationModalTarget] = useState<'origin' | 'destination'>('origin');
   const [isVehicleMakeModalOpen, setIsVehicleMakeModalOpen] = useState(false);
   const [isSavingEntity, setIsSavingEntity] = useState(false);
 
@@ -452,6 +472,7 @@ export default function MultideckWeighingPage() {
   const canPrint = useHasPermission('weighing.export');
   const canTag = useHasPermission('tag.create');
   const canSendToYard = useHasPermission('weighing.send_to_yard');
+  const canSpecialRelease = useHasPermission('case.special_release');
 
   const scaleStatus: ScaleStatus = 'connected';
 
@@ -657,8 +678,19 @@ export default function MultideckWeighingPage() {
       await captureAxleWeight(axle.axleNumber, axle.weight);
     }
 
+    // Notify middleware that vehicle weighing is complete (triggers autoweigh submission)
+    if (middleware.connected && weighingSession?.transactionId) {
+      middleware.completeVehicle({
+        transactionId: weighingSession.transactionId,
+        totalAxles: axleWeights.length,
+        axleWeights: axleWeights.map(a => a.weight),
+        gvw: axleWeights.reduce((sum, a) => sum + a.weight, 0),
+        axleConfigurationCode: selectedConfig,
+      });
+    }
+
     setIsCaptured(true);
-  }, [deckWeights, captureAxleWeight]);
+  }, [deckWeights, captureAxleWeight, middleware, weighingSession, selectedConfig]);
 
   const handleResetCapture = useCallback(() => {
     setIsCaptured(false);
@@ -761,7 +793,22 @@ export default function MultideckWeighingPage() {
     // via the useCreateScaleTest mutation's onSuccess callback
   }, []);
 
-  // Proceed to vehicle step - initialize transaction via hook
+  // Resume a pending transaction — reset capture state so user can weigh fresh
+  const handleResumeTransaction = useCallback((txn: WeighingTransaction) => {
+    // Reset weighing session so captured weights are cleared for fresh capture
+    resetSession();
+    setIsCaptured(false);
+
+    setVehiclePlate(txn.vehicleRegNumber || '');
+    setIsPlateDisabled(true);
+    if (txn.driverId) setSelectedDriverId(txn.driverId);
+    if (txn.transporterId) setSelectedTransporterId(txn.transporterId);
+    if (txn.originId) setSelectedOriginId(txn.originId);
+    if (txn.destinationId) setSelectedDestinationId(txn.destinationId);
+    setCurrentStep('vehicle');
+    toast.info(`Resuming weighing for ${txn.vehicleRegNumber}`);
+  }, [resetSession]);
+
   // Proceed to vehicle step - auto-create vehicle if needed and initialize transaction
   const handleProceedToVehicle = async () => {
     let vehicleId = selectedVehicleId;
@@ -782,10 +829,32 @@ export default function MultideckWeighingPage() {
       }
     }
 
+    // Sync plate to middleware
+    if (middleware.connected) {
+      middleware.sendPlate(vehiclePlate);
+    }
+
     // Initialize transaction via useWeighing hook
-    const transaction = await initializeTransaction(vehiclePlate, selectedConfig || '7A');
+    const configToUse = selectedConfig || '7A';
+    const transaction = await initializeTransaction(vehiclePlate, configToUse);
 
     if (transaction) {
+      // Sync transaction context to middleware for autoweigh tracking
+      if (middleware.connected && currentStation) {
+        const axleCountMap: Record<string, number> = {
+          '2A': 2, '3A': 3, '4A': 4, '5A': 5, '6C': 6, '7A': 7,
+        };
+        middleware.syncTransaction({
+          transactionId: transaction.id,
+          vehicleRegNumber: vehiclePlate,
+          axleConfigCode: configToUse,
+          totalAxles: axleCountMap[configToUse] || 7,
+          stationId: currentStation.id,
+          bound: currentBound,
+          weighingMode: 'multideck',
+        });
+      }
+
       // Use ticket number from transaction or generate one
       setTicketNumber(transaction.ticketNumber || generateTicketNumber());
       handleNextStep();
@@ -804,6 +873,11 @@ export default function MultideckWeighingPage() {
     if (confirm('Are you sure you want to cancel this weighing?')) {
       // Reset hook session (clears backend session and localStorage)
       resetSession();
+
+      // Reset middleware session
+      if (middleware.connected) {
+        middleware.resetSession();
+      }
 
       // Reset local UI state
       setIsCaptured(false);
@@ -837,7 +911,8 @@ export default function MultideckWeighingPage() {
     setIsSavingEntity(true);
     try {
       const newDriver = await createDriverMutation.mutateAsync({
-        fullName: `${data.fullNames} ${data.surname}`.trim(),
+        fullNames: data.fullNames,
+        surname: data.surname,
         idNumber: data.idNumber || '',
         drivingLicenseNo: data.drivingLicenseNo || '',
         phoneNumber: data.phoneNumber,
@@ -845,11 +920,14 @@ export default function MultideckWeighingPage() {
         transporterId: selectedTransporterId,
       });
 
+      // Optimistically add to cache so dropdown immediately shows the new entry
+      queryClient.setQueryData([...QUERY_KEYS.DRIVERS, ''], (old: Driver[] | undefined) =>
+        old ? [...old, newDriver] : [newDriver]
+      );
       // Auto-select the newly created driver
       setSelectedDriverId(newDriver.id);
       setIsDriverModalOpen(false);
       toast.success('Driver added successfully');
-      // Driver query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save driver:', error);
       toast.error('Failed to add driver');
@@ -857,7 +935,7 @@ export default function MultideckWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, [createDriverMutation, selectedTransporterId]);
+  }, [createDriverMutation, selectedTransporterId, queryClient]);
 
   const handleSaveTransporter = useCallback(async (data: CreateTransporterRequest) => {
     setIsSavingEntity(true);
@@ -870,11 +948,14 @@ export default function MultideckWeighingPage() {
         email: data.email,
       });
 
+      // Optimistically add to cache so dropdown immediately shows the new entry
+      queryClient.setQueryData([...QUERY_KEYS.TRANSPORTERS, ''], (old: Transporter[] | undefined) =>
+        old ? [...old, newTransporter] : [newTransporter]
+      );
       // Auto-select the newly created transporter
       setSelectedTransporterId(newTransporter.id);
       setIsTransporterModalOpen(false);
       toast.success('Transporter added successfully');
-      // Transporter query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save transporter:', error);
       toast.error('Failed to add transporter');
@@ -882,20 +963,30 @@ export default function MultideckWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, [createTransporterMutation]);
+  }, [createTransporterMutation, queryClient]);
 
   const handleSaveLocation = useCallback(async (data: CreateOriginDestinationRequest) => {
     setIsSavingEntity(true);
     try {
-      await createOriginDestinationMutation.mutateAsync({
+      const newLocation = await createOriginDestinationMutation.mutateAsync({
         name: data.name,
         code: data.code,
         locationType: data.locationType,
         country: data.country,
       });
+
+      // Optimistically add to cache so dropdown immediately shows the new entry
+      queryClient.setQueryData(QUERY_KEYS.ORIGINS_DESTINATIONS, (old: OriginDestination[] | undefined) =>
+        old ? [...old, newLocation] : [newLocation]
+      );
+      // Auto-select into the field that triggered the modal
+      if (locationModalTarget === 'origin') {
+        setSelectedOriginId(newLocation.id);
+      } else {
+        setSelectedDestinationId(newLocation.id);
+      }
       setIsLocationModalOpen(false);
       toast.success('Location added successfully');
-      // Location query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save location:', error);
       toast.error('Failed to add location');
@@ -903,7 +994,7 @@ export default function MultideckWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, [createOriginDestinationMutation]);
+  }, [createOriginDestinationMutation, queryClient, locationModalTarget]);
 
   const handleSaveVehicleMake = useCallback(async (data: CreateVehicleMakeRequest) => {
     setIsSavingEntity(true);
@@ -1044,6 +1135,60 @@ export default function MultideckWeighingPage() {
     router.push(`/weighing/special-release?transactionId=${weighingSession.transactionId}`);
   }, [weighingSession, router]);
 
+  // Finish weighing and reset for next vehicle
+  const handleFinishAndNew = useCallback(async () => {
+    await handlePrintTicket();
+    resetSession();
+
+    // Reset middleware session
+    if (middleware.connected) {
+      middleware.resetSession();
+    }
+
+    setIsCaptured(false);
+    setVehiclePlate('');
+    setIsPlateDisabled(false);
+    setTicketNumber('');
+    setFrontViewImage(undefined);
+    setOverviewImage(undefined);
+    setCompletedSteps([]);
+    setCurrentStep('capture');
+    setSelectedDriverId(undefined);
+    setSelectedTransporterId(undefined);
+    setSelectedCargoId(undefined);
+    setSelectedOriginId(undefined);
+    setSelectedDestinationId(undefined);
+    setSelectedVehicleId(undefined);
+    setPermitNo('');
+    setTrailerNo('');
+    setVehicleMake('');
+    setComment('');
+    setReliefVehicleReg('');
+    toast.success('Weighing completed. Ready for next vehicle.');
+  }, [handlePrintTicket, resetSession, middleware]);
+
+  // Initiate a reweigh
+  const handleReweigh = useCallback(async () => {
+    const newTransaction = await initiateReweigh();
+    if (newTransaction) {
+      setIsCaptured(false);
+      setCurrentStep('vehicle');
+      toast.success(`Re-weigh initiated (Cycle ${newTransaction.reweighCycleNo ?? reweighCycleNo + 1})`);
+    } else {
+      toast.error('Failed to initiate re-weigh.');
+    }
+  }, [initiateReweigh, reweighCycleNo]);
+
+  // Required field validation for decision actions
+  const validationResult = useMemo(() => validateRequiredFields({
+    driverId: selectedDriverId,
+    transporterId: selectedTransporterId,
+    originId: selectedOriginId,
+    destinationId: selectedDestinationId,
+  }), [selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId]);
+
+  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+
   // Validation
   const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted;
   const canProceedFromVehicle = selectedConfig !== '' && isCaptured;
@@ -1106,6 +1251,12 @@ export default function MultideckWeighingPage() {
             {/* Step 1: Capture (Scale test, images, plate, deck weights) */}
             {currentStep === 'capture' && (
               <div className="space-y-4">
+                {/* Pending transactions - resume interrupted weighings */}
+                <PendingTransactionCard
+                  transactions={pendingTransactions}
+                  onResume={handleResumeTransaction}
+                />
+
                 {/* Deck Weights Display - Always visible on capture screen */}
                 <MultideckWeightsCard
                   platformName={stationCode || 'ROMIA'}
@@ -1329,8 +1480,14 @@ export default function MultideckWeighingPage() {
                       // Modal handlers
                       onAddDriver={() => setIsDriverModalOpen(true)}
                       onAddTransporter={() => setIsTransporterModalOpen(true)}
-                      onAddLocation={() => setIsLocationModalOpen(true)}
+                      onAddOriginLocation={() => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); }}
+                      onAddDestinationLocation={() => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); }}
                       onAddVehicleMake={() => setIsVehicleMakeModalOpen(true)}
+                      // Refresh handlers for manual refetch
+                      onRefreshDrivers={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS })}
+                      onRefreshTransporters={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TRANSPORTERS })}
+                      onRefreshCargoTypes={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CARGO_TYPES })}
+                      onRefreshLocations={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS })}
                       isReadOnly={false}
                     />
 
@@ -1339,7 +1496,7 @@ export default function MultideckWeighingPage() {
                       status={isCaptured ? overallStatus : 'PENDING'}
                       gvwMeasured={gvwMeasured}
                       gvwOverload={gvwOverload}
-                      reweighCount={1}
+                      reweighCount={reweighCycleNo}
                     />
 
                     {/* Cancel Button */}
@@ -1439,19 +1596,30 @@ export default function MultideckWeighingPage() {
                   </CardContent>
                 </Card>
 
-                {/* Decision Panel */}
+                {/* Decision Panel - 3 clear options */}
                 <DecisionPanel
                   overallStatus={overallStatus}
-                  totalFeeUsd={complianceResult?.totalFeeUsd || (overallStatus === 'OVERLOAD' ? 1250 : 0)}
-                  demeritPoints={complianceResult?.reweighCycleNo || (overallStatus === 'OVERLOAD' ? 3 : 0)}
-                  canPrint={canPrint}
-                  canTag={canTag}
-                  canSendToYard={canSendToYard}
-                  canSpecialRelease={overallStatus === 'WARNING'}
-                  onPrintTicket={handlePrintTicket}
-                  onTagVehicle={handleTagVehicle}
+                  totalFeeUsd={complianceResult?.totalFeeUsd ?? 0}
+                  demeritPoints={0}
+                  reweighCycleNo={reweighCycleNo}
+                  requiredFieldsValid={validationResult.isValid}
+                  missingFields={validationResult.missingFields}
+                  onFinishExit={handleFinishAndNew}
                   onSendToYard={handleSendToYard}
                   onSpecialRelease={handleSpecialRelease}
+                  onReweigh={handleReweigh}
+                  onPrintTicket={handlePrintTicket}
+                  canPrint={canPrint}
+                  canSendToYard={canSendToYard}
+                  canSpecialRelease={canSpecialRelease}
+                  canReweigh={reweighCycleNo < 8}
+                />
+
+                {/* Missing Fields Warning Modal */}
+                <MissingFieldsWarningModal
+                  isOpen={isMissingFieldsModalOpen}
+                  onClose={() => setIsMissingFieldsModalOpen(false)}
+                  missingFields={validationResult.missingFields}
                 />
 
                 {/* Navigation */}
@@ -1459,50 +1627,6 @@ export default function MultideckWeighingPage() {
                   <Button variant="outline" onClick={handlePrevStep}>
                     <ChevronLeft className="mr-2 h-4 w-4" />
                     Back to Vehicle
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      // Submit weights to backend if not already submitted
-                      if (isCaptured && !complianceResult) {
-                        const result = await submitWeights();
-                        if (result) {
-                          toast.success('Weights submitted to backend successfully.');
-                        }
-                      }
-
-                      // Reset hook session (clears backend session and localStorage)
-                      resetSession();
-
-                      // Reset local UI state
-                      setIsCaptured(false);
-                      setVehiclePlate('');
-                      setIsPlateDisabled(false);
-                      setTicketNumber('');
-                      setFrontViewImage(undefined);
-                      setOverviewImage(undefined);
-                      setCompletedSteps([]);
-                      setCurrentStep('capture');
-
-                      // Reset linked entity IDs
-                      setSelectedDriverId(undefined);
-                      setSelectedTransporterId(undefined);
-                      setSelectedCargoId(undefined);
-                      setSelectedOriginId(undefined);
-                      setSelectedDestinationId(undefined);
-                      setSelectedVehicleId(undefined);
-
-                      // Reset additional fields
-                      setPermitNo('');
-                      setTrailerNo('');
-                      setVehicleMake('');
-                      setComment('');
-                      setReliefVehicleReg('');
-
-                      toast.success('Weighing completed. Ready for next vehicle.');
-                    }}
-                  >
-                    Finish & New
                   </Button>
                 </div>
               </div>

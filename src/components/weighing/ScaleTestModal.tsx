@@ -479,7 +479,7 @@ export function ScaleTestModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Scale className="h-5 w-5 text-blue-600" />
             {weighingMode === 'multideck' ? 'Multideck Scale Test' : 'Mobile Scale Test'}
@@ -493,7 +493,8 @@ export function ScaleTestModal({
 
         {/* Setup Step */}
         {step === 'setup' && (
-          <div className="space-y-4">
+          <>
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
             {/* Test Type Selection */}
             <Tabs value={testType} onValueChange={(v) => setTestType(v as TestType)}>
               <TabsList className="grid w-full grid-cols-2">
@@ -633,7 +634,8 @@ export function ScaleTestModal({
               </CardContent>
             </Card>
 
-            <DialogFooter>
+          </div>
+            <DialogFooter className="flex-shrink-0">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
@@ -641,12 +643,12 @@ export function ScaleTestModal({
                 Start Test
               </Button>
             </DialogFooter>
-          </div>
+          </>
         )}
 
         {/* Testing Step */}
         {step === 'testing' && (
-          <div className="space-y-4 py-4">
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
             {/* Test Type Badge */}
             <div className="flex items-center justify-center gap-2 mb-2">
               {testType === 'vehicle' ? (
@@ -766,7 +768,8 @@ export function ScaleTestModal({
 
         {/* Result Step */}
         {step === 'result' && (
-          <div className="space-y-4">
+          <>
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
             {/* Test Type Badge */}
             <div className="flex items-center justify-center">
               {testType === 'vehicle' ? (
@@ -918,7 +921,8 @@ export function ScaleTestModal({
               />
             </div>
 
-            <DialogFooter className="flex-col sm:flex-row gap-2">
+          </div>
+            <DialogFooter className="flex-shrink-0 flex-col sm:flex-row gap-2">
               <Button variant="outline" onClick={handleRetry}>
                 Retry Test
               </Button>
@@ -931,7 +935,7 @@ export function ScaleTestModal({
                 {result === 'pass' ? 'Confirm & Enable Weighing' : 'Record Failed Test'}
               </Button>
             </DialogFooter>
-          </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

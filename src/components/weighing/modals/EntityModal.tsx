@@ -80,7 +80,7 @@ export function EntityModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={maxWidthClass}>
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {getModeIcon()}
             {getModeLabel()} {title}
@@ -90,9 +90,9 @@ export function EntityModal({
           )}
         </DialogHeader>
 
-        <div className="py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto min-h-0 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">{children}</div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0">
           <Button
             type="button"
             variant="ghost"

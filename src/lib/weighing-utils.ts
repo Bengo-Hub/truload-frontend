@@ -214,3 +214,30 @@ export function isStepComplete(stepId: string, currentStepId: string): boolean {
   const currentIndex = getStepIndex(currentStepId);
   return stepIndex < currentIndex;
 }
+
+// ============================================================================
+// Required Fields Validation
+// ============================================================================
+
+export interface WeighingValidationResult {
+  isValid: boolean;
+  missingFields: string[];
+}
+
+/**
+ * Validate required fields before taking a decision action.
+ * Returns which fields are missing so the UI can highlight them.
+ */
+export function validateRequiredFields(params: {
+  driverId?: string;
+  transporterId?: string;
+  originId?: string;
+  destinationId?: string;
+}): WeighingValidationResult {
+  const missingFields: string[] = [];
+  if (!params.driverId) missingFields.push('Driver');
+  if (!params.transporterId) missingFields.push('Transporter');
+  if (!params.originId) missingFields.push('Origin');
+  if (!params.destinationId) missingFields.push('Destination');
+  return { isValid: missingFields.length === 0, missingFields };
+}

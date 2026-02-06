@@ -36,7 +36,7 @@ export function ComplianceBanner({
   gvwExcess = 0,
   diffExcess = 0,
   timeTaken,
-  reweighCount = 1,
+  reweighCount = 0,
   className,
 }: ComplianceBannerProps) {
   const isPending = status === 'PENDING';
@@ -45,10 +45,12 @@ export function ComplianceBanner({
     <div className={cn('space-y-2', className)}>
       {/* Info Badges Row */}
       <div className="flex flex-wrap gap-2">
-        {/* Re-weigh Badge */}
-        <span className="bg-gray-800 text-white px-3 py-1 rounded text-sm font-medium">
-          RE-WEIGH: {reweighCount}
-        </span>
+        {/* Re-weigh Badge - only shown for actual reweighs (cycle >= 1) */}
+        {reweighCount > 0 && (
+          <span className="bg-gray-800 text-white px-3 py-1 rounded text-sm font-medium">
+            RE-WEIGH: {reweighCount}
+          </span>
+        )}
 
         {/* GVW Badge */}
         <span className="bg-gray-800 text-white px-3 py-1 rounded text-sm font-medium">
