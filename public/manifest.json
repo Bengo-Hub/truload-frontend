@@ -31,15 +31,15 @@
       "purpose": "maskable"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/icon-maskable.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-maskable.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ],
@@ -51,9 +51,9 @@
       "url": "/dashboard",
       "icons": [
         {
-          "src": "/icon-96.png",
+          "src": "/icon-maskable.svg",
           "sizes": "96x96",
-          "type": "image/png"
+          "type": "image/svg+xml"
         }
       ]
     }

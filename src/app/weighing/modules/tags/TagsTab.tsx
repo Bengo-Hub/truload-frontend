@@ -58,7 +58,7 @@ export default function TagsTab() {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<VehicleTagDto | null>(null);
 
-  const { page, pageSize, skip, setPage, setPageSize, reset: resetPagination } = usePagination(25);
+  const { page, pageNumber, pageSize, setPage, setPageSize, reset: resetPagination } = usePagination();
   const queryClient = useQueryClient();
 
   // Permissions matching backend
@@ -90,8 +90,8 @@ export default function TagsTab() {
     status: statusFilter !== 'all' ? statusFilter : undefined,
     tagType: tagTypeFilter !== 'all' ? tagTypeFilter : undefined,
     tagCategoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
-    skip,
-    take: pageSize,
+    pageNumber,
+    pageSize,
     sortBy: 'OpenedAt',
     sortOrder: 'desc',
   });

@@ -7,13 +7,14 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import {
-  DashboardFilters,
-  RevenueChart,
-  StatCard,
-  VehicleTypesChart,
-  WeeklyActivityChart,
+    DashboardFilters,
+    RevenueChart,
+    StatCard,
+    VehicleTypesChart,
+    WeeklyActivityChart,
 } from '@/components/charts';
 import { AppShell } from '@/components/layout/AppShell';
+import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { AlertTriangle, CheckCircle, FileText, Scale, TrendingUp, Users } from 'lucide-react';
 
 const stats = [
@@ -29,6 +30,7 @@ export default function HomePage() {
   return (
     <ProtectedRoute>
       <AppShell title="Dashboard" subtitle="KURAWeigh - Vehicle Weighing & Management System">
+        <DashboardFilterProvider>
         <div className="space-y-8">
           {/* Filters Section */}
           <DashboardFilters />
@@ -57,6 +59,7 @@ export default function HomePage() {
             <RevenueChart />
           </div>
         </div>
+        </DashboardFilterProvider>
       </AppShell>
     </ProtectedRoute>
   );

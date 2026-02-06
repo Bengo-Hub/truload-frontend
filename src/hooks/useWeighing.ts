@@ -1,24 +1,23 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import {
-  useCreateWeighingTransaction,
-  useUpdateWeighingTransaction,
-  useMyStation,
-  useAxleConfigurations,
-} from './queries';
-import {
-  captureWeights,
-  CreateWeighingRequest,
-  UpdateWeighingRequest,
-  WeighingTransaction,
-  WeighingResult,
-  AxleConfiguration,
+    AxleConfiguration,
+    captureWeights,
+    CreateWeighingRequest,
+    UpdateWeighingRequest,
+    WeighingResult,
+    WeighingTransaction,
 } from '@/lib/api/weighing';
-import { calculateOverallStatus } from '@/lib/weighing-utils';
-import { AxleGroupResult, ComplianceStatus } from '@/types/weighing';
 import { QUERY_KEYS } from '@/lib/query/config';
+import { ComplianceStatus } from '@/types/weighing';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    useAxleConfigurations,
+    useCreateWeighingTransaction,
+    useMyStation,
+    useUpdateWeighingTransaction,
+} from './queries';
 
 // Storage key for persisting weighing session
 const WEIGHING_SESSION_KEY = 'truload_weighing_session';
@@ -219,6 +218,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
   }, [weighingMode]);
 
   // Initialize a new weighing transaction
+  // Sends a single POST request with vehicleRegNo - backend handles vehicle lookup/creation
   const initializeTransaction = useCallback(async (
     vehiclePlate: string,
     axleConfigCode: string = '6C'
@@ -231,12 +231,14 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     try {
       setError(null);
 
+      const normalizedPlate = vehiclePlate.toUpperCase().trim();
       const ticketNumber = generateTicketNumber();
 
+      // Single request - backend handles vehicle lookup/creation
       const request: CreateWeighingRequest = {
         ticketNumber,
         stationId: station.id,
-        vehicleRegNumber: vehiclePlate,
+        vehicleRegNo: normalizedPlate,
         weighingType: weighingMode,
         bound: bound,
       };
@@ -246,7 +248,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
       const newSession: WeighingSessionState = {
         transactionId: newTransaction.id,
         ticketNumber: newTransaction.ticketNumber || ticketNumber,
-        vehiclePlate,
+        vehiclePlate: normalizedPlate,
         vehicleId: newTransaction.vehicleId || null,
         driverId: null,
         transporterId: null,

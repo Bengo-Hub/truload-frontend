@@ -29,8 +29,14 @@ import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
 import { useHasPermission } from '@/hooks/useAuth';
 import {
   useAxleConfigurations,
+  useAxleWeightReferences,
   useCargoTypes,
+  useCreateCargoType,
+  useCreateDriver,
+  useCreateOriginDestination,
+  useCreateTransporter,
   useCreateVehicle,
+  useCreateVehicleMake,
   useDrivers,
   useMyScaleTestStatus,
   useMyStation,
@@ -43,7 +49,10 @@ import { useMiddleware } from '@/hooks/useMiddleware';
 import {
   ScaleTest,
   Station,
+  downloadWeightTicketPdf,
+  downloadAndSavePdf,
 } from '@/lib/api/weighing';
+import { createYardEntry, createVehicleTag, fetchTagCategories } from '@/lib/api/yard';
 import { calculateOverallStatus } from '@/lib/weighing-utils';
 import {
   AxleGroupResult,
@@ -58,7 +67,7 @@ import {
 } from '@/types/weighing';
 import { ChevronLeft, ChevronRight, Edit3, Loader2, RefreshCcw, Scale, ScanLine, Truck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 /**
@@ -97,6 +106,13 @@ export default function MultideckWeighingPage() {
 
   // Vehicle lookup mutation for auto-creating vehicles
   const createVehicleMutation = useCreateVehicle();
+
+  // Entity creation mutations
+  const createDriverMutation = useCreateDriver();
+  const createTransporterMutation = useCreateTransporter();
+  const createCargoTypeMutation = useCreateCargoType();
+  const createOriginDestinationMutation = useCreateOriginDestination();
+  const createVehicleMakeMutation = useCreateVehicleMake();
 
   // Bound state for bidirectional stations
   const [currentBoundState, setCurrentBoundState] = useState<string | undefined>();
@@ -160,6 +176,7 @@ export default function MultideckWeighingPage() {
     initializeTransaction,
     captureAxleWeight,
     submitWeights,
+    updateVehicleDetails,
     resetSession,
     session: weighingSession,
     complianceResult,
@@ -260,6 +277,16 @@ export default function MultideckWeighingPage() {
     }
   }, [axleConfigurations, selectedConfig]);
 
+  // Derive selected configuration ID for weight references lookup
+  const selectedConfigId = useMemo(() => {
+    if (!selectedConfig || axleConfigurations.length === 0) return undefined;
+    const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+    return config?.id;
+  }, [selectedConfig, axleConfigurations]);
+
+  // Fetch weight references for the selected configuration
+  const { data: weightReferences = [] } = useAxleWeightReferences(selectedConfigId);
+
   // Show warning if no station assigned
   useEffect(() => {
     if (!isLoadingStation && !currentStation) {
@@ -306,6 +333,40 @@ export default function MultideckWeighingPage() {
       setSelectedVehicleId(undefined);
     }
   }, [existingVehicle, axleConfigurations]);
+
+  // Sync driver/transporter/cargo/origin/destination selections to backend transaction
+  useEffect(() => {
+    // Only sync if we have an active transaction
+    if (!weighingSession?.transactionId) return;
+
+    // Debounce updates to avoid excessive API calls
+    const timeoutId = setTimeout(() => {
+      const updates: Record<string, string | undefined> = {};
+
+      if (selectedDriverId) updates.driverId = selectedDriverId;
+      if (selectedTransporterId) updates.transporterId = selectedTransporterId;
+      if (selectedOriginId) updates.originId = selectedOriginId;
+      if (selectedDestinationId) updates.destinationId = selectedDestinationId;
+      if (selectedCargoId) updates.cargoId = selectedCargoId;
+
+      // Only update if there's something to update
+      if (Object.keys(updates).length > 0) {
+        updateVehicleDetails(updates).catch((err) => {
+          console.warn('Failed to sync vehicle details to backend:', err);
+        });
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    weighingSession?.transactionId,
+    selectedDriverId,
+    selectedTransporterId,
+    selectedOriginId,
+    selectedDestinationId,
+    selectedCargoId,
+    updateVehicleDetails,
+  ]);
 
   // Image state
   const [frontViewImage, setFrontViewImage] = useState<string | undefined>();
@@ -398,77 +459,142 @@ export default function MultideckWeighingPage() {
   const deckWeights: DeckWeight[] = liveDeckWeights;
   const totalGVW = middleware.weights?.gvw || deckWeights.reduce((sum, d) => sum + d.weight, 0);
 
-  // Mock compliance data
-  const mockGroupResults: AxleGroupResult[] = [
-    {
-      groupLabel: 'A',
-      axleType: 'Steering',
-      axleCount: 1,
-      permissibleKg: 8000,
-      toleranceKg: 400,
-      effectiveLimitKg: 8400,
-      measuredKg: isCaptured ? 8200 : 0,
-      overloadKg: 0,
-      pavementDamageFactor: 1.08,
-      status: 'LEGAL',
-      axles: [{ axleNumber: 1, measuredKg: isCaptured ? 8200 : 0, permissibleKg: 8000 }],
-    },
-    {
-      groupLabel: 'B',
-      axleType: 'Tandem',
-      axleCount: 2,
-      permissibleKg: 17000,
-      toleranceKg: 0,
-      effectiveLimitKg: 17000,
-      measuredKg: isCaptured ? 10040 : 0,
-      overloadKg: 0,
-      pavementDamageFactor: 0.12,
-      status: 'LEGAL',
-      axles: [
-        { axleNumber: 2, measuredKg: isCaptured ? 5020 : 0, permissibleKg: 8500 },
-        { axleNumber: 3, measuredKg: isCaptured ? 5020 : 0, permissibleKg: 8500 },
-      ],
-    },
-    {
-      groupLabel: 'C',
-      axleType: 'Tandem',
-      axleCount: 2,
-      permissibleKg: 16000,
-      toleranceKg: 0,
-      effectiveLimitKg: 16000,
-      measuredKg: isCaptured ? 8060 : 0,
-      overloadKg: 0,
-      pavementDamageFactor: 0.06,
-      status: 'LEGAL',
-      axles: [
-        { axleNumber: 4, measuredKg: isCaptured ? 4030 : 0, permissibleKg: 8000 },
-        { axleNumber: 5, measuredKg: isCaptured ? 4030 : 0, permissibleKg: 8000 },
-      ],
-    },
-    {
-      groupLabel: 'D',
-      axleType: 'Tandem',
-      axleCount: 2,
-      permissibleKg: 16000,
-      toleranceKg: 0,
-      effectiveLimitKg: 16000,
-      measuredKg: isCaptured ? 9000 : 0,
-      overloadKg: 0,
-      pavementDamageFactor: 0.10,
-      status: 'LEGAL',
-      axles: [
-        { axleNumber: 6, measuredKg: isCaptured ? 4500 : 0, permissibleKg: 8000 },
-        { axleNumber: 7, measuredKg: isCaptured ? 4500 : 0, permissibleKg: 8000 },
-      ],
-    },
-  ];
+  // Build compliance group results from weight references and deck weights
+  // In multideck mode: Deck 1→Group A, Deck 2→Group B, Deck 3→Group C, Deck 4→Group D
+  const groupResults: AxleGroupResult[] = useMemo(() => {
+    // Map deck weights by group label (deck 1=A, deck 2=B, etc.)
+    const deckToGroup: Record<number, string> = { 1: 'A', 2: 'B', 3: 'C', 4: 'D' };
+    const deckWeightMap = new Map<string, number>();
+    deckWeights.forEach(dw => {
+      const group = deckToGroup[dw.deck];
+      if (group) {
+        deckWeightMap.set(group, dw.weight);
+      }
+    });
 
-  // Use compliance data from hook if available, otherwise calculate from mock
-  const gvwPermissible = complianceResult?.gvwPermissibleKg || 56000;
+    // If no weight references, return a basic fallback
+    if (weightReferences.length === 0) {
+      // Fallback groups based on deck weights
+      const groups = ['A', 'B', 'C', 'D'];
+      return groups.map((groupLabel, index) => {
+        const deckNum = index + 1;
+        const measuredKg = isCaptured ? (deckWeightMap.get(groupLabel) || 0) : 0;
+        const permissibleKg = groupLabel === 'A' ? 8000 : 16000;
+        const toleranceKg = groupLabel === 'A' ? Math.round(permissibleKg * 0.05) : 0;
+        const effectiveLimitKg = permissibleKg + toleranceKg;
+        const overloadKg = Math.max(0, measuredKg - effectiveLimitKg);
+        let status: ComplianceStatus = 'LEGAL';
+        if (measuredKg > effectiveLimitKg) status = 'OVERLOAD';
+        else if (measuredKg > permissibleKg) status = 'WARNING';
+
+        return {
+          groupLabel,
+          axleType: groupLabel === 'A' ? 'Steering' : 'Tandem',
+          axleCount: groupLabel === 'A' ? 1 : 2,
+          permissibleKg,
+          toleranceKg,
+          effectiveLimitKg,
+          measuredKg,
+          overloadKg,
+          pavementDamageFactor: permissibleKg > 0 ? Math.round(Math.pow(measuredKg / permissibleKg, 4) * 100) / 100 : 0,
+          status,
+          axles: [{ axleNumber: deckNum, measuredKg, permissibleKg }],
+        };
+      });
+    }
+
+    // Group weight references by axleGrouping (A, B, C, D)
+    const groupMap = new Map<string, typeof weightReferences>();
+    weightReferences.forEach(ref => {
+      const group = ref.axleGrouping || 'A';
+      if (!groupMap.has(group)) {
+        groupMap.set(group, []);
+      }
+      groupMap.get(group)!.push(ref);
+    });
+
+    // Determine axle type based on axle count
+    const getAxleType = (count: number, groupLabel: string): string => {
+      if (groupLabel === 'A' && count === 1) return 'Steering';
+      if (count === 1) return 'Single';
+      if (count === 2) return 'Tandem';
+      if (count === 3) return 'Tridem';
+      if (count === 4) return 'Quad';
+      return 'Group';
+    };
+
+    // Build group results
+    const results: AxleGroupResult[] = [];
+    const sortedGroups = Array.from(groupMap.keys()).sort();
+
+    for (const groupLabel of sortedGroups) {
+      const refs = groupMap.get(groupLabel)!;
+      const sortedRefs = refs.sort((a, b) => a.axlePosition - b.axlePosition);
+
+      // Calculate permissible weight for the group (sum of individual axle limits)
+      const permissibleKg = sortedRefs.reduce((sum, r) => sum + r.axleLegalWeightKg, 0);
+
+      // Apply tolerance: 5% for steering axle (group A with 1 axle), 0% for others
+      const isSteering = groupLabel === 'A' && sortedRefs.length === 1;
+      const tolerancePercent = isSteering ? 5 : 0;
+      const toleranceKg = Math.round(permissibleKg * tolerancePercent / 100);
+      const effectiveLimitKg = permissibleKg + toleranceKg;
+
+      // Get measured weight from deck (group A=deck 1, B=deck 2, etc.)
+      const measuredKg = isCaptured ? (deckWeightMap.get(groupLabel) || 0) : 0;
+      const overloadKg = Math.max(0, measuredKg - effectiveLimitKg);
+
+      // Build axle details - distribute deck weight proportionally across axles
+      const axles = sortedRefs.map(ref => {
+        const axlePermissible = ref.axleLegalWeightKg;
+        // Distribute measured weight proportionally based on permissible weight
+        const axleMeasured = permissibleKg > 0
+          ? Math.round(measuredKg * (axlePermissible / permissibleKg))
+          : 0;
+        return {
+          axleNumber: ref.axlePosition,
+          measuredKg: axleMeasured,
+          permissibleKg: axlePermissible,
+        };
+      });
+
+      // Determine status
+      let status: ComplianceStatus = 'LEGAL';
+      if (measuredKg > effectiveLimitKg) {
+        status = 'OVERLOAD';
+      } else if (measuredKg > permissibleKg && measuredKg <= effectiveLimitKg) {
+        status = 'WARNING';
+      }
+
+      // Calculate pavement damage factor (Fourth Power Law)
+      const pavementDamageFactor = permissibleKg > 0
+        ? Math.round(Math.pow(measuredKg / permissibleKg, 4) * 100) / 100
+        : 0;
+
+      results.push({
+        groupLabel,
+        axleType: getAxleType(sortedRefs.length, groupLabel),
+        axleCount: sortedRefs.length,
+        permissibleKg,
+        toleranceKg,
+        effectiveLimitKg,
+        measuredKg,
+        overloadKg,
+        pavementDamageFactor,
+        status,
+        axles,
+      });
+    }
+
+    return results;
+  }, [weightReferences, deckWeights, isCaptured]);
+
+  // Use compliance data from hook if available, otherwise calculate from deck weights
+  const gvwPermissible = complianceResult?.gvwPermissibleKg || groupResults.reduce((sum, g) => sum + g.permissibleKg, 0) || 56000;
   const gvwMeasured = complianceResult?.gvwMeasuredKg || (isCaptured ? totalGVW : 0);
   const gvwOverload = complianceResult?.gvwOverloadKg || Math.max(0, gvwMeasured - gvwPermissible);
   const overallStatus: ComplianceStatus = complianceResult?.overallStatus as ComplianceStatus || (isCaptured
-    ? calculateOverallStatus(mockGroupResults, gvwOverload)
+    ? calculateOverallStatus(groupResults, gvwOverload)
     : 'LEGAL');
 
   // Submit weights and proceed to decision step
@@ -706,15 +832,24 @@ export default function MultideckWeighingPage() {
     }
   };
 
-  // Entity modal handlers
+  // Entity modal handlers - wired to backend mutations
   const handleSaveDriver = useCallback(async (data: CreateDriverRequest) => {
     setIsSavingEntity(true);
     try {
-      // In production, this would call the create driver API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const newDriver = await createDriverMutation.mutateAsync({
+        fullName: `${data.fullNames} ${data.surname}`.trim(),
+        idNumber: data.idNumber || '',
+        drivingLicenseNo: data.drivingLicenseNo || '',
+        phoneNumber: data.phoneNumber,
+        email: data.email,
+        transporterId: selectedTransporterId,
+      });
+
+      // Auto-select the newly created driver
+      setSelectedDriverId(newDriver.id);
       setIsDriverModalOpen(false);
       toast.success('Driver added successfully');
-      // Driver query will auto-refresh via TanStack Query
+      // Driver query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save driver:', error);
       toast.error('Failed to add driver');
@@ -722,14 +857,24 @@ export default function MultideckWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createDriverMutation, selectedTransporterId]);
 
   const handleSaveTransporter = useCallback(async (data: CreateTransporterRequest) => {
     setIsSavingEntity(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const newTransporter = await createTransporterMutation.mutateAsync({
+        name: data.name,
+        code: data.code,
+        address: data.address,
+        phoneNumber: data.phone,
+        email: data.email,
+      });
+
+      // Auto-select the newly created transporter
+      setSelectedTransporterId(newTransporter.id);
       setIsTransporterModalOpen(false);
       toast.success('Transporter added successfully');
+      // Transporter query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save transporter:', error);
       toast.error('Failed to add transporter');
@@ -737,14 +882,20 @@ export default function MultideckWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createTransporterMutation]);
 
   const handleSaveLocation = useCallback(async (data: CreateOriginDestinationRequest) => {
     setIsSavingEntity(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await createOriginDestinationMutation.mutateAsync({
+        name: data.name,
+        code: data.code,
+        locationType: data.locationType,
+        country: data.country,
+      });
       setIsLocationModalOpen(false);
       toast.success('Location added successfully');
+      // Location query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save location:', error);
       toast.error('Failed to add location');
@@ -752,15 +903,18 @@ export default function MultideckWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createOriginDestinationMutation]);
 
   const handleSaveVehicleMake = useCallback(async (data: CreateVehicleMakeRequest) => {
     setIsSavingEntity(true);
     try {
-      // In production, this would call the create vehicle make API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // Optionally set the newly created make as selected
-      setVehicleMake(data.name);
+      const created = await createVehicleMakeMutation.mutateAsync({
+        code: data.code || data.name.toUpperCase().slice(0, 10).replace(/\s+/g, '_'),
+        name: data.name,
+        country: data.country,
+        description: data.description,
+      });
+      setVehicleMake(created.name);
       setIsVehicleMakeModalOpen(false);
       toast.success('Vehicle make added successfully');
     } catch (error) {
@@ -770,7 +924,125 @@ export default function MultideckWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createVehicleMakeMutation]);
+
+  // Decision Panel Action Handlers
+
+  // Print weight ticket - calls backend PDF endpoint
+  const handlePrintTicket = useCallback(async () => {
+    if (!weighingSession?.transactionId) {
+      toast.error('No active transaction to print');
+      return;
+    }
+
+    try {
+      toast.info('Generating weight ticket PDF...', {
+        description: `Ticket: ${ticketNumber || weighingSession.ticketNumber}`,
+      });
+
+      // Download PDF from backend and open in new window for printing
+      const pdfBlob = await downloadWeightTicketPdf(weighingSession.transactionId);
+      const pdfUrl = window.URL.createObjectURL(pdfBlob);
+
+      // Open PDF in new window for printing/preview
+      const printWindow = window.open(pdfUrl, '_blank');
+      if (printWindow) {
+        printWindow.focus();
+        toast.success('Weight ticket generated successfully', {
+          description: 'PDF opened in new window',
+        });
+      } else {
+        // Fallback: trigger download if popup blocked
+        await downloadAndSavePdf(
+          () => Promise.resolve(pdfBlob),
+          `WeightTicket_${ticketNumber || weighingSession.ticketNumber}.pdf`
+        );
+        toast.success('Weight ticket downloaded', {
+          description: 'Check your downloads folder',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to print ticket:', error);
+      toast.error('Failed to generate weight ticket', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    }
+  }, [weighingSession, ticketNumber]);
+
+  // Tag vehicle - creates a tag in the backend
+  const handleTagVehicle = useCallback(async () => {
+    if (!vehiclePlate || !currentStation?.code) {
+      toast.error('Missing vehicle plate or station');
+      return;
+    }
+
+    try {
+      // Fetch tag categories first
+      const categories = await fetchTagCategories();
+      const defaultCategory = categories.find(c => c.code === 'OVERLOAD') || categories[0];
+
+      if (!defaultCategory) {
+        toast.error('No tag categories available');
+        return;
+      }
+
+      const tag = await createVehicleTag({
+        regNo: vehiclePlate,
+        tagType: 'WEIGHING',
+        tagCategoryId: defaultCategory.id,
+        reason: overallStatus === 'OVERLOAD'
+          ? `Overloaded by ${gvwOverload.toLocaleString()} kg`
+          : `Weighing compliance check - ${overallStatus}`,
+        stationCode: currentStation.code,
+        effectiveDays: 30,
+      });
+
+      toast.success('Vehicle tagged successfully', {
+        description: `Tag ID: ${tag.id.slice(0, 8)}...`,
+      });
+    } catch (error) {
+      console.error('Failed to tag vehicle:', error);
+      toast.error('Failed to create vehicle tag');
+    }
+  }, [vehiclePlate, currentStation, overallStatus, gvwOverload]);
+
+  // Send to yard - creates a yard entry for non-compliant vehicles
+  const handleSendToYard = useCallback(async () => {
+    if (!weighingSession?.transactionId || !currentStation?.id) {
+      toast.error('No active transaction or station');
+      return;
+    }
+
+    try {
+      const reason = overallStatus === 'OVERLOAD'
+        ? `GVW overload of ${gvwOverload.toLocaleString()} kg`
+        : 'Compliance verification required';
+
+      const yardEntry = await createYardEntry({
+        weighingId: weighingSession.transactionId,
+        stationId: currentStation.id,
+        reason,
+      });
+
+      toast.success('Vehicle sent to yard', {
+        description: `Entry ID: ${yardEntry.id.slice(0, 8)}... - Reason: ${reason}`,
+      });
+    } catch (error) {
+      console.error('Failed to send to yard:', error);
+      toast.error('Failed to create yard entry');
+    }
+  }, [weighingSession, currentStation, overallStatus, gvwOverload]);
+
+  // Special release - navigates to special release workflow
+  const handleSpecialRelease = useCallback(() => {
+    if (!weighingSession?.transactionId) {
+      toast.error('No active transaction');
+      return;
+    }
+
+    // Navigate to special release page with transaction context
+    router.push(`/weighing/special-release?transactionId=${weighingSession.transactionId}`);
+  }, [weighingSession, router]);
 
   // Validation
   const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted;
@@ -1001,7 +1273,7 @@ export default function MultideckWeighingPage() {
 
                     {/* Compliance Table */}
                     <ComplianceTable
-                      groupResults={mockGroupResults}
+                      groupResults={groupResults}
                       gvwPermissible={gvwPermissible}
                       gvwMeasured={gvwMeasured}
                       gvwOverload={gvwOverload}
@@ -1170,16 +1442,16 @@ export default function MultideckWeighingPage() {
                 {/* Decision Panel */}
                 <DecisionPanel
                   overallStatus={overallStatus}
-                  totalFeeUsd={overallStatus === 'OVERLOAD' ? 1250 : 0}
-                  demeritPoints={overallStatus === 'OVERLOAD' ? 3 : 0}
+                  totalFeeUsd={complianceResult?.totalFeeUsd || (overallStatus === 'OVERLOAD' ? 1250 : 0)}
+                  demeritPoints={complianceResult?.reweighCycleNo || (overallStatus === 'OVERLOAD' ? 3 : 0)}
                   canPrint={canPrint}
                   canTag={canTag}
                   canSendToYard={canSendToYard}
                   canSpecialRelease={overallStatus === 'WARNING'}
-                  onPrintTicket={() => alert('Print ticket - coming soon')}
-                  onTagVehicle={() => alert('Tag vehicle - coming soon')}
-                  onSendToYard={() => alert('Send to yard - coming soon')}
-                  onSpecialRelease={() => alert('Special release - coming soon')}
+                  onPrintTicket={handlePrintTicket}
+                  onTagVehicle={handleTagVehicle}
+                  onSendToYard={handleSendToYard}
+                  onSpecialRelease={handleSpecialRelease}
                 />
 
                 {/* Navigation */}

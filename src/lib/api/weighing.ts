@@ -116,24 +116,25 @@ export interface SearchWeighingParams {
   controlStatus?: string;
   isCompliant?: boolean;
   operatorId?: string;
-  skip?: number;
-  take?: number;
+  pageNumber?: number;
+  pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface PagedResult<T> {
+export interface PagedResponse<T> {
   items: T[];
   totalCount: number;
-  skip: number;
-  take: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface CreateWeighingRequest {
   ticketNumber?: string;
   stationId: string;
   vehicleId?: string;
-  vehicleRegNumber?: string;
+  vehicleRegNo?: string;  // Backend will lookup/create vehicle by reg number
   driverId?: string;
   transporterId?: string;
   weighingType?: string;
@@ -208,24 +209,24 @@ export async function updateVehicle(id: string, vehicle: Partial<Vehicle>): Prom
 // ============================================================================
 
 export async function getDriverById(id: string): Promise<Driver> {
-  const { data } = await apiClient.get<Driver>(`/Driver/${id}`);
+  const { data } = await apiClient.get<Driver>(`/drivers/${id}`);
   return data;
 }
 
 export async function searchDrivers(query: string): Promise<Driver[]> {
-  const { data } = await apiClient.get<Driver[]>('/Driver/search', {
+  const { data } = await apiClient.get<Driver[]>('/drivers/search', {
     params: { query },
   });
   return data;
 }
 
 export async function createDriver(driver: Partial<Driver>): Promise<Driver> {
-  const { data } = await apiClient.post<Driver>('/Driver', driver);
+  const { data } = await apiClient.post<Driver>('/drivers', driver);
   return data;
 }
 
 export async function updateDriver(id: string, driver: Partial<Driver>): Promise<void> {
-  await apiClient.put(`/Driver/${id}`, { ...driver, id });
+  await apiClient.put(`/drivers/${id}`, { ...driver, id });
 }
 
 // ============================================================================
@@ -265,8 +266,8 @@ export async function updateTransporter(id: string, transporter: Partial<Transpo
 
 export async function searchWeighingTransactions(
   params: SearchWeighingParams
-): Promise<PagedResult<WeighingTransaction>> {
-  const { data } = await apiClient.get<PagedResult<WeighingTransaction>>(
+): Promise<PagedResponse<WeighingTransaction>> {
+  const { data } = await apiClient.get<PagedResponse<WeighingTransaction>>(
     '/weighing-transactions',
     { params }
   );
@@ -348,8 +349,63 @@ export async function fetchCargoTypes(): Promise<CargoType[]> {
   return data;
 }
 
+export interface CreateCargoTypeRequest {
+  code: string;
+  name: string;
+  category?: 'General' | 'Hazardous' | 'Perishable';
+}
+
+export async function createCargoType(payload: CreateCargoTypeRequest): Promise<CargoType> {
+  const { data } = await apiClient.post<CargoType>('/cargo-types', payload);
+  return data;
+}
+
 export async function fetchOriginsDestinations(): Promise<OriginDestination[]> {
   const { data } = await apiClient.get<OriginDestination[]>('/origins-destinations');
+  return data;
+}
+
+export interface CreateOriginDestinationRequest {
+  name: string;
+  code?: string;
+  locationType?: 'city' | 'town' | 'port' | 'border' | 'warehouse';
+  country?: string;
+}
+
+export async function createOriginDestination(payload: CreateOriginDestinationRequest): Promise<OriginDestination> {
+  const { data } = await apiClient.post<OriginDestination>('/origins-destinations', payload);
+  return data;
+}
+
+// ============================================================================
+// Vehicle Makes API
+// ============================================================================
+
+export interface VehicleMake {
+  id: string;
+  code: string;
+  name: string;
+  country?: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateVehicleMakeRequest {
+  code: string;
+  name: string;
+  country?: string;
+  description?: string;
+}
+
+export async function fetchVehicleMakes(): Promise<VehicleMake[]> {
+  const { data } = await apiClient.get<VehicleMake[]>('/vehicle-makes/active');
+  return data;
+}
+
+export async function createVehicleMake(payload: CreateVehicleMakeRequest): Promise<VehicleMake> {
+  const { data } = await apiClient.post<VehicleMake>('/vehicle-makes', payload);
   return data;
 }
 
@@ -676,4 +732,36 @@ export async function getScaleTestsByDateRange(
     params: { fromDate, toDate, ...(bound ? { bound } : {}) },
   });
   return data;
+}
+
+// ============================================================================
+// PDF Download API
+// ============================================================================
+
+/**
+ * Download weight ticket PDF for a weighing transaction
+ */
+export async function downloadWeightTicketPdf(weighingId: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(`/weighing-transactions/${weighingId}/ticket/pdf`, {
+    responseType: 'blob',
+  });
+  return data;
+}
+
+/**
+ * Helper to trigger PDF download in browser
+ */
+export async function downloadAndSavePdf(
+  fetchFn: () => Promise<Blob>,
+  filename: string
+): Promise<void> {
+  const blob = await fetchFn();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }

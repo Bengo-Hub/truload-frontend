@@ -164,22 +164,21 @@ export function Pagination({
 /**
  * Hook to manage pagination state
  */
-export function usePagination(initialPageSize: number = 25) {
-  const [page, setPage] = React.useState(1);
+export function usePagination(initialPageSize: number = 50) {
+  const [pageNumber, setPageNumber] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(initialPageSize);
 
-  const skip = (page - 1) * pageSize;
-
   const reset = React.useCallback(() => {
-    setPage(1);
+    setPageNumber(1);
   }, []);
 
   return {
-    page,
+    pageNumber,
     pageSize,
-    skip,
-    take: pageSize,
-    setPage,
+    /** @deprecated Use pageNumber instead */
+    page: pageNumber,
+    setPage: setPageNumber,
+    setPageNumber,
     setPageSize,
     reset,
   };

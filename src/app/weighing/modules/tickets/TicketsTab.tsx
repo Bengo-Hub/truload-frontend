@@ -36,7 +36,7 @@ export default function TicketsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const { page, pageSize, skip, setPage, setPageSize, reset: resetPagination } = usePagination(25);
+  const { page, pageNumber, pageSize, setPage, setPageSize, reset: resetPagination } = usePagination();
   const queryClient = useQueryClient();
 
   // Permissions
@@ -62,8 +62,8 @@ export default function TicketsTab() {
   // Build search params
   const searchParams = useMemo(() => {
     const params: Parameters<typeof useWeighingTransactions>[0] = {
-      skip,
-      take: pageSize,
+      pageNumber,
+      pageSize,
       sortBy: 'weighedAt',
       sortOrder: 'desc',
     };
@@ -94,7 +94,7 @@ export default function TicketsTab() {
     }
 
     return params;
-  }, [skip, pageSize, myStation?.id, debouncedSearch, statusFilter, dateFrom, dateTo]);
+  }, [pageNumber, pageSize, myStation?.id, debouncedSearch, statusFilter, dateFrom, dateTo]);
 
   // Fetch weighing transactions
   const { data: result, isLoading, isFetching, error } = useWeighingTransactions(searchParams);

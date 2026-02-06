@@ -42,17 +42,18 @@ export interface SearchYardEntriesParams {
   vehicleRegNo?: string;
   fromDate?: string;
   toDate?: string;
-  skip?: number;
-  take?: number;
+  pageNumber?: number;
+  pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface YardEntrySearchResult {
-  items: YardEntryDto[];
+export interface PagedResponse<T> {
+  items: T[];
   totalCount: number;
-  skip: number;
-  take: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface VehicleTagDto {
@@ -101,17 +102,10 @@ export interface SearchVehicleTagsParams {
   stationCode?: string;
   fromDate?: string;
   toDate?: string;
-  skip?: number;
-  take?: number;
+  pageNumber?: number;
+  pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-}
-
-export interface VehicleTagSearchResult {
-  items: VehicleTagDto[];
-  totalCount: number;
-  skip: number;
-  take: number;
 }
 
 export interface TagCategoryDto {
@@ -128,8 +122,8 @@ export interface TagCategoryDto {
 
 export async function searchYardEntries(
   params: SearchYardEntriesParams
-): Promise<YardEntrySearchResult> {
-  const { data } = await apiClient.get<YardEntrySearchResult>(
+): Promise<PagedResponse<YardEntryDto>> {
+  const { data } = await apiClient.get<PagedResponse<YardEntryDto>>(
     '/yard-entries',
     { params }
   );
@@ -177,8 +171,8 @@ export async function updateYardEntryStatus(
 
 export async function searchVehicleTags(
   params: SearchVehicleTagsParams
-): Promise<VehicleTagSearchResult> {
-  const { data } = await apiClient.get<VehicleTagSearchResult>(
+): Promise<PagedResponse<VehicleTagDto>> {
+  const { data } = await apiClient.get<PagedResponse<VehicleTagDto>>(
     '/vehicle-tags',
     { params }
   );

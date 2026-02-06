@@ -5,56 +5,62 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  AxleConfigurationCard,
-  ComplianceBanner,
-  ComplianceTable,
-  DecisionPanel,
-  DriverModal,
-  getDefaultAxleConfig,
-  ImageCaptureCard,
-  ModalMode,
-  OriginDestinationModal,
-  TransporterModal,
-  VehicleDetailsCard,
-  VehicleMakeModal,
-  WeightCaptureCard,
-  WeighingPageHeader,
-  WeighingStepper,
+    AxleConfigurationCard,
+    CargoTypeModal,
+    ComplianceBanner,
+    ComplianceTable,
+    DecisionPanel,
+    DriverModal,
+    getDefaultAxleConfig,
+    ImageCaptureCard,
+    OriginDestinationModal,
+    TransporterModal,
+    VehicleDetailsCard,
+    VehicleMakeModal,
+    WeighingPageHeader,
+    WeighingStepper,
+    WeightCaptureCard
 } from '@/components/weighing';
-import { BoundSelector } from '@/components/weighing/BoundSelector';
 import { ScaleHealthPanel, ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
 import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
 import { WeightConfirmationModal } from '@/components/weighing/WeightConfirmationModal';
-import { useHasPermission } from '@/hooks/useAuth';
 import {
-  useAxleConfigurations,
-  useCargoTypes,
-  useCreateVehicle,
-  useDrivers,
-  useMyScaleTestStatus,
-  useMyStation,
-  useOriginsDestinations,
-  useTransporters,
-  useVehicleByRegNo,
+    useAxleConfigurations,
+    useAxleWeightReferences,
+    useCargoTypes,
+    useCreateCargoType,
+    useCreateDriver,
+    useCreateOriginDestination,
+    useCreateTransporter,
+    useCreateVehicle,
+    useCreateVehicleMake,
+    useDrivers,
+    useMyScaleTestStatus,
+    useMyStation,
+    useOriginsDestinations,
+    useTransporters,
+    useVehicleByRegNo,
 } from '@/hooks/queries';
-import { useWeighing } from '@/hooks/useWeighing';
+import { useHasPermission } from '@/hooks/useAuth';
 import { useMiddleware } from '@/hooks/useMiddleware';
-import { ScaleTest, Station } from '@/lib/api/weighing';
+import { useWeighing } from '@/hooks/useWeighing';
+import { downloadAndSavePdf, downloadWeightTicketPdf, ScaleTest } from '@/lib/api/weighing';
+import { createVehicleTag, createYardEntry, fetchTagCategories } from '@/lib/api/yard';
 import { calculateOverallStatus } from '@/lib/weighing-utils';
 import {
-  AxleGroupResult,
-  ComplianceStatus,
-  CreateDriverRequest,
-  CreateOriginDestinationRequest,
-  CreateTransporterRequest,
-  CreateVehicleMakeRequest,
-  ScaleStatus,
-  WeighingStep,
+    AxleGroupResult,
+    ComplianceStatus,
+    CreateDriverRequest,
+    CreateOriginDestinationRequest,
+    CreateTransporterRequest,
+    CreateVehicleMakeRequest,
+    ScaleStatus,
+    WeighingStep,
 } from '@/types/weighing';
-import { ChevronLeft, ChevronRight, Edit3, Loader2, Scale, ScanLine, Truck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Loader2, Scale, ScanLine } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 /**
@@ -93,6 +99,13 @@ export default function MobileWeighingPage() {
 
   // Vehicle lookup mutation for auto-creating vehicles
   const createVehicleMutation = useCreateVehicle();
+
+  // Entity creation mutations
+  const createDriverMutation = useCreateDriver();
+  const createTransporterMutation = useCreateTransporter();
+  const createCargoTypeMutation = useCreateCargoType();
+  const createOriginDestinationMutation = useCreateOriginDestination();
+  const createVehicleMakeMutation = useCreateVehicleMake();
 
   // Bound state for bidirectional stations
   const [currentBoundState, setCurrentBoundState] = useState<string | undefined>();
@@ -174,19 +187,30 @@ export default function MobileWeighingPage() {
         setIsScalesConnected(weight.connection.connected);
       }
       // Update scale info from weight data if available
-      if (weight.scaleInfo) {
+      // Now handles both scaleAStatus and scaleBStatus from enhanced middleware data
+      if (weight.scaleInfo || weight.scaleAStatus || weight.scaleBStatus) {
         setScales(prev => [
           {
             ...prev[0],
-            status: weight.connection?.connected ? 'connected' : 'disconnected',
-            weight: weight.weight || 0,
-            battery: weight.scaleInfo?.battery || prev[0].battery,
-            temperature: weight.scaleInfo?.temperature || prev[0].temperature,
-            signalStrength: weight.scaleInfo?.signalStrength || prev[0].signalStrength,
-            make: weight.scaleInfo?.make || prev[0].make,
-            model: weight.scaleInfo?.model || prev[0].model,
+            status: (weight.scaleAStatus?.connected ?? weight.connection?.connected) ? 'connected' : 'disconnected',
+            weight: weight.scaleA ?? weight.weight ?? 0,
+            battery: weight.scaleAStatus?.battery ?? weight.scaleInfo?.battery ?? prev[0].battery,
+            temperature: weight.scaleAStatus?.temperature ?? weight.scaleInfo?.temperature ?? prev[0].temperature,
+            signalStrength: weight.scaleAStatus?.signalStrength ?? weight.scaleInfo?.signalStrength ?? prev[0].signalStrength,
+            make: weight.scaleInfo?.make ?? prev[0].make,
+            model: weight.scaleInfo?.model ?? prev[0].model,
           },
-          prev[1],
+          {
+            ...prev[1],
+            // Scale B status - for PAW/simulation, both scales are connected since weight is split
+            status: (weight.scaleBStatus?.connected ?? weight.connection?.connected) ? 'connected' : 'disconnected',
+            weight: weight.scaleB ?? (weight.weight ? Math.floor(weight.weight / 2) : 0),
+            battery: weight.scaleBStatus?.battery ?? weight.scaleInfo?.battery ?? prev[1].battery,
+            temperature: weight.scaleBStatus?.temperature ?? weight.scaleInfo?.temperature ?? prev[1].temperature,
+            signalStrength: weight.scaleBStatus?.signalStrength ?? weight.scaleInfo?.signalStrength ?? prev[1].signalStrength,
+            make: weight.scaleInfo?.make ?? prev[1].make,
+            model: weight.scaleInfo?.model ?? prev[1].model,
+          },
         ]);
       }
       console.log('[Mobile] Weight update from middleware:', weight);
@@ -195,8 +219,8 @@ export default function MobileWeighingPage() {
       console.log('[Mobile] Scale status from middleware:', status);
       // Update simulation mode
       setIsSimulationMode(status.simulation || false);
-      // Update scale connection status
-      if (status.scaleA) {
+      // Update scale connection status - now handles both scales properly
+      if (status.scaleA || status.scaleB) {
         setScales(prev => [
           {
             ...prev[0],
@@ -205,7 +229,13 @@ export default function MobileWeighingPage() {
             battery: status.scaleA?.battery || prev[0].battery,
             temperature: status.scaleA?.temp || prev[0].temperature,
           },
-          prev[1],
+          {
+            ...prev[1],
+            status: status.scaleB?.status === 'connected' ? 'connected' : 'disconnected',
+            weight: status.scaleB?.weight || 0,
+            battery: status.scaleB?.battery || prev[1].battery,
+            temperature: status.scaleB?.temp || prev[1].temperature,
+          },
         ]);
       }
       setIsScalesConnected(status.connected);
@@ -239,6 +269,16 @@ export default function MobileWeighingPage() {
   const [selectedConfig, setSelectedConfig] = useState<string>('');
   const [axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
   const [ticketNumber, setTicketNumber] = useState('');
+
+  // Derive selected configuration ID for weight references lookup
+  const selectedConfigId = useMemo(() => {
+    if (!selectedConfig || axleConfigurations.length === 0) return undefined;
+    const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+    return config?.id;
+  }, [selectedConfig, axleConfigurations]);
+
+  // Fetch weight references for the selected configuration
+  const { data: weightReferences = [] } = useAxleWeightReferences(selectedConfigId);
 
   // Update scale test from query result
   useEffect(() => {
@@ -311,6 +351,39 @@ export default function MobileWeighingPage() {
     }
   }, [existingVehicle, axleConfigurations]);
 
+  // Sync driver/transporter/cargo/origin/destination selections to backend transaction
+  useEffect(() => {
+    // Only sync if we have an active transaction
+    if (!weighingHook.session?.transactionId) return;
+
+    // Debounce updates to avoid excessive API calls
+    const timeoutId = setTimeout(() => {
+      const updates: Record<string, string | undefined> = {};
+
+      if (selectedDriverId) updates.driverId = selectedDriverId;
+      if (selectedTransporterId) updates.transporterId = selectedTransporterId;
+      if (selectedOriginId) updates.originId = selectedOriginId;
+      if (selectedDestinationId) updates.destinationId = selectedDestinationId;
+      if (selectedCargoId) updates.cargoId = selectedCargoId;
+
+      // Only update if there's something to update
+      if (Object.keys(updates).length > 0) {
+        weighingHook.updateVehicleDetails(updates).catch((err) => {
+          console.warn('Failed to sync vehicle details to backend:', err);
+        });
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    weighingHook.session?.transactionId,
+    selectedDriverId,
+    selectedTransporterId,
+    selectedOriginId,
+    selectedDestinationId,
+    selectedCargoId,
+  ]);
+
   // Use capture state from useWeighing hook (with local fallbacks for UI)
   const {
     capturedAxles: hookCapturedAxles,
@@ -321,6 +394,7 @@ export default function MobileWeighingPage() {
     initializeTransaction,
     captureAxleWeight,
     submitWeights,
+    updateVehicleDetails,
     resetSession,
     session: weighingSession,
     transaction: weighingTransaction,
@@ -478,6 +552,7 @@ export default function MobileWeighingPage() {
   const [isTransporterModalOpen, setIsTransporterModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isVehicleMakeModalOpen, setIsVehicleMakeModalOpen] = useState(false);
+  const [isCargoTypeModalOpen, setIsCargoTypeModalOpen] = useState(false);
   const [isSavingEntity, setIsSavingEntity] = useState(false);
 
   // Scale test modal state (scale test status is now from TanStack Query)
@@ -505,61 +580,124 @@ export default function MobileWeighingPage() {
   };
   const totalAxles = getTotalAxles(selectedConfig);
 
-  // Mock compliance data with real-time updates based on captured weights
-  const mockGroupResults: AxleGroupResult[] = [
-    {
-      groupLabel: 'A',
-      axleType: 'Steering',
-      axleCount: 1,
-      permissibleKg: 7000,
-      toleranceKg: 350,
-      effectiveLimitKg: 7350,
-      measuredKg: capturedAxles.includes(1) ? (capturedWeights[capturedAxles.indexOf(1)] || 6800) : 0,
-      overloadKg: 0,
-      pavementDamageFactor: 0.88,
-      status: 'LEGAL',
-      axles: [{ axleNumber: 1, measuredKg: capturedAxles.includes(1) ? (capturedWeights[capturedAxles.indexOf(1)] || 6800) : 0, permissibleKg: 7000 }],
-    },
-    {
-      groupLabel: 'B',
-      axleType: 'Tandem',
-      axleCount: 2,
-      permissibleKg: 16000,
-      toleranceKg: 0,
-      effectiveLimitKg: 16000,
-      measuredKg: capturedAxles.includes(2) && capturedAxles.includes(3) ? 17500 : 0,
-      overloadKg: capturedAxles.includes(2) && capturedAxles.includes(3) ? 1500 : 0,
-      pavementDamageFactor: 1.43,
-      status: capturedAxles.includes(2) && capturedAxles.includes(3) ? 'OVERLOAD' : 'LEGAL',
-      axles: [
-        { axleNumber: 2, measuredKg: capturedAxles.includes(2) ? 8900 : 0, permissibleKg: 8000 },
-        { axleNumber: 3, measuredKg: capturedAxles.includes(3) ? 8600 : 0, permissibleKg: 8000 },
-      ],
-    },
-    {
-      groupLabel: 'C',
-      axleType: 'Tridem',
-      axleCount: 3,
-      permissibleKg: 24000,
-      toleranceKg: 0,
-      effectiveLimitKg: 24000,
-      measuredKg: capturedAxles.length >= 6 ? 23800 : 0,
-      overloadKg: 0,
-      pavementDamageFactor: 0.97,
-      status: 'LEGAL',
-      axles: [
-        { axleNumber: 4, measuredKg: capturedAxles.includes(4) ? 7900 : 0, permissibleKg: 8000 },
-        { axleNumber: 5, measuredKg: capturedAxles.includes(5) ? 8000 : 0, permissibleKg: 8000 },
-        { axleNumber: 6, measuredKg: capturedAxles.includes(6) ? 7900 : 0, permissibleKg: 8000 },
-      ],
-    },
-  ];
+  // Build compliance group results from weight references and captured weights
+  const groupResults: AxleGroupResult[] = useMemo(() => {
+    // Map captured weights by axle number for easy lookup
+    const capturedWeightMap = new Map<number, number>();
+    localCapturedWeights.forEach((weight, index) => {
+      const axleNum = index + 1;
+      capturedWeightMap.set(axleNum, weight);
+    });
+
+    // If no weight references, return empty (or fallback)
+    if (weightReferences.length === 0) {
+      // Fallback to basic single-group when no references available
+      const totalMeasured = localCapturedWeights.reduce((sum, w) => sum + w, 0);
+      return [{
+        groupLabel: 'A',
+        axleType: 'Unknown',
+        axleCount: totalAxles || 1,
+        permissibleKg: 48000,
+        toleranceKg: 0,
+        effectiveLimitKg: 48000,
+        measuredKg: totalMeasured,
+        overloadKg: Math.max(0, totalMeasured - 48000),
+        pavementDamageFactor: 1.0,
+        status: totalMeasured > 48000 ? 'OVERLOAD' : 'LEGAL',
+        axles: localCapturedWeights.map((w, i) => ({
+          axleNumber: i + 1,
+          measuredKg: w,
+          permissibleKg: 8000,
+        })),
+      }];
+    }
+
+    // Group weight references by axleGrouping (A, B, C, D)
+    const groupMap = new Map<string, typeof weightReferences>();
+    weightReferences.forEach(ref => {
+      const group = ref.axleGrouping || 'A';
+      if (!groupMap.has(group)) {
+        groupMap.set(group, []);
+      }
+      groupMap.get(group)!.push(ref);
+    });
+
+    // Determine axle type based on axle count
+    const getAxleType = (count: number, groupLabel: string): string => {
+      if (groupLabel === 'A' && count === 1) return 'Steering';
+      if (count === 1) return 'Single';
+      if (count === 2) return 'Tandem';
+      if (count === 3) return 'Tridem';
+      if (count === 4) return 'Quad';
+      return 'Group';
+    };
+
+    // Build group results
+    const results: AxleGroupResult[] = [];
+    const sortedGroups = Array.from(groupMap.keys()).sort();
+
+    for (const groupLabel of sortedGroups) {
+      const refs = groupMap.get(groupLabel)!;
+      const sortedRefs = refs.sort((a, b) => a.axlePosition - b.axlePosition);
+
+      // Calculate permissible weight for the group (sum of individual axle limits)
+      const permissibleKg = sortedRefs.reduce((sum, r) => sum + r.axleLegalWeightKg, 0);
+
+      // Apply tolerance: 5% for steering axle (group A with 1 axle), 0% for others
+      const isSteering = groupLabel === 'A' && sortedRefs.length === 1;
+      const tolerancePercent = isSteering ? 5 : 0;
+      const toleranceKg = Math.round(permissibleKg * tolerancePercent / 100);
+      const effectiveLimitKg = permissibleKg + toleranceKg;
+
+      // Calculate measured weight for the group
+      const axles = sortedRefs.map(ref => {
+        const measured = capturedWeightMap.get(ref.axlePosition) || 0;
+        return {
+          axleNumber: ref.axlePosition,
+          measuredKg: measured,
+          permissibleKg: ref.axleLegalWeightKg,
+        };
+      });
+
+      const measuredKg = axles.reduce((sum, a) => sum + a.measuredKg, 0);
+      const overloadKg = Math.max(0, measuredKg - effectiveLimitKg);
+
+      // Determine status
+      let status: ComplianceStatus = 'LEGAL';
+      if (measuredKg > effectiveLimitKg) {
+        status = 'OVERLOAD';
+      } else if (measuredKg > permissibleKg && measuredKg <= effectiveLimitKg) {
+        status = 'WARNING';
+      }
+
+      // Calculate pavement damage factor (simplified: (measured/permissible)^4)
+      const pavementDamageFactor = permissibleKg > 0
+        ? Math.round(Math.pow(measuredKg / permissibleKg, 4) * 100) / 100
+        : 0;
+
+      results.push({
+        groupLabel,
+        axleType: getAxleType(sortedRefs.length, groupLabel),
+        axleCount: sortedRefs.length,
+        permissibleKg,
+        toleranceKg,
+        effectiveLimitKg,
+        measuredKg,
+        overloadKg,
+        pavementDamageFactor,
+        status,
+        axles,
+      });
+    }
+
+    return results;
+  }, [weightReferences, localCapturedWeights, totalAxles]);
 
   // Use compliance data from hook if available, otherwise calculate from mock
   const gvwPermissible = complianceResult?.gvwPermissibleKg || 48000;
-  const gvwMeasured = complianceResult?.gvwMeasuredKg || mockGroupResults.reduce((sum, g) => sum + g.measuredKg, 0);
+  const gvwMeasured = complianceResult?.gvwMeasuredKg || groupResults.reduce((sum, g) => sum + g.measuredKg, 0);
   const gvwOverload = complianceResult?.gvwOverloadKg || Math.max(0, gvwMeasured - gvwPermissible);
-  const overallStatus: ComplianceStatus = complianceResult?.overallStatus as ComplianceStatus || calculateOverallStatus(mockGroupResults, gvwOverload);
+  const overallStatus: ComplianceStatus = complianceResult?.overallStatus as ComplianceStatus || calculateOverallStatus(groupResults, gvwOverload);
   const allAxlesCaptured = hookAllAxlesCaptured || capturedAxles.length === totalAxles;
 
   // Step navigation - 3 steps only
@@ -801,15 +939,24 @@ export default function MobileWeighingPage() {
     }
   };
 
-  // Entity modal handlers
+  // Entity modal handlers - wired to backend mutations
   const handleSaveDriver = useCallback(async (data: CreateDriverRequest) => {
     setIsSavingEntity(true);
     try {
-      // In production, this would call the create driver API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const newDriver = await createDriverMutation.mutateAsync({
+        fullName: `${data.fullNames} ${data.surname}`.trim(),
+        idNumber: data.idNumber || '',
+        drivingLicenseNo: data.drivingLicenseNo || '',
+        phoneNumber: data.phoneNumber,
+        email: data.email,
+        transporterId: selectedTransporterId,
+      });
+
+      // Auto-select the newly created driver
+      setSelectedDriverId(newDriver.id);
       setIsDriverModalOpen(false);
       toast.success('Driver added successfully');
-      // Driver query will auto-refresh via TanStack Query
+      // Driver query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save driver:', error);
       toast.error('Failed to add driver');
@@ -817,16 +964,24 @@ export default function MobileWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createDriverMutation, selectedTransporterId]);
 
   const handleSaveTransporter = useCallback(async (data: CreateTransporterRequest) => {
     setIsSavingEntity(true);
     try {
-      // In production, this would call the create transporter API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const newTransporter = await createTransporterMutation.mutateAsync({
+        name: data.name,
+        code: data.code,
+        address: data.address,
+        phoneNumber: data.phone,
+        email: data.email,
+      });
+
+      // Auto-select the newly created transporter
+      setSelectedTransporterId(newTransporter.id);
       setIsTransporterModalOpen(false);
       toast.success('Transporter added successfully');
-      // Transporter query will auto-refresh via TanStack Query
+      // Transporter query will auto-refresh via TanStack Query invalidation
     } catch (error) {
       console.error('Failed to save transporter:', error);
       toast.error('Failed to add transporter');
@@ -834,14 +989,17 @@ export default function MobileWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createTransporterMutation]);
 
   const handleSaveLocation = useCallback(async (data: CreateOriginDestinationRequest) => {
     setIsSavingEntity(true);
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // For now, just close the modal - could be origin or destination
+      await createOriginDestinationMutation.mutateAsync({
+        name: data.name,
+        code: data.code,
+        locationType: data.locationType,
+        country: data.country,
+      });
       setIsLocationModalOpen(false);
       toast.success('Location added successfully');
     } catch (error) {
@@ -851,14 +1009,43 @@ export default function MobileWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createOriginDestinationMutation]);
+
+  const handleSaveCargoType = useCallback(async (data: { code: string; name: string; category?: string; description?: string }) => {
+    setIsSavingEntity(true);
+    try {
+      // Map category string to the allowed enum values, defaulting to General
+      let category: 'General' | 'Hazardous' | 'Perishable' = 'General';
+      if (data.category === 'Hazardous') category = 'Hazardous';
+      else if (data.category === 'Perishable') category = 'Perishable';
+
+      const newCargoType = await createCargoTypeMutation.mutateAsync({
+        code: data.code,
+        name: data.name,
+        category,
+      });
+      setSelectedCargoId(newCargoType.id);
+      setIsCargoTypeModalOpen(false);
+      toast.success('Cargo type added successfully');
+    } catch (error) {
+      console.error('Failed to save cargo type:', error);
+      toast.error('Failed to add cargo type');
+      throw error;
+    } finally {
+      setIsSavingEntity(false);
+    }
+  }, [createCargoTypeMutation]);
 
   const handleSaveVehicleMake = useCallback(async (data: CreateVehicleMakeRequest) => {
     setIsSavingEntity(true);
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setVehicleMake(data.name);
+      const created = await createVehicleMakeMutation.mutateAsync({
+        code: data.code || data.name.toUpperCase().slice(0, 10).replace(/\s+/g, '_'),
+        name: data.name,
+        country: data.country,
+        description: data.description,
+      });
+      setVehicleMake(created.name);
       setIsVehicleMakeModalOpen(false);
       toast.success('Vehicle make added successfully');
     } catch (error) {
@@ -868,7 +1055,125 @@ export default function MobileWeighingPage() {
     } finally {
       setIsSavingEntity(false);
     }
-  }, []);
+  }, [createVehicleMakeMutation]);
+
+  // Decision Panel Action Handlers
+
+  // Print weight ticket - calls backend PDF endpoint
+  const handlePrintTicket = useCallback(async () => {
+    if (!weighingSession?.transactionId) {
+      toast.error('No active transaction to print');
+      return;
+    }
+
+    try {
+      toast.info('Generating weight ticket PDF...', {
+        description: `Ticket: ${ticketNumber || weighingSession.ticketNumber}`,
+      });
+
+      // Download PDF from backend and open in new window for printing
+      const pdfBlob = await downloadWeightTicketPdf(weighingSession.transactionId);
+      const pdfUrl = window.URL.createObjectURL(pdfBlob);
+
+      // Open PDF in new window for printing/preview
+      const printWindow = window.open(pdfUrl, '_blank');
+      if (printWindow) {
+        printWindow.focus();
+        toast.success('Weight ticket generated successfully', {
+          description: 'PDF opened in new window',
+        });
+      } else {
+        // Fallback: trigger download if popup blocked
+        await downloadAndSavePdf(
+          () => Promise.resolve(pdfBlob),
+          `WeightTicket_${ticketNumber || weighingSession.ticketNumber}.pdf`
+        );
+        toast.success('Weight ticket downloaded', {
+          description: 'Check your downloads folder',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to print ticket:', error);
+      toast.error('Failed to generate weight ticket', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    }
+  }, [weighingSession, ticketNumber]);
+
+  // Tag vehicle - creates a tag in the backend
+  const handleTagVehicle = useCallback(async () => {
+    if (!vehiclePlate || !currentStation?.code) {
+      toast.error('Missing vehicle plate or station');
+      return;
+    }
+
+    try {
+      // Fetch tag categories first
+      const categories = await fetchTagCategories();
+      const defaultCategory = categories.find(c => c.code === 'OVERLOAD') || categories[0];
+
+      if (!defaultCategory) {
+        toast.error('No tag categories available');
+        return;
+      }
+
+      const tag = await createVehicleTag({
+        regNo: vehiclePlate,
+        tagType: 'WEIGHING',
+        tagCategoryId: defaultCategory.id,
+        reason: overallStatus === 'OVERLOAD'
+          ? `Overloaded by ${gvwOverload.toLocaleString()} kg`
+          : `Weighing compliance check - ${overallStatus}`,
+        stationCode: currentStation.code,
+        effectiveDays: 30,
+      });
+
+      toast.success('Vehicle tagged successfully', {
+        description: `Tag ID: ${tag.id.slice(0, 8)}...`,
+      });
+    } catch (error) {
+      console.error('Failed to tag vehicle:', error);
+      toast.error('Failed to create vehicle tag');
+    }
+  }, [vehiclePlate, currentStation, overallStatus, gvwOverload]);
+
+  // Send to yard - creates a yard entry for non-compliant vehicles
+  const handleSendToYard = useCallback(async () => {
+    if (!weighingSession?.transactionId || !currentStation?.id) {
+      toast.error('No active transaction or station');
+      return;
+    }
+
+    try {
+      const reason = overallStatus === 'OVERLOAD'
+        ? `GVW overload of ${gvwOverload.toLocaleString()} kg`
+        : 'Compliance verification required';
+
+      const yardEntry = await createYardEntry({
+        weighingId: weighingSession.transactionId,
+        stationId: currentStation.id,
+        reason,
+      });
+
+      toast.success('Vehicle sent to yard', {
+        description: `Entry ID: ${yardEntry.id.slice(0, 8)}... - Reason: ${reason}`,
+      });
+    } catch (error) {
+      console.error('Failed to send to yard:', error);
+      toast.error('Failed to create yard entry');
+    }
+  }, [weighingSession, currentStation, overallStatus, gvwOverload]);
+
+  // Special release - navigates to special release workflow
+  const handleSpecialRelease = useCallback(() => {
+    if (!weighingSession?.transactionId) {
+      toast.error('No active transaction');
+      return;
+    }
+
+    // Navigate to special release page with transaction context
+    router.push(`/weighing/special-release?transactionId=${weighingSession.transactionId}`);
+  }, [weighingSession, router]);
 
   // Submit weights and proceed to decision step
   const handleProceedToDecision = async () => {
@@ -1040,75 +1345,92 @@ export default function MobileWeighingPage() {
                   showANPRBadge={true}
                 />
 
-                {/* Vehicle Plate Entry Card */}
-                <Card className="border-gray-200 shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                        <Truck className="h-5 w-5 text-blue-600" />
-                        Vehicle Identification
-                      </h3>
-                    </div>
-
-                    {/* Bound Selector - positioned before plate input for bidirectional stations */}
-                    {currentStation?.supportsBidirectional && (
-                      <div className="mb-4">
-                        <BoundSelector
-                          station={currentStation}
-                          selectedBound={currentBound}
-                          onBoundChange={handleBoundChange}
-                          compact={false}
-                        />
-                      </div>
-                    )}
-
-                    {/* Plate Input */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <input
-                        value={vehiclePlate}
-                        onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
-                        disabled={isPlateDisabled}
-                        placeholder="KAA 123A"
-                        className="font-mono text-2xl uppercase tracking-widest flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg disabled:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center font-bold"
-                      />
-                      <Button
-                        onClick={handleScanPlate}
-                        size="lg"
-                        className="bg-amber-500 hover:bg-amber-600 text-white"
-                      >
-                        <ScanLine className="h-5 w-5 mr-2" />
-                        ANPR Scan
-                      </Button>
-                      {isPlateDisabled && (
-                        <Button
-                          variant="outline"
-                          size="lg"
-                          onClick={handleEditPlate}
-                          className="border-amber-400 text-amber-700"
-                        >
-                          <Edit3 className="h-5 w-5" />
-                        </Button>
+                {/* Vehicle Plate Entry Card - Redesigned with balanced layout */}
+                <Card className="border-gray-200 shadow-sm overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Main Row: Bound Selector | Plate Input | Actions */}
+                    <div className="flex items-stretch">
+                      {/* Bound Selector Section */}
+                      {currentStation?.supportsBidirectional && (
+                        <div className="flex items-center bg-gray-50 border-r border-gray-200 px-3 min-w-[120px]">
+                          <div className="flex flex-col items-center gap-1 w-full">
+                            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Bound</span>
+                            <select
+                              value={currentBound || currentStation?.boundACode || 'A'}
+                              onChange={(e) => handleBoundChange(e.target.value)}
+                              className="w-full px-2 py-1.5 text-sm font-bold bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                            >
+                              <option value={currentStation?.boundACode || 'A'}>
+                                A ({currentStation?.boundACode || 'A'})
+                              </option>
+                              <option value={currentStation?.boundBCode || 'B'}>
+                                B ({currentStation?.boundBCode || 'B'})
+                              </option>
+                            </select>
+                          </div>
+                        </div>
                       )}
+
+                      {/* Plate Input Section - Central and prominent */}
+                      <div className="flex-1 flex items-center justify-center px-4 py-4 bg-white">
+                        <div className="relative w-full max-w-md">
+                          <input
+                            value={vehiclePlate}
+                            onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
+                            disabled={isPlateDisabled}
+                            placeholder="KAA 123A"
+                            className="w-full font-mono text-2xl md:text-3xl uppercase tracking-[0.2em] px-4 py-3 border-2 border-gray-300 rounded-lg disabled:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center font-bold shadow-inner"
+                          />
+                          {isPlateDisabled && vehiclePlate && (
+                            <span className="absolute -top-2 left-3 px-2 py-0.5 text-[10px] font-semibold bg-green-100 text-green-700 rounded-full">
+                              ✓ Locked
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons Section */}
+                      <div className="flex items-center gap-2 px-3 py-3 bg-gray-50 border-l border-gray-200">
+                        <Button
+                          onClick={handleScanPlate}
+                          size="icon"
+                          className="h-11 w-11 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm"
+                          title="ANPR Scan"
+                        >
+                          <ScanLine className="h-5 w-5" />
+                        </Button>
+                        {isPlateDisabled && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={handleEditPlate}
+                            className="h-11 w-11 border-amber-400 text-amber-700 hover:bg-amber-50 rounded-lg"
+                            title="Edit Plate"
+                          >
+                            <Edit3 className="h-5 w-5" />
+                          </Button>
+                        )}
+                        <Button
+                          onClick={handleProceedToVehicle}
+                          disabled={!canProceedFromCapture}
+                          size="lg"
+                          className="h-11 px-6 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                          <ChevronRight className="h-5 w-5 ml-1" />
+                        </Button>
+                      </div>
                     </div>
 
-                    {/* Continue Button */}
-                    <Button
-                      onClick={handleProceedToVehicle}
-                      disabled={!canProceedFromCapture}
-                      size="lg"
-                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Continue to Weighing
-                      <ChevronRight className="h-5 w-5 ml-2" />
-                    </Button>
-
-                    {/* Validation Message */}
+                    {/* Validation Footer - Only shows when validation fails */}
                     {!canProceedFromCapture && (
-                      <p className="text-sm text-gray-500 mt-3 text-center">
-                        {!isScaleTestCompleted && 'Complete scale test'}
-                        {!isScaleTestCompleted && vehiclePlate.length < 5 && ' & '}
-                        {vehiclePlate.length < 5 && 'Enter vehicle plate'}
-                      </p>
+                      <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
+                        <p className="text-xs text-amber-700 text-center font-medium">
+                          {!isScaleTestCompleted && '⚠ Complete scale test'}
+                          {!isScaleTestCompleted && vehiclePlate.length < 5 && ' • '}
+                          {vehiclePlate.length < 5 && '⚠ Enter vehicle plate (min 5 chars)'}
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -1168,7 +1490,7 @@ export default function MobileWeighingPage() {
 
                     {/* Compliance Table */}
                     <ComplianceTable
-                      groupResults={mockGroupResults}
+                      groupResults={groupResults}
                       gvwPermissible={gvwPermissible}
                       gvwMeasured={gvwMeasured}
                       gvwOverload={gvwOverload}
@@ -1230,7 +1552,7 @@ export default function MobileWeighingPage() {
                       onAddTransporter={() => setIsTransporterModalOpen(true)}
                       onAddLocation={() => setIsLocationModalOpen(true)}
                       onAddVehicleMake={() => setIsVehicleMakeModalOpen(true)}
-                      onAddCargoType={() => {/* TODO: Add CargoTypeModal */}}
+                      onAddCargoType={() => setIsCargoTypeModalOpen(true)}
                       isReadOnly={false}
                     />
 
@@ -1286,8 +1608,14 @@ export default function MobileWeighingPage() {
                 scaleWeightMode: middleware.weights.scaleWeightMode,
               } : null}
               middlewareScaleStatus={middleware.scaleStatus ? {
-                scaleA: middleware.scaleStatus.scaleA,
-                scaleB: middleware.scaleStatus.scaleB,
+                scaleA: middleware.scaleStatus.scaleA ? {
+                  weight: middleware.scaleStatus.scaleA.weight,
+                  connected: middleware.scaleStatus.scaleA.status === 'connected',
+                } : undefined,
+                scaleB: middleware.scaleStatus.scaleB ? {
+                  weight: middleware.scaleStatus.scaleB.weight,
+                  connected: middleware.scaleStatus.scaleB.status === 'connected',
+                } : undefined,
               } : undefined}
             />
 
@@ -1298,7 +1626,7 @@ export default function MobileWeighingPage() {
               onConfirm={handleConfirmWeight}
               vehiclePlate={vehiclePlate}
               axleType={selectedConfig}
-              axleGroups={mockGroupResults.map(g => ({
+              axleGroups={groupResults.map(g => ({
                 group: g.groupLabel,
                 permissible: g.permissibleKg,
                 tolerance: g.groupLabel === 'A' ? 5 : 0,
@@ -1349,6 +1677,14 @@ export default function MobileWeighingPage() {
               isSaving={isSavingEntity}
             />
 
+            <CargoTypeModal
+              open={isCargoTypeModalOpen}
+              onOpenChange={setIsCargoTypeModalOpen}
+              mode="create"
+              onSave={handleSaveCargoType}
+              isSaving={isSavingEntity}
+            />
+
             {/* Step 3: Decision */}
             {currentStep === 'decision' && (
               <div className="space-y-4">
@@ -1370,16 +1706,16 @@ export default function MobileWeighingPage() {
                 {/* Decision Panel */}
                 <DecisionPanel
                   overallStatus={overallStatus}
-                  totalFeeUsd={overallStatus === 'OVERLOAD' ? 1250 : 0}
-                  demeritPoints={overallStatus === 'OVERLOAD' ? 3 : 0}
+                  totalFeeUsd={complianceResult?.totalFeeUsd || (overallStatus === 'OVERLOAD' ? 1250 : 0)}
+                  demeritPoints={complianceResult?.reweighCycleNo || (overallStatus === 'OVERLOAD' ? 3 : 0)}
                   canPrint={canPrint}
                   canTag={canTag}
                   canSendToYard={canSendToYard}
                   canSpecialRelease={overallStatus === 'WARNING'}
-                  onPrintTicket={() => alert('Print ticket - coming soon')}
-                  onTagVehicle={() => alert('Tag vehicle - coming soon')}
-                  onSendToYard={() => alert('Send to yard - coming soon')}
-                  onSpecialRelease={() => alert('Special release - coming soon')}
+                  onPrintTicket={handlePrintTicket}
+                  onTagVehicle={handleTagVehicle}
+                  onSendToYard={handleSendToYard}
+                  onSpecialRelease={handleSpecialRelease}
                 />
 
                 {/* Navigation */}
