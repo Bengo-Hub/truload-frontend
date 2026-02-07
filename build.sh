@@ -43,6 +43,21 @@ info "Image: ${IMAGE_REPO}:${GIT_COMMIT_ID}"
 for c in git docker trivy; do command -v "$c" >/dev/null || { err "$c is required"; exit 1; }; done
 if [[ "${DEPLOY}" == "true" ]]; then for c in kubectl helm yq jq; do command -v "$c" >/dev/null || { err "$c is required"; exit 1; }; done; fi
 
+# =============================================================================
+# Auto-sync secrets from devops-k8s
+# =============================================================================
+if [[ ${DEPLOY} == "true" ]]; then
+  step "Checking and syncing required secrets from devops-k8s"
+  SYNC_SCRIPT=$(mktemp)
+  if curl -fsSL https://raw.githubusercontent.com/Bengo-Hub/devops-k8s/main/scripts/tools/check-and-sync-secrets.sh -o "$SYNC_SCRIPT" 2>/dev/null; then
+    source "$SYNC_SCRIPT"
+    check_and_sync_secrets "KUBE_CONFIG" "REGISTRY_USERNAME" "REGISTRY_PASSWORD" "GIT_TOKEN" || warn "Secret sync failed - continuing with existing secrets"
+    rm -f "$SYNC_SCRIPT"
+  else
+    warn "Unable to download secret sync script - continuing with existing secrets"
+  fi
+fi
+
 step "Filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table --skip-files "*.pem" --skip-files "*.key" --skip-files "*.crt" || true
 
@@ -109,8 +124,8 @@ if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" ]]; then
 fi
 
 # Update Helm values in devops-k8s repo
-# Resolve token from available sources (priority: GH_PAT > GIT_SECRET > GIT_TOKEN > GITHUB_TOKEN)
-TOKEN="${GH_PAT:-${GIT_SECRET:-${GIT_TOKEN:-${GITHUB_TOKEN:-}}}}"
+# Resolve token from available sources (priority: GH_PAT > GIT_SECRET > GIT_TOKEN)
+TOKEN="${GH_PAT:-${GIT_SECRET:-${GIT_TOKEN:-}}}"
 
 if [[ -n "${GH_PAT:-}" ]]; then
   info "Using GH_PAT for git operations"
@@ -118,8 +133,8 @@ elif [[ -n "${GIT_SECRET:-}" ]]; then
   info "Using GIT_SECRET for git operations"
 elif [[ -n "${GIT_TOKEN:-}" ]]; then
   info "Using GIT_TOKEN for git operations"
-elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
-  info "Using GITHUB_TOKEN for git operations (may lack cross-repo write)"
+elif [[ -n "${GIT_TOKEN:-}" ]]; then
+  info "Using GIT_TOKEN for git operations"
 else
   warn "No GitHub token found for devops-k8s update"
 fi
