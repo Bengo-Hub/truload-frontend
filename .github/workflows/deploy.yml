@@ -25,7 +25,7 @@ jobs:
           _REGISTRY_EMAIL: ${{ secrets.REGISTRY_EMAIL }}
           _KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
- REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL KUBE_CONFIG"
+          REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL KUBE_CONFIG"
 
           # Step 1: Delete any secrets that exist but have empty values.
           # gh secret list reports empty-value secrets as "existing", so the
