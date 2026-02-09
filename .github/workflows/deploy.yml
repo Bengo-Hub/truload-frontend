@@ -23,11 +23,9 @@ jobs:
           _REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           _REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           _REGISTRY_EMAIL: ${{ secrets.REGISTRY_EMAIL }}
-          _GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
-          _GIT_SECRET: ${{ secrets.GIT_SECRET }}
           _KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL GIT_TOKEN GIT_SECRET KUBE_CONFIG"
+ REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL KUBE_CONFIG"
 
           # Step 1: Delete any secrets that exist but have empty values.
           # gh secret list reports empty-value secrets as "existing", so the
@@ -160,7 +158,6 @@ jobs:
       run: |
         echo "Checking which tokens are available..."
         [[ -n "${{ secrets.GH_PAT }}" ]] && echo "✅ GH_PAT is set" || echo "❌ GH_PAT not found"
-        [[ -n "${{ secrets.GIT_TOKEN }}" ]] && echo "✅ GIT_TOKEN is set" || echo "❌ GIT_TOKEN not found"
         [[ -n "${{ secrets.GITHUB_TOKEN }}" ]] && echo "✅ GITHUB_TOKEN is set (default)" || echo "❌ GITHUB_TOKEN not found"
         echo "Note: GH_PAT required for cross-repo push to devops-k8s"
 
@@ -188,7 +185,6 @@ jobs:
         check_secret "REGISTRY_USERNAME"  5    "$REGISTRY_USERNAME"
         check_secret "REGISTRY_PASSWORD"  20   "$REGISTRY_PASSWORD"
         check_secret "KUBE_CONFIG"        1000 "$KUBE_CONFIG"
-        check_secret "GIT_TOKEN"          20   "$GIT_TOKEN"
 
         if [[ $FAIL -eq 1 ]]; then
           echo ""
@@ -214,7 +210,6 @@ jobs:
         REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
         REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-        GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
 
     - name: Run production deployment
       if: needs.sync-secrets.outputs.result != 'synced'
@@ -222,8 +217,6 @@ jobs:
         KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         # GitHub tokens for cross-repo push (priority order in build.sh)
         GH_PAT: ${{ secrets.GH_PAT }}
-        GIT_SECRET: ${{ secrets.GIT_SECRET }}
-        GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Registry credentials
         REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
