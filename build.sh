@@ -123,20 +123,12 @@ if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" ]]; then
     --dry-run=client -o yaml | kubectl apply -f - || warn "Pull secret creation failed"
 fi
 
-# Update Helm values in devops-k8s repo
-# Resolve token from available sources (priority: GH_PAT > GIT_SECRET > GIT_TOKEN)
-TOKEN="${GH_PAT:-${GIT_SECRET:-${GIT_TOKEN:-}}}"
-
-if [[ -n "${GH_PAT:-}" ]]; then
-  info "Using GH_PAT for git operations"
-elif [[ -n "${GIT_SECRET:-}" ]]; then
-  info "Using GIT_SECRET for git operations"
-elif [[ -n "${GIT_TOKEN:-}" ]]; then
-  info "Using GIT_TOKEN for git operations"
-elif [[ -n "${GIT_TOKEN:-}" ]]; then
-  info "Using GIT_TOKEN for git operations"
-else
-  warn "No GitHub token found for devops-k8s update"
+# Clone devops-k8s repo (needed for helm values update)
+if [[ ! -d "$DEVOPS_DIR" ]]; then
+  TOKEN="${GH_PAT:-}"
+  CLONE_URL="https://github.com/${DEVOPS_REPO}.git"
+  [[ -n $TOKEN ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
+  git clone "$CLONE_URL" "$DEVOPS_DIR" || warn "Unable to clone devops repo for helm values update"
 fi
 
 # Update Helm values using centralized script
