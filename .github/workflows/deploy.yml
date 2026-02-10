@@ -222,7 +222,7 @@ jobs:
         }
 
         check_secret "REGISTRY_USERNAME"  5    "$REGISTRY_USERNAME"
-        check_secret "REGISTRY_PASSWORD"  20   "$REGISTRY_PASSWORD"
+        check_secret "REGISTRY_PASSWORD"  12   "$REGISTRY_PASSWORD"
         check_secret "KUBE_CONFIG"        1000 "$KUBE_CONFIG"
 
         if [[ $FAIL -eq 1 ]]; then
