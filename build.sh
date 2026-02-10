@@ -4,7 +4,7 @@
 # TruLoad Frontend (Next.js 15) - Production Build & Deploy Script
 # =============================================================================
 # - Trivy scan, Docker build with NEXT_PUBLIC_* build args
-# - Push to registry
+# - Push to registry 
 # - Apply K8s env secret (optional)
 # - Update centralized devops-k8s Helm values (if app path exists)
 # =============================================================================
