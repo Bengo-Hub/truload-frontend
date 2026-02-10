@@ -51,7 +51,8 @@ if [[ ${DEPLOY} == "true" ]]; then
   SYNC_SCRIPT=$(mktemp)
   if curl -fsSL https://raw.githubusercontent.com/Bengo-Hub/devops-k8s/main/scripts/tools/check-and-sync-secrets.sh -o "$SYNC_SCRIPT" 2>/dev/null; then
     source "$SYNC_SCRIPT"
-    check_and_sync_secrets "REGISTRY_USERNAME" "REGISTRY_PASSWORD" "GIT_TOKEN" || warn "Secret sync failed - continuing with existing secrets"
+    # Note: GH_PAT is passed directly from workflow, not synced from devops-k8s
+    check_and_sync_secrets "REGISTRY_USERNAME" "REGISTRY_PASSWORD" || warn "Secret sync failed - continuing with existing secrets"
     rm -f "$SYNC_SCRIPT"
   else
     warn "Unable to download secret sync script - continuing with existing secrets"
