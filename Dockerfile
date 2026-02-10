@@ -2,7 +2,7 @@
 
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
-RUN npm install -g pnpm
+RUN corepack enable && corepack prepare pnpm@9.9.0 --activate
 WORKDIR /app
 
 # Install dependencies with pnpm
