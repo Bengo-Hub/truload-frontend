@@ -19,8 +19,11 @@ export interface InvoiceDto {
   status: string;
   generatedAt: string;
   dueDate?: string;
-  totalPaid: number;
-  balance: number;
+  pesaflowInvoiceNumber?: string;
+  pesaflowPaymentReference?: string;
+  pesaflowCheckoutUrl?: string;
+  amountPaid: number;
+  balanceRemaining: number;
   createdAt: string;
   updatedAt: string;
 }

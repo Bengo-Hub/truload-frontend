@@ -46,5 +46,8 @@ export * from './useBackupQueries';
 // Analytics queries
 export * from './useAnalyticsQueries';
 
+// Integration queries
+export * from './useIntegrationQueries';
+
 // Re-export query configuration for advanced usage
 export { QUERY_KEYS, QUERY_OPTIONS, CACHE_TIMES, queryKeys } from '@/lib/query/config';

@@ -42,16 +42,24 @@ import {
   useRecordPayment,
   useDownloadReceipt,
 } from '@/hooks/queries';
+import {
+  useCreatePesaflowInvoice,
+  useInitiateCheckout,
+} from '@/hooks/queries/useIntegrationQueries';
 import { generateIdempotencyKey } from '@/lib/api/receipt';
 import type { ChargeCalculationResult } from '@/lib/api/prosecution';
 import type { InvoiceDto } from '@/lib/api/invoice';
+import { FinancialSummary } from './FinancialSummary';
 import {
   AlertTriangle,
   Calculator,
+  CheckCircle2,
   CreditCard,
   DollarSign,
   Download,
+  ExternalLink,
   FileText,
+  Globe,
   Loader2,
   Plus,
   Receipt,
@@ -72,6 +80,7 @@ const PAYMENT_METHODS = [
   { value: 'bank_transfer', label: 'Bank Transfer' },
   { value: 'card', label: 'Card Payment' },
   { value: 'cheque', label: 'Cheque' },
+  { value: 'pesaflow', label: 'Pesaflow (eCitizen)' },
 ];
 
 export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSectionProps) {
@@ -101,9 +110,12 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
   const downloadInvoiceMutation = useDownloadInvoice();
   const recordPaymentMutation = useRecordPayment();
   const downloadReceiptMutation = useDownloadReceipt();
+  const createPesaflowInvoiceMutation = useCreatePesaflowInvoice();
+  const initiateCheckoutMutation = useInitiateCheckout();
 
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPesaflowModal, setShowPesaflowModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDto | null>(null);
 
   // Payment form states
@@ -213,11 +225,80 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
   const openPaymentModal = (invoice: InvoiceDto) => {
     setSelectedInvoice(invoice);
     setPaymentForm({
-      amountPaid: invoice.balance.toString(),
+      amountPaid: invoice.balanceRemaining.toString(),
       paymentMethod: '',
       transactionReference: '',
     });
     setShowPaymentModal(true);
+  };
+
+  // Pesaflow payment form state
+  const [pesaflowForm, setPesaflowForm] = useState({
+    clientName: '',
+    clientEmail: '',
+    clientMsisdn: '',
+    clientIdNumber: '',
+  });
+
+  // Handle Pesaflow invoice creation → checkout
+  const handlePesaflowPayment = useCallback(async () => {
+    if (!selectedInvoice || !pesaflowForm.clientName.trim()) {
+      toast.error('Please provide the client name');
+      return;
+    }
+
+    try {
+      // Step 1: Create Pesaflow invoice if not already created
+      if (!selectedInvoice.pesaflowInvoiceNumber) {
+        await createPesaflowInvoiceMutation.mutateAsync({
+          invoiceId: selectedInvoice.id,
+          request: {
+            clientName: pesaflowForm.clientName,
+            clientEmail: pesaflowForm.clientEmail || undefined,
+            clientMsisdn: pesaflowForm.clientMsisdn || undefined,
+            clientIdNumber: pesaflowForm.clientIdNumber || undefined,
+          },
+        });
+        toast.success('Pesaflow invoice created');
+      }
+
+      // Step 2: Initiate checkout
+      const checkout = await initiateCheckoutMutation.mutateAsync({
+        invoiceId: selectedInvoice.id,
+        request: {
+          clientName: pesaflowForm.clientName,
+          clientEmail: pesaflowForm.clientEmail || undefined,
+          clientMsisdn: pesaflowForm.clientMsisdn || undefined,
+          clientIdNumber: pesaflowForm.clientIdNumber || undefined,
+          sendStk: !!pesaflowForm.clientMsisdn,
+        },
+      });
+
+      if (checkout.checkoutUrl) {
+        window.open(checkout.checkoutUrl, '_blank', 'noopener,noreferrer');
+        toast.success('Pesaflow checkout opened in new tab');
+      } else {
+        toast.success('Checkout initiated - awaiting payment');
+      }
+
+      setShowPesaflowModal(false);
+      refetch();
+    } catch {
+      toast.error('Failed to initiate Pesaflow payment');
+    }
+  }, [
+    selectedInvoice,
+    pesaflowForm,
+    createPesaflowInvoiceMutation,
+    initiateCheckoutMutation,
+    refetch,
+  ]);
+
+  // Open Pesaflow payment modal
+  const openPesaflowModal = (invoice: InvoiceDto) => {
+    setSelectedInvoice(invoice);
+    setPesaflowForm({ clientName: '', clientEmail: '', clientMsisdn: '', clientIdNumber: '' });
+    setShowPesaflowModal(true);
   };
 
   // Handle framework change
@@ -424,6 +505,9 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
             </div>
           </div>
 
+          {/* Financial Summary */}
+          <FinancialSummary prosecutionId={prosecution.id} />
+
           {/* Invoice Section */}
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-4">
@@ -464,35 +548,78 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
                 <TableBody>
                   {invoices.map((invoice) => (
                     <TableRow key={invoice.id}>
-                      <TableCell className="font-mono">{invoice.invoiceNo}</TableCell>
+                      <TableCell>
+                        <div>
+                          <span className="font-mono">{invoice.invoiceNo}</span>
+                          {invoice.pesaflowInvoiceNumber && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Globe className="h-3 w-3 text-purple-500" />
+                              <span className="text-[10px] text-purple-600 font-mono">
+                                {invoice.pesaflowInvoiceNumber}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{formatCurrency(invoice.amountDue, invoice.currency)}</TableCell>
                       <TableCell className="text-green-600">
-                        {formatCurrency(invoice.totalPaid, invoice.currency)}
+                        {formatCurrency(invoice.amountPaid, invoice.currency)}
                       </TableCell>
-                      <TableCell className={invoice.balance > 0 ? 'text-red-600' : ''}>
-                        {formatCurrency(invoice.balance, invoice.currency)}
+                      <TableCell className={invoice.balanceRemaining > 0 ? 'text-red-600' : ''}>
+                        {formatCurrency(invoice.balanceRemaining, invoice.currency)}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          className={
-                            invoice.status === 'paid'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }
-                        >
-                          {invoice.status}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge
+                            className={
+                              invoice.status === 'paid'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }
+                          >
+                            {invoice.status}
+                          </Badge>
+                          {invoice.pesaflowPaymentReference && (
+                            <Badge className="bg-purple-50 text-purple-700 text-[10px]">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Pesaflow
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {invoice.status !== 'paid' && invoice.balance > 0 && (
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {invoice.status !== 'paid' && invoice.balanceRemaining > 0 && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openPaymentModal(invoice)}
+                              >
+                                <CreditCard className="h-4 w-4 mr-1.5" />
+                                Pay
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                                onClick={() => openPesaflowModal(invoice)}
+                              >
+                                <Globe className="h-4 w-4 mr-1.5" />
+                                Pay Online
+                              </Button>
+                            </>
+                          )}
+                          {invoice.pesaflowCheckoutUrl && invoice.status !== 'paid' && (
                             <Button
                               size="sm"
-                              variant="outline"
-                              onClick={() => openPaymentModal(invoice)}
+                              variant="ghost"
+                              className="text-purple-600"
+                              onClick={() =>
+                                window.open(invoice.pesaflowCheckoutUrl!, '_blank', 'noopener')
+                              }
                             >
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              Pay
+                              <ExternalLink className="h-4 w-4" />
                             </Button>
                           )}
                           <Button
@@ -586,13 +713,13 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
               <div className="flex justify-between">
                 <span className="text-gray-500">Already Paid:</span>
                 <span className="text-green-600">
-                  {formatCurrency(selectedInvoice?.totalPaid || 0, selectedInvoice?.currency)}
+                  {formatCurrency(selectedInvoice?.amountPaid || 0, selectedInvoice?.currency)}
                 </span>
               </div>
               <div className="flex justify-between border-t pt-2 mt-2">
                 <span className="text-gray-500 font-semibold">Balance:</span>
                 <span className="font-bold text-red-600">
-                  {formatCurrency(selectedInvoice?.balance || 0, selectedInvoice?.currency)}
+                  {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency)}
                 </span>
               </div>
             </div>
@@ -605,7 +732,7 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
                   type="number"
                   step="0.01"
                   min="0.01"
-                  max={selectedInvoice?.balance}
+                  max={selectedInvoice?.balanceRemaining}
                   value={paymentForm.amountPaid}
                   onChange={(e) =>
                     setPaymentForm((prev) => ({ ...prev, amountPaid: e.target.value }))
@@ -627,7 +754,7 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAYMENT_METHODS.map((method) => (
+                  {PAYMENT_METHODS.filter((m) => m.value !== 'pesaflow').map((method) => (
                     <SelectItem key={method.value} value={method.value}>
                       {method.label}
                     </SelectItem>
@@ -661,6 +788,114 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
                 <CreditCard className="h-4 w-4 mr-2" />
               )}
               Record Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pesaflow Online Payment Modal */}
+      <Dialog open={showPesaflowModal} onOpenChange={setShowPesaflowModal}>
+        <DialogContent>
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-purple-600" />
+              Pay via eCitizen / Pesaflow
+            </DialogTitle>
+            <DialogDescription>
+              Initiate online payment for invoice {selectedInvoice?.invoiceNo}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
+            {/* Invoice Summary */}
+            <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Amount:</span>
+                <span className="font-bold text-lg">
+                  {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency)}
+                </span>
+              </div>
+              {selectedInvoice?.pesaflowInvoiceNumber && (
+                <div className="flex justify-between mt-1">
+                  <span className="text-gray-500 text-sm">Pesaflow Ref:</span>
+                  <span className="font-mono text-sm text-purple-700">
+                    {selectedInvoice.pesaflowInvoiceNumber}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Client Details */}
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Client Name *</Label>
+                <Input
+                  value={pesaflowForm.clientName}
+                  onChange={(e) =>
+                    setPesaflowForm((prev) => ({ ...prev, clientName: e.target.value }))
+                  }
+                  placeholder="Full name of the payer"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <Input
+                    value={pesaflowForm.clientMsisdn}
+                    onChange={(e) =>
+                      setPesaflowForm((prev) => ({ ...prev, clientMsisdn: e.target.value }))
+                    }
+                    placeholder="e.g., 254712345678"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={pesaflowForm.clientEmail}
+                    onChange={(e) =>
+                      setPesaflowForm((prev) => ({ ...prev, clientEmail: e.target.value }))
+                    }
+                    placeholder="client@example.com"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>ID Number</Label>
+                <Input
+                  value={pesaflowForm.clientIdNumber}
+                  onChange={(e) =>
+                    setPesaflowForm((prev) => ({ ...prev, clientIdNumber: e.target.value }))
+                  }
+                  placeholder="National ID or Passport number"
+                />
+              </div>
+            </div>
+
+            {pesaflowForm.clientMsisdn && (
+              <p className="text-xs text-purple-600 bg-purple-50 p-2 rounded">
+                An M-Pesa STK push will be sent to {pesaflowForm.clientMsisdn} for direct payment.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="flex-shrink-0">
+            <Button variant="outline" onClick={() => setShowPesaflowModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePesaflowPayment}
+              disabled={
+                createPesaflowInvoiceMutation.isPending ||
+                initiateCheckoutMutation.isPending ||
+                !pesaflowForm.clientName.trim()
+              }
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {createPesaflowInvoiceMutation.isPending || initiateCheckoutMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Globe className="h-4 w-4 mr-2" />
+              )}
+              Proceed to Payment
             </Button>
           </DialogFooter>
         </DialogContent>
