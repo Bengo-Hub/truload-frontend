@@ -1,42 +1,70 @@
 'use client';
 
 import Image from 'next/image';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useHasPermission } from '@/hooks/useAuth';
+import {
+  useIntegrations,
+  useUpsertIntegration,
+} from '@/hooks/queries/useIntegrationQueries';
 import {
   fetchApiSettings,
   saveApiSettings,
   type KeyValueEntry,
 } from '@/lib/api/setup';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import {
-  AlertCircle,
-  Bell,
-  Globe,
-  Loader2,
-  Plus,
-  RefreshCcw,
-  Save,
-  Trash2,
-  Wifi,
-} from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { testIntegrationConnectivity, reconcilePayments } from '@/lib/api/integration';
+import type { UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 
-import { Badge } from '@/components/ui/badge';
+// Layout & UI
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// ---------------------------------------------------------------------------
-// Service definitions
-// ---------------------------------------------------------------------------
+// Modular integration components
+import {
+  IntegrationProviderCard,
+  IntegrationConfigForm,
+  ReconciliationPanel,
+  type ProviderMeta,
+} from '@/components/integrations';
 
-interface ServiceDef {
+// Icons
+import {
+  AlertCircle,
+  Bell,
+  CreditCard,
+  Globe,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Save,
+  Settings2,
+  Trash2,
+} from 'lucide-react';
+
+// ============================================================================
+// Provider Definitions
+// ============================================================================
+
+const PAYMENT_PROVIDERS: ProviderMeta[] = [
+  {
+    providerName: 'ecitizen_pesaflow',
+    displayName: 'eCitizen Pesaflow',
+    description: 'Government payment gateway for fines and permits',
+    logo: '/images/logos/ecitizen-logo.svg',
+    color: 'bg-purple-100',
+  },
+];
+
+interface ApiServiceDef {
   value: string;
   label: string;
   description: string;
@@ -45,27 +73,20 @@ interface ServiceDef {
   color: string;
 }
 
-const SERVICES: ServiceDef[] = [
+const API_SERVICES: ApiServiceDef[] = [
   {
     value: 'notifications',
-    label: 'Notifications Service',
+    label: 'Notifications',
     description: 'Push notifications, SMS, and email gateway',
-    icon: <Bell className="h-6 w-6 text-blue-600" />,
+    icon: <Bell className="h-5 w-5 text-blue-600" />,
     color: 'bg-blue-100 text-blue-700 border-blue-200',
   },
   {
     value: 'ntsa',
     label: 'NTSA',
-    description: 'National Transport & Safety Authority vehicle verification',
+    description: 'Vehicle verification & transport authority',
     logo: '/images/logos/ntsa-logo.png',
     color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  },
-  {
-    value: 'ecitizen',
-    label: 'eCitizen',
-    description: 'Government portal for permit & licence checks',
-    logo: '/images/logos/ecitizen-logo.svg',
-    color: 'bg-purple-100 text-purple-700 border-purple-200',
   },
   {
     value: 'kenha',
@@ -76,15 +97,222 @@ const SERVICES: ServiceDef[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
+// ============================================================================
 // Page
-// ---------------------------------------------------------------------------
+// ============================================================================
 
 export default function IntegrationSettingsPage() {
-  const canEdit = useHasPermission(['config.read', 'system.security_policy'], 'any');
-  const [activeService, setActiveService] = useState<string>(SERVICES[0].value);
+  return (
+    <ProtectedRoute requiredPermissions={['config.read']}>
+      <IntegrationSettingsContent />
+    </ProtectedRoute>
+  );
+}
 
-  // Fetch API settings for selected service
+// ============================================================================
+// Content
+// ============================================================================
+
+function IntegrationSettingsContent() {
+  const canEdit = useHasPermission(['config.read', 'config.update'], 'any');
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
+            <Globe className="h-6 w-6 text-primary" />
+            Integrations
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage payment gateways and external API connections
+          </p>
+        </div>
+      </header>
+
+      {/* Tabs */}
+      <Tabs defaultValue="payment-gateways" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="payment-gateways" className="gap-1.5">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Payment Gateways</span>
+            <span className="sm:hidden">Payments</span>
+          </TabsTrigger>
+          <TabsTrigger value="api-settings" className="gap-1.5">
+            <Settings2 className="h-4 w-4" />
+            <span className="hidden sm:inline">API Settings</span>
+            <span className="sm:hidden">APIs</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="payment-gateways">
+          <PaymentGatewaysTab canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="api-settings">
+          <ApiSettingsTab canEdit={canEdit} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ============================================================================
+// Payment Gateways Tab
+// ============================================================================
+
+function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
+  const { data: integrations, isLoading } = useIntegrations();
+  const upsertMutation = useUpsertIntegration();
+  const [selectedProvider, setSelectedProvider] = useState<string>(
+    PAYMENT_PROVIDERS[0].providerName
+  );
+
+  // Find the config for the selected provider
+  const selectedConfig = useMemo(
+    () => integrations?.find((c) => c.providerName === selectedProvider) ?? null,
+    [integrations, selectedProvider]
+  );
+
+  const handleSave = useCallback(
+    async (request: UpsertIntegrationConfigRequest) => {
+      try {
+        await upsertMutation.mutateAsync({
+          providerName: request.providerName,
+          request,
+        });
+        toast.success('Integration configuration saved');
+      } catch {
+        toast.error('Failed to save configuration');
+      }
+    },
+    [upsertMutation]
+  );
+
+  const handleTestConnection = useCallback(
+    async (providerName: string) => {
+      return testIntegrationConnectivity(providerName);
+    },
+    []
+  );
+
+  const handleReconcile = useCallback(async () => {
+    return reconcilePayments();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      {/* Provider Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {isLoading
+          ? Array.from({ length: 1 }).map((_, i) => (
+              <Card key={i} className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-3 border-t border-gray-100">
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-4 w-24 ml-auto" />
+                </div>
+              </Card>
+            ))
+          : PAYMENT_PROVIDERS.map((provider) => {
+              const config = integrations?.find(
+                (c) => c.providerName === provider.providerName
+              );
+              return (
+                <IntegrationProviderCard
+                  key={provider.providerName}
+                  provider={provider}
+                  status={config?.isActive ? 'active' : 'inactive'}
+                  isSelected={selectedProvider === provider.providerName}
+                  environment={config?.environment}
+                  lastUpdated={config?.updatedAt}
+                  onClick={() => setSelectedProvider(provider.providerName)}
+                />
+              );
+            })}
+      </div>
+
+      {/* Configuration Form */}
+      <Card className="overflow-hidden">
+        <div className="border-b bg-gray-50/50 px-4 sm:px-6 py-4 flex items-center gap-3">
+          {(() => {
+            const meta = PAYMENT_PROVIDERS.find((p) => p.providerName === selectedProvider);
+            return (
+              <>
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta?.color ?? 'bg-gray-100'}`}>
+                  {meta?.logo ? (
+                    <Image
+                      src={meta.logo}
+                      alt={meta.displayName}
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 object-contain"
+                    />
+                  ) : (
+                    <CreditCard className="h-4 w-4 text-gray-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm">
+                    {meta?.displayName ?? selectedProvider}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">{meta?.description}</p>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+
+        <div className="p-4 sm:p-6">
+          <IntegrationConfigForm
+            config={selectedConfig}
+            providerName={selectedProvider}
+            isLoading={isLoading}
+            canEdit={canEdit}
+            onSave={handleSave}
+            isSaving={upsertMutation.isPending}
+            onTestConnection={handleTestConnection}
+          />
+        </div>
+      </Card>
+
+      {/* Reconciliation Panel */}
+      {selectedProvider === 'ecitizen_pesaflow' && selectedConfig && (
+        <ReconciliationPanel
+          onReconcile={handleReconcile}
+          disabled={!canEdit}
+        />
+      )}
+
+      {/* Security Info */}
+      <div className="flex items-start gap-3 rounded-lg bg-blue-50 border border-blue-200 p-4">
+        <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+        <div className="text-sm text-blue-800">
+          <p className="font-medium mb-1">Encrypted Credential Storage</p>
+          <p className="text-xs leading-relaxed">
+            Payment gateway credentials are encrypted at rest using AES-256-GCM and stored
+            securely in the database. Credentials are never exposed in API responses. Webhook
+            and callback URLs are auto-generated from your configured app base URL.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// API Settings Tab (Legacy KV Editor)
+// ============================================================================
+
+function ApiSettingsTab({ canEdit }: { canEdit: boolean }) {
+  const [activeService, setActiveService] = useState(API_SERVICES[0].value);
+
   const {
     data: apiSettings,
     isLoading,
@@ -108,36 +336,79 @@ export default function IntegrationSettingsPage() {
   const saveMutation = useMutation({
     mutationFn: () => saveApiSettings(activeService, entries),
     onSuccess: () => {
-      toast.success('Integration settings saved');
+      toast.success('API settings saved');
       refetchApiSettings();
     },
     onError: () => toast.error('Failed to save settings'),
   });
 
   const addEntry = () => setEntries((prev) => [...prev, { key: '', value: '' }]);
-  const removeEntry = (index: number) => setEntries((prev) => prev.filter((_, i) => i !== index));
+  const removeEntry = (index: number) =>
+    setEntries((prev) => prev.filter((_, i) => i !== index));
   const updateEntry = (index: number, field: 'key' | 'value', val: string) => {
     setEntries((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: val } : p)));
   };
 
-  const kvDisabled = useMemo(() => !canEdit, [canEdit]);
-  const activeServiceMeta = SERVICES.find((s) => s.value === activeService)!;
+  const kvDisabled = !canEdit;
+  const activeServiceMeta = API_SERVICES.find((s) => s.value === activeService)!;
   const hasEntries = entries.length > 0;
   const hasEmptyKeys = entries.some((e) => !e.key.trim());
 
   return (
-    <ProtectedRoute requiredPermissions={['config.read']}>
-      <div className="space-y-6">
-        {/* Header */}
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
-              <Globe className="h-6 w-6 text-primary" />
-              Integration Settings
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Configure API keys and connection settings for external services
-            </p>
+    <div className="space-y-6">
+      {/* Service Selector Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {API_SERVICES.map((svc) => (
+          <button
+            key={svc.value}
+            type="button"
+            onClick={() => setActiveService(svc.value)}
+            className={`rounded-xl border p-3 text-left transition-all ${
+              activeService === svc.value
+                ? 'border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm'
+                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              {svc.logo ? (
+                <Image
+                  src={svc.logo}
+                  alt={svc.label}
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain"
+                />
+              ) : (
+                svc.icon
+              )}
+              <span className="font-medium text-sm text-gray-900">{svc.label}</span>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">{svc.description}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Settings Editor */}
+      <Card className="overflow-hidden">
+        <div className="border-b bg-gray-50/50 px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {activeServiceMeta.logo ? (
+              <Image
+                src={activeServiceMeta.logo}
+                alt={activeServiceMeta.label}
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center">
+                {activeServiceMeta.icon}
+              </div>
+            )}
+            <div>
+              <h3 className="font-semibold text-gray-900">{activeServiceMeta.label}</h3>
+              <p className="text-xs text-muted-foreground">{activeServiceMeta.description}</p>
+            </div>
           </div>
           <Button
             variant="outline"
@@ -149,176 +420,131 @@ export default function IntegrationSettingsPage() {
             <RefreshCcw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
-        </header>
-
-        {/* Service Selector Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {SERVICES.map((svc) => (
-            <button
-              key={svc.value}
-              type="button"
-              onClick={() => setActiveService(svc.value)}
-              className={`rounded-xl border p-3 text-left transition-all ${
-                activeService === svc.value
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                {svc.logo ? (
-                  <Image src={svc.logo} alt={svc.label} width={24} height={24} className="h-6 w-6 object-contain" />
-                ) : (
-                  svc.icon
-                )}
-                <span className="font-medium text-sm text-gray-900">{svc.label}</span>
-              </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">{svc.description}</p>
-              {activeService === svc.value && (
-                <Badge variant="outline" className="mt-2 text-[10px] bg-primary/10 text-primary border-primary/20">
-                  <Wifi className="h-3 w-3 mr-1" />
-                  Active
-                </Badge>
-              )}
-            </button>
-          ))}
         </div>
 
-        {/* Settings Editor */}
-        <Card className="overflow-hidden">
-          <div className="border-b bg-gray-50/50 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {activeServiceMeta.logo ? (
-                <Image src={activeServiceMeta.logo} alt={activeServiceMeta.label} width={32} height={32} className="h-8 w-8 object-contain" />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center">{activeServiceMeta.icon}</div>
-              )}
-              <div>
-                <h3 className="font-semibold text-gray-900">{activeServiceMeta.label}</h3>
-                <p className="text-xs text-muted-foreground">{activeServiceMeta.description}</p>
-              </div>
-            </div>
-            {apiSettings?.updatedAt && (
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                Last updated: {new Date(apiSettings.updatedAt).toLocaleString()}
-              </p>
-            )}
-          </div>
-
-          <div className="p-6 space-y-4">
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Skeleton className="h-10" />
-                    <Skeleton className="h-10" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <>
-                {/* Key-Value Pairs */}
-                <ScrollArea className="max-h-[50vh]">
-                  <div className="space-y-3">
-                    {entries.map((entry, idx) => (
-                      <div
-                        key={idx}
-                        className="group grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end"
-                      >
-                        <div className="space-y-1">
-                          {idx === 0 && <Label className="text-xs text-muted-foreground">Key</Label>}
-                          <Input
-                            value={entry.key}
-                            onChange={(e) => updateEntry(idx, 'key', e.target.value)}
-                            disabled={kvDisabled}
-                            placeholder="e.g. api_key, base_url"
-                            className="font-mono text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          {idx === 0 && <Label className="text-xs text-muted-foreground">Value</Label>}
-                          <Input
-                            value={entry.value}
-                            onChange={(e) => updateEntry(idx, 'value', e.target.value)}
-                            disabled={kvDisabled}
-                            placeholder="Value"
-                            type={entry.key.toLowerCase().includes('secret') || entry.key.toLowerCase().includes('password') ? 'password' : 'text'}
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeEntry(idx)}
-                          disabled={kvDisabled}
-                          className="h-10 w-10 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-
-                {/* Empty State */}
-                {!hasEntries && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="rounded-full bg-muted p-4 mb-3">
-                      <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-700">No settings configured</p>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                      Add key-value pairs to configure the {activeServiceMeta.label} integration.
-                    </p>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex items-center justify-between border-t pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addEntry}
-                    disabled={kvDisabled}
-                    className="gap-1.5"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Setting
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => saveMutation.mutate()}
-                    disabled={kvDisabled || saveMutation.isPending || hasEmptyKeys}
-                    className="gap-1.5"
-                  >
-                    {saveMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    Save Settings
-                  </Button>
+        <div className="p-4 sm:p-6 space-y-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Skeleton className="h-10" />
+                  <Skeleton className="h-10" />
                 </div>
-              </>
-            )}
-          </div>
-        </Card>
+              ))}
+            </div>
+          ) : (
+            <>
+              {/* Key-Value Pairs */}
+              <ScrollArea className="max-h-[50vh]">
+                <div className="space-y-3">
+                  {entries.map((entry, idx) => (
+                    <div
+                      key={idx}
+                      className="group grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end"
+                    >
+                      <div className="space-y-1">
+                        {idx === 0 && (
+                          <Label className="text-xs text-muted-foreground">Key</Label>
+                        )}
+                        <Input
+                          value={entry.key}
+                          onChange={(e) => updateEntry(idx, 'key', e.target.value)}
+                          disabled={kvDisabled}
+                          placeholder="e.g. api_key, base_url"
+                          className="font-mono text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        {idx === 0 && (
+                          <Label className="text-xs text-muted-foreground">Value</Label>
+                        )}
+                        <Input
+                          value={entry.value}
+                          onChange={(e) => updateEntry(idx, 'value', e.target.value)}
+                          disabled={kvDisabled}
+                          placeholder="Value"
+                          type={
+                            entry.key.toLowerCase().includes('secret') ||
+                            entry.key.toLowerCase().includes('password')
+                              ? 'password'
+                              : 'text'
+                          }
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeEntry(idx)}
+                        disabled={kvDisabled}
+                        className="h-10 w-10 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
 
-        {/* Info */}
-        <div className="flex items-start gap-3 rounded-lg bg-blue-50 border border-blue-200 p-4">
-          <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">Integration Configuration</p>
-            <p>
-              Settings are stored securely and used by the backend to connect to external services.
-              Keys containing &quot;secret&quot; or &quot;password&quot; are masked in the UI.
-              For security-related settings (password policy, shift enforcement, 2FA, backups),
-              use the <strong>Security &amp; System Configuration</strong> page.
-            </p>
-          </div>
+              {/* Empty State */}
+              {!hasEntries && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="rounded-full bg-muted p-4 mb-3">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-700">No settings configured</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                    Add key-value pairs to configure the {activeServiceMeta.label} integration.
+                  </p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center justify-between border-t pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addEntry}
+                  disabled={kvDisabled}
+                  className="gap-1.5"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Setting
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={kvDisabled || saveMutation.isPending || hasEmptyKeys}
+                  className="gap-1.5"
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save Settings
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+
+      {/* Info */}
+      <div className="flex items-start gap-3 rounded-lg bg-blue-50 border border-blue-200 p-4">
+        <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+        <div className="text-sm text-blue-800">
+          <p className="font-medium mb-1">API Configuration</p>
+          <p className="text-xs leading-relaxed">
+            Settings are stored securely and used by the backend to connect to external services.
+            Keys containing &quot;secret&quot; or &quot;password&quot; are masked in the UI.
+            For payment gateway credentials (eCitizen/Pesaflow), use the{' '}
+            <strong>Payment Gateways</strong> tab which provides encrypted storage.
+          </p>
         </div>
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }
