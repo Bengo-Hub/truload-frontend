@@ -55,6 +55,9 @@ const nextConfig = {
       },
     ];
   },
+  // Turbopack: provide an explicit empty config to avoid build-time
+  // errors when webpack-related plugins are present in dependencies.
+  turbopack: {},
 };
 
 module.exports = nextConfig;
