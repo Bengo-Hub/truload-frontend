@@ -315,14 +315,11 @@ jobs:
         
         echo "::group::ArgoCD Application Status"
         mkdir -p ~/.kube
-        # KUBE_CONFIG may be plain YAML or base64-encoded; attempt decode then fallback
-        if printf '%s' "$KUBE_CONFIG_B64" | base64 -d >/tmp/kubeconfig.dec 2>/dev/null; then
-          if grep -Eq 'apiVersion|clusters|kind' /tmp/kubeconfig.dec; then
-            mv /tmp/kubeconfig.dec ~/.kube/config
-          else
-            echo "$KUBE_CONFIG_B64" > ~/.kube/config
-          fi
+        # Robustly handle kubeconfig which may be raw YAML or base64-encoded
+        if echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null; then
+          echo "KUBE_CONFIG decoded from base64"
         else
+          echo "KUBE_CONFIG does not appear base64; writing raw content"
           echo "$KUBE_CONFIG_B64" > ~/.kube/config
         fi
         
@@ -373,13 +370,11 @@ jobs:
 
         echo "::group::Health check"
         mkdir -p ~/.kube
-        if printf '%s' "$KUBE_CONFIG_B64" | base64 -d >/tmp/kubeconfig.dec 2>/dev/null; then
-          if grep -Eq 'apiVersion|clusters|kind' /tmp/kubeconfig.dec; then
-            mv /tmp/kubeconfig.dec ~/.kube/config
-          else
-            echo "$KUBE_CONFIG_B64" > ~/.kube/config
-          fi
+        # Robustly handle kubeconfig which may be raw YAML or base64-encoded
+        if echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null; then
+          echo "KUBE_CONFIG decoded from base64"
         else
+          echo "KUBE_CONFIG does not appear base64; writing raw content"
           echo "$KUBE_CONFIG_B64" > ~/.kube/config
         fi
 
