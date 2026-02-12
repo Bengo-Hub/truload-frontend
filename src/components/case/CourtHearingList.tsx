@@ -2,6 +2,10 @@
 
 import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -88,6 +92,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
   const [showAdjournModal, setShowAdjournModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [selectedHearing, setSelectedHearing] = useState<CourtHearingDto | null>(null);
+  const [deleteHearingTarget, setDeleteHearingTarget] = useState<string | null>(null);
 
   // Form states for scheduling
   const [scheduleForm, setScheduleForm] = useState({
@@ -227,17 +232,21 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
   }, [selectedHearing, completeForm, completeHearingMutation, refetch]);
 
   // Handle delete hearing
-  const handleDeleteHearing = useCallback(async (hearingId: string) => {
-    if (!confirm('Are you sure you want to delete this hearing?')) return;
+  const handleDeleteHearing = useCallback((hearingId: string) => {
+    setDeleteHearingTarget(hearingId);
+  }, []);
 
+  const confirmDeleteHearing = useCallback(async () => {
+    if (!deleteHearingTarget) return;
     try {
-      await deleteHearingMutation.mutateAsync(hearingId);
+      await deleteHearingMutation.mutateAsync(deleteHearingTarget);
       toast.success('Hearing deleted successfully');
       refetch();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete hearing');
     }
-  }, [deleteHearingMutation, refetch]);
+    setDeleteHearingTarget(null);
+  }, [deleteHearingTarget, deleteHearingMutation, refetch]);
 
   // Handle download minutes
   const handleDownloadMinutes = useCallback(async (hearingId: string) => {
@@ -607,6 +616,24 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Hearing Confirmation */}
+      <AlertDialog open={!!deleteHearingTarget} onOpenChange={(open) => !open && setDeleteHearingTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Hearing</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this hearing? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteHearing} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

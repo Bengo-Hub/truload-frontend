@@ -19,6 +19,7 @@ import {
   useVehicleTags,
   YARD_QUERY_KEYS,
 } from '@/hooks/queries/useYardQueries';
+import { useMyStation } from '@/hooks/queries/useWeighingQueries';
 import type { VehicleTagDto, TagCategoryDto } from '@/lib/api/yard';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -97,6 +98,9 @@ export default function TagsTab() {
   });
 
   // Mutations
+  // Get user's station for tag creation
+  const { data: myStation } = useMyStation();
+
   const createMutation = useCreateVehicleTag();
   const closeMutation = useCloseVehicleTag();
 
@@ -371,6 +375,7 @@ export default function TagsTab() {
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
         categories={categories}
+        stationCode={myStation?.code || ''}
         onSubmit={async (data) => {
           await createMutation.mutateAsync(data);
           toast.success('Tag created successfully');
@@ -413,6 +418,7 @@ interface CreateTagDialogProps {
   open: boolean;
   onClose: () => void;
   categories: TagCategoryDto[];
+  stationCode: string;
   onSubmit: (data: {
     regNo: string;
     tagType: string;
@@ -427,7 +433,7 @@ interface CreateTagDialogProps {
 /**
  * CreateTagDialog - Create new vehicle tag
  */
-function CreateTagDialog({ open, onClose, categories, onSubmit, isSubmitting }: CreateTagDialogProps) {
+function CreateTagDialog({ open, onClose, categories, stationCode, onSubmit, isSubmitting }: CreateTagDialogProps) {
   const [regNo, setRegNo] = useState('');
   const [tagCategoryId, setTagCategoryId] = useState<string>('');
   const [reason, setReason] = useState('');
@@ -440,7 +446,7 @@ function CreateTagDialog({ open, onClose, categories, onSubmit, isSubmitting }: 
       tagType: 'manual',
       tagCategoryId,
       reason,
-      stationCode: 'MRK', // TODO: Get from user's station context
+      stationCode,
       effectiveDays: effectiveDays > 0 ? effectiveDays : undefined,
     });
     // Reset form

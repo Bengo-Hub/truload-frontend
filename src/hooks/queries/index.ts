@@ -49,5 +49,26 @@ export * from './useAnalyticsQueries';
 // Integration queries
 export * from './useIntegrationQueries';
 
+// Case Party queries
+export * from './useCasePartyQueries';
+
+// Case Subfile queries
+export * from './useCaseSubfileQueries';
+
+// Arrest Warrant queries
+export * from './useArrestWarrantQueries';
+
+// Closure Checklist queries
+export * from './useClosureChecklistQueries';
+
+// Case Assignment queries
+export * from './useCaseAssignmentQueries';
+
+// Technical/Health queries
+export * from './useTechnicalQueries';
+
+// User/Officer queries
+export * from './useUserQueries';
+
 // Re-export query configuration for advanced usage
 export { QUERY_KEYS, QUERY_OPTIONS, CACHE_TIMES, queryKeys } from '@/lib/query/config';

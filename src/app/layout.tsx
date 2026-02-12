@@ -1,4 +1,5 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 import { PWARegister } from '@/components/PWARegister';
 import type { Metadata, Viewport } from 'next';
 import { Inter, Orbitron } from 'next/font/google';
@@ -51,7 +52,10 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} ${orbitron.variable}`}>
         <ErrorBoundary>
-          <Providers>{children}</Providers>
+          <Providers>
+            <OfflineIndicator />
+            {children}
+          </Providers>
           <PWARegister />
         </ErrorBoundary>
       </body>

@@ -69,9 +69,9 @@ const DEFAULT_AXLE_CONFIGS: Record<string, { groups: { label: string; axles: { p
 };
 
 const TYRE_IMAGE_MAP: Record<TyreType, string> = {
-  S: '/images/weighiging/axle_single.png',
-  D: '/images/weighiging/axle_double.png',
-  W: '/images/weighiging/axle_wide.png',
+  S: '/images/weighing/axle_single.png',
+  D: '/images/weighing/axle_double.png',
+  W: '/images/weighing/axle_wide.png',
 };
 
 const GROUP_COLORS: Record<string, { bg: string; border: string; text: string }> = {
