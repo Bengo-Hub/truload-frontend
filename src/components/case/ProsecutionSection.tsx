@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useCallback } from 'react';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,11 +47,13 @@ import {
 } from '@/hooks/queries';
 import {
   useCreatePesaflowInvoice,
-  useInitiateCheckout,
 } from '@/hooks/queries/useIntegrationQueries';
 import { generateIdempotencyKey } from '@/lib/api/receipt';
 import type { ChargeCalculationResult } from '@/lib/api/prosecution';
 import type { InvoiceDto } from '@/lib/api/invoice';
+import { PesaflowCheckoutDialog } from '@/components/payments/PesaflowCheckoutDialog';
+import { ReconcileDialog } from '@/components/payments/ReconcileDialog';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { FinancialSummary } from './FinancialSummary';
 import {
   AlertTriangle,
@@ -57,7 +62,6 @@ import {
   CreditCard,
   DollarSign,
   Download,
-  ExternalLink,
   FileText,
   Globe,
   Loader2,
@@ -67,6 +71,15 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+
+const pesaflowSchema = z.object({
+  clientName: z.string().min(1, 'Client name is required'),
+  clientEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
+  clientMsisdn: z.string().optional(),
+  clientIdNumber: z.string().optional(),
+});
+
+type PesaflowFormValues = z.infer<typeof pesaflowSchema>;
 
 interface ProsecutionSectionProps {
   caseId: string;
@@ -84,6 +97,8 @@ const PAYMENT_METHODS = [
 ];
 
 export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSectionProps) {
+  const isOnline = useOnlineStatus();
+
   // Queries
   const { data: prosecution, isLoading, refetch } = useProsecutionByCaseId(caseId);
   const { data: invoices = [] } = useInvoicesByProsecutionId(prosecution?.id);
@@ -111,11 +126,13 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
   const recordPaymentMutation = useRecordPayment();
   const downloadReceiptMutation = useDownloadReceipt();
   const createPesaflowInvoiceMutation = useCreatePesaflowInvoice();
-  const initiateCheckoutMutation = useInitiateCheckout();
 
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPesaflowModal, setShowPesaflowModal] = useState(false);
+  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
+  const [showReconcileDialog, setShowReconcileDialog] = useState(false);
+  const [checkoutPaymentLink, setCheckoutPaymentLink] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDto | null>(null);
 
   // Payment form states
@@ -232,72 +249,58 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
     setShowPaymentModal(true);
   };
 
-  // Pesaflow payment form state
-  const [pesaflowForm, setPesaflowForm] = useState({
-    clientName: '',
-    clientEmail: '',
-    clientMsisdn: '',
-    clientIdNumber: '',
+  // Pesaflow payment form
+  const pesaflowForm = useForm<PesaflowFormValues>({
+    resolver: zodResolver(pesaflowSchema),
+    defaultValues: {
+      clientName: '',
+      clientEmail: '',
+      clientMsisdn: '',
+      clientIdNumber: '',
+    },
   });
 
-  // Handle Pesaflow invoice creation → checkout
-  const handlePesaflowPayment = useCallback(async () => {
-    if (!selectedInvoice || !pesaflowForm.clientName.trim()) {
-      toast.error('Please provide the client name');
-      return;
-    }
+  const watchedClientMsisdn = pesaflowForm.watch('clientMsisdn');
+
+  // Handle Pesaflow invoice creation → open checkout iframe
+  const handlePesaflowPayment = useCallback(async (data: PesaflowFormValues) => {
+    if (!selectedInvoice) return;
 
     try {
-      // Step 1: Create Pesaflow invoice if not already created
-      if (!selectedInvoice.pesaflowInvoiceNumber) {
-        await createPesaflowInvoiceMutation.mutateAsync({
-          invoiceId: selectedInvoice.id,
-          request: {
-            clientName: pesaflowForm.clientName,
-            clientEmail: pesaflowForm.clientEmail || undefined,
-            clientMsisdn: pesaflowForm.clientMsisdn || undefined,
-            clientIdNumber: pesaflowForm.clientIdNumber || undefined,
-          },
-        });
-        toast.success('Pesaflow invoice created');
-      }
-
-      // Step 2: Initiate checkout
-      const checkout = await initiateCheckoutMutation.mutateAsync({
+      // Create Pesaflow invoice — backend POSTs to Pesaflow iframe endpoint
+      // and returns paymentLink (checkout URL)
+      const result = await createPesaflowInvoiceMutation.mutateAsync({
         invoiceId: selectedInvoice.id,
         request: {
-          clientName: pesaflowForm.clientName,
-          clientEmail: pesaflowForm.clientEmail || undefined,
-          clientMsisdn: pesaflowForm.clientMsisdn || undefined,
-          clientIdNumber: pesaflowForm.clientIdNumber || undefined,
-          sendStk: !!pesaflowForm.clientMsisdn,
+          clientName: data.clientName,
+          clientEmail: data.clientEmail || undefined,
+          clientMsisdn: data.clientMsisdn || undefined,
+          clientIdNumber: data.clientIdNumber || undefined,
         },
       });
 
-      if (checkout.checkoutUrl) {
-        window.open(checkout.checkoutUrl, '_blank', 'noopener,noreferrer');
-        toast.success('Pesaflow checkout opened in new tab');
+      if (result.paymentLink) {
+        setCheckoutPaymentLink(result.paymentLink);
+        setShowPesaflowModal(false);
+        setShowCheckoutDialog(true);
       } else {
-        toast.success('Checkout initiated - awaiting payment');
+        toast.success('Pesaflow invoice created — awaiting payment link');
+        setShowPesaflowModal(false);
+        refetch();
       }
-
-      setShowPesaflowModal(false);
-      refetch();
     } catch {
-      toast.error('Failed to initiate Pesaflow payment');
+      toast.error('Failed to create Pesaflow invoice');
     }
   }, [
     selectedInvoice,
-    pesaflowForm,
     createPesaflowInvoiceMutation,
-    initiateCheckoutMutation,
     refetch,
   ]);
 
   // Open Pesaflow payment modal
   const openPesaflowModal = (invoice: InvoiceDto) => {
     setSelectedInvoice(invoice);
-    setPesaflowForm({ clientName: '', clientEmail: '', clientMsisdn: '', clientIdNumber: '' });
+    pesaflowForm.reset({ clientName: '', clientEmail: '', clientMsisdn: '', clientIdNumber: '' });
     setShowPesaflowModal(true);
   };
 
@@ -608,18 +611,34 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
                                 <Globe className="h-4 w-4 mr-1.5" />
                                 Pay Online
                               </Button>
+                              {isOnline && !invoice.pesaflowPaymentReference && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                  onClick={() => {
+                                    setSelectedInvoice(invoice);
+                                    setShowReconcileDialog(true);
+                                  }}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                                  Reconcile
+                                </Button>
+                              )}
                             </>
                           )}
-                          {invoice.pesaflowCheckoutUrl && invoice.status !== 'paid' && (
+                          {invoice.pesaflowPaymentLink && invoice.status !== 'paid' && (
                             <Button
                               size="sm"
                               variant="ghost"
                               className="text-purple-600"
-                              onClick={() =>
-                                window.open(invoice.pesaflowCheckoutUrl!, '_blank', 'noopener')
-                              }
+                              onClick={() => {
+                                setSelectedInvoice(invoice);
+                                setCheckoutPaymentLink(invoice.pesaflowPaymentLink!);
+                                setShowCheckoutDialog(true);
+                              }}
                             >
-                              <ExternalLink className="h-4 w-4" />
+                              <Globe className="h-4 w-4" />
                             </Button>
                           )}
                           <Button
@@ -794,7 +813,7 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
       </Dialog>
 
       {/* Pesaflow Online Payment Modal */}
-      <Dialog open={showPesaflowModal} onOpenChange={setShowPesaflowModal}>
+      <Dialog open={showPesaflowModal} onOpenChange={(open) => { setShowPesaflowModal(open); if (!open) pesaflowForm.reset(); }}>
         <DialogContent>
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
@@ -805,101 +824,116 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
               Initiate online payment for invoice {selectedInvoice?.invoiceNo}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
-            {/* Invoice Summary */}
-            <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Amount:</span>
-                <span className="font-bold text-lg">
-                  {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency)}
-                </span>
-              </div>
-              {selectedInvoice?.pesaflowInvoiceNumber && (
-                <div className="flex justify-between mt-1">
-                  <span className="text-gray-500 text-sm">Pesaflow Ref:</span>
-                  <span className="font-mono text-sm text-purple-700">
-                    {selectedInvoice.pesaflowInvoiceNumber}
+          <form onSubmit={pesaflowForm.handleSubmit(handlePesaflowPayment)}>
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
+              {/* Invoice Summary */}
+              <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Amount:</span>
+                  <span className="font-bold text-lg">
+                    {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency)}
                   </span>
                 </div>
-              )}
-            </div>
-
-            {/* Client Details */}
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label>Client Name *</Label>
-                <Input
-                  value={pesaflowForm.clientName}
-                  onChange={(e) =>
-                    setPesaflowForm((prev) => ({ ...prev, clientName: e.target.value }))
-                  }
-                  placeholder="Full name of the payer"
-                />
+                {selectedInvoice?.pesaflowInvoiceNumber && (
+                  <div className="flex justify-between mt-1">
+                    <span className="text-gray-500 text-sm">Pesaflow Ref:</span>
+                    <span className="font-mono text-sm text-purple-700">
+                      {selectedInvoice.pesaflowInvoiceNumber}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+              {/* Client Details */}
+              <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label>Phone Number</Label>
+                  <Label>Client Name *</Label>
                   <Input
-                    value={pesaflowForm.clientMsisdn}
-                    onChange={(e) =>
-                      setPesaflowForm((prev) => ({ ...prev, clientMsisdn: e.target.value }))
-                    }
-                    placeholder="e.g., 254712345678"
+                    {...pesaflowForm.register('clientName')}
+                    placeholder="Full name of the payer"
                   />
+                  {pesaflowForm.formState.errors.clientName && <p className="text-sm text-red-500">{pesaflowForm.formState.errors.clientName.message}</p>}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Phone Number</Label>
+                    <Input
+                      {...pesaflowForm.register('clientMsisdn')}
+                      placeholder="e.g., 254712345678"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      {...pesaflowForm.register('clientEmail')}
+                      placeholder="client@example.com"
+                    />
+                    {pesaflowForm.formState.errors.clientEmail && <p className="text-sm text-red-500">{pesaflowForm.formState.errors.clientEmail.message}</p>}
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>ID Number</Label>
                   <Input
-                    type="email"
-                    value={pesaflowForm.clientEmail}
-                    onChange={(e) =>
-                      setPesaflowForm((prev) => ({ ...prev, clientEmail: e.target.value }))
-                    }
-                    placeholder="client@example.com"
+                    {...pesaflowForm.register('clientIdNumber')}
+                    placeholder="National ID or Passport number"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>ID Number</Label>
-                <Input
-                  value={pesaflowForm.clientIdNumber}
-                  onChange={(e) =>
-                    setPesaflowForm((prev) => ({ ...prev, clientIdNumber: e.target.value }))
-                  }
-                  placeholder="National ID or Passport number"
-                />
-              </div>
-            </div>
 
-            {pesaflowForm.clientMsisdn && (
-              <p className="text-xs text-purple-600 bg-purple-50 p-2 rounded">
-                An M-Pesa STK push will be sent to {pesaflowForm.clientMsisdn} for direct payment.
-              </p>
-            )}
-          </div>
-          <DialogFooter className="flex-shrink-0">
-            <Button variant="outline" onClick={() => setShowPesaflowModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePesaflowPayment}
-              disabled={
-                createPesaflowInvoiceMutation.isPending ||
-                initiateCheckoutMutation.isPending ||
-                !pesaflowForm.clientName.trim()
-              }
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              {createPesaflowInvoiceMutation.isPending || initiateCheckoutMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Globe className="h-4 w-4 mr-2" />
+              {watchedClientMsisdn && (
+                <p className="text-xs text-purple-600 bg-purple-50 p-2 rounded">
+                  An M-Pesa STK push will be sent to {watchedClientMsisdn} for direct payment.
+                </p>
               )}
-              Proceed to Payment
-            </Button>
-          </DialogFooter>
+            </div>
+            <DialogFooter className="flex-shrink-0">
+              <Button type="button" variant="outline" onClick={() => setShowPesaflowModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createPesaflowInvoiceMutation.isPending}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {createPesaflowInvoiceMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Globe className="h-4 w-4 mr-2" />
+                )}
+                Proceed to Payment
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
+
+      {/* Pesaflow Checkout Iframe Dialog */}
+      <PesaflowCheckoutDialog
+        open={showCheckoutDialog}
+        onOpenChange={setShowCheckoutDialog}
+        paymentLink={checkoutPaymentLink}
+        invoiceId={selectedInvoice?.id || ''}
+        invoiceNo={selectedInvoice?.invoiceNo || ''}
+        pesaflowInvoiceNumber={selectedInvoice?.pesaflowInvoiceNumber}
+        onPaymentConfirmed={() => {
+          refetch();
+        }}
+      />
+
+      {/* Reconcile Offline Invoice Dialog */}
+      <ReconcileDialog
+        open={showReconcileDialog}
+        onOpenChange={setShowReconcileDialog}
+        invoiceId={selectedInvoice?.id || ''}
+        invoiceNo={selectedInvoice?.invoiceNo || ''}
+        pesaflowInvoiceNumber={selectedInvoice?.pesaflowInvoiceNumber}
+        amountDue={selectedInvoice?.balanceRemaining || 0}
+        currency={selectedInvoice?.currency || 'KES'}
+        onReconciled={() => {
+          refetch();
+        }}
+      />
     </>
   );
 }

@@ -20,8 +20,8 @@ export default function ProfilePage() {
   const { user } = useUser();
   const [isEditing, setIsEditing] = useState(false);
 
-  const fullName = user?.fullName || 'John Kamau';
-  const [firstName, lastName] = (fullName || '').split(' ').length > 1
+  const fullName = user?.fullName || '';
+  const [firstName, lastName] = fullName.split(' ').length > 1
     ? [fullName.split(' ')[0], fullName.split(' ').slice(1).join(' ')]
     : [fullName, ''];
 
@@ -39,7 +39,7 @@ export default function ProfilePage() {
               <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>{fullName} - {(user?.roles && user.roles[0]) || 'Senior Weighbridge Officer'}</CardDescription>
+                  <CardDescription>{fullName}{user?.roles?.[0] ? ` - ${user.roles[0]}` : ''}</CardDescription>
                 </div>
                 <Avatar className="h-16 w-16 bg-emerald-600 text-white">
                   <User className="h-8 w-8" />
@@ -62,7 +62,7 @@ export default function ProfilePage() {
                       <Input
                         id="email"
                         type="email"
-                        defaultValue={user?.email || 'user@kuraweigh.com'}
+                        defaultValue={user?.email || ''}
                         disabled={!isEditing}
                         className="pl-9"
                       />
@@ -72,14 +72,14 @@ export default function ProfilePage() {
                     <Label htmlFor="phone">Phone</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input id="phone" defaultValue={'+254 712 345 678'} disabled={!isEditing} className="pl-9" />
+                      <Input id="phone" defaultValue={user?.phoneNumber || ''} disabled={!isEditing} className="pl-9" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
                     <div className="relative">
                       <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input id="role" defaultValue={(user?.roles && user.roles[0]) || 'Senior Weighbridge Officer'} disabled className="pl-9" />
+                      <Input id="role" defaultValue={user?.roles?.[0] || '—'} disabled className="pl-9" />
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -97,7 +97,7 @@ export default function ProfilePage() {
                     <Label htmlFor="dateJoined">Date Joined</Label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input id="dateJoined" defaultValue={'2024-01-15'} disabled className="pl-9" />
+                      <Input id="dateJoined" defaultValue={user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('en-GB') : '—'} disabled className="pl-9" />
                     </div>
                   </div>
                 </div>

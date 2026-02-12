@@ -55,25 +55,13 @@ export interface CreatePesaflowInvoiceRequest {
 
 export interface PesaflowInvoiceResponse {
   success: boolean;
-  pesaflowInvoiceNumber?: string;
-  message?: string;
-  checkoutUrl?: string;
-}
-
-export interface InitiateCheckoutRequest {
-  clientName: string;
-  clientEmail?: string;
-  clientMsisdn?: string;
-  clientIdNumber?: string;
-  sendStk: boolean;
-  pictureUrl?: string;
-}
-
-export interface PesaflowCheckoutResponse {
-  success: boolean;
-  checkoutUrl?: string;
-  iframeHtml?: string;
-  message?: string;
+  pesaflowInvoiceNumber: string | null;
+  paymentLink: string | null;
+  gatewayFee: number | null;
+  amountNet: number | null;
+  totalAmount: number | null;
+  currency: string | null;
+  message: string | null;
 }
 
 export interface PesaflowPaymentStatusResponse {
@@ -137,17 +125,6 @@ export async function createPesaflowInvoice(
 ): Promise<PesaflowInvoiceResponse> {
   const { data } = await apiClient.post<PesaflowInvoiceResponse>(
     `/invoices/${invoiceId}/pesaflow`,
-    request
-  );
-  return data;
-}
-
-export async function initiateCheckout(
-  invoiceId: string,
-  request: InitiateCheckoutRequest
-): Promise<PesaflowCheckoutResponse> {
-  const { data } = await apiClient.post<PesaflowCheckoutResponse>(
-    `/invoices/${invoiceId}/checkout`,
     request
   );
   return data;

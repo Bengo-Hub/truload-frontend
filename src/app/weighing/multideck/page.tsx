@@ -5,6 +5,10 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   AxleConfigurationCard,
   CompactMultideckWeights,
   ComplianceBanner,
@@ -728,8 +732,8 @@ export default function MultideckWeighingPage() {
     setTimeout(() => {
       setVehiclePlate('KCX091X');
       setIsPlateDisabled(true);
-      setFrontViewImage('/images/weighiging/placeholder_front.png');
-      setOverviewImage('/images/weighiging/placeholder_overview.png');
+      setFrontViewImage('/images/weighing/placeholder_front.png');
+      setOverviewImage('/images/weighing/placeholder_overview.png');
     }, 1000);
   };
 
@@ -868,42 +872,47 @@ export default function MultideckWeighingPage() {
     }
   };
 
-  // Cancel weighing - reset local state and hook session
+  // Cancel weighing - confirmation state
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
   const handleCancelWeighing = () => {
-    if (confirm('Are you sure you want to cancel this weighing?')) {
-      // Reset hook session (clears backend session and localStorage)
-      resetSession();
+    setShowCancelConfirm(true);
+  };
 
-      // Reset middleware session
-      if (middleware.connected) {
-        middleware.resetSession();
-      }
+  const confirmCancelWeighing = () => {
+    // Reset hook session (clears backend session and localStorage)
+    resetSession();
 
-      // Reset local UI state
-      setIsCaptured(false);
-      setVehiclePlate('');
-      setIsPlateDisabled(false);
-      setTicketNumber('');
-      setFrontViewImage(undefined);
-      setOverviewImage(undefined);
-      setCurrentStep('capture');
-      setCompletedSteps([]);
-
-      // Reset linked entity IDs
-      setSelectedDriverId(undefined);
-      setSelectedTransporterId(undefined);
-      setSelectedCargoId(undefined);
-      setSelectedOriginId(undefined);
-      setSelectedDestinationId(undefined);
-      setSelectedVehicleId(undefined);
-
-      // Reset additional fields
-      setPermitNo('');
-      setTrailerNo('');
-      setVehicleMake('');
-      setComment('');
-      setReliefVehicleReg('');
+    // Reset middleware session
+    if (middleware.connected) {
+      middleware.resetSession();
     }
+
+    // Reset local UI state
+    setIsCaptured(false);
+    setVehiclePlate('');
+    setIsPlateDisabled(false);
+    setTicketNumber('');
+    setFrontViewImage(undefined);
+    setOverviewImage(undefined);
+    setCurrentStep('capture');
+    setCompletedSteps([]);
+
+    // Reset linked entity IDs
+    setSelectedDriverId(undefined);
+    setSelectedTransporterId(undefined);
+    setSelectedCargoId(undefined);
+    setSelectedOriginId(undefined);
+    setSelectedDestinationId(undefined);
+    setSelectedVehicleId(undefined);
+
+    // Reset additional fields
+    setPermitNo('');
+    setTrailerNo('');
+    setVehicleMake('');
+    setComment('');
+    setReliefVehicleReg('');
+    setShowCancelConfirm(false);
   };
 
   // Entity modal handlers - wired to backend mutations
@@ -1291,8 +1300,8 @@ export default function MultideckWeighingPage() {
                 <ImageCaptureCard
                   frontImage={frontViewImage}
                   overviewImage={overviewImage}
-                  onCaptureFront={() => setFrontViewImage('/images/weighiging/truckpass.jpg')}
-                  onCaptureOverview={() => setOverviewImage('/images/weighiging/truckcalledin.jpg')}
+                  onCaptureFront={() => setFrontViewImage('/images/weighing/truckpass.jpg')}
+                  onCaptureOverview={() => setOverviewImage('/images/weighing/truckcalledin.jpg')}
                   onClearFront={() => setFrontViewImage(undefined)}
                   onClearOverview={() => setOverviewImage(undefined)}
                   showANPRBadge={true}
@@ -1634,6 +1643,24 @@ export default function MultideckWeighingPage() {
           </div>
         </div>
       </ProtectedRoute>
+
+      {/* Cancel Weighing Confirmation */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Weighing</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this weighing? All captured data will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continue Weighing</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancelWeighing} className="bg-red-600 hover:bg-red-700">
+              Cancel Weighing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

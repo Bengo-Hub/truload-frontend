@@ -1,6 +1,10 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -114,16 +118,22 @@ export function AxleWeightConfigGrid({
     setEditingId(reference.id);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this weight reference?')) return;
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
+  const handleDelete = (id: string) => {
+    setDeleteTarget(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync(deleteTarget);
       toast.success('Weight reference deleted');
     } catch (error) {
       console.error('Failed to delete weight reference:', error);
       toast.error('Failed to delete weight reference');
     }
+    setDeleteTarget(null);
   };
 
   const getAvailablePositions = () => {
@@ -176,6 +186,23 @@ export function AxleWeightConfigGrid({
           onDelete={handleDelete}
         />
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Weight Reference</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this weight reference? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

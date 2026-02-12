@@ -32,7 +32,16 @@ import {
   useReleaseTypes,
   useCreateSpecialRelease,
 } from '@/hooks/queries';
-import { CourtHearingList, ProsecutionSection } from '@/components/case';
+import {
+  CourtHearingList,
+  ProsecutionSection,
+  CasePartyList,
+  CaseSubfileList,
+  ArrestWarrantList,
+  ClosureChecklistPanel,
+  CaseAssignmentLog,
+} from '@/components/case';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -277,158 +286,197 @@ export default function CaseDetailPage() {
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Case Details */}
+            {/* Left Column - Tabbed Case Details */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Violation Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-500" />
-                    Violation Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm text-gray-500">Violation Type</Label>
-                      <p className="font-medium">{caseData.violationType}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Applicable Act</Label>
-                      <p className="font-medium">{caseData.actName || 'Not specified'}</p>
-                    </div>
-                  </div>
-                  {caseData.violationDetails && (
-                    <div>
-                      <Label className="text-sm text-gray-500">Details</Label>
-                      <p className="font-medium">{caseData.violationDetails}</p>
-                    </div>
-                  )}
-                  {caseData.weighingTicketNo && (
-                    <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-lg">
-                      <Scale className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <Label className="text-sm text-gray-500">Weighing Ticket</Label>
-                        <p className="font-mono font-medium">{caseData.weighingTicketNo}</p>
-                      </div>
-                      {caseData.weighingId && (
-                        <Link href={`/weighing/tickets/${caseData.weighingId}`}>
-                          <Button variant="link" size="sm">View Ticket</Button>
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                  {caseData.prohibitionNo && (
-                    <div className="flex items-center gap-4 p-3 bg-red-50 rounded-lg">
-                      <FileText className="h-5 w-5 text-red-600" />
-                      <div>
-                        <Label className="text-sm text-gray-500">Prohibition Order</Label>
-                        <p className="font-mono font-medium">{caseData.prohibitionNo}</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="parties">Parties</TabsTrigger>
+                  <TabsTrigger value="subfiles">Subfiles</TabsTrigger>
+                  <TabsTrigger value="hearings">Hearings</TabsTrigger>
+                  <TabsTrigger value="warrants">Warrants</TabsTrigger>
+                  <TabsTrigger value="prosecution">Prosecution</TabsTrigger>
+                  <TabsTrigger value="closure">Closure</TabsTrigger>
+                </TabsList>
 
-              {/* Vehicle & Driver */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Car className="h-5 w-5 text-blue-500" />
-                    Vehicle & Driver
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm text-gray-500">Vehicle Registration</Label>
-                      <p className="font-mono font-bold text-lg">{caseData.vehicleRegNumber}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Driver Name</Label>
-                      <p className="font-medium">{caseData.driverName || 'Not recorded'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Driver License</Label>
-                      <p className="font-medium">{caseData.driverLicenseNo || '-'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Driver NTAC No</Label>
-                      <p className="font-medium">{caseData.driverNtacNo || '-'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Transporter NTAC No</Label>
-                      <p className="font-medium">{caseData.transporterNtacNo || '-'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">OB Number</Label>
-                      <p className="font-medium">{caseData.obNo || '-'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Special Releases */}
-              {specialReleases.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-green-500" />
-                      Special Releases
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {specialReleases.map((release) => (
-                        <div
-                          key={release.id}
-                          className={`p-3 rounded-lg border ${
-                            release.isApproved
-                              ? 'bg-green-50 border-green-200'
-                              : release.isRejected
-                              ? 'bg-red-50 border-red-200'
-                              : 'bg-yellow-50 border-yellow-200'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-mono font-medium">{release.certificateNo}</p>
-                              <p className="text-sm text-gray-600">{release.releaseType}</p>
-                            </div>
-                            {release.isApproved ? (
-                              <Badge className="bg-green-100 text-green-800">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Approved
-                              </Badge>
-                            ) : release.isRejected ? (
-                              <Badge className="bg-red-100 text-red-800">
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Rejected
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-yellow-100 text-yellow-800">
-                                <Clock className="h-3 w-3 mr-1" />
-                                Pending
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-500 mt-2">{release.reason}</p>
+                {/* Overview Tab */}
+                <TabsContent value="overview" className="space-y-6">
+                  {/* Violation Details */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
+                        Violation Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm text-gray-500">Violation Type</Label>
+                          <p className="font-medium">{caseData.violationType}</p>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                        <div>
+                          <Label className="text-sm text-gray-500">Applicable Act</Label>
+                          <p className="font-medium">{caseData.actName || 'Not specified'}</p>
+                        </div>
+                      </div>
+                      {caseData.violationDetails && (
+                        <div>
+                          <Label className="text-sm text-gray-500">Details</Label>
+                          <p className="font-medium">{caseData.violationDetails}</p>
+                        </div>
+                      )}
+                      {caseData.weighingTicketNo && (
+                        <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-lg">
+                          <Scale className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <Label className="text-sm text-gray-500">Weighing Ticket</Label>
+                            <p className="font-mono font-medium">{caseData.weighingTicketNo}</p>
+                          </div>
+                          {caseData.weighingId && (
+                            <Link href={`/weighing/tickets/${caseData.weighingId}`}>
+                              <Button variant="link" size="sm">View Ticket</Button>
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                      {caseData.prohibitionNo && (
+                        <div className="flex items-center gap-4 p-3 bg-red-50 rounded-lg">
+                          <FileText className="h-5 w-5 text-red-600" />
+                          <div>
+                            <Label className="text-sm text-gray-500">Prohibition Order</Label>
+                            <p className="font-mono font-medium">{caseData.prohibitionNo}</p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-              {/* Court Hearings */}
-              <CourtHearingList caseId={caseId} caseNo={caseData.caseNo} />
+                  {/* Vehicle & Driver */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Car className="h-5 w-5 text-blue-500" />
+                        Vehicle & Driver
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm text-gray-500">Vehicle Registration</Label>
+                          <p className="font-mono font-bold text-lg">{caseData.vehicleRegNumber}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-500">Driver Name</Label>
+                          <p className="font-medium">{caseData.driverName || 'Not recorded'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-500">Driver License</Label>
+                          <p className="font-medium">{caseData.driverLicenseNo || '-'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-500">Driver NTAC No</Label>
+                          <p className="font-medium">{caseData.driverNtacNo || '-'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-500">Transporter NTAC No</Label>
+                          <p className="font-medium">{caseData.transporterNtacNo || '-'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-500">OB Number</Label>
+                          <p className="font-medium">{caseData.obNo || '-'}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              {/* Prosecution & Charges */}
-              <ProsecutionSection
-                caseId={caseId}
-                caseNo={caseData.caseNo}
-                weighingId={caseData.weighingId}
-              />
+                  {/* Special Releases */}
+                  {specialReleases.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Shield className="h-5 w-5 text-green-500" />
+                          Special Releases
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {specialReleases.map((release) => (
+                            <div
+                              key={release.id}
+                              className={`p-3 rounded-lg border ${
+                                release.isApproved
+                                  ? 'bg-green-50 border-green-200'
+                                  : release.isRejected
+                                  ? 'bg-red-50 border-red-200'
+                                  : 'bg-yellow-50 border-yellow-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-mono font-medium">{release.certificateNo}</p>
+                                  <p className="text-sm text-gray-600">{release.releaseType}</p>
+                                </div>
+                                {release.isApproved ? (
+                                  <Badge className="bg-green-100 text-green-800">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Approved
+                                  </Badge>
+                                ) : release.isRejected ? (
+                                  <Badge className="bg-red-100 text-red-800">
+                                    <XCircle className="h-3 w-3 mr-1" />
+                                    Rejected
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-yellow-100 text-yellow-800">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Pending
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500 mt-2">{release.reason}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                {/* Parties Tab */}
+                <TabsContent value="parties">
+                  <CasePartyList caseId={caseId} caseNo={caseData.caseNo} />
+                </TabsContent>
+
+                {/* Subfiles Tab */}
+                <TabsContent value="subfiles">
+                  <CaseSubfileList caseId={caseId} caseNo={caseData.caseNo} />
+                </TabsContent>
+
+                {/* Hearings Tab */}
+                <TabsContent value="hearings">
+                  <CourtHearingList caseId={caseId} caseNo={caseData.caseNo} />
+                </TabsContent>
+
+                {/* Warrants Tab */}
+                <TabsContent value="warrants">
+                  <ArrestWarrantList caseId={caseId} caseNo={caseData.caseNo} />
+                </TabsContent>
+
+                {/* Prosecution Tab */}
+                <TabsContent value="prosecution">
+                  <ProsecutionSection
+                    caseId={caseId}
+                    caseNo={caseData.caseNo}
+                    weighingId={caseData.weighingId}
+                  />
+                </TabsContent>
+
+                {/* Closure Tab */}
+                <TabsContent value="closure">
+                  <ClosureChecklistPanel caseId={caseId} caseNo={caseData.caseNo} />
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Right Column - Timeline & Officers */}
@@ -508,6 +556,9 @@ export default function CaseDetailPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Assignment Log */}
+              <CaseAssignmentLog caseId={caseId} caseNo={caseData.caseNo} />
 
               {/* Disposition */}
               {caseData.dispositionType && (

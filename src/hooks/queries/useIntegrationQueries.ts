@@ -6,11 +6,9 @@ import {
   testIntegrationConnectivity,
   reconcilePayments,
   createPesaflowInvoice,
-  initiateCheckout,
   queryPaymentStatus,
   type UpsertIntegrationConfigRequest,
   type CreatePesaflowInvoiceRequest,
-  type InitiateCheckoutRequest,
 } from '@/lib/api/integration';
 import { QUERY_OPTIONS } from '@/lib/query/config';
 import { INVOICE_QUERY_KEYS } from './useInvoiceQueries';
@@ -101,18 +99,6 @@ export function useCreatePesaflowInvoice() {
       });
       queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoices });
     },
-  });
-}
-
-export function useInitiateCheckout() {
-  return useMutation({
-    mutationFn: ({
-      invoiceId,
-      request,
-    }: {
-      invoiceId: string;
-      request: InitiateCheckoutRequest;
-    }) => initiateCheckout(invoiceId, request),
   });
 }
 
