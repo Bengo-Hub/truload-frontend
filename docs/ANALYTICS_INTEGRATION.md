@@ -56,8 +56,9 @@ Full-stack analytics integration combining **Apache Superset** for BI dashboards
 - `GET /api/v1/analytics/superset/dashboards/{id}` - Get dashboard details
 - `POST /api/v1/analytics/query` - Execute natural language query
 
-### Configuration (`appsettings.json`)
+### Configuration
 
+**Backend (`appsettings.json`) - Production:**
 ```json
 {
   "Superset": {
@@ -67,6 +68,17 @@ Full-stack analytics integration combining **Apache Superset** for BI dashboards
     "GuestTokenExpiryMinutes": 300
   },
   "Ollama": {
+    "BaseUrl": "http://ollama.truload.svc.cluster.local:11434",
+    "Model": "llama2",
+    "TimeoutSeconds": 60
+  }
+}
+```
+
+**Backend (`appsettings.Development.json`) - Local Development:**
+```json
+{
+  "Ollama": {
     "BaseUrl": "http://localhost:11434",
     "Model": "llama2",
     "TimeoutSeconds": 60
@@ -75,6 +87,16 @@ Full-stack analytics integration combining **Apache Superset** for BI dashboards
 ```
 
 **Service Registration:** ✅ Registered in `Program.cs` as `AddHttpClient<ISupersetService, SupersetService>()`
+
+**Kubernetes Deployment (Production):**
+
+Ollama is deployed as a Kubernetes service in the `truload` namespace via ArgoCD:
+
+- **Service**: `ollama.truload.svc.cluster.local:11434`
+- **Model**: llama2 (3.8GB, pre-pulled via initContainer)
+- **Resources**: 1-2 CPU, 4-8GB RAM
+- **Storage**: 20GB PVC for model cache
+- **Deployment**: `devops-k8s/apps/ollama/` (auto-synced via ArgoCD)
 
 ---
 
