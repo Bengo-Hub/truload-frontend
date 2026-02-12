@@ -222,8 +222,8 @@ export function useEscalateCase() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, request }: { id: string; request: caseApi.EscalateCaseRequest }) =>
-      caseApi.escalateCase(id, request),
+    mutationFn: ({ id, caseManagerId }: { id: string; caseManagerId: string }) =>
+      caseApi.escalateCase(id, caseManagerId),
     onSuccess: (escalatedCase, { id }) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.caseStatistics });
@@ -239,8 +239,8 @@ export function useAssignInvestigatingOfficer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, request }: { id: string; request: caseApi.AssignInvestigatingOfficerRequest }) =>
-      caseApi.assignInvestigatingOfficer(id, request),
+    mutationFn: ({ id, investigatingOfficerId }: { id: string; investigatingOfficerId: string }) =>
+      caseApi.assignInvestigatingOfficer(id, investigatingOfficerId),
     onSuccess: (updatedCase, { id }) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
       queryClient.setQueryData(CASE_QUERY_KEYS.caseById(id), updatedCase);

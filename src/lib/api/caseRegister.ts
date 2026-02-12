@@ -82,15 +82,6 @@ export interface CloseCaseRequest {
   closingReason: string;
 }
 
-export interface EscalateCaseRequest {
-  caseManagerId: string;
-  notes?: string;
-}
-
-export interface AssignInvestigatingOfficerRequest {
-  investigatingOfficerId: string;
-}
-
 export interface CaseSearchParams {
   caseNo?: string;
   vehicleRegNumber?: string;
@@ -293,16 +284,16 @@ export async function closeCase(id: string, request: CloseCaseRequest): Promise<
 /**
  * Escalate case to case manager
  */
-export async function escalateCase(id: string, request: EscalateCaseRequest): Promise<CaseRegisterDto> {
-  const { data } = await apiClient.post<CaseRegisterDto>(`/case/cases/${id}/escalate`, request);
+export async function escalateCase(id: string, caseManagerId: string): Promise<CaseRegisterDto> {
+  const { data } = await apiClient.post<CaseRegisterDto>(`/case/cases/${id}/escalate`, caseManagerId);
   return data;
 }
 
 /**
  * Assign investigating officer
  */
-export async function assignInvestigatingOfficer(id: string, request: AssignInvestigatingOfficerRequest): Promise<CaseRegisterDto> {
-  const { data } = await apiClient.post<CaseRegisterDto>(`/case/cases/${id}/assign-io`, request);
+export async function assignInvestigatingOfficer(id: string, investigatingOfficerId: string): Promise<CaseRegisterDto> {
+  const { data } = await apiClient.post<CaseRegisterDto>(`/case/cases/${id}/assign-io`, investigatingOfficerId);
   return data;
 }
 
