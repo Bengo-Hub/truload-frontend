@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
+  BookOpen,
   Clock4,
   Cog,
   CreditCard,
@@ -20,6 +21,7 @@ import {
   Receipt,
   Settings,
   Shield,
+  SlidersHorizontal,
   Users,
   Weight,
   Wrench,
@@ -72,7 +74,9 @@ const menuSections: MenuSection[] = [
       { href: '/setup/security', label: 'Security', icon: Shield, permissions: ['system.security_policy'] },
       { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.manage_axle', 'config.read'] },
       { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read', 'weighing.create'] },
+      { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'] },
       { href: '/setup/settings', label: 'Integrations', icon: Settings, permissions: ['config.read'] },
+      { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['system.security_policy'] },
     ],
   },
 ];

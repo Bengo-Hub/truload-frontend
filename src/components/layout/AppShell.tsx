@@ -87,7 +87,9 @@ export function AppShell({ children, title, subtitle }: AppShellProps) {
             </div>
           </div>
         </header>
-        <main className="flex-1 px-4 py-6 lg:py-8 lg:px-8 overflow-y-auto">{children}</main>
+        <main className="flex-1 px-4 py-6 lg:py-8 lg:px-8 overflow-y-auto">
+          <div className="max-w-[1920px] mx-auto">{children}</div>
+        </main>
       </div>
       <NotificationsDialog isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </div>

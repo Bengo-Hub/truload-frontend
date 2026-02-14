@@ -27,12 +27,14 @@ import {
   useCaseStatistics,
   useViolationTypes,
   useCaseStatuses,
+  useStations,
 } from '@/hooks/queries';
 import { CaseRegisterDto, CaseSearchParams } from '@/lib/api/caseRegister';
+import { Pagination } from '@/components/ui/pagination';
+import { PermissionActionButton } from '@/components/ui/permission-action-button';
 import {
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
+  ArrowUpRight,
   Eye,
   FileText,
   Filter,
@@ -69,6 +71,7 @@ export default function CaseRegisterPage() {
   const { data: statistics, isLoading: isLoadingStats } = useCaseStatistics();
   const { data: violationTypes = [] } = useViolationTypes();
   const { data: caseStatuses = [] } = useCaseStatuses();
+  const { data: stations = [] } = useStations();
   const {
     data: casesResult,
     isLoading: isLoadingCases,
@@ -264,7 +267,25 @@ export default function CaseRegisterPage() {
 
               {/* Filters Panel */}
               {showFilters && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
+                  <div className="space-y-2">
+                    <Label>Station</Label>
+                    <Select
+                      value={filters.stationId || 'all'}
+                      onValueChange={(v) => handleFilterChange('stationId', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All stations" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Stations</SelectItem>
+                        {stations.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Violation Type</Label>
                     <Select
@@ -399,14 +420,20 @@ export default function CaseRegisterPage() {
                             {formatDate(caseItem.createdAt)}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                            <div className="flex items-center justify-end gap-1">
+                              <PermissionActionButton
+                                permission="case.read"
+                                icon={Eye}
+                                label="View"
                                 onClick={() => router.push(`/cases/${caseItem.id}`)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
+                              />
+                              <PermissionActionButton
+                                permission="case.escalate"
+                                icon={ArrowUpRight}
+                                label="Escalate"
+                                onClick={() => router.push(`/cases/${caseItem.id}?tab=prosecution`)}
+                                condition={!caseItem.escalatedToCaseManager && caseItem.caseStatus !== 'closed'}
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -418,34 +445,15 @@ export default function CaseRegisterPage() {
 
               {/* Pagination */}
               {casesResult && casesResult.totalCount > 0 && (
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-gray-500">
-                    Showing {((currentPage - 1) * (filters.pageSize || 10)) + 1} to{' '}
-                    {Math.min(currentPage * (filters.pageSize || 10), casesResult.totalCount)} of{' '}
-                    {casesResult.totalCount} cases
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage <= 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage >= totalPages}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                <Pagination
+                  page={currentPage}
+                  pageSize={filters.pageSize || 10}
+                  totalItems={casesResult.totalCount}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={(size) => setFilters((prev) => ({ ...prev, pageSize: size, pageNumber: 1 }))}
+                  isLoading={isLoadingCases}
+                  className="mt-4"
+                />
               )}
             </CardContent>
           </Card>

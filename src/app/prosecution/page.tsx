@@ -40,14 +40,14 @@ import {
   useUpdateProsecution,
   useDeleteProsecution,
   useDownloadChargeSheet,
+  useStations,
 } from '@/hooks/queries';
 import type { ProsecutionCaseDto, ProsecutionSearchCriteria } from '@/lib/api/prosecution';
 import { useQueryClient } from '@tanstack/react-query';
+import { Pagination } from '@/components/ui/pagination';
 import {
   AlertTriangle,
   Banknote,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Edit3,
   Eye,
@@ -105,6 +105,7 @@ function ProsecutionContent() {
 
   // Query hooks
   const { data: statistics, isLoading: isLoadingStats } = useProsecutionStatistics();
+  const { data: stations = [] } = useStations();
   const {
     data: searchResult,
     isLoading: isLoadingCases,
@@ -382,7 +383,25 @@ function ProsecutionContent() {
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 p-4 bg-muted/50 rounded-lg mt-4">
+              <div className="space-y-2">
+                <Label>Station</Label>
+                <Select
+                  value={filters.stationId || 'all'}
+                  onValueChange={(v) => handleFilterChange('stationId', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All stations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stations</SelectItem>
+                    {stations.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
@@ -456,7 +475,7 @@ function ProsecutionContent() {
                     <TableHead className="font-semibold min-w-[100px]">Vehicle</TableHead>
                     <TableHead className="font-semibold text-center w-[100px]">Status</TableHead>
                     <TableHead className="font-semibold text-right w-[100px]">Overload (kg)</TableHead>
-                    <TableHead className="font-semibold text-right w-[130px]">Fine (KES)</TableHead>
+                    <TableHead className="font-semibold text-right w-[130px]">Fine</TableHead>
                     <TableHead className="font-semibold text-center w-[100px]">Framework</TableHead>
                     <TableHead className="font-semibold w-[100px]">Date</TableHead>
                     <TableHead className="font-semibold text-right w-[100px]">Actions</TableHead>
@@ -519,7 +538,10 @@ function ProsecutionContent() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">
-                          {formatCurrency(item.totalFeeKes)}
+                          {formatCurrency(
+                            item.chargingCurrency === 'USD' ? item.totalFeeUsd : item.totalFeeKes,
+                            item.chargingCurrency || 'KES'
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant={item.bestChargeBasis === 'GVW' ? 'default' : 'secondary'}>
@@ -584,34 +606,15 @@ function ProsecutionContent() {
 
           {/* Pagination */}
           {totalCount > 0 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * (filters.pageSize || 10)) + 1} to{' '}
-                {Math.min(currentPage * (filters.pageSize || 10), totalCount)} of{' '}
-                {totalCount} cases
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm text-muted-foreground px-2">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            <Pagination
+              page={currentPage}
+              pageSize={filters.pageSize || 10}
+              totalItems={totalCount}
+              onPageChange={handlePageChange}
+              onPageSizeChange={(size) => setFilters((prev) => ({ ...prev, pageSize: size, pageNumber: 1 }))}
+              isLoading={isLoadingCases}
+              className="px-4 py-3 border-t"
+            />
           )}
         </CardContent>
       </Card>
@@ -659,16 +662,22 @@ function ProsecutionContent() {
                     <span className="font-mono">{selectedCase.gvwOverloadKg.toLocaleString()} kg</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">GVW Fee (KES):</span>
-                    <span className="font-mono">{formatCurrency(selectedCase.gvwFeeKes)}</span>
+                    <span className="text-muted-foreground">GVW Fee ({selectedCase.chargingCurrency || 'KES'}):</span>
+                    <span className="font-mono">{formatCurrency(
+                      selectedCase.chargingCurrency === 'USD' ? selectedCase.gvwFeeUsd : selectedCase.gvwFeeKes,
+                      selectedCase.chargingCurrency || 'KES'
+                    )}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Max Axle Overload:</span>
                     <span className="font-mono">{selectedCase.maxAxleOverloadKg.toLocaleString()} kg</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Max Axle Fee (KES):</span>
-                    <span className="font-mono">{formatCurrency(selectedCase.maxAxleFeeKes)}</span>
+                    <span className="text-muted-foreground">Max Axle Fee ({selectedCase.chargingCurrency || 'KES'}):</span>
+                    <span className="font-mono">{formatCurrency(
+                      selectedCase.chargingCurrency === 'USD' ? selectedCase.maxAxleFeeUsd : selectedCase.maxAxleFeeKes,
+                      selectedCase.chargingCurrency || 'KES'
+                    )}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Charge Basis:</span>
@@ -682,9 +691,15 @@ function ProsecutionContent() {
                 <div className="mt-3 pt-3 border-t flex justify-between items-center">
                   <span className="font-semibold">Total Fine:</span>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-primary">{formatCurrency(selectedCase.totalFeeKes)}</p>
+                    <p className="text-lg font-bold text-primary">{formatCurrency(
+                      selectedCase.chargingCurrency === 'USD' ? selectedCase.totalFeeUsd : selectedCase.totalFeeKes,
+                      selectedCase.chargingCurrency || 'KES'
+                    )}</p>
                     <p className="text-xs text-muted-foreground">
-                      (USD {selectedCase.totalFeeUsd.toLocaleString()} @ {selectedCase.forexRate})
+                      {selectedCase.chargingCurrency === 'USD'
+                        ? `(KES ${selectedCase.totalFeeKes.toLocaleString()} @ ${selectedCase.forexRate})`
+                        : `(USD ${selectedCase.totalFeeUsd.toLocaleString()} @ ${selectedCase.forexRate})`
+                      }
                     </p>
                   </div>
                 </div>

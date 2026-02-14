@@ -1,4 +1,4 @@
-import axios, { type AxiosError, type AxiosInstance } from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { getOrganizationId, getStationId } from '@/lib/auth/token';
 
 // Prefer same-origin relative base to ensure httpOnly cookies are sent.
@@ -10,6 +10,36 @@ const ACCESS_TOKEN_KEY = 'truload_access_token';
 // Multi-tenant header names (must match backend TenantContextMiddleware)
 const ORG_ID_HEADER = 'X-Org-ID';
 const STATION_ID_HEADER = 'X-Station-ID';
+
+// ============================================================================
+// Request Concurrency Limiter
+// Prevents overwhelming the backend with too many simultaneous requests.
+// ============================================================================
+
+const MAX_CONCURRENT = 10;
+let activeRequests = 0;
+const requestQueue: Array<() => void> = [];
+
+function enqueueRequest(): Promise<void> {
+  if (activeRequests < MAX_CONCURRENT) {
+    activeRequests++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    requestQueue.push(() => {
+      activeRequests++;
+      resolve();
+    });
+  });
+}
+
+function dequeueRequest(): void {
+  activeRequests--;
+  if (requestQueue.length > 0) {
+    const next = requestQueue.shift();
+    next?.();
+  }
+}
 
 /**
  * Full API URL including version prefix
@@ -53,7 +83,7 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - attach token and tenant headers
+// Request interceptor - attach token, tenant headers, and apply concurrency limit
 apiClient.interceptors.request.use(
   async (config) => {
     // Skip refresh for auth endpoints
@@ -64,6 +94,9 @@ apiClient.interceptors.request.use(
     ) {
       return config;
     }
+
+    // Wait for a concurrency slot
+    await enqueueRequest();
 
     // Get access token from cookies or localStorage
     if (typeof window !== 'undefined') {
@@ -86,7 +119,10 @@ apiClient.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    dequeueRequest();
+    return Promise.reject(error);
+  }
 );
 
 // Track pending requests waiting for token refresh
@@ -101,13 +137,36 @@ function onRefreshComplete(newToken: string) {
   refreshSubscribers = [];
 }
 
-// Response interceptor - handle authentication errors
+// Response interceptor - handle 429 rate limiting and 401 authentication errors
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    dequeueRequest();
+    return response;
+  },
   async (error: AxiosError) => {
-    const originalRequest = error.config as typeof error.config & {
+    dequeueRequest();
+
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
+      _retryCount?: number;
     };
+
+    // Handle 429 Too Many Requests - back off and retry
+    if (error.response?.status === 429 && originalRequest) {
+      const retryCount = originalRequest._retryCount ?? 0;
+      if (retryCount < 2) {
+        originalRequest._retryCount = retryCount + 1;
+        // Parse Retry-After header (seconds) or use exponential backoff
+        const retryAfter = error.response.headers['retry-after'];
+        const delayMs = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : Math.min(1000 * Math.pow(2, retryCount), 8000);
+        await new Promise((r) => setTimeout(r, delayMs));
+        return apiClient(originalRequest);
+      }
+      // Exhausted retries - reject
+      return Promise.reject(error);
+    }
 
     // Handle 401 errors (unauthenticated)
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {

@@ -69,7 +69,7 @@ export function ModuleReportSelector() {
   const handleGenerate = async (
     module: string,
     reportType: string,
-    format: 'pdf' | 'csv'
+    format: 'pdf' | 'csv' | 'xlsx'
   ) => {
     try {
       const result = await downloadMutation.mutateAsync({
@@ -87,7 +87,7 @@ export function ModuleReportSelector() {
         setPreviewFileName(result.fileName);
         setPreviewOpen(true);
       } else {
-        // CSV - trigger immediate download
+        // CSV/Excel - trigger immediate download
         const url = window.URL.createObjectURL(result.blob);
         const link = document.createElement('a');
         link.href = url;
@@ -220,6 +220,22 @@ export function ModuleReportSelector() {
                           <FileSpreadsheet className="h-3 w-3 mr-1.5" />
                         )}
                         CSV
+                      </Button>
+                    )}
+                    {report.supportedFormats.includes('xlsx') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        disabled={isGenerating}
+                        onClick={() => handleGenerate(report.module, report.id, 'xlsx')}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                        ) : (
+                          <FileSpreadsheet className="h-3 w-3 mr-1.5 text-green-600" />
+                        )}
+                        Excel
                       </Button>
                     )}
                   </div>

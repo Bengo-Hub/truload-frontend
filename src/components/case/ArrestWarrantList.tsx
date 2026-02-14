@@ -16,12 +16,10 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { PermissionActionButton } from '@/components/ui/permission-action-button';
 import { useWarrantsByCaseId, useCreateWarrant, useExecuteWarrant, useDropWarrant } from '@/hooks/queries';
 import type { ArrestWarrantDto } from '@/lib/api/arrestWarrant';
-import { CheckCircle, Loader2, MoreHorizontal, Plus, ShieldAlert, XCircle } from 'lucide-react';
+import { CheckCircle, Loader2, Plus, ShieldAlert, XCircle } from 'lucide-react';
 import { useHasPermission } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -180,7 +178,7 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
                     <TableHead>Offence</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Issued</TableHead>
-                    {canManage && <TableHead className="w-[50px]" />}
+                    <TableHead className="w-[80px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -196,25 +194,25 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
                       <TableCell className="text-sm max-w-[200px] truncate">{w.offenceDescription || '-'}</TableCell>
                       <TableCell>{getStatusBadge(w.warrantStatusName)}</TableCell>
                       <TableCell className="text-sm text-gray-500">{formatDate(w.issuedAt)}</TableCell>
-                      {canManage && (
-                        <TableCell>
-                          {isIssued(w) && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => { setSelectedWarrant(w); setShowExecuteModal(true); }}>
-                                  <CheckCircle className="h-4 w-4 mr-2" /> Execute
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600" onClick={() => { setSelectedWarrant(w); setShowDropModal(true); }}>
-                                  <XCircle className="h-4 w-4 mr-2" /> Drop
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </TableCell>
-                      )}
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <PermissionActionButton
+                            permission="case.arrest_warrant"
+                            icon={CheckCircle}
+                            label="Execute"
+                            onClick={() => { setSelectedWarrant(w); setShowExecuteModal(true); }}
+                            condition={isIssued(w)}
+                          />
+                          <PermissionActionButton
+                            permission="case.arrest_warrant"
+                            icon={XCircle}
+                            label="Drop"
+                            onClick={() => { setSelectedWarrant(w); setShowDropModal(true); }}
+                            condition={isIssued(w)}
+                            destructive
+                          />
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

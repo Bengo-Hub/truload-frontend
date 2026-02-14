@@ -136,6 +136,47 @@ export async function getSecurityOverview() {
   return response.data;
 }
 
+export interface UpdateSettingRequest {
+  settingKey: string;
+  settingValue: string;
+}
+
+export interface UpdateSettingsBatchRequest {
+  settings: UpdateSettingRequest[];
+}
+
+/**
+ * Update multiple settings at once
+ */
+export async function updateSettingsBatch(data: UpdateSettingsBatchRequest) {
+  const response = await apiClient.put<ApplicationSettingDto[]>('/settings/batch', data);
+  return response.data;
+}
+
+/**
+ * Restore a single setting to its default value
+ */
+export async function restoreSettingDefault(key: string) {
+  const response = await apiClient.post<ApplicationSettingDto>(`/settings/key/${encodeURIComponent(key)}/restore-default`);
+  return response.data;
+}
+
+/**
+ * Restore all settings in a category to their defaults
+ */
+export async function restoreCategoryDefaults(category: string) {
+  const response = await apiClient.post<ApplicationSettingDto[]>(`/settings/category/${encodeURIComponent(category)}/restore-defaults`);
+  return response.data;
+}
+
+/**
+ * Reload rate limit settings from database without restart
+ */
+export async function reloadRateLimits() {
+  const response = await apiClient.post<{ message: string }>('/settings/reload-rate-limits');
+  return response.data;
+}
+
 // ============================================================================
 // Exported API Object
 // ============================================================================
@@ -149,4 +190,8 @@ export const settingsApi = {
   updateShiftSettings,
   getBackupSettings,
   getSecurityOverview,
+  updateSettingsBatch,
+  restoreSettingDefault,
+  restoreCategoryDefaults,
+  reloadRateLimits,
 };

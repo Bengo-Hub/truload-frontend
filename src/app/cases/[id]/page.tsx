@@ -41,6 +41,7 @@ import {
   ClosureChecklistPanel,
   CaseAssignmentLog,
 } from '@/components/case';
+import { DocumentsTab } from '@/components/case/DocumentsTab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertTriangle,
@@ -275,13 +276,14 @@ export default function CaseDetailPage() {
             {/* Left Column - Tabbed Case Details */}
             <div className="lg:col-span-2 space-y-6">
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="parties">Parties</TabsTrigger>
                   <TabsTrigger value="subfiles">Subfiles</TabsTrigger>
                   <TabsTrigger value="hearings">Hearings</TabsTrigger>
                   <TabsTrigger value="warrants">Warrants</TabsTrigger>
                   <TabsTrigger value="prosecution">Prosecution</TabsTrigger>
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
                   <TabsTrigger value="closure">Closure</TabsTrigger>
                 </TabsList>
 
@@ -456,6 +458,11 @@ export default function CaseDetailPage() {
                     caseNo={caseData.caseNo}
                     weighingId={caseData.weighingId}
                   />
+                </TabsContent>
+
+                {/* Documents Tab */}
+                <TabsContent value="documents">
+                  <DocumentsTab caseId={caseId} />
                 </TabsContent>
 
                 {/* Closure Tab */}

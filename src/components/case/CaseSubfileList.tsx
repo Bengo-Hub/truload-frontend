@@ -20,16 +20,14 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { PermissionActionButton } from '@/components/ui/permission-action-button';
 import {
   useSubfilesByCaseId, useSubfileCompletion, useSubfileTypes,
   useCreateSubfile, useUpdateSubfile, useDeleteSubfile,
 } from '@/hooks/queries';
 import type { CaseSubfileDto } from '@/lib/api/caseSubfile';
 import { uploadSubfileDocument } from '@/lib/api/fileUpload';
-import { Edit, ExternalLink, FileStack, Loader2, MoreHorizontal, Plus, Trash2, Upload } from 'lucide-react';
+import { Edit, ExternalLink, FileStack, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { useHasPermission } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -247,7 +245,7 @@ export function CaseSubfileList({ caseId, caseNo }: Props) {
                     <TableHead>Uploaded By</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Size</TableHead>
-                    {canEdit && <TableHead className="w-[50px]" />}
+                    <TableHead className="w-[80px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -269,23 +267,23 @@ export function CaseSubfileList({ caseId, caseNo }: Props) {
                       <TableCell className="text-sm">{sf.uploadedByName || '-'}</TableCell>
                       <TableCell className="text-sm text-gray-500">{formatDate(sf.createdAt)}</TableCell>
                       <TableCell className="text-sm text-gray-500">{formatBytes(sf.fileSizeBytes)}</TableCell>
-                      {canEdit && (
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEdit(sf)}>
-                                <Edit className="h-4 w-4 mr-2" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600" onClick={() => openDelete(sf)}>
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      )}
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <PermissionActionButton
+                            permission="case.update"
+                            icon={Edit}
+                            label="Edit"
+                            onClick={() => openEdit(sf)}
+                          />
+                          <PermissionActionButton
+                            permission="case.delete"
+                            icon={Trash2}
+                            label="Delete"
+                            onClick={() => openDelete(sf)}
+                            destructive
+                          />
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

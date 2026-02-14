@@ -37,11 +37,11 @@ import {
   useVoidReceipt,
   useDownloadReceipt,
 } from '@/hooks/queries/useReceiptQueries';
+import { useStations } from '@/hooks/queries/useWeighingQueries';
 import type { ReceiptDto, ReceiptSearchCriteria } from '@/lib/api/receipt';
+import { Pagination } from '@/components/ui/pagination';
 import {
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
   CreditCard,
   DollarSign,
   Download,
@@ -70,6 +70,7 @@ export default function ReceiptsPage() {
   // Queries
   const { data: receipts, isLoading: isLoadingReceipts } = useReceiptSearch(searchCriteria);
   const { data: statistics, isLoading: isLoadingStats } = useReceiptStatistics();
+  const { data: stations } = useStations();
 
   // Mutations
   const voidReceiptMutation = useVoidReceipt();
@@ -258,7 +259,7 @@ export default function ReceiptsPage() {
             <CardDescription>Filter receipts by number, payment method, or date range</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
                 <Label>Receipt Number</Label>
                 <div className="relative">
@@ -270,6 +271,24 @@ export default function ReceiptsPage() {
                     className="pl-8"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Station</Label>
+                <Select
+                  value={searchCriteria.stationId || 'all'}
+                  onValueChange={(value) => handleSearch('stationId', value === 'all' ? undefined : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All stations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stations</SelectItem>
+                    {stations?.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -400,37 +419,16 @@ export default function ReceiptsPage() {
                 </div>
 
                 {/* Pagination */}
-                {receipts && receipts.totalPages > 1 && (
-                  <div className="mt-4 flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {((searchCriteria.pageNumber || 1) - 1) * (searchCriteria.pageSize || 20) + 1} to{' '}
-                      {Math.min(
-                        (searchCriteria.pageNumber || 1) * (searchCriteria.pageSize || 20),
-                        receipts.totalCount
-                      )}{' '}
-                      of {receipts.totalCount} results
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange((searchCriteria.pageNumber || 1) - 1)}
-                        disabled={(searchCriteria.pageNumber || 1) === 1}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange((searchCriteria.pageNumber || 1) + 1)}
-                        disabled={(searchCriteria.pageNumber || 1) >= receipts.totalPages}
-                      >
-                        Next
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                {receipts && receipts.totalCount > 0 && (
+                  <Pagination
+                    page={searchCriteria.pageNumber || 1}
+                    pageSize={searchCriteria.pageSize || 20}
+                    totalItems={receipts.totalCount}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={(size) => setSearchCriteria((prev) => ({ ...prev, pageSize: size, pageNumber: 1 }))}
+                    isLoading={isLoadingReceipts}
+                    className="mt-4"
+                  />
                 )}
               </>
             )}

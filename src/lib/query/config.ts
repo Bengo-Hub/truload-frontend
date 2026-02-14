@@ -52,6 +52,7 @@ export const QUERY_KEYS = {
   CURRENT_USER: ['auth', 'current-user'] as const,
 
   // Lookup/Reference Data (Static)
+  ACTS: ['acts'] as const,
   AXLE_CONFIGURATIONS: ['axle-configurations'] as const,
   CARGO_TYPES: ['cargo-types'] as const,
   VEHICLE_MAKES: ['vehicle-makes'] as const,
@@ -75,6 +76,9 @@ export const QUERY_KEYS = {
   WEIGHING_TRANSACTIONS: ['weighing-transactions'] as const,
   SCALE_TESTS: ['scale-tests'] as const,
   WORK_SHIFTS: ['work-shifts'] as const,
+
+  // Financial
+  EXCHANGE_RATES: ['exchange-rates'] as const,
 
   // Settings
   SETTINGS: ['settings'] as const,

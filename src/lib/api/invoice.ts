@@ -39,6 +39,7 @@ export interface InvoiceSearchCriteria {
   invoiceNo?: string;
   caseNo?: string;
   vehicleRegNumber?: string;
+  stationId?: string;
   status?: string;
   dateFrom?: string;
   dateTo?: string;

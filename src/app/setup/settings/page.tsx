@@ -41,6 +41,7 @@ import {
   AlertCircle,
   Bell,
   CreditCard,
+  DollarSign,
   Globe,
   Loader2,
   Plus,
@@ -49,6 +50,8 @@ import {
   Settings2,
   Trash2,
 } from 'lucide-react';
+
+import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
 
 // ============================================================================
 // Provider Definitions
@@ -133,7 +136,7 @@ function IntegrationSettingsContent() {
 
       {/* Tabs */}
       <Tabs defaultValue="payment-gateways" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="payment-gateways" className="gap-1.5">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Payment Gateways</span>
@@ -144,6 +147,11 @@ function IntegrationSettingsContent() {
             <span className="hidden sm:inline">API Settings</span>
             <span className="sm:hidden">APIs</span>
           </TabsTrigger>
+          <TabsTrigger value="exchange-rates" className="gap-1.5">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Exchange Rates</span>
+            <span className="sm:hidden">Rates</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="payment-gateways">
@@ -151,6 +159,9 @@ function IntegrationSettingsContent() {
         </TabsContent>
         <TabsContent value="api-settings">
           <ApiSettingsTab canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="exchange-rates">
+          <ExchangeRateSettings />
         </TabsContent>
       </Tabs>
     </div>
