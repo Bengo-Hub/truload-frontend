@@ -36,12 +36,11 @@ import {
   useInvoiceStatistics,
   useUpdateInvoiceStatus,
   useVoidInvoice,
-  useDownloadInvoicePdf,
+  useDownloadInvoice,
 } from '@/hooks/queries/useInvoiceQueries';
 import type { InvoiceDto, InvoiceSearchCriteria } from '@/lib/api/invoice';
 import {
   AlertCircle,
-  Calendar,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -50,7 +49,6 @@ import {
   Download,
   FileText,
   Search,
-  XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -79,7 +77,7 @@ export default function InvoicesPage() {
   // Mutations
   const updateStatusMutation = useUpdateInvoiceStatus();
   const voidInvoiceMutation = useVoidInvoice();
-  const downloadPdfMutation = useDownloadInvoicePdf();
+  const downloadPdfMutation = useDownloadInvoice();
 
   // Handlers
   const handleSearch = (field: keyof InvoiceSearchCriteria, value: string | number | undefined) => {
@@ -106,7 +104,7 @@ export default function InvoicesPage() {
         status: 'Paid',
       });
       toast.success('Invoice marked as paid');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to update invoice status');
     }
   };
@@ -126,24 +124,16 @@ export default function InvoicesPage() {
       setShowVoidDialog(false);
       setVoidReason('');
       setSelectedInvoice(null);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to void invoice');
     }
   };
 
   const handleDownloadPdf = async (invoice: InvoiceDto) => {
     try {
-      const blob = await downloadPdfMutation.mutateAsync(invoice.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Invoice_${invoice.invoiceNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadPdfMutation.mutateAsync(invoice.id);
       toast.success('Invoice downloaded');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to download invoice');
     }
   };
@@ -186,7 +176,7 @@ export default function InvoicesPage() {
             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">Access Denied</h3>
             <p className="text-sm text-muted-foreground">
-              You don't have permission to view invoices.
+              You don&apos;t have permission to view invoices.
             </p>
           </div>
         </div>
@@ -243,7 +233,7 @@ export default function InvoicesPage() {
                   <Clock className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{statistics?.pendingCount || 0}</div>
+                  <div className="text-2xl font-bold">{statistics?.pendingInvoices || 0}</div>
                   <p className="text-xs text-muted-foreground">Awaiting payment</p>
                 </CardContent>
               </Card>
@@ -254,7 +244,7 @@ export default function InvoicesPage() {
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{statistics?.paidCount || 0}</div>
+                  <div className="text-2xl font-bold">{statistics?.paidInvoices || 0}</div>
                   <p className="text-xs text-muted-foreground">Completed</p>
                 </CardContent>
               </Card>
@@ -266,7 +256,7 @@ export default function InvoicesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(statistics?.totalRevenue || 0)}
+                    {formatCurrency(statistics?.totalAmountPaid || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground">All time collections</p>
                 </CardContent>
@@ -319,8 +309,8 @@ export default function InvoicesPage() {
                 <Label>From Date</Label>
                 <Input
                   type="date"
-                  value={searchCriteria.createdFrom || ''}
-                  onChange={(e) => handleSearch('createdFrom', e.target.value || undefined)}
+                  value={searchCriteria.dateFrom || ''}
+                  onChange={(e) => handleSearch('dateFrom', e.target.value || undefined)}
                 />
               </div>
 
@@ -328,8 +318,8 @@ export default function InvoicesPage() {
                 <Label>To Date</Label>
                 <Input
                   type="date"
-                  value={searchCriteria.createdTo || ''}
-                  onChange={(e) => handleSearch('createdTo', e.target.value || undefined)}
+                  value={searchCriteria.dateTo || ''}
+                  onChange={(e) => handleSearch('dateTo', e.target.value || undefined)}
                 />
               </div>
             </div>
@@ -379,9 +369,9 @@ export default function InvoicesPage() {
                     <TableBody>
                       {invoices?.items.map((invoice) => (
                         <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                          <TableCell>{invoice.prosecutionCaseNo || 'N/A'}</TableCell>
-                          <TableCell>{formatCurrency(invoice.amount)}</TableCell>
+                          <TableCell className="font-medium">{invoice.invoiceNo}</TableCell>
+                          <TableCell>{invoice.caseNo || 'N/A'}</TableCell>
+                          <TableCell>{formatCurrency(invoice.amountDue)}</TableCell>
                           <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                           <TableCell>
                             {invoice.dueDate ? formatDate(invoice.dueDate) : 'N/A'}
@@ -481,7 +471,7 @@ export default function InvoicesPage() {
             <DialogHeader>
               <DialogTitle>Invoice Details</DialogTitle>
               <DialogDescription>
-                Invoice #{selectedInvoice?.invoiceNumber}
+                Invoice #{selectedInvoice?.invoiceNo}
               </DialogDescription>
             </DialogHeader>
             {selectedInvoice && (
@@ -489,7 +479,7 @@ export default function InvoicesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Invoice Number</Label>
-                    <p className="font-medium">{selectedInvoice.invoiceNumber}</p>
+                    <p className="font-medium">{selectedInvoice.invoiceNo}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
@@ -499,7 +489,7 @@ export default function InvoicesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Amount</Label>
-                    <p className="text-xl font-bold">{formatCurrency(selectedInvoice.amount)}</p>
+                    <p className="text-xl font-bold">{formatCurrency(selectedInvoice.amountDue)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Due Date</Label>

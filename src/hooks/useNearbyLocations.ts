@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useGeolocation, calculateDistance, GeolocationPosition } from './useGeolocation';
 
 export interface LocationWithDistance {

@@ -1273,7 +1273,7 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
 
 function UserAssignmentsTab() {
   const canManage = useHasPermission('user.manage_shifts');
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
 
   const [userSearch, setUserSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);

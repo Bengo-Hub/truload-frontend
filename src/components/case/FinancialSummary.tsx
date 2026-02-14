@@ -36,7 +36,7 @@ export function FinancialSummary({ prosecutionId, className }: FinancialSummaryP
   const totalDue = invoices.reduce((sum, inv) => sum + inv.amountDue, 0);
   const totalPaid = invoices.reduce((sum, inv) => sum + inv.amountPaid, 0);
   const totalBalance = invoices.reduce((sum, inv) => sum + inv.balanceRemaining, 0);
-  const pendingCount = invoices.filter((i) => i.status === 'pending').length;
+  const _pendingCount = invoices.filter((i) => i.status === 'pending').length;
   const paidCount = invoices.filter((i) => i.status === 'paid').length;
   const overdueCount = invoices.filter(
     (i) => i.status === 'pending' && i.dueDate && new Date(i.dueDate) < new Date()

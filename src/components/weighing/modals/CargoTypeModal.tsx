@@ -37,7 +37,7 @@ export interface CreateCargoTypeRequest {
 interface CargoTypeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode: 'create' | 'edit';
+  mode: 'create' | 'edit' | 'view';
   cargoType?: CargoType;
   onSave: (data: CreateCargoTypeRequest) => Promise<void>;
   isSaving?: boolean;
@@ -73,10 +73,12 @@ export function CargoTypeModal({
   const [isHazardous, setIsHazardous] = useState(false);
   const [requiresPermit, setRequiresPermit] = useState(false);
 
+  const isViewMode = mode === 'view';
+
   // Reset form when modal opens or cargo type changes
   useEffect(() => {
     if (open) {
-      if (mode === 'edit' && cargoType) {
+      if ((mode === 'edit' || mode === 'view') && cargoType) {
         setCode(cargoType.code || '');
         setName(cargoType.name || '');
         setDescription(cargoType.description || '');
@@ -120,12 +122,14 @@ export function CargoTypeModal({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
-            {mode === 'create' ? 'Add New Cargo Type' : 'Edit Cargo Type'}
+            {mode === 'create' ? 'Add New Cargo Type' : mode === 'edit' ? 'Edit Cargo Type' : 'View Cargo Type'}
           </DialogTitle>
           <DialogDescription>
             {mode === 'create'
               ? 'Create a new cargo type for weighing transactions.'
-              : 'Update cargo type details.'}
+              : mode === 'edit'
+              ? 'Update cargo type details.'
+              : 'Cargo type details.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -138,7 +142,7 @@ export function CargoTypeModal({
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="e.g., CEMENT, FUEL, LIVESTOCK"
-              disabled={isSaving || mode === 'edit'}
+              disabled={isSaving || mode === 'edit' || isViewMode}
               className="uppercase"
             />
             <p className="text-xs text-gray-500">
@@ -154,7 +158,7 @@ export function CargoTypeModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Cement Bags, Petroleum Fuel"
-              disabled={isSaving}
+              disabled={isSaving || isViewMode}
             />
           </div>
 
@@ -166,7 +170,7 @@ export function CargoTypeModal({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="e.g., Building Materials, Fuel, Livestock"
-              disabled={isSaving}
+              disabled={isSaving || isViewMode}
             />
           </div>
 
@@ -178,7 +182,7 @@ export function CargoTypeModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."
-              disabled={isSaving}
+              disabled={isSaving || isViewMode}
               rows={2}
             />
           </div>
@@ -190,7 +194,7 @@ export function CargoTypeModal({
                 type="checkbox"
                 checked={isHazardous}
                 onChange={(e) => setIsHazardous(e.target.checked)}
-                disabled={isSaving}
+                disabled={isSaving || isViewMode}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">Hazardous</span>
@@ -200,7 +204,7 @@ export function CargoTypeModal({
                 type="checkbox"
                 checked={requiresPermit}
                 onChange={(e) => setRequiresPermit(e.target.checked)}
-                disabled={isSaving}
+                disabled={isSaving || isViewMode}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">Requires Permit</span>
@@ -212,14 +216,15 @@ export function CargoTypeModal({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isSaving}
             >
-              Cancel
+              {isViewMode ? 'Close' : 'Cancel'}
             </Button>
-            <Button type="submit" disabled={!isValid || isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === 'create' ? 'Add Cargo Type' : 'Save Changes'}
-            </Button>
+            {!isViewMode && (
+              <Button type="submit" disabled={!isValid || isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {mode === 'create' ? 'Add Cargo Type' : 'Save Changes'}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

@@ -34,7 +34,7 @@ import { useHasPermission } from '@/hooks/useAuth';
 import { formatFileSize } from '@/lib/api/backup';
 import { fetchRoles } from '@/lib/api/setup';
 import type { RoleDto } from '@/types/setup';
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Database, Download, FileText, Info, Key, Loader2, RefreshCcw, Save, Shield, ShieldAlert, ShieldOff, Trash2, Upload, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Database, Download, FileText, Info, Key, Loader2, RefreshCcw, Save, Shield, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -87,8 +87,8 @@ export default function SecurityPage() {
   const { data: auditSummary } = useAuditLogSummary();
 
   // Settings queries
-  const { data: passwordPolicy, isLoading: isLoadingPasswordPolicy } = usePasswordPolicy();
-  const { data: shiftSettings, isLoading: isLoadingShiftSettings } = useShiftSettings();
+  const { data: passwordPolicy, isLoading: _isLoadingPasswordPolicy } = usePasswordPolicy();
+  const { data: shiftSettings, isLoading: _isLoadingShiftSettings } = useShiftSettings();
 
   // 2FA queries
   const { data: twoFactorStatus, isLoading: isLoading2FA } = use2FAStatus();

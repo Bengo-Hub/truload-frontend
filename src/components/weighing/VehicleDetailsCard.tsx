@@ -313,7 +313,7 @@ export function VehicleDetailsCard({
   showPermitSection = false,
   isReadOnly = false,
   className,
-  compact = false,
+  _compact = false,
 }: VehicleDetailsCardProps) {
   // Default axle configs if not provided (matching backend AxleConfigurationResponseDto)
   const configs = axleConfigurations.length > 0

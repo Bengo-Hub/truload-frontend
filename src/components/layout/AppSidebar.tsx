@@ -5,17 +5,18 @@
  */
 
 import { Button } from '@/components/ui/button';
-import { useHasPermission } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth.store';
-import { cn } from '@/lib/utils';
 import {
   BarChart3,
   Clock4,
   Cog,
+  CreditCard,
+  Database,
   FolderOpen,
   Gavel,
   LayoutDashboard,
   LogOut,
+  Receipt,
   Settings,
   Shield,
   Users,
@@ -59,10 +60,18 @@ const menuSections: MenuSection[] = [
     ],
   },
   {
+    title: 'Financial',
+    items: [
+      { href: '/financial/invoices', label: 'Invoices', icon: Receipt, permissions: ['invoice.read'] },
+      { href: '/financial/receipts', label: 'Receipts', icon: CreditCard, permissions: ['receipt.read'] },
+    ],
+  },
+  {
     title: 'Setup',
     items: [
       { href: '/setup/security', label: 'Security', icon: Shield, permissions: ['system.security_policy'] },
       { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.manage_axle', 'config.read'] },
+      { href: '/setup/weighing-metadata', label: 'Weighing Data', icon: Database, permissions: ['config.read', 'weighing.create'] },
       { href: '/setup/settings', label: 'Integrations', icon: Settings, permissions: ['config.read'] },
     ],
   },

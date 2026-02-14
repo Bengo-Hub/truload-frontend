@@ -63,7 +63,6 @@ import {
   Plus,
   Trash2,
   CheckCircle,
-  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -176,7 +175,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
         minuteNotes: '',
       });
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to schedule hearing');
     }
   }, [caseId, scheduleForm, scheduleHearingMutation, refetch]);
@@ -201,7 +200,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
       setSelectedHearing(null);
       setAdjournForm({ nextHearingDate: '', adjournmentReason: '' });
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to adjourn hearing');
     }
   }, [selectedHearing, adjournForm, adjournHearingMutation, refetch]);
@@ -226,7 +225,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
       setSelectedHearing(null);
       setCompleteForm({ hearingOutcomeId: '', minuteNotes: '' });
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to complete hearing');
     }
   }, [selectedHearing, completeForm, completeHearingMutation, refetch]);
@@ -253,7 +252,7 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
     try {
       await downloadMinutesMutation.mutateAsync(hearingId);
       toast.success('Court minutes downloaded');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to download court minutes');
     }
   }, [downloadMinutesMutation]);

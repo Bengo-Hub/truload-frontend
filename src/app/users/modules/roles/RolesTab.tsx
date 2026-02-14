@@ -833,7 +833,7 @@ function PermissionManagementDialog({ role, open, onOpenChange }: PermissionMana
                 const isExpanded = expandedCategories.has(cat);
                 const selectedInCategory = perms.filter((p) => selectedIds.has(p.id)).length;
                 const allInCategorySelected = selectedInCategory === perms.length;
-                const someInCategorySelected = selectedInCategory > 0 && !allInCategorySelected;
+                const _someInCategorySelected = selectedInCategory > 0 && !allInCategorySelected;
 
                 return (
                   <div

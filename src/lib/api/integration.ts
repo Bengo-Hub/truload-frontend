@@ -30,6 +30,7 @@ export interface UpsertIntegrationConfigRequest {
   appBaseUrl?: string;
   environment?: string;
   description?: string;
+  isActive?: boolean;
 }
 
 export interface TestConnectivityResult {

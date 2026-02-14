@@ -166,7 +166,7 @@ export default function MobileWeighingPage() {
   const [isScalesConnected, setIsScalesConnected] = useState(false);
   const [middlewareConnected, setMiddlewareConnected] = useState(false);
   const [isSimulationMode, setIsSimulationMode] = useState(false);
-  const [weighingType, setWeighingType] = useState<'mobile' | 'multideck'>('mobile');
+  const [weighingType, _setWeighingType] = useState<'mobile' | 'multideck'>('mobile');
 
   // Scale metadata from middleware (make/model)
   const [scaleMetadata, setScaleMetadata] = useState<{ make: string | null; model: string | null }>({
@@ -269,7 +269,7 @@ export default function MobileWeighingPage() {
   // Derive scale test state from query
   const isScaleTestCompleted = scaleTestStatus?.hasValidTest ?? false;
   const lastScaleTestAt = scaleTestStatus?.latestTest ? new Date(scaleTestStatus.latestTest.carriedAt) : undefined;
-  const [currentScaleTest, setCurrentScaleTest] = useState<ScaleTest | null>(null);
+  const [_currentScaleTest, setCurrentScaleTest] = useState<ScaleTest | null>(null);
 
   // Combined loading state
   const isLoadingData = isLoadingStation || isLoadingAxleConfigs || isLoadingScaleTest;
@@ -281,7 +281,7 @@ export default function MobileWeighingPage() {
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [isPlateDisabled, setIsPlateDisabled] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<string>('');
-  const [axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
+  const [_axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
   const [ticketNumber, setTicketNumber] = useState('');
 
   // Derive selected configuration ID for weight references lookup
@@ -337,7 +337,6 @@ export default function MobileWeighingPage() {
   // Vehicle details form state - simple values
   const [permitNo, setPermitNo] = useState('');
   const [trailerNo, setTrailerNo] = useState('');
-  const [driverName, setDriverName] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
   const [comment, setComment] = useState('');
   const [reliefVehicleReg, setReliefVehicleReg] = useState('');
@@ -400,25 +399,24 @@ export default function MobileWeighingPage() {
 
   // Use capture state from useWeighing hook (with local fallbacks for UI)
   const {
-    capturedAxles: hookCapturedAxles,
+    capturedAxles: _hookCapturedAxles,
     currentAxle: hookCurrentAxle,
     setCurrentAxle: setHookCurrentAxle,
-    totalAxles: hookTotalAxles,
+    totalAxles: _hookTotalAxles,
     allAxlesCaptured: hookAllAxlesCaptured,
     initializeTransaction,
     captureAxleWeight,
-    submitWeights,
     confirmWeight,
     initiateReweigh,
-    updateVehicleDetails,
+    updateVehicleDetails: _updateVehicleDetails,
     resetSession,
     session: weighingSession,
-    transaction: weighingTransaction,
+    transaction: _weighingTransaction,
     complianceResult,
     reweighCycleNo,
     isWeightConfirmed,
     isLoading: isWeighingLoading,
-    error: weighingError,
+    error: _weighingError,
   } = weighingHook;
 
   // Local state for captured weights (for UI display during capture)
@@ -582,14 +580,14 @@ export default function MobileWeighingPage() {
   const [isCapturingWeight, setIsCapturingWeight] = useState(false);
 
   // Permissions - mapped to backend permission codes
-  const canCapture = useHasPermission('weighing.create');
+  const _canCapture = useHasPermission('weighing.create');
   const canPrint = useHasPermission('weighing.export');
-  const canTag = useHasPermission('tag.create');
+  const _canTag = useHasPermission('tag.create');
   const canSendToYard = useHasPermission('weighing.send_to_yard');
   const canSpecialRelease = useHasPermission('case.special_release');
 
-  // Scale status (mock)
-  const scaleStatus: ScaleStatus = 'connected';
+  // Scale status derived from middleware connection state
+  const scaleStatus: ScaleStatus = middlewareConnected ? 'connected' : 'disconnected';
 
   // Get total axles based on selected config
   const getTotalAxles = (config: string): number => {
@@ -828,14 +826,9 @@ export default function MobileWeighingPage() {
     return `${stationCode}${boundSuffix}-${dateStr}${sequence}`;
   }, [currentStation, currentBound]);
 
-  // ANPR scan simulation
+  // ANPR scan handler
   const handleScanPlate = () => {
-    setTimeout(() => {
-      setVehiclePlate('KCZ015N');
-      setIsPlateDisabled(true);
-      setFrontViewImage('/images/weighing/truckpass.jpg');
-      setOverviewImage('/images/weighing/truckcalledin.jpg');
-    }, 1000);
+    toast.info('ANPR camera not connected. Enter plate number manually.');
   };
 
   // Edit plate handler (logs event)
@@ -942,7 +935,7 @@ export default function MobileWeighingPage() {
 
   // Proceed to vehicle step - auto-create vehicle if needed and initialize transaction
   const handleProceedToVehicle = async () => {
-    let vehicleId = selectedVehicleId;
+    let _vehicleId = selectedVehicleId;
 
     // Auto-create vehicle if it doesn't exist (first-time weighing)
     if (!existingVehicle && vehiclePlate.length >= 5) {
@@ -951,7 +944,7 @@ export default function MobileWeighingPage() {
           regNo: vehiclePlate,
           // Only regNo is required - other details captured from VehicleDetailsCard later
         });
-        vehicleId = newVehicle.id;
+        _vehicleId = newVehicle.id;
         setSelectedVehicleId(newVehicle.id);
         toast.success(`Vehicle ${vehiclePlate} created automatically.`);
       } catch (error) {
@@ -1222,7 +1215,7 @@ export default function MobileWeighingPage() {
   }, [weighingSession, ticketNumber]);
 
   // Tag vehicle - creates a tag in the backend
-  const handleTagVehicle = useCallback(async () => {
+  const _handleTagVehicle = useCallback(async () => {
     if (!vehiclePlate || !currentStation?.code) {
       toast.error('Missing vehicle plate or station');
       return;
@@ -1711,7 +1704,7 @@ export default function MobileWeighingPage() {
                       showPermitSection={true}
                       permitNo={permitNo}
                       onPermitNoChange={setPermitNo}
-                      onViewPermit={() => alert('View permit - coming soon')}
+                      onViewPermit={() => toast.info('Permit viewer coming soon')}
                       trailerNo={trailerNo}
                       onTrailerNoChange={setTrailerNo}
                       vehicleMake={vehicleMake}

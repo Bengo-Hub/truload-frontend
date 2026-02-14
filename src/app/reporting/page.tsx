@@ -1,10 +1,8 @@
 'use client';
 
-import { exportArrayToCSV } from '@/lib/utils/export';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ChartWrapper, StatCard } from '@/components/charts';
 import { AppShell } from '@/components/layout/AppShell';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,13 +16,8 @@ import {
   useRevenueByStation,
   useMonthlyRevenueData,
   useCaseTrend,
-  usePaymentMethods,
-  useTopOffenders,
-  useStationPerformance,
-  useProsecutionTrend,
 } from '@/hooks/queries';
 import {
-  BarChart3,
   Brain,
   FileText,
   Gavel,
@@ -34,7 +27,6 @@ import {
   Truck,
 } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 
 const formatKES = (value: number) => `KES ${value.toLocaleString()}`;
 const formatNumber = (value: number) => value.toLocaleString();
@@ -63,50 +55,17 @@ function ReportingContent() {
     refetch,
   } = useDashboardStatistics(filters);
 
-  // Chart data for general reports
+  // Chart data for analytics charts
   const { data: complianceTrend } = useComplianceTrend(filters);
   const { data: revenueByStation } = useRevenueByStation(filters);
   const { data: monthlyRevenue } = useMonthlyRevenueData(filters);
   const { data: caseTrend } = useCaseTrend(filters);
-  const { data: paymentMethods } = usePaymentMethods(filters);
-  const { data: topOffenders } = useTopOffenders(filters);
-  const { data: stationPerf } = useStationPerformance(filters);
-  const { data: prosecutionTrend } = useProsecutionTrend(filters);
 
   const getStatValue = (stats: unknown, key: string, defaultValue = 0): number => {
     if (stats && typeof stats === 'object' && key in stats) {
       return Number((stats as Record<string, unknown>)[key]) || defaultValue;
     }
     return defaultValue;
-  };
-
-  // Export handler for ModuleReportSelector
-  const handleExport = (reportId: string, dateFrom?: string, dateTo?: string) => {
-    const dataMap: Record<string, { data: unknown[] | undefined; filename: string }> = {
-      'daily-weighing': { data: complianceTrend as unknown[] | undefined, filename: 'weighing_summary' },
-      'weighing-compliance': { data: complianceTrend as unknown[] | undefined, filename: 'compliance_trend' },
-      'axle-overload': { data: complianceTrend as unknown[] | undefined, filename: 'axle_overload' },
-      'revenue-report': { data: monthlyRevenue as unknown[] | undefined, filename: 'revenue_report' },
-      'invoice-aging': { data: monthlyRevenue as unknown[] | undefined, filename: 'invoice_aging' },
-      'payment-reconciliation': { data: paymentMethods as unknown[] | undefined, filename: 'payment_reconciliation' },
-      'prosecution-report': { data: prosecutionTrend as unknown[] | undefined, filename: 'prosecution_report' },
-      'court-calendar': { data: prosecutionTrend as unknown[] | undefined, filename: 'court_calendar' },
-      'repeat-offenders': { data: topOffenders as unknown[] | undefined, filename: 'repeat_offenders' },
-      'case-register': { data: caseTrend as unknown[] | undefined, filename: 'case_register' },
-      'station-performance': { data: stationPerf as unknown[] | undefined, filename: 'station_performance' },
-      'yard-occupancy': { data: revenueByStation as unknown[] | undefined, filename: 'yard_occupancy' },
-      'system-audit-log': { data: undefined, filename: 'audit_log' },
-    };
-
-    const entry = dataMap[reportId];
-    if (!entry?.data || !Array.isArray(entry.data) || entry.data.length === 0) {
-      toast.error('No data available to export. Try adjusting the date range.');
-      return;
-    }
-
-    const suffix = dateFrom && dateTo ? `_${dateFrom}_to_${dateTo}` : '';
-    exportArrayToCSV(entry.data as Record<string, unknown>[], `${entry.filename}${suffix}`);
-    toast.success('Report exported successfully');
   };
 
   return (
@@ -182,7 +141,7 @@ function ReportingContent() {
         {/* Tab 1: General Reports */}
         <TabsContent value="general" className="space-y-6">
           {/* Module-filtered predefined reports */}
-          <ModuleReportSelector onExport={handleExport} />
+          <ModuleReportSelector />
 
           {/* Charts Section */}
           <Card>

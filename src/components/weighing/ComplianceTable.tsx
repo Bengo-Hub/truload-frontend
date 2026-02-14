@@ -113,7 +113,7 @@ export function ComplianceTable({
   };
 
   // Determine axle/group status
-  const getStatus = (measured: number, permissible: number, tolerance: number): ComplianceStatus | 'PENDING' => {
+  const _getStatus = (measured: number, permissible: number, tolerance: number): ComplianceStatus | 'PENDING' => {
     if (measured === 0) return 'PENDING';
     const effectiveLimit = permissible + tolerance;
     if (measured > effectiveLimit) return 'OVERLOAD';
@@ -263,7 +263,7 @@ export function ComplianceTable({
                       const axleStatus = axle.measuredKg === 0 ? 'PENDING' : (
                         axle.measuredKg > axlePermissible ? 'WARNING' : 'LEGAL'
                       );
-                      const axleStatusConfig = getStatusConfig(axleStatus);
+                      const _axleStatusConfig = getStatusConfig(axleStatus);
                       const axlePdf = calculatePDF(axle.measuredKg, axlePermissible);
                       const axleExcess = Math.max(0, axle.measuredKg - axlePermissible);
 

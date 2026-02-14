@@ -14,141 +14,94 @@ import {
 } from '@/components/ui/select';
 import {
   BarChart3,
-  Download,
+  Eye,
+  FileSpreadsheet,
   FileText,
   Gavel,
+  Loader2,
   Scale,
-  Truck,
   Settings,
+  Truck,
   DollarSign,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { useReportCatalog, useDownloadReport } from '@/hooks/queries/useReportQueries';
+import { ReportPreviewDialog } from './ReportPreviewDialog';
 
-interface ReportTemplate {
-  id: string;
-  name: string;
-  description: string;
-  module: string;
-  icon: LucideIcon;
-}
+const MODULE_ICONS: Record<string, LucideIcon> = {
+  weighing: Scale,
+  prosecution: Gavel,
+  cases: FileText,
+  financial: DollarSign,
+  yard: Truck,
+  security: Settings,
+};
 
-const MODULES = [
-  { value: 'all', label: 'All Modules', icon: BarChart3 },
-  { value: 'weighing', label: 'Weighing', icon: Scale },
-  { value: 'cases', label: 'Cases', icon: FileText },
-  { value: 'financial', label: 'Financial', icon: DollarSign },
-  { value: 'yard', label: 'Yard', icon: Truck },
-  { value: 'prosecution', label: 'Prosecution', icon: Gavel },
-  { value: 'config', label: 'Configuration', icon: Settings },
-];
+const MODULE_LABELS: Record<string, string> = {
+  weighing: 'Weighing',
+  prosecution: 'Prosecution',
+  cases: 'Cases',
+  financial: 'Financial',
+  yard: 'Yard',
+  security: 'Security',
+};
 
-const REPORT_TEMPLATES: ReportTemplate[] = [
-  {
-    id: 'daily-weighing',
-    name: 'Daily Weighing Summary',
-    description: 'Compliance statistics and transaction counts by station',
-    module: 'weighing',
-    icon: Scale,
-  },
-  {
-    id: 'weighing-compliance',
-    name: 'Compliance Trend Report',
-    description: 'Legal vs overloaded vehicles over time',
-    module: 'weighing',
-    icon: Scale,
-  },
-  {
-    id: 'axle-overload',
-    name: 'Axle Overload Analysis',
-    description: 'Axle group overloads by vehicle configuration',
-    module: 'weighing',
-    icon: Scale,
-  },
-  {
-    id: 'revenue-report',
-    name: 'Revenue Collection Report',
-    description: 'Fee collection and payment method breakdown',
-    module: 'financial',
-    icon: DollarSign,
-  },
-  {
-    id: 'invoice-aging',
-    name: 'Invoice Aging Report',
-    description: 'Outstanding invoices by age bracket',
-    module: 'financial',
-    icon: DollarSign,
-  },
-  {
-    id: 'payment-reconciliation',
-    name: 'Payment Reconciliation',
-    description: 'Pesaflow payments vs manual payments',
-    module: 'financial',
-    icon: DollarSign,
-  },
-  {
-    id: 'prosecution-report',
-    name: 'Prosecution Statistics',
-    description: 'Cases by status, fines, and court outcomes',
-    module: 'prosecution',
-    icon: Gavel,
-  },
-  {
-    id: 'court-calendar',
-    name: 'Court Calendar Report',
-    description: 'Upcoming court hearings by date and jurisdiction',
-    module: 'prosecution',
-    icon: Gavel,
-  },
-  {
-    id: 'repeat-offenders',
-    name: 'Repeat Offenders',
-    description: 'Drivers and transporters with multiple violations',
-    module: 'cases',
-    icon: Truck,
-  },
-  {
-    id: 'case-register',
-    name: 'Case Register Report',
-    description: 'All cases by status, violation type, and resolution',
-    module: 'cases',
-    icon: FileText,
-  },
-  {
-    id: 'station-performance',
-    name: 'Station Performance',
-    description: 'Weighings, compliance rates, and revenue by station',
-    module: 'weighing',
-    icon: BarChart3,
-  },
-  {
-    id: 'yard-occupancy',
-    name: 'Yard Occupancy Report',
-    description: 'Vehicle entries, releases, and current occupancy',
-    module: 'yard',
-    icon: Truck,
-  },
-  {
-    id: 'system-audit-log',
-    name: 'System Audit Log',
-    description: 'User actions and system events',
-    module: 'config',
-    icon: Settings,
-  },
-];
-
-interface ModuleReportSelectorProps {
-  onExport: (reportId: string, dateFrom?: string, dateTo?: string) => void;
-}
-
-export function ModuleReportSelector({ onExport }: ModuleReportSelectorProps) {
+export function ModuleReportSelector() {
   const [selectedModule, setSelectedModule] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewFileName, setPreviewFileName] = useState('');
 
-  const filteredReports = selectedModule === 'all'
-    ? REPORT_TEMPLATES
-    : REPORT_TEMPLATES.filter((r) => r.module === selectedModule);
+  const { data: catalog, isLoading: catalogLoading } = useReportCatalog(
+    selectedModule === 'all' ? undefined : selectedModule
+  );
+  const downloadMutation = useDownloadReport();
+
+  const allReports = catalog?.modules?.flatMap((m) =>
+    m.reports.map((r) => ({ ...r, moduleDisplayName: m.displayName }))
+  ) ?? [];
+
+  const moduleList = catalog?.modules ?? [];
+
+  const handleGenerate = async (
+    module: string,
+    reportType: string,
+    format: 'pdf' | 'csv'
+  ) => {
+    try {
+      const result = await downloadMutation.mutateAsync({
+        module,
+        reportType,
+        filters: {
+          format,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+        },
+      });
+
+      if (format === 'pdf') {
+        setPreviewBlob(result.blob);
+        setPreviewFileName(result.fileName);
+        setPreviewOpen(true);
+      } else {
+        // CSV - trigger immediate download
+        const url = window.URL.createObjectURL(result.blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = result.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        toast.success('CSV report downloaded');
+      }
+    } catch {
+      toast.error('Failed to generate report. Please try again.');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -163,14 +116,23 @@ export function ModuleReportSelector({ onExport }: ModuleReportSelectorProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {MODULES.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      <div className="flex items-center gap-2">
-                        <m.icon className="h-4 w-4" />
-                        {m.label}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      All Modules
+                    </div>
+                  </SelectItem>
+                  {moduleList.map((m) => {
+                    const Icon = MODULE_ICONS[m.module] ?? BarChart3;
+                    return (
+                      <SelectItem key={m.module} value={m.module}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {m.displayName}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -195,44 +157,94 @@ export function ModuleReportSelector({ onExport }: ModuleReportSelectorProps) {
       </Card>
 
       {/* Report List */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredReports.map((report) => (
-          <Card key={report.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
-                <report.icon className="h-5 w-5 text-blue-600" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onExport(report.id, dateFrom || undefined, dateTo || undefined)}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-              <CardTitle className="text-sm">{report.name}</CardTitle>
-              <CardDescription className="text-xs">{report.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => onExport(report.id, dateFrom || undefined, dateTo || undefined)}
-              >
-                <Download className="h-3 w-3 mr-1.5" />
-                Export CSV
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {catalogLoading ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <div className="animate-pulse space-y-3">
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-full" />
+                  <div className="h-8 bg-muted rounded w-full" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {allReports.map((report) => {
+            const Icon = MODULE_ICONS[report.module] ?? FileText;
+            const isGenerating = downloadMutation.isPending;
+            return (
+              <Card key={`${report.module}-${report.id}`} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <Icon className="h-5 w-5 text-blue-600" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      {MODULE_LABELS[report.module] ?? report.module}
+                    </span>
+                  </div>
+                  <CardTitle className="text-sm">{report.name}</CardTitle>
+                  <CardDescription className="text-xs">{report.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex gap-2">
+                    {report.supportedFormats.includes('pdf') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        disabled={isGenerating}
+                        onClick={() => handleGenerate(report.module, report.id, 'pdf')}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                        ) : (
+                          <Eye className="h-3 w-3 mr-1.5" />
+                        )}
+                        PDF
+                      </Button>
+                    )}
+                    {report.supportedFormats.includes('csv') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        disabled={isGenerating}
+                        onClick={() => handleGenerate(report.module, report.id, 'csv')}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                        ) : (
+                          <FileSpreadsheet className="h-3 w-3 mr-1.5" />
+                        )}
+                        CSV
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
-      {filteredReports.length === 0 && (
+      {!catalogLoading && allReports.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p>No reports available for this module</p>
         </div>
       )}
+
+      {/* PDF Preview Dialog */}
+      <ReportPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        blob={previewBlob}
+        fileName={previewFileName}
+        isLoading={downloadMutation.isPending}
+      />
     </div>
   );
 }

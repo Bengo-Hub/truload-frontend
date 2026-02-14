@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Station } from '@/lib/api/weighing';
 import {
   Select,
@@ -10,7 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { MapPin, ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight } from 'lucide-react';
 
 interface BoundSelectorProps {
   station: Station | null;
@@ -43,7 +42,7 @@ export function BoundSelector({
   const boundBCode = station.boundBCode || 'B';
 
   // Format display label for bounds
-  const getBoundLabel = (code: string) => {
+  const _getBoundLabel = (code: string) => {
     // Common naming conventions for traffic directions
     if (code.toUpperCase().includes('INBOUND') || code === 'A') {
       return `Bound A (${code})`;

@@ -70,5 +70,8 @@ export * from './useTechnicalQueries';
 // User/Officer queries
 export * from './useUserQueries';
 
+// Report queries
+export * from './useReportQueries';
+
 // Re-export query configuration for advanced usage
 export { QUERY_KEYS, QUERY_OPTIONS, CACHE_TIMES, queryKeys } from '@/lib/query/config';

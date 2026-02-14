@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { ComplianceStatus } from '@/types/weighing';
-import { AlertTriangle, CheckCircle2, XCircle, Clock, FileWarning } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, Clock } from 'lucide-react';
 
 interface ComplianceBannerProps {
   status: ComplianceStatus | 'PENDING';
@@ -31,7 +31,7 @@ interface ComplianceBannerProps {
 export function ComplianceBanner({
   status,
   gvwMeasured = 0,
-  gvwOverload = 0,
+  gvwOverload: _gvwOverload = 0,
   excessAvw = 0,
   gvwExcess = 0,
   diffExcess = 0,

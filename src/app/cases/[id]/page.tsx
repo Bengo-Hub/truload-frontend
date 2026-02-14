@@ -3,7 +3,7 @@
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -59,7 +59,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -75,7 +75,6 @@ import { toast } from 'sonner';
  */
 export default function CaseDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const caseId = params.id as string;
 
   // Queries
@@ -119,7 +118,7 @@ export default function CaseDetailPage() {
       toast.success('Case closed successfully');
       setShowCloseModal(false);
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to close case');
     }
   }, [caseId, closeDispositionId, closeReason, closeCaseMutation, refetch]);
@@ -129,18 +128,15 @@ export default function CaseDetailPage() {
     try {
       await escalateCaseMutation.mutateAsync({
         id: caseId,
-        request: {
-          caseManagerId: '', // In production, this would come from a user selector
-          notes: escalateNotes,
-        },
+        caseManagerId: '', // TODO: In production, this should come from a user selector
       });
       toast.success('Case escalated successfully');
       setShowEscalateModal(false);
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to escalate case');
     }
-  }, [caseId, escalateNotes, escalateCaseMutation, refetch]);
+  }, [caseId, escalateCaseMutation, refetch]);
 
   // Handle request special release
   const handleRequestRelease = useCallback(async () => {
@@ -162,7 +158,7 @@ export default function CaseDetailPage() {
       toast.success('Special release request submitted');
       setShowReleaseModal(false);
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to submit release request');
     }
   }, [caseId, releaseTypeId, releaseReason, releaseTypes, createReleaseMutation, refetch]);
@@ -195,41 +191,31 @@ export default function CaseDetailPage() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <AppShell title="Loading..." subtitle="Case details">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (error || !caseData) {
-    return (
-      <AppShell title="Error" subtitle="Case not found">
-        <Card className="max-w-md mx-auto mt-12">
-          <CardContent className="pt-6 text-center">
-            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold">Case Not Found</h3>
-            <p className="text-gray-500 mt-2">The case you're looking for doesn't exist or you don't have permission to view it.</p>
-            <Link href="/cases">
-              <Button className="mt-4">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Cases
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </AppShell>
-    );
-  }
-
-  const isClosed = caseData.caseStatus?.toUpperCase() === 'CLOSED';
+  const isClosed = caseData?.caseStatus?.toUpperCase() === 'CLOSED';
 
   return (
-    <AppShell title={`Case ${caseData.caseNo}`} subtitle="Case details">
+    <AppShell title={caseData ? `Case ${caseData.caseNo}` : isLoading ? 'Loading...' : 'Error'} subtitle="Case details">
       <ProtectedRoute requiredPermissions={['case.read']}>
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+          </div>
+        ) : error || !caseData ? (
+          <Card className="max-w-md mx-auto mt-12">
+            <CardContent className="pt-6 text-center">
+              <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold">Case Not Found</h3>
+              <p className="text-gray-500 mt-2">The case you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.</p>
+              <Link href="/cases">
+                <Button className="mt-4">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Cases
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+        <>
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -745,6 +731,8 @@ export default function CaseDetailPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </>
+        )}
       </ProtectedRoute>
     </AppShell>
   );

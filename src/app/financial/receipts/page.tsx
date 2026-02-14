@@ -35,12 +35,11 @@ import {
   useReceiptSearch,
   useReceiptStatistics,
   useVoidReceipt,
-  useDownloadReceiptPdf,
+  useDownloadReceipt,
 } from '@/hooks/queries/useReceiptQueries';
 import type { ReceiptDto, ReceiptSearchCriteria } from '@/lib/api/receipt';
 import {
   AlertCircle,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -74,7 +73,7 @@ export default function ReceiptsPage() {
 
   // Mutations
   const voidReceiptMutation = useVoidReceipt();
-  const downloadPdfMutation = useDownloadReceiptPdf();
+  const downloadPdfMutation = useDownloadReceipt();
 
   // Handlers
   const handleSearch = (field: keyof ReceiptSearchCriteria, value: string | number | undefined) => {
@@ -109,24 +108,16 @@ export default function ReceiptsPage() {
       setShowVoidDialog(false);
       setVoidReason('');
       setSelectedReceipt(null);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to void receipt');
     }
   };
 
   const handleDownloadPdf = async (receipt: ReceiptDto) => {
     try {
-      const blob = await downloadPdfMutation.mutateAsync(receipt.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Receipt_${receipt.receiptNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadPdfMutation.mutateAsync(receipt.id);
       toast.success('Receipt downloaded');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to download receipt');
     }
   };
@@ -182,7 +173,7 @@ export default function ReceiptsPage() {
             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">Access Denied</h3>
             <p className="text-sm text-muted-foreground">
-              You don't have permission to view receipts.
+              You don&apos;t have permission to view receipts.
             </p>
           </div>
         </div>
@@ -228,7 +219,7 @@ export default function ReceiptsPage() {
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{statistics?.totalReceipts || 0}</div>
+                  <div className="text-2xl font-bold">{statistics?.total || 0}</div>
                   <p className="text-xs text-muted-foreground">All time</p>
                 </CardContent>
               </Card>
@@ -240,7 +231,7 @@ export default function ReceiptsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(statistics?.totalAmount || 0)}
+                    {formatCurrency(statistics?.totalCollected || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground">Total collected</p>
                 </CardContent>
@@ -252,7 +243,7 @@ export default function ReceiptsPage() {
                   <CreditCard className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{statistics?.paymentMethodCount || 0}</div>
+                  <div className="text-2xl font-bold">{statistics?.byPaymentMethod?.length ?? 0}</div>
                   <p className="text-xs text-muted-foreground">Different methods</p>
                 </CardContent>
               </Card>
@@ -304,8 +295,8 @@ export default function ReceiptsPage() {
                 <Label>From Date</Label>
                 <Input
                   type="date"
-                  value={searchCriteria.createdFrom || ''}
-                  onChange={(e) => handleSearch('createdFrom', e.target.value || undefined)}
+                  value={searchCriteria.paymentDateFrom || ''}
+                  onChange={(e) => handleSearch('paymentDateFrom', e.target.value || undefined)}
                 />
               </div>
 
@@ -313,8 +304,8 @@ export default function ReceiptsPage() {
                 <Label>To Date</Label>
                 <Input
                   type="date"
-                  value={searchCriteria.createdTo || ''}
-                  onChange={(e) => handleSearch('createdTo', e.target.value || undefined)}
+                  value={searchCriteria.paymentDateTo || ''}
+                  onChange={(e) => handleSearch('paymentDateTo', e.target.value || undefined)}
                 />
               </div>
             </div>
@@ -364,9 +355,9 @@ export default function ReceiptsPage() {
                     <TableBody>
                       {receipts?.items.map((receipt) => (
                         <TableRow key={receipt.id}>
-                          <TableCell className="font-medium">{receipt.receiptNumber}</TableCell>
-                          <TableCell>{receipt.invoiceNumber || 'N/A'}</TableCell>
-                          <TableCell>{formatCurrency(receipt.amount)}</TableCell>
+                          <TableCell className="font-medium">{receipt.receiptNo}</TableCell>
+                          <TableCell>{receipt.invoiceNo || 'N/A'}</TableCell>
+                          <TableCell>{formatCurrency(receipt.amountPaid)}</TableCell>
                           <TableCell>{getPaymentMethodBadge(receipt.paymentMethod)}</TableCell>
                           <TableCell>{formatDate(receipt.createdAt)}</TableCell>
                           <TableCell>{getStatusBadge(receipt.status)}</TableCell>
@@ -452,7 +443,7 @@ export default function ReceiptsPage() {
             <DialogHeader>
               <DialogTitle>Receipt Details</DialogTitle>
               <DialogDescription>
-                Receipt #{selectedReceipt?.receiptNumber}
+                Receipt #{selectedReceipt?.receiptNo}
               </DialogDescription>
             </DialogHeader>
             {selectedReceipt && (
@@ -460,7 +451,7 @@ export default function ReceiptsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Receipt Number</Label>
-                    <p className="font-medium">{selectedReceipt.receiptNumber}</p>
+                    <p className="font-medium">{selectedReceipt.receiptNo}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
@@ -470,7 +461,7 @@ export default function ReceiptsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Amount</Label>
-                    <p className="text-xl font-bold">{formatCurrency(selectedReceipt.amount)}</p>
+                    <p className="text-xl font-bold">{formatCurrency(selectedReceipt.amountPaid)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Payment Method</Label>
@@ -480,17 +471,17 @@ export default function ReceiptsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Invoice Number</Label>
-                    <p className="font-medium">{selectedReceipt.invoiceNumber || 'N/A'}</p>
+                    <p className="font-medium">{selectedReceipt.invoiceNo || 'N/A'}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Payment Date</Label>
                     <p className="font-medium">{formatDate(selectedReceipt.createdAt)}</p>
                   </div>
                 </div>
-                {selectedReceipt.transactionRef && (
+                {selectedReceipt.transactionReference && (
                   <div>
                     <Label className="text-muted-foreground">Transaction Reference</Label>
-                    <p className="font-mono text-sm">{selectedReceipt.transactionRef}</p>
+                    <p className="font-mono text-sm">{selectedReceipt.transactionReference}</p>
                   </div>
                 )}
                 {selectedReceipt.voidedAt && (

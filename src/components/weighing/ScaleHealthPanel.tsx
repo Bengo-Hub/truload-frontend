@@ -74,7 +74,7 @@ interface ScaleHealthPanelProps {
 export function ScaleHealthPanel({
   scales,
   isConnected,
-  onConnect,
+  _onConnect,
   onToggleScale,
   onChangeWeighingType,
   weighingType = 'mobile',
@@ -96,7 +96,7 @@ export function ScaleHealthPanel({
 
   // Count connected scales
   const connectedCount = scales.filter(s => s.status === 'connected').length;
-  const activeCount = scales.filter(s => s.isActive).length;
+  const _activeCount = scales.filter(s => s.isActive).length;
   const totalCount = scales.length;
 
   // Get primary indicator info (first one) for ultra-compact display

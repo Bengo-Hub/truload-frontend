@@ -29,7 +29,7 @@ interface AxleWeightReferenceFormProps {
 
 export function AxleWeightReferenceForm({
   lookupData,
-  axleNumber,
+  axleNumber: _axleNumber,
   gvwPermissibleKg,
   editingReference,
   availablePositions,
@@ -37,7 +37,7 @@ export function AxleWeightReferenceForm({
   onCancel,
   isLoading,
 }: AxleWeightReferenceFormProps) {
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<WeightReferenceFormData>({
+  const { register, handleSubmit, reset: _reset, setValue, watch, formState: { errors } } = useForm<WeightReferenceFormData>({
     defaultValues: {
       axlePosition: editingReference?.axlePosition || 1,
       axleLegalWeightKg: editingReference?.axleLegalWeightKg || 0,

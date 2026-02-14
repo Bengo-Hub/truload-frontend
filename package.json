@@ -4,8 +4,8 @@
   "private": true,
   "description": "TruLoad Intelligent Weighing and Enforcement Solution - Frontend PWA",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",

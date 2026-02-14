@@ -28,6 +28,9 @@ export interface InvoiceDto {
   pesaflowSyncStatus?: string;
   amountPaid: number;
   balanceRemaining: number;
+  paidAt?: string;
+  voidedAt?: string;
+  voidReason?: string;
   createdAt: string;
   updatedAt: string;
 }

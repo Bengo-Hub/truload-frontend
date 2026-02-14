@@ -104,7 +104,7 @@ export async function getHearingsByCaseId(caseId: string): Promise<CourtHearingD
  * Get hearing by ID
  */
 export async function getHearingById(id: string): Promise<CourtHearingDto> {
-  const { data } = await apiClient.get<CourtHearingDto>(`/api/v1/hearings/${id}`);
+  const { data } = await apiClient.get<CourtHearingDto>(`/hearings/${id}`);
   return data;
 }
 
@@ -126,7 +126,7 @@ export async function updateHearing(
   id: string,
   request: UpdateCourtHearingRequest
 ): Promise<CourtHearingDto> {
-  const { data } = await apiClient.put<CourtHearingDto>(`/api/v1/hearings/${id}`, request);
+  const { data } = await apiClient.put<CourtHearingDto>(`/hearings/${id}`, request);
   return data;
 }
 
@@ -137,7 +137,7 @@ export async function adjournHearing(
   id: string,
   request: AdjournHearingRequest
 ): Promise<CourtHearingDto> {
-  const { data} = await apiClient.post<CourtHearingDto>(`/api/v1/hearings/${id}/adjourn`, request);
+  const { data } = await apiClient.post<CourtHearingDto>(`/hearings/${id}/adjourn`, request);
   return data;
 }
 
@@ -148,7 +148,7 @@ export async function completeHearing(
   id: string,
   request: CompleteHearingRequest
 ): Promise<CourtHearingDto> {
-  const { data } = await apiClient.post<CourtHearingDto>(`/api/v1/hearings/${id}/complete`, request);
+  const { data } = await apiClient.post<CourtHearingDto>(`/hearings/${id}/complete`, request);
   return data;
 }
 
@@ -156,14 +156,14 @@ export async function completeHearing(
  * Delete a hearing
  */
 export async function deleteHearing(id: string): Promise<void> {
-  await apiClient.delete(`/api/v1/hearings/${id}`);
+  await apiClient.delete(`/hearings/${id}`);
 }
 
 /**
  * Download court minutes PDF
  */
 export async function downloadCourtMinutesPdf(id: string): Promise<Blob> {
-  const { data } = await apiClient.get<Blob>(`/api/v1/hearings/${id}/minutes`, {
+  const { data } = await apiClient.get<Blob>(`/hearings/${id}/minutes`, {
     responseType: 'blob',
   });
   return data;

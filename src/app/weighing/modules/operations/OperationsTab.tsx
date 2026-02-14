@@ -30,7 +30,6 @@ import {
   Scale,
   Search,
   ShieldCheck,
-  TrendingUp,
   Truck,
   XCircle,
 } from 'lucide-react';
@@ -64,7 +63,7 @@ export default function OperationsTab() {
   const router = useRouter();
 
   // Station data for scale tests
-  const { data: currentStation, isLoading: isLoadingStation } = useMyStation();
+  const { data: currentStation, isLoading: _isLoadingStation } = useMyStation();
 
   // Scale test filters
   const [datePreset, setDatePreset] = useState<DateRangePreset>('today');

@@ -99,7 +99,7 @@ export function AxleConfigurationCard({
     : AXLE_CONFIGS['6C'];
 
   // Calculate group permissible weights from individual axle weights
-  const getGroupPermissible = (groupIndex: number): number => {
+  const _getGroupPermissible = (groupIndex: number): number => {
     const group = axleGroups[groupIndex];
     if (!group) return 0;
     return group.axles.reduce((sum, axle) => {
@@ -123,7 +123,7 @@ export function AxleConfigurationCard({
       <CardContent className="p-4">
         {/* Axle Groups Visual */}
         <div className="flex justify-between items-start mb-4">
-          {axleGroups.map((group, idx) => (
+          {axleGroups.map((group, _idx) => (
             <div key={group.label} className="flex-1 text-center">
               <div className="text-xs font-semibold text-gray-600 mb-2">GROUP {group.label}</div>
               <div className="flex justify-center gap-1">

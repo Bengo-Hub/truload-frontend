@@ -38,7 +38,6 @@ import {
   Loader2,
   Scale,
   Send,
-  Truck,
   XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -92,7 +91,7 @@ function SpecialReleaseContent() {
   const { data: existingCase, isLoading: isLoadingCase, refetch: refetchCase } = useCaseByWeighingId(transactionId ?? undefined);
   const { data: releaseTypes = [], isLoading: isLoadingReleaseTypes } = useReleaseTypes();
   const { data: caseReleases = [], isLoading: isLoadingReleases, refetch: refetchReleases } = useSpecialReleasesByCase(existingCase?.id);
-  const { data: pendingReleases = [] } = usePendingSpecialReleases();
+  const { data: _pendingReleases = [] } = usePendingSpecialReleases();
 
   // Mutations
   const createCaseMutation = useCreateCaseFromWeighing();
@@ -255,7 +254,7 @@ function SpecialReleaseContent() {
 
   return (
     <AppShell title="Special Release" subtitle="Request special release for overloaded vehicles">
-      <ProtectedRoute requiredPermissions={['special-release.create']}>
+      <ProtectedRoute requiredPermissions={['case.special_release']}>
         <div className="space-y-6">
           {/* Back Button */}
           <div>
