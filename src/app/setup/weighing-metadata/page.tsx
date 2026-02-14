@@ -1,21 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { AppShell } from '@/components/layout/AppShell';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,38 +11,51 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { TransporterModal } from '@/components/weighing/modals/TransporterModal';
-import { DriverModal } from '@/components/weighing/modals/DriverModal';
-import { VehicleModal } from '@/components/weighing/modals/VehicleModal';
-import { CargoTypeModal } from '@/components/weighing/modals/CargoTypeModal';
-import { OriginDestinationModal } from '@/components/weighing/modals/OriginDestinationModal';
-import { VehicleMakeModal } from '@/components/weighing/modals/VehicleMakeModal';
-import type { ModalMode } from '@/components/weighing/modals/EntityModal';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  useTransporters,
-  useDrivers,
-  useCargoTypes,
-  useOriginsDestinations,
-  useVehicleMakes,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CargoTypeModal } from '@/components/weighing/modals/CargoTypeModal';
+import { DriverModal } from '@/components/weighing/modals/DriverModal';
+import type { ModalMode } from '@/components/weighing/modals/EntityModal';
+import { OriginDestinationModal } from '@/components/weighing/modals/OriginDestinationModal';
+import { TransporterModal } from '@/components/weighing/modals/TransporterModal';
+import { VehicleMakeModal } from '@/components/weighing/modals/VehicleMakeModal';
+import { VehicleModal } from '@/components/weighing/modals/VehicleModal';
+import {
   useAxleConfigurations,
-  useCreateTransporter,
-  useCreateDriver,
-  useCreateVehicle,
+  useCargoTypes,
   useCreateCargoType,
+  useCreateDriver,
   useCreateOriginDestination,
+  useCreateTransporter,
+  useCreateVehicle,
   useCreateVehicleMake,
-  useUpdateTransporter,
-  useUpdateDriver,
-  useUpdateVehicle,
-  useUpdateCargoType,
-  useUpdateOriginDestination,
-  useUpdateVehicleMake,
-  useDeleteTransporter,
-  useDeleteDriver,
-  useDeleteVehicle,
   useDeleteCargoType,
+  useDeleteDriver,
   useDeleteOriginDestination,
+  useDeleteTransporter,
+  useDeleteVehicle,
   useDeleteVehicleMake,
+  useDrivers,
+  useOriginsDestinations,
+  useTransporters,
+  useUpdateCargoType,
+  useUpdateDriver,
+  useUpdateOriginDestination,
+  useUpdateTransporter,
+  useUpdateVehicle,
+  useUpdateVehicleMake,
+  useVehicleMakes,
 } from '@/hooks/queries';
 import {
   Building2,
@@ -72,15 +70,14 @@ import {
   UserCircle,
   Wrench,
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 export default function WeighingMetadataPage() {
   return (
-    <AppShell title="Weighing Data" subtitle="Manage transporters, drivers, vehicles, and lookup data">
       <ProtectedRoute requiredPermissions={['config.read']}>
         <WeighingMetadataContent />
       </ProtectedRoute>
-    </AppShell>
   );
 }
 
@@ -965,9 +962,9 @@ function TableSkeleton({ cols }: { cols: number }) {
 // Vehicle Search Hook (local, uses API directly)
 // ============================================================================
 
-import { useQuery } from '@tanstack/react-query';
 import { searchVehicles } from '@/lib/api/weighing';
 import { QUERY_OPTIONS } from '@/lib/query/config';
+import { useQuery } from '@tanstack/react-query';
 
 function useVehicleSearch(query: string) {
   return useQuery({

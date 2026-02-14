@@ -327,7 +327,7 @@ export default function ReceiptsPage() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : receipts?.items.length === 0 ? (
+            ) : (receipts?.items?.length ?? 0) === 0 ? (
               <div className="flex h-40 items-center justify-center text-center">
                 <div>
                   <FileText className="mx-auto h-12 w-12 text-muted-foreground" />

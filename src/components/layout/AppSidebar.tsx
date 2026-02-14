@@ -6,6 +6,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth.store';
+import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
   Clock4,
@@ -24,11 +25,10 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useMemo, useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import kuraWeighLogo from '@/../public/images/logos/kuraweigh-logo.png';
 
@@ -71,7 +71,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/setup/security', label: 'Security', icon: Shield, permissions: ['system.security_policy'] },
       { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.manage_axle', 'config.read'] },
-      { href: '/setup/weighing-metadata', label: 'Weighing Data', icon: Database, permissions: ['config.read', 'weighing.create'] },
+      { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read', 'weighing.create'] },
       { href: '/setup/settings', label: 'Integrations', icon: Settings, permissions: ['config.read'] },
     ],
   },

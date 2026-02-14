@@ -341,7 +341,7 @@ export default function InvoicesPage() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : invoices?.items.length === 0 ? (
+            ) : (invoices?.items?.length ?? 0) === 0 ? (
               <div className="flex h-40 items-center justify-center text-center">
                 <div>
                   <FileText className="mx-auto h-12 w-12 text-muted-foreground" />

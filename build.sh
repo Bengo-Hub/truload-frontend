@@ -48,11 +48,13 @@ if [[ "${DEPLOY}" == "true" ]]; then for c in kubectl helm yq jq; do command -v 
 # =============================================================================
 if [[ ${DEPLOY} == "true" ]]; then
   step "Checking and syncing required secrets from devops-k8s"
+  # Ensure gh CLI can authenticate (GH_PAT has repo-admin scope; GITHUB_TOKEN does not)
+  export GH_TOKEN="${GH_PAT:-${GH_TOKEN:-}}"
   SYNC_SCRIPT=$(mktemp)
   if curl -fsSL https://raw.githubusercontent.com/Bengo-Hub/devops-k8s/main/scripts/tools/check-and-sync-secrets.sh -o "$SYNC_SCRIPT" 2>/dev/null; then
     source "$SYNC_SCRIPT"
-    # Note: GH_PAT is passed directly from workflow, not synced from devops-k8s
-    check_and_sync_secrets "REGISTRY_USERNAME" "REGISTRY_PASSWORD" || warn "Secret sync failed - continuing with existing secrets"
+    # Run in subshell so exit inside the function doesn't kill build.sh
+    (check_and_sync_secrets "REGISTRY_USERNAME" "REGISTRY_PASSWORD") || warn "Secret sync failed - continuing with existing secrets"
     rm -f "$SYNC_SCRIPT"
   else
     warn "Unable to download secret sync script - continuing with existing secrets"
