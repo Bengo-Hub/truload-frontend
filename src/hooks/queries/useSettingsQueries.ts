@@ -121,3 +121,40 @@ export function useUpdateShiftSettings() {
     },
   });
 }
+
+/**
+ * Update multiple settings at once (batch)
+ */
+export function useUpdateSettingsBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: settingsApi.updateSettingsBatch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SETTINGS_QUERY_KEYS.ALL });
+    },
+  });
+}
+
+/**
+ * Restore all settings in a category to their defaults
+ */
+export function useRestoreCategoryDefaults() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: settingsApi.restoreCategoryDefaults,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SETTINGS_QUERY_KEYS.ALL });
+    },
+  });
+}
+
+/**
+ * Reload rate limit settings (applies DB values to runtime)
+ */
+export function useReloadRateLimits() {
+  return useMutation({
+    mutationFn: settingsApi.reloadRateLimits,
+  });
+}

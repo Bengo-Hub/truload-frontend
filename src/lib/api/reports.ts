@@ -70,7 +70,10 @@ export async function downloadReport(
     }
   }
 
-  const contentType = response.headers['content-type'] || (format === 'pdf' ? 'application/pdf' : 'text/csv');
+  const fallbackContentType = format === 'pdf' ? 'application/pdf'
+    : format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    : 'text/csv';
+  const contentType = response.headers['content-type'] || fallbackContentType;
 
   return {
     blob: response.data as Blob,

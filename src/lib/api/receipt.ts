@@ -35,6 +35,7 @@ export interface RecordPaymentRequest {
 export interface ReceiptSearchCriteria {
   invoiceId?: string;
   receiptNo?: string;
+  stationId?: string;
   paymentMethod?: string;
   paymentDateFrom?: string;
   paymentDateTo?: string;

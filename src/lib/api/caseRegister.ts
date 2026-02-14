@@ -85,6 +85,7 @@ export interface CloseCaseRequest {
 export interface CaseSearchParams {
   caseNo?: string;
   vehicleRegNumber?: string;
+  stationId?: string;
   violationTypeId?: string;
   caseStatusId?: string;
   dispositionTypeId?: string;
@@ -320,7 +321,7 @@ export async function getCaseStatistics(): Promise<CaseStatistics> {
  * Fetch violation types
  */
 export async function fetchViolationTypes(): Promise<ViolationTypeDto[]> {
-  const { data } = await apiClient.get<ViolationTypeDto[]>('/case/violation-types');
+  const { data } = await apiClient.get<ViolationTypeDto[]>('/case/taxonomy/violation-types');
   return data;
 }
 
@@ -328,7 +329,7 @@ export async function fetchViolationTypes(): Promise<ViolationTypeDto[]> {
  * Fetch case statuses
  */
 export async function fetchCaseStatuses(): Promise<CaseStatusDto[]> {
-  const { data } = await apiClient.get<CaseStatusDto[]>('/case/case-statuses');
+  const { data } = await apiClient.get<CaseStatusDto[]>('/case/taxonomy/case-statuses');
   return data;
 }
 
@@ -336,7 +337,7 @@ export async function fetchCaseStatuses(): Promise<CaseStatusDto[]> {
  * Fetch disposition types
  */
 export async function fetchDispositionTypes(): Promise<DispositionTypeDto[]> {
-  const { data } = await apiClient.get<DispositionTypeDto[]>('/case/disposition-types');
+  const { data } = await apiClient.get<DispositionTypeDto[]>('/case/taxonomy/disposition-types');
   return data;
 }
 

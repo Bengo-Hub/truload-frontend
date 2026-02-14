@@ -38,15 +38,18 @@ import {
   useVoidInvoice,
   useDownloadInvoice,
 } from '@/hooks/queries/useInvoiceQueries';
+import { useStations } from '@/hooks/queries/useWeighingQueries';
 import type { InvoiceDto, InvoiceSearchCriteria } from '@/lib/api/invoice';
+import { Pagination } from '@/components/ui/pagination';
+import { PermissionActionButton } from '@/components/ui/permission-action-button';
 import {
   AlertCircle,
+  Ban,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   DollarSign,
   Download,
+  Eye,
   FileText,
   Search,
 } from 'lucide-react';
@@ -73,6 +76,7 @@ export default function InvoicesPage() {
   // Queries
   const { data: invoices, isLoading: isLoadingInvoices } = useInvoiceSearch(searchCriteria);
   const { data: statistics, isLoading: isLoadingStats } = useInvoiceStatistics();
+  const { data: stations } = useStations();
 
   // Mutations
   const updateStatusMutation = useUpdateInvoiceStatus();
@@ -272,7 +276,7 @@ export default function InvoicesPage() {
             <CardDescription>Filter invoices by number, status, or date range</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
                 <Label>Invoice Number</Label>
                 <div className="relative">
@@ -284,6 +288,24 @@ export default function InvoicesPage() {
                     className="pl-8"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Station</Label>
+                <Select
+                  value={searchCriteria.stationId || 'all'}
+                  onValueChange={(value) => handleSearch('stationId', value === 'all' ? undefined : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All stations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stations</SelectItem>
+                    {stations?.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -380,45 +402,41 @@ export default function InvoicesPage() {
                             {invoice.paidAt ? formatDate(invoice.paidAt) : '-'}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                            <div className="flex justify-end gap-1">
+                              <PermissionActionButton
+                                permission="invoice.read"
+                                icon={Eye}
+                                label="View"
                                 onClick={() => handleViewDetails(invoice)}
-                              >
-                                View
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                              />
+                              <PermissionActionButton
+                                permission="invoice.read"
+                                icon={Download}
+                                label="Download"
                                 onClick={() => handleDownloadPdf(invoice)}
                                 disabled={downloadPdfMutation.isPending}
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              {canUpdate && invoice.status.toLowerCase() === 'pending' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleMarkAsPaid(invoice)}
-                                  disabled={updateStatusMutation.isPending}
-                                >
-                                  Mark Paid
-                                </Button>
-                              )}
-                              {canVoid && invoice.status.toLowerCase() !== 'voided' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedInvoice(invoice);
-                                    setShowVoidDialog(true);
-                                  }}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  Void
-                                </Button>
-                              )}
+                              />
+                              <PermissionActionButton
+                                permission="invoice.update"
+                                icon={CheckCircle2}
+                                label="Mark Paid"
+                                onClick={() => handleMarkAsPaid(invoice)}
+                                disabled={updateStatusMutation.isPending}
+                                condition={invoice.status.toLowerCase() === 'pending'}
+                                size="sm"
+                              />
+                              <PermissionActionButton
+                                permission="invoice.void"
+                                icon={Ban}
+                                label="Void"
+                                onClick={() => {
+                                  setSelectedInvoice(invoice);
+                                  setShowVoidDialog(true);
+                                }}
+                                destructive
+                                condition={invoice.status.toLowerCase() !== 'voided'}
+                                size="sm"
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -428,37 +446,16 @@ export default function InvoicesPage() {
                 </div>
 
                 {/* Pagination */}
-                {invoices && invoices.totalPages > 1 && (
-                  <div className="mt-4 flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {((searchCriteria.pageNumber || 1) - 1) * (searchCriteria.pageSize || 20) + 1} to{' '}
-                      {Math.min(
-                        (searchCriteria.pageNumber || 1) * (searchCriteria.pageSize || 20),
-                        invoices.totalCount
-                      )}{' '}
-                      of {invoices.totalCount} results
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange((searchCriteria.pageNumber || 1) - 1)}
-                        disabled={(searchCriteria.pageNumber || 1) === 1}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange((searchCriteria.pageNumber || 1) + 1)}
-                        disabled={(searchCriteria.pageNumber || 1) >= invoices.totalPages}
-                      >
-                        Next
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                {invoices && invoices.totalCount > 0 && (
+                  <Pagination
+                    page={searchCriteria.pageNumber || 1}
+                    pageSize={searchCriteria.pageSize || 20}
+                    totalItems={invoices.totalCount}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={(size) => setSearchCriteria((prev) => ({ ...prev, pageSize: size, pageNumber: 1 }))}
+                    isLoading={isLoadingInvoices}
+                    className="mt-4"
+                  />
                 )}
               </>
             )}

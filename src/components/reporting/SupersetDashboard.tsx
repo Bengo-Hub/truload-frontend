@@ -24,12 +24,20 @@ export function SupersetDashboard() {
   const embeddedRef = useRef<EmbeddedDashboardPromise | null>(null);
   const [selectedDashboardId, setSelectedDashboardId] = useState<string>('');
   const [isEmbedding, setIsEmbedding] = useState(false);
+  const [embedError, setEmbedError] = useState<string | null>(null);
+
+  // Token cache: avoid re-fetching within TTL
+  const tokenCacheRef = useRef<{ token: string; expiresAt: number; dashboardId: number } | null>(null);
+  // Failure guard: if token fetch fails, don't retry for 60s
+  const failedAtRef = useRef<number>(0);
 
   const { data: dashboards, isLoading: loadingDashboards } = useSupersetDashboards();
   const guestTokenMutation = useGetSupersetGuestToken();
 
   const embedSelectedDashboard = useCallback(async (dashboardId: string) => {
     if (!mountRef.current || !dashboardId) return;
+
+    setEmbedError(null);
 
     // Unmount previous dashboard
     if (embeddedRef.current) {
@@ -54,10 +62,34 @@ export function SupersetDashboard() {
         supersetDomain: SUPERSET_DOMAIN,
         mountPoint: mountRef.current!,
         fetchGuestToken: async () => {
-          const result = await guestTokenMutation.mutateAsync({
-            dashboardIds: [numericId],
-          });
-          return result.token;
+          // If we recently failed, reject immediately to prevent SDK retry storm
+          const now = Date.now();
+          if (failedAtRef.current && now - failedAtRef.current < 60_000) {
+            throw new Error('Guest token fetch temporarily disabled after failure');
+          }
+
+          // Return cached token if still valid (5min TTL)
+          const cached = tokenCacheRef.current;
+          if (cached && cached.dashboardId === numericId && now < cached.expiresAt) {
+            return cached.token;
+          }
+
+          try {
+            const result = await guestTokenMutation.mutateAsync({
+              dashboardIds: [numericId],
+            });
+            // Cache for 5 minutes
+            tokenCacheRef.current = {
+              token: result.token,
+              expiresAt: now + 5 * 60 * 1000,
+              dashboardId: numericId,
+            };
+            failedAtRef.current = 0;
+            return result.token;
+          } catch (err) {
+            failedAtRef.current = Date.now();
+            throw err;
+          }
         },
         dashboardUiConfig: {
           hideTitle: true,
@@ -72,6 +104,7 @@ export function SupersetDashboard() {
       await embeddedRef.current;
     } catch (err) {
       console.error('Failed to embed Superset dashboard:', err);
+      setEmbedError('Failed to load dashboard. Please try again later.');
     } finally {
       setIsEmbedding(false);
     }
@@ -136,6 +169,14 @@ export function SupersetDashboard() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <BarChart3 className="h-12 w-12 text-gray-300 mb-4" />
             <p className="text-muted-foreground">Select a dashboard above to view</p>
+          </div>
+        ) : embedError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <BarChart3 className="h-12 w-12 text-red-300 mb-4" />
+            <p className="text-red-600 font-medium mb-2">{embedError}</p>
+            <Button variant="outline" size="sm" onClick={() => embedSelectedDashboard(selectedDashboardId)}>
+              Retry
+            </Button>
           </div>
         ) : isEmbedding ? (
           <div className="flex items-center justify-center py-16">

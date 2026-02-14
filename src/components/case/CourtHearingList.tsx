@@ -34,12 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { PermissionActionButton } from '@/components/ui/permission-action-button';
 import {
   useHearingsByCaseId,
   useScheduleHearing,
@@ -58,7 +53,6 @@ import {
   Download,
   Gavel,
   Loader2,
-  MoreHorizontal,
   Pause,
   Plus,
   Trash2,
@@ -345,43 +339,37 @@ export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {hearing.hearingStatusName?.toUpperCase() === 'SCHEDULED' && (
-                            <>
-                              <DropdownMenuItem onClick={() => openAdjournModal(hearing)}>
-                                <Pause className="h-4 w-4 mr-2" />
-                                Adjourn
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openCompleteModal(hearing)}>
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Complete
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {hearing.minuteNotes && (
-                            <DropdownMenuItem
-                              onClick={() => handleDownloadMinutes(hearing.id)}
-                              disabled={downloadMinutesMutation.isPending}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download Minutes
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteHearing(hearing.id)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center justify-end gap-1">
+                        <PermissionActionButton
+                          permission="case.update"
+                          icon={Pause}
+                          label="Adjourn"
+                          onClick={() => openAdjournModal(hearing)}
+                          condition={hearing.hearingStatusName?.toUpperCase() === 'SCHEDULED'}
+                        />
+                        <PermissionActionButton
+                          permission="case.update"
+                          icon={CheckCircle}
+                          label="Complete"
+                          onClick={() => openCompleteModal(hearing)}
+                          condition={hearing.hearingStatusName?.toUpperCase() === 'SCHEDULED'}
+                        />
+                        <PermissionActionButton
+                          permission="case.read"
+                          icon={Download}
+                          label="Download Minutes"
+                          onClick={() => handleDownloadMinutes(hearing.id)}
+                          disabled={downloadMinutesMutation.isPending}
+                          condition={!!hearing.minuteNotes}
+                        />
+                        <PermissionActionButton
+                          permission="case.delete"
+                          icon={Trash2}
+                          label="Delete"
+                          onClick={() => handleDeleteHearing(hearing.id)}
+                          destructive
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

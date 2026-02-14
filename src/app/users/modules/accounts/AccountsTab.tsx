@@ -44,7 +44,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination, usePagination } from "@/components/ui/pagination";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -1498,7 +1497,7 @@ export default function AccountsTab() {
 
       {/* Data table */}
       <div className="rounded-xl border bg-white shadow-sm">
-        <ScrollArea className="max-h-[65vh]">
+        <div className="max-h-[65vh] overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1522,7 +1521,7 @@ export default function AccountsTab() {
                 <TableHead className="hidden min-w-[140px] 2xl:table-cell">
                   Last Login
                 </TableHead>
-                <TableHead className="min-w-[100px] text-right">
+                <TableHead className="min-w-[100px] text-right sticky right-0 bg-white z-10">
                   Actions
                 </TableHead>
               </TableRow>
@@ -1615,7 +1614,7 @@ export default function AccountsTab() {
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="text-right">
+                    <TableCell className="text-right sticky right-0 bg-white z-10">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -1665,7 +1664,7 @@ export default function AccountsTab() {
                 ))}
             </TableBody>
           </Table>
-        </ScrollArea>
+        </div>
 
         {/* Pagination */}
         <div className="border-t px-4 py-3">

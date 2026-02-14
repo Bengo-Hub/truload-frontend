@@ -50,6 +50,7 @@ export function useSupersetDashboard(id: number) {
 export function useGetSupersetGuestToken() {
   return useMutation({
     mutationFn: analyticsApi.getGuestToken,
+    retry: false,
   });
 }
 
