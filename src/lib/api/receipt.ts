@@ -16,7 +16,10 @@ export interface ReceiptDto {
   idempotencyKey?: string;
   receivedById?: string;
   receivedByName?: string;
+  status: string;
   paymentDate: string;
+  voidedAt?: string;
+  voidReason?: string;
   createdAt: string;
   updatedAt: string;
 }

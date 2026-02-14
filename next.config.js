@@ -105,9 +105,14 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Webpack configuration (using webpack instead of Turbopack due to
-  // Windows path resolution issues with turbopack.root setting)
+  // Prevent Windows path-casing duplicate modules (TruLoad vs Truload).
+  // symlinks: false stops webpack from resolving pnpm symlinks to their
+  // real-path casing, keeping all imports in the CWD namespace.
   webpack: (config) => {
+    config.resolve = {
+      ...config.resolve,
+      symlinks: false,
+    };
     return config;
   },
 };

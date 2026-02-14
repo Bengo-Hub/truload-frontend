@@ -414,6 +414,180 @@ export function useCreateOriginDestination() {
 }
 
 /**
+ * Update transporter mutation
+ */
+export function useUpdateTransporter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<weighingApi.Transporter> }) =>
+      weighingApi.updateTransporter(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TRANSPORTERS });
+    },
+  });
+}
+
+/**
+ * Delete transporter mutation
+ */
+export function useDeleteTransporter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteTransporter,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TRANSPORTERS });
+    },
+  });
+}
+
+/**
+ * Update driver mutation
+ */
+export function useUpdateDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<weighingApi.Driver> }) =>
+      weighingApi.updateDriver(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS });
+    },
+  });
+}
+
+/**
+ * Delete driver mutation
+ */
+export function useDeleteDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteDriver,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS });
+    },
+  });
+}
+
+/**
+ * Update vehicle mutation
+ */
+export function useUpdateVehicle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<weighingApi.Vehicle> }) =>
+      weighingApi.updateVehicle(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLES });
+    },
+  });
+}
+
+/**
+ * Delete vehicle mutation
+ */
+export function useDeleteVehicle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteVehicle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLES });
+    },
+  });
+}
+
+/**
+ * Update cargo type mutation
+ */
+export function useUpdateCargoType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: weighingApi.CreateCargoTypeRequest }) =>
+      weighingApi.updateCargoType(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CARGO_TYPES });
+    },
+  });
+}
+
+/**
+ * Delete cargo type mutation
+ */
+export function useDeleteCargoType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteCargoType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CARGO_TYPES });
+    },
+  });
+}
+
+/**
+ * Update origin/destination mutation
+ */
+export function useUpdateOriginDestination() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: weighingApi.CreateOriginDestinationRequest }) =>
+      weighingApi.updateOriginDestination(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS });
+    },
+  });
+}
+
+/**
+ * Delete origin/destination mutation
+ */
+export function useDeleteOriginDestination() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteOriginDestination,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS });
+    },
+  });
+}
+
+/**
+ * Update vehicle make mutation
+ */
+export function useUpdateVehicleMake() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: weighingApi.CreateVehicleMakeRequest }) =>
+      weighingApi.updateVehicleMake(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLE_MAKES });
+    },
+  });
+}
+
+/**
+ * Delete vehicle make mutation
+ */
+export function useDeleteVehicleMake() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteVehicleMake,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLE_MAKES });
+    },
+  });
+}
+
+/**
  * Create weighing transaction mutation
  */
 export function useCreateWeighingTransaction() {

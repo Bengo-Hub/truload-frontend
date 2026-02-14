@@ -37,13 +37,11 @@ import {
   FileText,
   Filter,
   Loader2,
-  Plus,
   RefreshCcw,
   Search,
   TrendingUp,
   XCircle,
 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
 
@@ -83,7 +81,6 @@ export default function CaseRegisterPage() {
     setFilters(prev => ({
       ...prev,
       caseNo: searchTerm || undefined,
-      vehicleRegNumber: searchTerm || undefined,
       pageNumber: 1,
     }));
   }, [searchTerm]);
@@ -243,12 +240,7 @@ export default function CaseRegisterPage() {
                     <RefreshCcw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
                     Refresh
                   </Button>
-                  <Link href="/cases/new">
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      New Case
-                    </Button>
-                  </Link>
+                  {/* Cases are created through the weighing workflow (violations), not manually */}
                 </div>
               </div>
             </CardHeader>
@@ -317,7 +309,13 @@ export default function CaseRegisterPage() {
                     <Label>Escalated</Label>
                     <Select
                       value={filters.escalatedToCaseManager === true ? 'yes' : filters.escalatedToCaseManager === false ? 'no' : 'all'}
-                      onValueChange={(v) => handleFilterChange('escalatedToCaseManager', v === 'yes' ? 'true' : v === 'no' ? 'false' : undefined)}
+                      onValueChange={(v) => {
+                        setFilters(prev => ({
+                          ...prev,
+                          escalatedToCaseManager: v === 'yes' ? true : v === 'no' ? false : undefined,
+                          pageNumber: 1,
+                        }));
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="All" />

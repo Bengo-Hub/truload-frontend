@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { StatusBadge } from '@/components/weighing';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Camera, CheckCircle2, Eye, Loader2, Printer, RotateCcw } from 'lucide-react';

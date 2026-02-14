@@ -37,15 +37,23 @@
 
 **Last Updated:** February 13, 2026
 
-### Current Phase: Sprint 19 Complete - Polish & Integration
+### Current Phase: Sprint 20 Complete - System Audit, Reports & E2E Tests
 
-**Build Status:** ✅ **PRODUCTION BUILD SUCCESSFUL** (All pages compile without errors)
-**Application Status:** ✅ **PRODUCTION READY** (All mock data replaced, offline PWA implemented)
-**Frontend-Backend Integration:** ✅ **VERIFIED** (100+ API endpoints integrated)
-**E2E Test Status:** ✅ **109/109 PASSING** (6 compliance scenarios, all sequential pass)
+**Build Status:** ✅ **PRODUCTION BUILD SUCCESSFUL** (25 routes, 0 errors)
+**Application Status:** ✅ **PRODUCTION READY** (All modules audited, bugs fixed)
+**Frontend-Backend Integration:** ✅ **VERIFIED** (100+ API endpoints, report system integrated)
+**E2E Test Status:** ✅ **166/166 PASSING** (User, Role, Permission, 2FA, Password, Shift, Config tests)
 **Overall Frontend Completion:** 100%
 
 ---
+
+### Sprint 20 Completions (February 13, 2026) - System Audit, Reports & E2E Tests:
+- ✅ **Phase 1: Backend Reports Module** - Created modular report generation system with 26 report types across 6 modules (Weighing 12, Prosecution 6, Cases 3, Financial 3, Yard 2, Security 2); ReportController with catalog and generation endpoints; QuestPDF for PDF, CsvHelper for CSV; BaseReportDocument with tabular layout, date range headers, summary footers
+- ✅ **Phase 2: Frontend Reports Revamp** - Rewrote ModuleReportSelector to use backend-powered report catalog; new ReportPreviewDialog for PDF preview in iframe; reports API layer with blob download utilities; TanStack Query hooks for catalog fetch and report generation
+- ✅ **Phase 3: Weighing Metadata Setup** - New `/setup/weighing-metadata` page with 6 tabs (Transporters, Drivers, Vehicles, Cargo Types, Origins/Destinations, Vehicle Makes); 12 new mutation hooks; 9 new CRUD API functions; sidebar navigation added
+- ✅ **Phase 4: System Audit & Bug Fixes** - Audited all 6 modules (weighing, case register, prosecution, yard, financial, user management); fixed 57+ issues including CRITICAL financial DTO mismatches, court hearing API double prefix, ANPR simulation stubs, permission code mismatches, search double-field bugs
+- ✅ **Phase 5: E2E Integration Tests** - 166 backend tests all passing (100%); 8 new test classes covering user CRUD, role permissions, password policy, 2FA, security settings, shift management; test infrastructure with TestDbContextFactory, TestUserHelper, ServiceFactory
+- ✅ **Build Status:** Frontend 25 routes (0 errors), Backend 0 errors, Tests 166/166 passing
 
 ### Sprint 19 Completions (February 13, 2026) - Polish & Integration:
 - ✅ **Phase A: Pesaflow Invoice Flow Rework** - Fixed frontend types/flow to match backend reality: backend returns `paymentLink` directly from `POST /invoices/{id}/pesaflow`, no separate `initiateCheckout()` endpoint exists; deleted fabricated `PesaflowCheckoutResponse`, `InitiateCheckoutRequest` types and `initiateCheckout()` function; rewrote `PesaflowCheckoutDialog` to accept `paymentLink` prop instead of `checkout` object; refactored `ProsecutionSection` to use single-step flow (`createPesaflowInvoice` → `paymentLink` → open iframe); updated Invoice DTO (`pesaflowPaymentLink`, `pesaflowGatewayFee`, `pesaflowAmountNet`, `pesaflowTotalAmount`)
@@ -201,6 +209,9 @@
 | Security & Audit | Complete | 100% |
 | Reports & Analytics | Complete | 100% |
 | Technical/Diagnostics | Complete | 100% |
+| Weighing Metadata Setup | Complete (Sprint 20) | 100% |
+| Backend Reports Module | Complete (Sprint 20) | 100% |
+| Backend Integration Tests | Complete (Sprint 20) | 100% |
 
 **Overall Frontend Completion: 100%**
 
@@ -237,9 +248,8 @@
 - ✅ **Technical Diagnostics Page** - System health monitoring, device status, scale tests, service health, network/resources
 
 ### Remaining Items:
-- ❌ **Testing:** No unit, integration, or E2E tests implemented
-- ⚠️ **Reports & Analytics:** Basic implementation complete; Superset SDK integration pending for advanced BI
-- ⚠️ **Offline/PWA:** Service worker and offline sync not fully implemented
+- ⚠️ **Data Analytics:** Superset SDK integration requires Superset server deployment
+- ⚠️ **Performance:** Bundle analysis and optimization not yet performed
 
 ### Next Sprint (Sprint 15) Tasks:
 1. **Integration Testing** - Add unit, integration, and E2E tests

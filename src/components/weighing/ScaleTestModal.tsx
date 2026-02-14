@@ -217,13 +217,6 @@ export function ScaleTestModal({
     return Math.max(weight * (ACCEPTABLE_DEVIATION_PERCENT / 100), MIN_ACCEPTABLE_DEVIATION);
   };
 
-  // Get load identifier for display and storage
-  const getLoadIdentifier = () => {
-    if (testType === 'vehicle') {
-      return `Vehicle: ${vehiclePlate}`;
-    }
-    return loadUsed;
-  };
 
   // Multideck test - vehicle placed on each deck sequentially
   // Uses live data from middleware when connected, falls back to simulation otherwise
@@ -382,8 +375,6 @@ export function ScaleTestModal({
   }, [testType, vehicleKnownWeight, testWeightKg, middlewareConnected, middlewareScaleStatus, middlewareWeights]);
 
   const handleStartTest = () => {
-    const expectedWeight = getExpectedWeight();
-
     if (testType === 'calibration_weight' && !loadUsed.trim()) {
       toast.error('Please enter the calibration weight identifier');
       return;

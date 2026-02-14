@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { useScaleTests } from '@/hooks/queries';
-import { Station, ScaleTest } from '@/lib/api/weighing';
+import { Station } from '@/lib/api/weighing';
 
 interface ScaleTestHistoryTabProps {
   station: Station | null;

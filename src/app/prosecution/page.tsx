@@ -51,21 +51,14 @@ import {
   Download,
   Edit3,
   Eye,
-  FileText,
   Filter,
   Gavel,
-  Loader2,
-  MoreVertical,
   RefreshCcw,
-  Scale,
   Search,
   Trash2,
-  TrendingUp,
   Wallet,
   X,
 } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -90,7 +83,6 @@ export default function ProsecutionPage() {
 }
 
 function ProsecutionContent() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const canEdit = useHasPermission('prosecution.update');
   const canDelete = useHasPermission('prosecution.delete');
@@ -129,7 +121,7 @@ function ProsecutionContent() {
     setFilters(prev => ({
       ...prev,
       caseNo: searchTerm || undefined,
-      vehicleRegNumber: searchTerm || undefined,
+      vehicleRegNumber: undefined,
       pageNumber: 1,
     }));
   }, [searchTerm]);
@@ -711,17 +703,18 @@ function ProsecutionContent() {
                 <span>Created: {formatDate(selectedCase.createdAt)}</span>
                 <span>Updated: {formatDate(selectedCase.updatedAt)}</span>
               </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+                  Close
+                </Button>
+                <Button onClick={() => handleDownloadChargeSheet(selectedCase.id)}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Charge Sheet
+                </Button>
+              </DialogFooter>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
-              Close
-            </Button>
-            <Button onClick={() => handleDownloadChargeSheet(selectedCase!.id)}>
-              <Download className="mr-2 h-4 w-4" />
-              Download Charge Sheet
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -96,7 +95,7 @@ const PAYMENT_METHODS = [
   { value: 'pesaflow', label: 'Pesaflow (eCitizen)' },
 ];
 
-export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSectionProps) {
+export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: ProsecutionSectionProps) {
   const isOnline = useOnlineStatus();
 
   // Queries
@@ -190,7 +189,7 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
         });
         toast.success('Prosecution case created successfully');
         refetch();
-      } catch (error) {
+      } catch (_error) {
         toast.error('Failed to create prosecution case');
       }
     },
@@ -205,7 +204,7 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
       await generateInvoiceMutation.mutateAsync(prosecution.id);
       toast.success('Invoice generated successfully');
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to generate invoice');
     }
   }, [prosecution, generateInvoiceMutation, refetch]);
@@ -233,7 +232,7 @@ export function ProsecutionSection({ caseId, caseNo, weighingId }: ProsecutionSe
       setSelectedInvoice(null);
       setPaymentForm({ amountPaid: '', paymentMethod: '', transactionReference: '' });
       refetch();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to record payment');
     }
   }, [selectedInvoice, paymentForm, recordPaymentMutation, refetch]);

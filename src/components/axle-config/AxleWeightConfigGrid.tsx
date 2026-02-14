@@ -50,7 +50,7 @@ export function AxleWeightConfigGrid({
   // TanStack Query hooks
   const {
     data: weightReferences = [],
-    isLoading: isLoadingReferences,
+    isLoading: _isLoadingReferences,
   } = useAxleWeightReferences(configurationId);
 
   const {

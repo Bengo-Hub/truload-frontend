@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   AxleConfigurationCard,
+  CargoTypeModal,
   CompactMultideckWeights,
   ComplianceBanner,
   ComplianceTable,
@@ -17,7 +18,6 @@ import {
   DriverModal,
   getDefaultAxleConfig,
   ImageCaptureCard,
-  ModalMode,
   MultideckWeightsCard,
   OriginDestinationModal,
   TransporterModal,
@@ -53,7 +53,6 @@ import { useWeighing } from '@/hooks/useWeighing';
 import { useMiddleware } from '@/hooks/useMiddleware';
 import {
   ScaleTest,
-  Station,
   WeighingTransaction,
   downloadWeightTicketPdf,
   downloadAndSavePdf,
@@ -176,7 +175,7 @@ export default function MultideckWeighingPage() {
   // Derive scale test state from query
   const isScaleTestCompleted = scaleTestStatus?.hasValidTest ?? false;
   const lastScaleTestAt = scaleTestStatus?.latestTest ? new Date(scaleTestStatus.latestTest.carriedAt) : undefined;
-  const [currentScaleTest, setCurrentScaleTest] = useState<ScaleTest | null>(null);
+  const [_currentScaleTest, setCurrentScaleTest] = useState<ScaleTest | null>(null);
 
   // Combined loading state
   const isLoadingData = isLoadingStation || isLoadingAxleConfigs || isLoadingScaleTest;
@@ -195,14 +194,14 @@ export default function MultideckWeighingPage() {
     initializeTransaction,
     captureAxleWeight,
     submitWeights,
-    confirmWeight,
+    confirmWeight: _confirmWeight,
     initiateReweigh,
     updateVehicleDetails,
     resetSession,
     session: weighingSession,
     complianceResult,
     reweighCycleNo,
-    isWeightConfirmed,
+    isWeightConfirmed: _isWeightConfirmed,
     isLoading: isWeighingLoading,
     error: weighingError,
   } = weighingHook;
@@ -278,7 +277,7 @@ export default function MultideckWeighingPage() {
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [isPlateDisabled, setIsPlateDisabled] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<string>('');
-  const [axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
+  const [_axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
   const [ticketNumber, setTicketNumber] = useState('');
 
   // Set bound when station loads
@@ -469,16 +468,17 @@ export default function MultideckWeighingPage() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [locationModalTarget, setLocationModalTarget] = useState<'origin' | 'destination'>('origin');
   const [isVehicleMakeModalOpen, setIsVehicleMakeModalOpen] = useState(false);
+  const [isCargoTypeModalOpen, setIsCargoTypeModalOpen] = useState(false);
   const [isSavingEntity, setIsSavingEntity] = useState(false);
 
   // Permissions
   const canCapture = useHasPermission('weighing.create');
   const canPrint = useHasPermission('weighing.export');
-  const canTag = useHasPermission('tag.create');
+  const _canTag = useHasPermission('tag.create');
   const canSendToYard = useHasPermission('weighing.send_to_yard');
   const canSpecialRelease = useHasPermission('case.special_release');
 
-  const scaleStatus: ScaleStatus = 'connected';
+  const scaleStatus: ScaleStatus = middlewareConnected ? 'connected' : 'disconnected';
 
   // Deck weights from middleware - show zeros when not connected (no mock data)
   const deckWeights: DeckWeight[] = liveDeckWeights;
@@ -727,14 +727,9 @@ export default function MultideckWeighingPage() {
     return `${stationCode}${boundSuffix}-${dateStr}${sequence}`;
   }, [currentStation, currentBound]);
 
-  // ANPR scan simulation
+  // ANPR scan handler
   const handleScanPlate = () => {
-    setTimeout(() => {
-      setVehiclePlate('KCX091X');
-      setIsPlateDisabled(true);
-      setFrontViewImage('/images/weighing/placeholder_front.png');
-      setOverviewImage('/images/weighing/placeholder_overview.png');
-    }, 1000);
+    toast.info('ANPR camera not connected. Enter plate number manually.');
   };
 
   const handleEditPlate = () => {
@@ -815,7 +810,7 @@ export default function MultideckWeighingPage() {
 
   // Proceed to vehicle step - auto-create vehicle if needed and initialize transaction
   const handleProceedToVehicle = async () => {
-    let vehicleId = selectedVehicleId;
+    let _vehicleId = selectedVehicleId;
 
     // Auto-create vehicle if it doesn't exist (first-time weighing)
     if (!existingVehicle && vehiclePlate.length >= 5) {
@@ -824,7 +819,7 @@ export default function MultideckWeighingPage() {
           regNo: vehiclePlate,
           // Only regNo is required - other details captured from VehicleDetailsCard later
         });
-        vehicleId = newVehicle.id;
+        _vehicleId = newVehicle.id;
         setSelectedVehicleId(newVehicle.id);
         toast.success(`Vehicle ${vehiclePlate} created automatically.`);
       } catch (error) {
@@ -1026,6 +1021,36 @@ export default function MultideckWeighingPage() {
     }
   }, [createVehicleMakeMutation]);
 
+  const handleSaveCargoType = useCallback(async (data: { code: string; name: string; category?: string; description?: string }) => {
+    setIsSavingEntity(true);
+    try {
+      // Map category string to the allowed enum values, defaulting to General
+      let category: 'General' | 'Hazardous' | 'Perishable' = 'General';
+      if (data.category === 'Hazardous') category = 'Hazardous';
+      else if (data.category === 'Perishable') category = 'Perishable';
+
+      const newCargoType = await createCargoTypeMutation.mutateAsync({
+        code: data.code,
+        name: data.name,
+        category,
+      });
+
+      // Optimistically add to cache so dropdown immediately shows the new entry
+      queryClient.setQueryData(QUERY_KEYS.CARGO_TYPES, (old: CargoType[] | undefined) =>
+        old ? [...old, newCargoType] : [newCargoType]
+      );
+      setSelectedCargoId(newCargoType.id);
+      setIsCargoTypeModalOpen(false);
+      toast.success('Cargo type added successfully');
+    } catch (error) {
+      console.error('Failed to save cargo type:', error);
+      toast.error('Failed to add cargo type');
+      throw error;
+    } finally {
+      setIsSavingEntity(false);
+    }
+  }, [createCargoTypeMutation, queryClient]);
+
   // Decision Panel Action Handlers
 
   // Print weight ticket - calls backend PDF endpoint
@@ -1070,7 +1095,7 @@ export default function MultideckWeighingPage() {
   }, [weighingSession, ticketNumber]);
 
   // Tag vehicle - creates a tag in the backend
-  const handleTagVehicle = useCallback(async () => {
+  const _handleTagVehicle = useCallback(async () => {
     if (!vehiclePlate || !currentStation?.code) {
       toast.error('Missing vehicle plate or station');
       return;
@@ -1392,7 +1417,9 @@ export default function MultideckWeighingPage() {
                       <span className="font-mono font-bold text-lg">{ticketNumber}</span>
                       <span className="text-gray-400">|</span>
                       <span className="font-mono text-xl font-bold text-blue-600">{vehiclePlate}</span>
-                      <span className="px-2 py-1 bg-gray-100 rounded text-xs">RE-WEIGH: 1</span>
+                      {reweighCycleNo > 0 && (
+                        <span className="px-2 py-1 bg-gray-100 rounded text-xs">RE-WEIGH: {reweighCycleNo}</span>
+                      )}
                     </div>
                     {/* Compact Deck Weights */}
                     <CompactMultideckWeights deckWeights={deckWeights} totalGVW={totalGVW} />
@@ -1477,7 +1504,7 @@ export default function MultideckWeighingPage() {
                       showPermitSection={true}
                       permitNo={permitNo}
                       onPermitNoChange={setPermitNo}
-                      onViewPermit={() => alert('View permit - coming soon')}
+                      onViewPermit={() => toast.info('Permit viewer coming soon')}
                       trailerNo={trailerNo}
                       onTrailerNoChange={setTrailerNo}
                       vehicleMake={vehicleMake}
@@ -1492,6 +1519,7 @@ export default function MultideckWeighingPage() {
                       onAddOriginLocation={() => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); }}
                       onAddDestinationLocation={() => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); }}
                       onAddVehicleMake={() => setIsVehicleMakeModalOpen(true)}
+                      onAddCargoType={() => setIsCargoTypeModalOpen(true)}
                       // Refresh handlers for manual refetch
                       onRefreshDrivers={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS })}
                       onRefreshTransporters={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TRANSPORTERS })}
@@ -1586,6 +1614,14 @@ export default function MultideckWeighingPage() {
               onOpenChange={setIsVehicleMakeModalOpen}
               mode="create"
               onSave={handleSaveVehicleMake}
+              isSaving={isSavingEntity}
+            />
+
+            <CargoTypeModal
+              open={isCargoTypeModalOpen}
+              onOpenChange={setIsCargoTypeModalOpen}
+              mode="create"
+              onSave={handleSaveCargoType}
               isSaving={isSavingEntity}
             />
 

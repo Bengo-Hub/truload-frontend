@@ -43,7 +43,7 @@ const YARD_REASON_LABELS: Record<string, string> = {
   offload: 'Offloading',
 };
 
-const YARD_STATUS_LABELS: Record<string, string> = {
+const _YARD_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   processing: 'Processing',
   released: 'Released',
@@ -90,7 +90,7 @@ export default function YardListTab() {
   }, [statusFilter, reasonFilter, resetPagination]);
 
   // Fetch yard entries with server-side filtering and pagination
-  const { data: yardResult, isLoading, isFetching, refetch } = useYardEntries({
+  const { data: yardResult, isLoading, isFetching, refetch: _refetch } = useYardEntries({
     vehicleRegNo: debouncedSearch || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     reason: reasonFilter !== 'all' ? reasonFilter : undefined,

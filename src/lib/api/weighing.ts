@@ -285,6 +285,10 @@ export async function updateVehicle(id: string, vehicle: Partial<Vehicle>): Prom
   await apiClient.put(`/Vehicle/${id}`, { ...vehicle, id });
 }
 
+export async function deleteVehicle(id: string): Promise<void> {
+  await apiClient.delete(`/vehicles/${id}`);
+}
+
 // ============================================================================
 // Driver API
 // ============================================================================
@@ -308,6 +312,10 @@ export async function createDriver(driver: Partial<Driver>): Promise<Driver> {
 
 export async function updateDriver(id: string, driver: Partial<Driver>): Promise<void> {
   await apiClient.put(`/drivers/${id}`, { ...driver, id });
+}
+
+export async function deleteDriver(id: string): Promise<void> {
+  await apiClient.delete(`/drivers/${id}`);
 }
 
 // ============================================================================
@@ -339,6 +347,10 @@ export async function fetchTransporters(): Promise<Transporter[]> {
 export async function updateTransporter(id: string, transporter: Partial<Transporter>): Promise<Transporter> {
   const { data } = await apiClient.put<Transporter>(`/transporters/${id}`, { ...transporter, id });
   return data;
+}
+
+export async function deleteTransporter(id: string): Promise<void> {
+  await apiClient.delete(`/transporters/${id}`);
 }
 
 // ============================================================================
@@ -525,6 +537,15 @@ export async function createCargoType(payload: CreateCargoTypeRequest): Promise<
   return data;
 }
 
+export async function updateCargoType(id: string, payload: CreateCargoTypeRequest): Promise<CargoType> {
+  const { data } = await apiClient.put<CargoType>(`/cargo-types/${id}`, payload);
+  return data;
+}
+
+export async function deleteCargoType(id: string): Promise<void> {
+  await apiClient.delete(`/cargo-types/${id}`);
+}
+
 export async function fetchOriginsDestinations(): Promise<OriginDestination[]> {
   const { data } = await apiClient.get<OriginDestination[]>('/origins-destinations');
   return data;
@@ -540,6 +561,15 @@ export interface CreateOriginDestinationRequest {
 export async function createOriginDestination(payload: CreateOriginDestinationRequest): Promise<OriginDestination> {
   const { data } = await apiClient.post<OriginDestination>('/origins-destinations', payload);
   return data;
+}
+
+export async function updateOriginDestination(id: string, payload: CreateOriginDestinationRequest): Promise<OriginDestination> {
+  const { data } = await apiClient.put<OriginDestination>(`/origins-destinations/${id}`, payload);
+  return data;
+}
+
+export async function deleteOriginDestination(id: string): Promise<void> {
+  await apiClient.delete(`/origins-destinations/${id}`);
 }
 
 // ============================================================================
@@ -572,6 +602,15 @@ export async function fetchVehicleMakes(): Promise<VehicleMake[]> {
 export async function createVehicleMake(payload: CreateVehicleMakeRequest): Promise<VehicleMake> {
   const { data } = await apiClient.post<VehicleMake>('/vehicle-makes', payload);
   return data;
+}
+
+export async function updateVehicleMake(id: string, payload: CreateVehicleMakeRequest): Promise<VehicleMake> {
+  const { data } = await apiClient.put<VehicleMake>(`/vehicle-makes/${id}`, payload);
+  return data;
+}
+
+export async function deleteVehicleMake(id: string): Promise<void> {
+  await apiClient.delete(`/vehicle-makes/${id}`);
 }
 
 // ============================================================================
@@ -609,7 +648,7 @@ export async function fetchMyStation(): Promise<Station | null> {
   try {
     const { data } = await apiClient.get<Station>('/Stations/my-station');
     return data;
-  } catch (error) {
+  } catch {
     // Return null if user has no linked station (404)
     console.warn('No station linked to current user');
     return null;

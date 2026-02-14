@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,8 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConnectionTestButton } from './ConnectionTestButton';
-import { WebhookUrlDisplay } from './WebhookUrlDisplay';
+import { Switch } from '@/components/ui/switch';
+import type { IntegrationConfigDto, TestConnectivityResult, UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 import {
   Eye,
   EyeOff,
@@ -24,7 +23,9 @@ import {
   Shield,
   X,
 } from 'lucide-react';
-import type { IntegrationConfigDto, UpsertIntegrationConfigRequest, TestConnectivityResult } from '@/lib/api/integration';
+import { useEffect, useState } from 'react';
+import { ConnectionTestButton } from './ConnectionTestButton';
+import { WebhookUrlDisplay } from './WebhookUrlDisplay';
 
 // ---------------------------------------------------------------------------
 // Credential field definitions per provider
@@ -96,6 +97,7 @@ export function IntegrationConfigForm({
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [isEditing, setIsEditing] = useState(false);
+  const [isActive, setIsActive] = useState(true);
 
   // Reset form when config changes
   useEffect(() => {
@@ -109,6 +111,7 @@ export function IntegrationConfigForm({
       // Credentials are never returned from the API - initialize empty
       setCredentials({});
       setIsEditing(false);
+      setIsActive(config.isActive ?? true);
     }
   }, [config]);
 
@@ -128,6 +131,7 @@ export function IntegrationConfigForm({
       appBaseUrl: appBaseUrl || undefined,
       environment: environment || undefined,
       description: description || undefined,
+      isActive,
     });
     setIsEditing(false);
     setCredentials({});
@@ -193,6 +197,23 @@ export function IntegrationConfigForm({
               Edit Configuration
             </Button>
           )}
+        </div>
+      )}
+
+      {/* Enabled toggle */}
+      {isConfigured && (
+        <div className="flex items-center justify-between gap-4 p-2 border rounded-md bg-muted/50">
+          <div>
+            <div className="text-sm font-medium">Integration status</div>
+            <div className="text-xs text-muted-foreground">Enable or disable this provider</div>
+          </div>
+          <div>
+            <Switch
+              checked={isActive}
+              onCheckedChange={(val) => setIsActive(Boolean(val))}
+              disabled={!canEdit}
+            />
+          </div>
         </div>
       )}
 

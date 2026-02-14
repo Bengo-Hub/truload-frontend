@@ -6,7 +6,7 @@
 import { UserProfileDropdown } from '@/components/auth/UserProfileDropdown';
 import NotificationsDialog from '@/components/notifications/NotificationsDialog';
 import { Button } from '@/components/ui/button';
-import { Bell, Menu, Search } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import Image from 'next/image';
 import { ReactNode, useState } from 'react';
 import { AppSidebar } from './AppSidebar';

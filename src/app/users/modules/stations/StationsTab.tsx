@@ -451,7 +451,7 @@ function EditStationDialog({ station, open, onOpenChange }: EditStationDialogPro
   const supportsBidirectional = watch("supportsBidirectional");
   const isActive = watch("isActive");
 
-  const { data: organizations = [], isLoading: loadingOrgs } = useQuery<OrganizationDto[]>({
+  const { data: _organizations = [], isLoading: _loadingOrgs } = useQuery<OrganizationDto[]>({
     queryKey: ["organizations"],
     queryFn: () => fetchOrganizations(),
     enabled: open,

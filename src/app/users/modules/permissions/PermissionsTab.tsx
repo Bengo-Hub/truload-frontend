@@ -3,19 +3,16 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Filter,
   Key,
   LayoutGrid,
   List,
-  Loader2,
   RefreshCw,
   Search,
   Shield,
   ShieldCheck,
-  XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -40,8 +37,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { fetchPermissions, fetchRoles, fetchRolePermissions } from "@/lib/api/setup";
-import type { PermissionDto, RoleDto } from "@/types/setup";
+import { fetchPermissions, fetchRoles } from "@/lib/api/setup";
+import type { PermissionDto } from "@/types/setup";
 
 // ---------------------------------------------------------------------------
 // Category colours
