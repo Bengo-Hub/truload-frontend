@@ -1,57 +1,58 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useHasPermission } from '@/hooks/useAuth';
-import {
-  useInvoiceSearch,
-  useInvoiceStatistics,
-  useUpdateInvoiceStatus,
-  useVoidInvoice,
-  useDownloadInvoice,
-} from '@/hooks/queries/useInvoiceQueries';
-import { useStations } from '@/hooks/queries/useWeighingQueries';
-import type { InvoiceDto, InvoiceSearchCriteria } from '@/lib/api/invoice';
 import { Pagination } from '@/components/ui/pagination';
 import { PermissionActionButton } from '@/components/ui/permission-action-button';
 import {
-  AlertCircle,
-  Ban,
-  CheckCircle2,
-  Clock,
-  DollarSign,
-  Download,
-  Eye,
-  FileText,
-  Search,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    useDownloadInvoice,
+    useInvoiceSearch,
+    useInvoiceStatistics,
+    useUpdateInvoiceStatus,
+    useVoidInvoice,
+} from '@/hooks/queries/useInvoiceQueries';
+import { useStations } from '@/hooks/queries/useWeighingQueries';
+import { useHasPermission } from '@/hooks/useAuth';
+import type { InvoiceDto, InvoiceSearchCriteria } from '@/lib/api/invoice';
+import {
+    AlertCircle,
+    Ban,
+    CheckCircle2,
+    Clock,
+    DollarSign,
+    Download,
+    Eye,
+    FileText,
+    Search,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -189,8 +190,9 @@ export default function InvoicesPage() {
   }
 
   return (
-    <ProtectedRoute requiredPermissions={['invoice.read']}>
-      <div className="container mx-auto space-y-6 p-6">
+    <AppShell title="Invoice Management" subtitle="Manage prosecution invoices, payments, and billing">
+      <ProtectedRoute requiredPermissions={['invoice.read']}>
+        <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -562,7 +564,8 @@ export default function InvoicesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </ProtectedRoute>
+        </div>
+      </ProtectedRoute>
+    </AppShell>
   );
 }

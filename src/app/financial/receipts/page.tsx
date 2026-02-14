@@ -1,52 +1,53 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
-import { useHasPermission } from '@/hooks/useAuth';
 import {
-  useReceiptSearch,
-  useReceiptStatistics,
-  useVoidReceipt,
-  useDownloadReceipt,
+    useDownloadReceipt,
+    useReceiptSearch,
+    useReceiptStatistics,
+    useVoidReceipt,
 } from '@/hooks/queries/useReceiptQueries';
 import { useStations } from '@/hooks/queries/useWeighingQueries';
+import { useHasPermission } from '@/hooks/useAuth';
 import type { ReceiptDto, ReceiptSearchCriteria } from '@/lib/api/receipt';
-import { Pagination } from '@/components/ui/pagination';
 import {
-  AlertCircle,
-  CreditCard,
-  DollarSign,
-  Download,
-  FileText,
-  Search,
+    AlertCircle,
+    CreditCard,
+    DollarSign,
+    Download,
+    FileText,
+    Search,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -183,8 +184,9 @@ export default function ReceiptsPage() {
   }
 
   return (
-    <ProtectedRoute requiredPermissions={['receipt.read']}>
-      <div className="container mx-auto space-y-6 p-6">
+    <AppShell title="Receipt Management" subtitle="View and manage payment receipts">
+      <ProtectedRoute requiredPermissions={['receipt.read']}>
+        <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -537,7 +539,8 @@ export default function ReceiptsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </ProtectedRoute>
+        </div>
+      </ProtectedRoute>
+    </AppShell>
   );
 }
