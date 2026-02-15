@@ -8,17 +8,21 @@ import {
   useStations,
   useAxleConfigurations,
   useWeighingStatistics,
+  useDownloadWeightTicket,
 } from '@/hooks/queries/useWeighingQueries';
-import type { SearchWeighingParams } from '@/lib/api/weighing';
+import type { SearchWeighingParams, WeighingTransaction } from '@/lib/api/weighing';
 import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query/config';
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 
 import TicketsStatsBar from './TicketsStatsBar';
 import TicketsFilterBar, { type ViewMode } from './TicketsFilterBar';
 import TicketsListView from './TicketsListView';
 import TicketsImageView from './TicketsImageView';
 import TicketsLineView from './TicketsLineView';
+import TicketDetailSheet from './TicketDetailSheet';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
 
 /**
  * Weight Tickets Tab — Orchestrator
@@ -168,8 +172,47 @@ export default function TicketsTab() {
   }, [queryClient]);
 
   const handleExport = useCallback(() => {
-    // TODO: Implement CSV/Excel export
+    if (!tickets.length) return;
+    const headers = ['Ticket No', 'Vehicle Reg', 'GVW Measured (kg)', 'GVW Permissible (kg)', 'Overload (kg)', 'Status', 'Station', 'Weighed At'];
+    const rows = tickets.map(t => [
+      t.ticketNumber, t.vehicleRegNumber, t.gvwMeasuredKg, t.gvwPermissibleKg,
+      t.overloadKg, t.controlStatus, t.stationName ?? '', t.weighedAt,
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `weight-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    toast.success('Tickets exported to CSV');
+  }, [tickets]);
+
+  // View / Print / Preview handlers
+  const [selectedTicket, setSelectedTicket] = useState<WeighingTransaction | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewFileName, setPreviewFileName] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const downloadTicketMutation = useDownloadWeightTicket();
+
+  const handleView = useCallback((ticket: WeighingTransaction) => {
+    setSelectedTicket(ticket);
   }, []);
+
+  const handlePrint = useCallback(async (ticket: WeighingTransaction) => {
+    try {
+      setPreviewFileName(`WeightTicket_${ticket.ticketNumber ?? ticket.id}.pdf`);
+      setPreviewOpen(true);
+      const result = await downloadTicketMutation.mutateAsync(ticket.id);
+      setPreviewBlob(result.blob);
+    } catch {
+      toast.error('Failed to generate weight ticket');
+      setPreviewOpen(false);
+    }
+  }, [downloadTicketMutation]);
 
   return (
     <div className="space-y-4">
@@ -219,6 +262,8 @@ export default function TicketsTab() {
           error={error}
           canRead={canRead}
           canPrint={canExport}
+          onView={handleView}
+          onPrint={handlePrint}
         />
       )}
 
@@ -227,6 +272,10 @@ export default function TicketsTab() {
           tickets={tickets}
           isLoading={isLoading}
           error={error}
+          canRead={canRead}
+          canPrint={canExport}
+          onView={handleView}
+          onPrint={handlePrint}
         />
       )}
 
@@ -235,6 +284,10 @@ export default function TicketsTab() {
           tickets={tickets}
           isLoading={isLoading}
           error={error}
+          canRead={canRead}
+          canPrint={canExport}
+          onView={handleView}
+          onPrint={handlePrint}
         />
       )}
 
@@ -251,6 +304,29 @@ export default function TicketsTab() {
           />
         </div>
       )}
+
+      {/* Ticket Detail Sheet */}
+      <TicketDetailSheet
+        ticket={selectedTicket}
+        open={!!selectedTicket}
+        onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}
+        onPrint={handlePrint}
+        canPrint={canExport}
+      />
+
+      {/* PDF Preview Dialog */}
+      <PdfPreviewDialog
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) setPreviewBlob(null);
+        }}
+        blob={previewBlob}
+        fileName={previewFileName}
+        title="Weight Ticket Preview"
+        isLoading={downloadTicketMutation.isPending && !previewBlob}
+        orientation="portrait"
+      />
     </div>
   );
 }

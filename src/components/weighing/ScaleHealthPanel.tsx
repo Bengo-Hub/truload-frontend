@@ -1,11 +1,18 @@
 "use client";
 
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { ScaleStatus } from '@/types/weighing';
-import { Battery, Signal, Thermometer, Scale, Clock, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Battery, Signal, Thermometer, Scale, Clock, AlertCircle } from 'lucide-react';
+
+function getScaleStatusImage(isConnected: boolean, connectedCount: number, totalCount: number) {
+  if (!isConnected || connectedCount === 0) return '/images/weighing/mobile_scaleoff.png';
+  if (connectedCount < totalCount) return '/images/weighing/onescaleoff.png';
+  return '/images/weighing/connected.png';
+}
 
 export interface ScaleInfo {
   id: string;
@@ -264,11 +271,12 @@ export function ScaleHealthPanel({
               compact ? 'w-10 h-10' : 'w-12 h-12',
               isConnected ? 'bg-green-100' : 'bg-red-100'
             )}>
-              {isConnected ? (
-                <Wifi className={cn('text-green-600', compact ? 'h-5 w-5' : 'h-6 w-6')} />
-              ) : (
-                <WifiOff className={cn('text-red-500', compact ? 'h-5 w-5' : 'h-6 w-6')} />
-              )}
+              <Image
+                src={getScaleStatusImage(isConnected, connectedCount, totalCount)}
+                alt={isConnected ? 'Connected' : 'Disconnected'}
+                width={compact ? 24 : 30}
+                height={compact ? 24 : 30}
+              />
             </div>
 
             {/* Status Text */}

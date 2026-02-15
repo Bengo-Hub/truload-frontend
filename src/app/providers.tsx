@@ -1,6 +1,8 @@
 'use client';
 
 import { AuthInitializer } from '@/components/auth/AuthInitializer';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { CACHE_TIMES, GC_TIMES } from '@/lib/query/config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -48,7 +50,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthInitializer>
-        {children}
+        <CurrencyProvider>
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+        </CurrencyProvider>
         <Toaster position="top-right" richColors />
         <ReactQueryDevtools initialIsOpen={false} />
       </AuthInitializer>

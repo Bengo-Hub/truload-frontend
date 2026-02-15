@@ -1,15 +1,20 @@
 "use client";
 
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Camera, CheckCircle2, Loader2 } from 'lucide-react';
+import { Camera, Eye, Loader2, Printer } from 'lucide-react';
 
 interface TicketsImageViewProps {
   tickets: WeighingTransaction[];
   isLoading: boolean;
   error: Error | null;
+  canRead?: boolean;
+  canPrint?: boolean;
   onView?: (ticket: WeighingTransaction) => void;
+  onPrint?: (ticket: WeighingTransaction) => void;
 }
 
 function getComplianceStatus(ticket: WeighingTransaction): 'LEGAL' | 'WARNING' | 'OVERLOAD' {
@@ -18,18 +23,27 @@ function getComplianceStatus(ticket: WeighingTransaction): 'LEGAL' | 'WARNING' |
   return 'WARNING';
 }
 
-function ComplianceIndicator({ ticket }: { ticket: WeighingTransaction }) {
-  const status = getComplianceStatus(ticket);
-  if (status === 'LEGAL') {
-    return <CheckCircle2 className="h-6 w-6 text-green-500 drop-shadow" />;
-  }
-  if (status === 'OVERLOAD') {
-    return <AlertTriangle className="h-6 w-6 text-red-500 drop-shadow" />;
-  }
-  return <AlertTriangle className="h-6 w-6 text-yellow-500 drop-shadow" />;
+function getComplianceImage(status: 'LEGAL' | 'WARNING' | 'OVERLOAD') {
+  if (status === 'LEGAL') return { src: '/images/weighing/greenbutton.png', alt: 'Compliant' };
+  if (status === 'OVERLOAD') return { src: '/images/weighing/redbutton.jpg', alt: 'Overloaded' };
+  return { src: '/images/weighing/tagged.png', alt: 'Warning' };
 }
 
-function TicketImageCard({ ticket, onView }: { ticket: WeighingTransaction; onView?: (t: WeighingTransaction) => void }) {
+function ComplianceIndicator({ ticket }: { ticket: WeighingTransaction }) {
+  const status = getComplianceStatus(ticket);
+  const img = getComplianceImage(status);
+  return (
+    <Image
+      src={img.src}
+      alt={img.alt}
+      width={28}
+      height={28}
+      className="drop-shadow"
+    />
+  );
+}
+
+function TicketImageCard({ ticket, onView, onPrint, canRead, canPrint }: { ticket: WeighingTransaction; onView?: (t: WeighingTransaction) => void; onPrint?: (t: WeighingTransaction) => void; canRead?: boolean; canPrint?: boolean }) {
   const compliance = getComplianceStatus(ticket);
   const excessKg = ticket.excessKg ?? Math.max(0, ticket.overloadKg);
 
@@ -102,6 +116,32 @@ function TicketImageCard({ ticket, onView }: { ticket: WeighingTransaction; onVi
             <span className="text-[10px] text-gray-500">Station:</span>
             <span className="text-[10px] text-gray-700">{ticket.stationCode ?? '—'}</span>
           </div>
+
+          {/* Action buttons */}
+          <div className="flex justify-end gap-1 mt-1">
+            {canRead && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                title="View Details"
+                onClick={(e) => { e.stopPropagation(); onView?.(ticket); }}
+              >
+                <Eye className="h-3 w-3" />
+              </Button>
+            )}
+            {canPrint && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                title="Print Ticket"
+                onClick={(e) => { e.stopPropagation(); onPrint?.(ticket); }}
+              >
+                <Printer className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -112,7 +152,10 @@ export default function TicketsImageView({
   tickets,
   isLoading,
   error,
+  canRead,
+  canPrint,
   onView,
+  onPrint,
 }: TicketsImageViewProps) {
   if (isLoading) {
     return (
@@ -142,7 +185,7 @@ export default function TicketsImageView({
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
       {tickets.map((ticket) => (
-        <TicketImageCard key={ticket.id} ticket={ticket} onView={onView} />
+        <TicketImageCard key={ticket.id} ticket={ticket} onView={onView} onPrint={onPrint} canRead={canRead} canPrint={canPrint} />
       ))}
     </div>
   );

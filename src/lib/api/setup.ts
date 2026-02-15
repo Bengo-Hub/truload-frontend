@@ -70,6 +70,13 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
   await apiClient.post('/auth/forgot-password', { email });
 }
 
+export async function adminResetPassword(userId: string, newPassword: string, confirmNewPassword: string): Promise<void> {
+  await apiClient.post(`/user-management/users/${userId}/reset-password`, {
+    newPassword,
+    confirmNewPassword,
+  });
+}
+
 export async function createUser(payload: CreateUserRequest): Promise<UserSummary> {
   const { data } = await apiClient.post<UserSummary>('/user-management/users', payload);
   return data;

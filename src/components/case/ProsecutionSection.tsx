@@ -53,6 +53,7 @@ import type { InvoiceDto } from '@/lib/api/invoice';
 import { PesaflowCheckoutDialog } from '@/components/payments/PesaflowCheckoutDialog';
 import { ReconcileDialog } from '@/components/payments/ReconcileDialog';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useCurrency } from '@/hooks/useCurrency';
 import { FinancialSummary } from './FinancialSummary';
 import {
   AlertTriangle,
@@ -157,13 +158,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
     }
   };
 
-  // Format currency
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-    }).format(amount);
-  };
+  const { formatAmount: formatCurrency } = useCurrency();
 
   // Handle create prosecution from charges
   const handleCreateProsecution = useCallback(
@@ -377,7 +372,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
                           {chargeCalc.gvwOverloadKg.toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(chargeCalc.gvwFeeUsd)}
+                          {formatCurrency(chargeCalc.gvwFeeUsd, 'USD')}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {formatCurrency(chargeCalc.gvwFeeKes, 'KES')}
@@ -389,7 +384,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
                           {chargeCalc.maxAxleOverloadKg.toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(chargeCalc.maxAxleFeeUsd)}
+                          {formatCurrency(chargeCalc.maxAxleFeeUsd, 'USD')}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {formatCurrency(chargeCalc.maxAxleFeeKes, 'KES')}
@@ -415,7 +410,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
                         </TableCell>
                         <TableCell />
                         <TableCell className="text-right font-mono text-lg">
-                          {formatCurrency(chargeCalc.totalFeeUsd)}
+                          {formatCurrency(chargeCalc.totalFeeUsd, 'USD')}
                         </TableCell>
                         <TableCell className="text-right font-mono text-lg">
                           {formatCurrency(chargeCalc.totalFeeKes, 'KES')}
@@ -497,7 +492,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
             </div>
             <div className="p-3 bg-blue-50 rounded-lg">
               <Label className="text-sm text-gray-500">Total Fee (USD)</Label>
-              <p className="font-semibold text-lg">{formatCurrency(prosecution.totalFeeUsd)}</p>
+              <p className="font-semibold text-lg">{formatCurrency(prosecution.totalFeeUsd, 'USD')}</p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
               <Label className="text-sm text-gray-500">Total Fee (KES)</Label>
@@ -725,19 +720,19 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
               <div className="flex justify-between">
                 <span className="text-gray-500">Amount Due:</span>
                 <span className="font-semibold">
-                  {formatCurrency(selectedInvoice?.amountDue || 0, selectedInvoice?.currency)}
+                  {formatCurrency(selectedInvoice?.amountDue || 0, selectedInvoice?.currency || 'USD')}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Already Paid:</span>
                 <span className="text-green-600">
-                  {formatCurrency(selectedInvoice?.amountPaid || 0, selectedInvoice?.currency)}
+                  {formatCurrency(selectedInvoice?.amountPaid || 0, selectedInvoice?.currency || 'USD')}
                 </span>
               </div>
               <div className="flex justify-between border-t pt-2 mt-2">
                 <span className="text-gray-500 font-semibold">Balance:</span>
                 <span className="font-bold text-red-600">
-                  {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency)}
+                  {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency || 'USD')}
                 </span>
               </div>
             </div>
@@ -830,7 +825,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
                 <div className="flex justify-between">
                   <span className="text-gray-600">Amount:</span>
                   <span className="font-bold text-lg">
-                    {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency)}
+                    {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency || 'USD')}
                   </span>
                 </div>
                 {selectedInvoice?.pesaflowInvoiceNumber && (

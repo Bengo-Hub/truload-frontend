@@ -26,9 +26,9 @@ import {
   TrendingUp,
   Truck,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useCurrency } from '@/hooks/useCurrency';
 
-const formatKES = (value: number) => `KES ${value.toLocaleString()}`;
 const formatNumber = (value: number) => value.toLocaleString();
 
 export default function ReportingPage() {
@@ -42,6 +42,8 @@ export default function ReportingPage() {
 }
 
 function ReportingContent() {
+  const { formatAmount } = useCurrency();
+  const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const [activeTab, setActiveTab] = useState('general');
 
   const filters = {};

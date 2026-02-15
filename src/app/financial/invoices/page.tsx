@@ -42,6 +42,7 @@ import {
 } from '@/hooks/queries/useInvoiceQueries';
 import { useStations } from '@/hooks/queries/useWeighingQueries';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { InvoiceDto, InvoiceSearchCriteria } from '@/lib/api/invoice';
 import {
     AlertCircle,
@@ -158,12 +159,7 @@ export default function InvoicesPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -395,7 +391,7 @@ export default function InvoicesPage() {
                         <TableRow key={invoice.id}>
                           <TableCell className="font-medium">{invoice.invoiceNo}</TableCell>
                           <TableCell>{invoice.caseNo || 'N/A'}</TableCell>
-                          <TableCell>{formatCurrency(invoice.amountDue)}</TableCell>
+                          <TableCell>{formatCurrency(invoice.amountDue, invoice.currency)}</TableCell>
                           <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                           <TableCell>
                             {invoice.dueDate ? formatDate(invoice.dueDate) : 'N/A'}
@@ -488,7 +484,7 @@ export default function InvoicesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Amount</Label>
-                    <p className="text-xl font-bold">{formatCurrency(selectedInvoice.amountDue)}</p>
+                    <p className="text-xl font-bold">{formatCurrency(selectedInvoice.amountDue, selectedInvoice.currency)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Due Date</Label>

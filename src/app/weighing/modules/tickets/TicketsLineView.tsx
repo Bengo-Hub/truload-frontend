@@ -1,16 +1,20 @@
 "use client";
 
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/weighing';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Camera, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, Eye, Loader2, Printer } from 'lucide-react';
 
 interface TicketsLineViewProps {
   tickets: WeighingTransaction[];
   isLoading: boolean;
   error: Error | null;
+  canRead?: boolean;
+  canPrint?: boolean;
   onView?: (ticket: WeighingTransaction) => void;
+  onPrint?: (ticket: WeighingTransaction) => void;
 }
 
 function getComplianceStatus(ticket: WeighingTransaction): 'LEGAL' | 'WARNING' | 'OVERLOAD' {
@@ -29,7 +33,7 @@ function formatDateTime(dateStr: string) {
   });
 }
 
-function TicketLineCard({ ticket, onView }: { ticket: WeighingTransaction; onView?: (t: WeighingTransaction) => void }) {
+function TicketLineCard({ ticket, onView, onPrint, canRead, canPrint }: { ticket: WeighingTransaction; onView?: (t: WeighingTransaction) => void; onPrint?: (t: WeighingTransaction) => void; canRead?: boolean; canPrint?: boolean }) {
   const compliance = getComplianceStatus(ticket);
   const excessKg = ticket.excessKg ?? Math.max(0, ticket.overloadKg);
   const images = ticket.vehicleImageUrls ?? [];
@@ -151,6 +155,34 @@ function TicketLineCard({ ticket, onView }: { ticket: WeighingTransaction; onVie
               Overload: +{excessKg.toLocaleString()} kg
             </div>
           )}
+
+          {/* Action buttons */}
+          <div className="mt-2 flex justify-end gap-1">
+            {canRead && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                title="View Details"
+                onClick={(e) => { e.stopPropagation(); onView?.(ticket); }}
+              >
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                View
+              </Button>
+            )}
+            {canPrint && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                title="Print Ticket"
+                onClick={(e) => { e.stopPropagation(); onPrint?.(ticket); }}
+              >
+                <Printer className="h-3.5 w-3.5 mr-1" />
+                Print
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -161,7 +193,10 @@ export default function TicketsLineView({
   tickets,
   isLoading,
   error,
+  canRead,
+  canPrint,
   onView,
+  onPrint,
 }: TicketsLineViewProps) {
   if (isLoading) {
     return (
@@ -191,7 +226,7 @@ export default function TicketsLineView({
   return (
     <div className="space-y-3">
       {tickets.map((ticket) => (
-        <TicketLineCard key={ticket.id} ticket={ticket} onView={onView} />
+        <TicketLineCard key={ticket.id} ticket={ticket} onView={onView} onPrint={onPrint} canRead={canRead} canPrint={canPrint} />
       ))}
     </div>
   );

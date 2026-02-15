@@ -4,6 +4,7 @@
  */
 
 import { UserProfileDropdown } from '@/components/auth/UserProfileDropdown';
+import { CurrencySwitcher } from '@/components/common/CurrencySwitcher';
 import NotificationsDialog from '@/components/notifications/NotificationsDialog';
 import { Button } from '@/components/ui/button';
 import { Bell, Menu } from 'lucide-react';
@@ -78,6 +79,9 @@ export function AppShell({ children, title, subtitle }: AppShellProps) {
                   </span>
                 </span>
               </Button>
+
+              {/* Currency Switcher */}
+              <CurrencySwitcher />
 
               {/* Separator */}
               <div className="w-px h-7 bg-gray-200 mx-1 hidden sm:block" />
