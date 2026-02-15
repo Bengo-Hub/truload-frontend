@@ -40,6 +40,7 @@ import {
 } from '@/hooks/queries/useReceiptQueries';
 import { useStations } from '@/hooks/queries/useWeighingQueries';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { ReceiptDto, ReceiptSearchCriteria } from '@/lib/api/receipt';
 import {
     AlertCircle,
@@ -150,12 +151,7 @@ export default function ReceiptsPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -378,7 +374,7 @@ export default function ReceiptsPage() {
                         <TableRow key={receipt.id}>
                           <TableCell className="font-medium">{receipt.receiptNo}</TableCell>
                           <TableCell>{receipt.invoiceNo || 'N/A'}</TableCell>
-                          <TableCell>{formatCurrency(receipt.amountPaid)}</TableCell>
+                          <TableCell>{formatCurrency(receipt.amountPaid, receipt.currency)}</TableCell>
                           <TableCell>{getPaymentMethodBadge(receipt.paymentMethod)}</TableCell>
                           <TableCell>{formatDate(receipt.createdAt)}</TableCell>
                           <TableCell>{getStatusBadge(receipt.status)}</TableCell>
@@ -461,7 +457,7 @@ export default function ReceiptsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Amount</Label>
-                    <p className="text-xl font-bold">{formatCurrency(selectedReceipt.amountPaid)}</p>
+                    <p className="text-xl font-bold">{formatCurrency(selectedReceipt.amountPaid, selectedReceipt.currency)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Payment Method</Label>

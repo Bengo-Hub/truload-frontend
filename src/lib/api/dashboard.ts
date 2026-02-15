@@ -14,12 +14,10 @@ export interface DashboardFilterParams {
 
 // Statistics Types
 export interface CaseStatistics {
-  total: number;
-  pending: number;
-  inProgress: number;
-  closed: number;
-  escalated: number;
-  avgResolutionDays: number;
+  totalCases: number;
+  openCases: number;
+  escalatedCases: number;
+  closedCases: number;
 }
 
 export interface HearingStatistics {
@@ -32,31 +30,49 @@ export interface HearingStatistics {
 }
 
 export interface ProsecutionStatistics {
-  total: number;
-  pending: number;
-  invoiced: number;
-  paid: number;
-  awaitingCourt: number;
-  totalFinesKes: number;
-  collectionRate: number;
+  totalCases: number;
+  pendingCases: number;
+  invoicedCases: number;
+  paidCases: number;
+  courtCases: number;
+  totalFeesKes: number;
+  totalFeesUsd: number;
+  collectedFeesKes: number;
+  collectedFeesUsd: number;
 }
 
 export interface InvoiceStatistics {
-  total: number;
-  pending: number;
-  paid: number;
-  overdue: number;
-  voided: number;
-  totalAmountKes: number;
-  totalPaidKes: number;
-  collectionRate: number;
+  totalInvoices: number;
+  pendingInvoices: number;
+  paidInvoices: number;
+  overdueInvoices: number;
+  totalAmountDue: number;
+  totalAmountPaid: number;
+  totalBalance: number;
+  // Per-currency breakdown
+  totalAmountDueKes: number;
+  totalAmountDueUsd: number;
+  totalAmountPaidKes: number;
+  totalAmountPaidUsd: number;
+  totalBalanceKes: number;
+  totalBalanceUsd: number;
 }
 
 export interface ReceiptStatistics {
   total: number;
   todayCount: number;
-  totalAmountKes: number;
+  todayAmount: number;
+  totalCollected: number;
+  byPaymentMethod: Array<{
+    method: string;
+    count: number;
+    amount: number;
+  }>;
+  // Per-currency breakdown
   todayAmountKes: number;
+  todayAmountUsd: number;
+  totalCollectedKes: number;
+  totalCollectedUsd: number;
 }
 
 export interface YardStatistics {
@@ -68,6 +84,7 @@ export interface YardStatistics {
 }
 
 export interface VehicleTagStatistics {
+  total: number;
   totalOpen: number;
   closedToday: number;
   createdToday: number;

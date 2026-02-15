@@ -46,6 +46,7 @@ import {
   useYardProcessingTrend,
 } from '@/hooks/queries';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { DashboardFilterParams } from '@/lib/api/dashboard';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import {
@@ -63,10 +64,8 @@ import {
   Truck,
   Users,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-// Currency formatter for KES
-const formatKES = (value: number) => `KES ${value.toLocaleString()}`;
 const formatNumber = (value: number) => value.toLocaleString();
 
 // ============================================================================
@@ -139,6 +138,8 @@ interface TabProps {
 // ============================================================================
 
 function OverviewTab({ filters }: TabProps) {
+  const { formatAmount } = useCurrency();
+  const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const { data: weighingStats, isLoading: loadingWeighing } = useDashboardWeighingStats(filters);
   const { data: caseStats, isLoading: loadingCases } = useDashboardCaseStats(filters);
   const { data: yardStats, isLoading: loadingYard } = useDashboardYardStats(filters);
@@ -153,7 +154,7 @@ function OverviewTab({ filters }: TabProps) {
   return (
     <div className="space-y-6">
       {/* Row 1: Key Performance Indicators - 6 cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading || loadingUserStats ? (
           Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
@@ -165,10 +166,10 @@ function OverviewTab({ filters }: TabProps) {
               <StatCard title="Compliance Rate" value={`${getStatValue(weighingStats, 'complianceRate')}%`} icon={Percent} color="bg-green-500" />
             </PermissionGate>
             <PermissionGate permissions="weighing.read">
-              <StatCard title="Total Fees (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} icon={Banknote} color="bg-emerald-600" />
+              <StatCard title="Total Fees (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
             </PermissionGate>
             <PermissionGate permissions="case.read">
-              <StatCard title="Pending Cases" value={formatNumber(getStatValue(caseStats, 'pending'))} icon={FileText} color="bg-amber-500" />
+              <StatCard title="Open Cases" value={formatNumber(getStatValue(caseStats, 'openCases'))} icon={FileText} color="bg-amber-500" />
             </PermissionGate>
             <PermissionGate permissions="yard.read">
               <StatCard title="Vehicles in Yard" value={formatNumber(getStatValue(yardStats, 'totalPending'))} icon={Truck} color="bg-orange-500" />
@@ -266,10 +267,10 @@ function CasesTab({ filters }: TabProps) {
           Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
-            <StatCard title="Total Cases" value={formatNumber(getStatValue(caseStats, 'total'))} icon={FileText} color="bg-indigo-500" />
-            <StatCard title="Pending Cases" value={formatNumber(getStatValue(caseStats, 'pending'))} icon={FileText} color="bg-amber-500" />
-            <StatCard title="Closed Cases" value={formatNumber(getStatValue(caseStats, 'closed'))} icon={CheckCircle} color="bg-green-600" />
-            <StatCard title="Avg. Resolution (days)" value={formatNumber(getStatValue(caseStats, 'avgResolutionDays'))} icon={TrendingUp} color="bg-blue-500" />
+            <StatCard title="Total Cases" value={formatNumber(getStatValue(caseStats, 'totalCases'))} icon={FileText} color="bg-indigo-500" />
+            <StatCard title="Open Cases" value={formatNumber(getStatValue(caseStats, 'openCases'))} icon={FileText} color="bg-amber-500" />
+            <StatCard title="Closed Cases" value={formatNumber(getStatValue(caseStats, 'closedCases'))} icon={CheckCircle} color="bg-green-600" />
+            <StatCard title="Escalated Cases" value={formatNumber(getStatValue(caseStats, 'escalatedCases'))} icon={AlertTriangle} color="bg-red-500" />
           </>
         )}
       </div>
@@ -344,7 +345,7 @@ function TagsTab({ filters }: TabProps) {
             <StatCard title="Open Tags" value={formatNumber(getStatValue(tagStats, 'totalOpen'))} icon={Tag} color="bg-purple-500" />
             <StatCard title="Created Today" value={formatNumber(getStatValue(tagStats, 'createdToday'))} icon={Tag} color="bg-indigo-500" />
             <StatCard title="Closed Today" value={formatNumber(getStatValue(tagStats, 'closedToday'))} icon={CheckCircle} color="bg-green-500" />
-            <StatCard title="Total Tags" value={formatNumber(getStatValue(tagStats, 'totalOpen') + getStatValue(tagStats, 'closedToday'))} icon={Tag} color="bg-blue-500" />
+            <StatCard title="Total Tags" value={formatNumber(getStatValue(tagStats, 'total'))} icon={Tag} color="bg-blue-500" />
           </>
         )}
       </div>
@@ -380,24 +381,26 @@ function TagsTab({ filters }: TabProps) {
 // ============================================================================
 
 function ProsecutionTab({ filters }: TabProps) {
+  const { formatAmount } = useCurrency();
+  const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const { data: prosecutionStats, isLoading } = useDashboardProsecutionStats(filters);
   const { data: prosecutionTrend, isLoading: loadingProsecutionTrend } = useProsecutionTrend(filters);
   const { data: prosecutionByStatus, isLoading: loadingProsecutionStatus } = useProsecutionByStatus(filters);
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isLoading ? (
           Array.from({ length: 7 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
-            <StatCard title="Total Prosecutions" value={formatNumber(getStatValue(prosecutionStats, 'total'))} icon={Gavel} color="bg-indigo-500" />
-            <StatCard title="Pending" value={formatNumber(getStatValue(prosecutionStats, 'pending'))} icon={FileText} color="bg-amber-500" />
-            <StatCard title="Invoiced" value={formatNumber(getStatValue(prosecutionStats, 'invoiced'))} icon={FileText} color="bg-blue-500" />
-            <StatCard title="Paid" value={formatNumber(getStatValue(prosecutionStats, 'paid'))} icon={CheckCircle} color="bg-green-500" />
-            <StatCard title="Awaiting Court" value={formatNumber(getStatValue(prosecutionStats, 'awaitingCourt'))} icon={Gavel} color="bg-purple-500" />
-            <StatCard title="Total Fines (KES)" value={formatKES(getStatValue(prosecutionStats, 'totalFinesKes'))} icon={Banknote} color="bg-emerald-600" />
-            <StatCard title="Collection Rate" value={`${getStatValue(prosecutionStats, 'collectionRate')}%`} icon={Percent} color="bg-teal-500" />
+            <StatCard title="Total Prosecutions" value={formatNumber(getStatValue(prosecutionStats, 'totalCases'))} icon={Gavel} color="bg-indigo-500" />
+            <StatCard title="Pending" value={formatNumber(getStatValue(prosecutionStats, 'pendingCases'))} icon={FileText} color="bg-amber-500" />
+            <StatCard title="Invoiced" value={formatNumber(getStatValue(prosecutionStats, 'invoicedCases'))} icon={FileText} color="bg-blue-500" />
+            <StatCard title="Paid" value={formatNumber(getStatValue(prosecutionStats, 'paidCases'))} icon={CheckCircle} color="bg-green-500" />
+            <StatCard title="Court Cases" value={formatNumber(getStatValue(prosecutionStats, 'courtCases'))} icon={Gavel} color="bg-purple-500" />
+            <StatCard title="Total Fees (KES)" value={formatKES(getStatValue(prosecutionStats, 'totalFeesKes'))} rawValue={getStatValue(prosecutionStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
+            <StatCard title="Total Fees (USD)" value={formatAmount(getStatValue(prosecutionStats, 'totalFeesUsd'), 'USD')} rawValue={getStatValue(prosecutionStats, 'totalFeesUsd')} icon={Banknote} color="bg-teal-500" />
           </>
         )}
       </div>
@@ -415,6 +418,8 @@ function ProsecutionTab({ filters }: TabProps) {
 // ============================================================================
 
 function FinancialTab({ filters }: TabProps) {
+  const { formatAmount } = useCurrency();
+  const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const { data: invoiceStats, isLoading: loadingInvoices } = useDashboardInvoiceStats(filters);
   const { data: receiptStats, isLoading: loadingReceipts } = useDashboardReceiptStats(filters);
   const { data: monthlyRevenue, isLoading: loadingMonthlyRev } = useMonthlyRevenueData(filters);
@@ -426,22 +431,28 @@ function FinancialTab({ filters }: TabProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <PermissionGate permissions="invoice.read">
-              <StatCard title="Pending Invoices" value={formatNumber(getStatValue(invoiceStats, 'pending'))} icon={FileText} color="bg-yellow-500" />
+              <StatCard title="Pending Invoices" value={formatNumber(getStatValue(invoiceStats, 'pendingInvoices'))} icon={FileText} color="bg-yellow-500" />
             </PermissionGate>
             <PermissionGate permissions="invoice.read">
-              <StatCard title="Overdue Invoices" value={formatNumber(getStatValue(invoiceStats, 'overdue'))} icon={AlertTriangle} color="bg-red-500" />
+              <StatCard title="Overdue Invoices" value={formatNumber(getStatValue(invoiceStats, 'overdueInvoices'))} icon={AlertTriangle} color="bg-red-500" />
+            </PermissionGate>
+            <PermissionGate permissions="invoice.read">
+              <StatCard title="Outstanding (KES)" value={formatKES(getStatValue(invoiceStats, 'totalBalanceKes'))} rawValue={getStatValue(invoiceStats, 'totalBalanceKes')} icon={Banknote} color="bg-orange-500" />
+            </PermissionGate>
+            <PermissionGate permissions="invoice.read">
+              <StatCard title="Outstanding (USD)" value={formatAmount(getStatValue(invoiceStats, 'totalBalanceUsd'), 'USD')} rawValue={getStatValue(invoiceStats, 'totalBalanceUsd')} icon={Banknote} color="bg-orange-400" />
             </PermissionGate>
             <PermissionGate permissions="receipt.read">
-              <StatCard title="Today's Collections" value={formatKES(getStatValue(receiptStats, 'todayAmountKes'))} icon={Banknote} color="bg-emerald-600" />
+              <StatCard title="Collected (KES)" value={formatKES(getStatValue(receiptStats, 'totalCollectedKes'))} rawValue={getStatValue(receiptStats, 'totalCollectedKes')} icon={CheckCircle} color="bg-emerald-600" />
             </PermissionGate>
-            <PermissionGate permissions="invoice.read">
-              <StatCard title="Collection Rate" value={`${getStatValue(invoiceStats, 'collectionRate')}%`} icon={Percent} color="bg-green-500" />
+            <PermissionGate permissions="receipt.read">
+              <StatCard title="Collected (USD)" value={formatAmount(getStatValue(receiptStats, 'totalCollectedUsd'), 'USD')} rawValue={getStatValue(receiptStats, 'totalCollectedUsd')} icon={CheckCircle} color="bg-teal-500" />
             </PermissionGate>
           </>
         )}

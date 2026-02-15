@@ -588,6 +588,18 @@ export function useDeleteVehicleMake() {
 }
 
 /**
+ * Fetch weight ticket PDF as blob (for preview dialog)
+ */
+export function useDownloadWeightTicket() {
+  return useMutation({
+    mutationFn: async (weighingId: string) => {
+      const blob = await weighingApi.downloadWeightTicketPdf(weighingId);
+      return { blob, weighingId };
+    },
+  });
+}
+
+/**
  * Create weighing transaction mutation
  */
 export function useCreateWeighingTransaction() {

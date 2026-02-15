@@ -1,16 +1,11 @@
 /**
  * Hook for currency conversion and formatting.
- * Uses live exchange rates from the backend CurrencyService.
+ * Uses the CurrencyContext for selected display currency
+ * and live exchange rates from the backend CurrencyService.
  */
 
+import { useSelectedCurrency } from '@/contexts/CurrencyContext';
 import { useCurrentExchangeRate } from '@/hooks/queries/useExchangeRateQueries';
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  KES: 'KES',
-  USD: 'USD',
-  EUR: 'EUR',
-  GBP: 'GBP',
-};
 
 const CURRENCY_LOCALE: Record<string, string> = {
   KES: 'en-KE',
@@ -20,6 +15,7 @@ const CURRENCY_LOCALE: Record<string, string> = {
 };
 
 export function useCurrency() {
+  const { currency: selectedCurrency } = useSelectedCurrency();
   const { data: currentRate, isLoading } = useCurrentExchangeRate();
 
   /** Convert amount between currencies using the current rate */
@@ -45,15 +41,17 @@ export function useCurrency() {
     }).format(amount);
   };
 
-  /** Get currency symbol string */
-  const getCurrencySymbol = (currency: string): string => {
-    return CURRENCY_SYMBOLS[currency] ?? currency;
+  /** Format amount in the user's selected display currency (auto-converts from source) */
+  const formatDisplay = (amount: number, sourceCurrency: string = 'KES'): string => {
+    const converted = convert(amount, sourceCurrency, selectedCurrency);
+    return formatAmount(converted, selectedCurrency);
   };
 
   return {
     convert,
     formatAmount,
-    getCurrencySymbol,
+    formatDisplay,
+    selectedCurrency,
     currentRate: currentRate?.rate ?? null,
     isLoading,
   };

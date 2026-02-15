@@ -77,10 +77,21 @@ export async function logout(): Promise<void> {
 /**
  * Fetch current user profile from backend.
  * Requires valid authentication token in httpOnly cookie or Authorization header.
- * 
+ *
  * @returns User profile data with roles and permissions
  */
 export async function getCurrentUser(): Promise<User> {
   const { data } = await apiClient.get<User>('/auth/profile');
   return data;
+}
+
+/**
+ * Change current user's password.
+ */
+export async function changePassword(currentPassword: string, newPassword: string, confirmNewPassword: string): Promise<void> {
+  await apiClient.post('/auth/change-password', {
+    currentPassword,
+    newPassword,
+    confirmNewPassword,
+  });
 }

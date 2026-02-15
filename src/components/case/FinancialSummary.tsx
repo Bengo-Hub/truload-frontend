@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInvoicesByProsecutionId, useReceiptsByInvoiceId } from '@/hooks/queries';
+import { useCurrency } from '@/hooks/useCurrency';
 import {
   Banknote,
   Clock,
@@ -50,9 +51,8 @@ export function FinancialSummary({ prosecutionId, className }: FinancialSummaryP
     return acc;
   }, {});
 
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
-  };
+  const { formatAmount: formatCurrency } = useCurrency();
+  const primaryCurrency = invoices[0]?.currency || 'KES';
 
   if (!prosecutionId) return null;
 
@@ -91,7 +91,7 @@ export function FinancialSummary({ prosecutionId, className }: FinancialSummaryP
               <FileText className="h-3.5 w-3.5 text-blue-600" />
               <span className="text-xs text-blue-700 font-medium">Total Due</span>
             </div>
-            <p className="text-lg font-bold text-blue-900">{formatCurrency(totalDue)}</p>
+            <p className="text-lg font-bold text-blue-900">{formatCurrency(totalDue, primaryCurrency)}</p>
             <p className="text-[10px] text-blue-600">
               {invoices.length} invoice{invoices.length !== 1 ? 's' : ''}
             </p>
@@ -102,7 +102,7 @@ export function FinancialSummary({ prosecutionId, className }: FinancialSummaryP
               <Receipt className="h-3.5 w-3.5 text-emerald-600" />
               <span className="text-xs text-emerald-700 font-medium">Total Paid</span>
             </div>
-            <p className="text-lg font-bold text-emerald-900">{formatCurrency(totalPaid)}</p>
+            <p className="text-lg font-bold text-emerald-900">{formatCurrency(totalPaid, primaryCurrency)}</p>
             <p className="text-[10px] text-emerald-600">
               {paidCount} paid, {receipts.length} receipt{receipts.length !== 1 ? 's' : ''}
             </p>
@@ -116,7 +116,7 @@ export function FinancialSummary({ prosecutionId, className }: FinancialSummaryP
               </span>
             </div>
             <p className={`text-lg font-bold ${totalBalance > 0 ? 'text-red-900' : 'text-gray-900'}`}>
-              {formatCurrency(totalBalance)}
+              {formatCurrency(totalBalance, primaryCurrency)}
             </p>
             {overdueCount > 0 && (
               <div className="flex items-center gap-1 mt-0.5">
@@ -153,7 +153,7 @@ export function FinancialSummary({ prosecutionId, className }: FinancialSummaryP
                   className="text-xs gap-1 py-1"
                 >
                   <span className="capitalize">{method.replace(/_/g, ' ')}</span>
-                  <span className="font-mono font-semibold">{formatCurrency(amount)}</span>
+                  <span className="font-mono font-semibold">{formatCurrency(amount, primaryCurrency)}</span>
                 </Badge>
               ))}
             </div>

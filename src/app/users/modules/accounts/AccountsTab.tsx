@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/table";
 import { useHasPermission } from "@/hooks/useAuth";
 import {
+  adminResetPassword,
   assignRoles,
   createUser,
   deleteUser,
@@ -1173,13 +1174,17 @@ function ResetPasswordDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const resetMutation = useMutation({
+  const [mode, setMode] = useState<"choose" | "email" | "direct">("choose");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const emailResetMutation = useMutation({
     mutationFn: (email: string) => sendPasswordResetEmail(email),
     onSuccess: () => {
       toast.success("Password reset email sent", {
         description: `A password reset link has been sent to ${user?.email}`,
       });
-      onClose();
+      handleClose();
     },
     onError: (err: unknown) => {
       const message =
@@ -1188,8 +1193,35 @@ function ResetPasswordDialog({
     },
   });
 
+  const directResetMutation = useMutation({
+    mutationFn: ({ userId, password, confirm }: { userId: string; password: string; confirm: string }) =>
+      adminResetPassword(userId, password, confirm),
+    onSuccess: () => {
+      toast.success("Password reset successfully", {
+        description: `Password for ${user?.email} has been updated.`,
+      });
+      handleClose();
+    },
+    onError: (err: unknown) => {
+      const message =
+        err instanceof Error ? err.message : "Failed to reset password";
+      toast.error(message);
+    },
+  });
+
+  const handleClose = () => {
+    setMode("choose");
+    setNewPassword("");
+    setConfirmPassword("");
+    onClose();
+  };
+
+  const isPending = emailResetMutation.isPending || directResetMutation.isPending;
+  const passwordsMatch = newPassword === confirmPassword;
+  const passwordValid = newPassword.length >= 8;
+
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-amber-600">
@@ -1197,45 +1229,134 @@ function ResetPasswordDialog({
             Reset Password
           </DialogTitle>
           <DialogDescription>
-            Send a password reset link to the user&apos;s email address.
+            {mode === "choose" && "Choose how to reset the user's password."}
+            {mode === "email" && "Send a password reset link to the user's email."}
+            {mode === "direct" && "Set a new password directly for the user."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm text-amber-800">
-              A password reset email will be sent to{" "}
-              <span className="font-semibold">{user?.email}</span>. The user
-              will need to click the link in the email to set a new password.
-            </p>
-          </div>
-          {user && (
-            <div className="flex items-center gap-3 rounded-lg border bg-gray-50 p-3">
-              <UserAvatar user={user} />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {user.fullName ?? "No name"}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </p>
-              </div>
+        {user && (
+          <div className="flex items-center gap-3 rounded-lg border bg-gray-50 p-3">
+            <UserAvatar user={user} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">
+                {user.fullName ?? "No name"}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {user.email}
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {mode === "choose" && (
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-3"
+              onClick={() => setMode("direct")}
+            >
+              <KeyRound className="h-5 w-5 mr-3 text-amber-600" />
+              <div className="text-left">
+                <p className="font-medium">Set New Password</p>
+                <p className="text-xs text-muted-foreground">Enter a new password directly</p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-3"
+              onClick={() => setMode("email")}
+            >
+              <Mail className="h-5 w-5 mr-3 text-blue-600" />
+              <div className="text-left">
+                <p className="font-medium">Send Reset Email</p>
+                <p className="text-xs text-muted-foreground">User receives a link to set their own password</p>
+              </div>
+            </Button>
+          </div>
+        )}
+
+        {mode === "email" && (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-800">
+                A password reset email will be sent to{" "}
+                <span className="font-semibold">{user?.email}</span>. The user
+                will need to click the link in the email to set a new password.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {mode === "direct" && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Minimum 8 characters"
+                autoComplete="new-password"
+              />
+              {newPassword && !passwordValid && (
+                <p className="text-xs text-red-500">Password must be at least 8 characters</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter password"
+                autoComplete="new-password"
+              />
+              {confirmPassword && !passwordsMatch && (
+                <p className="text-xs text-red-500">Passwords do not match</p>
+              )}
+            </div>
+          </div>
+        )}
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="ghost" onClick={onClose} disabled={resetMutation.isPending}>
+          {mode !== "choose" && (
+            <Button variant="ghost" onClick={() => setMode("choose")} disabled={isPending}>
+              Back
+            </Button>
+          )}
+          <Button variant="ghost" onClick={handleClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button
-            onClick={() => user && resetMutation.mutate(user.email)}
-            disabled={resetMutation.isPending}
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            <Mail className="mr-1.5 h-4 w-4" />
-            {resetMutation.isPending ? "Sending..." : "Send Reset Email"}
-          </Button>
+          {mode === "email" && (
+            <Button
+              onClick={() => user && emailResetMutation.mutate(user.email)}
+              disabled={isPending}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              <Mail className="mr-1.5 h-4 w-4" />
+              {emailResetMutation.isPending ? "Sending..." : "Send Reset Email"}
+            </Button>
+          )}
+          {mode === "direct" && (
+            <Button
+              onClick={() =>
+                user &&
+                directResetMutation.mutate({
+                  userId: user.id,
+                  password: newPassword,
+                  confirm: confirmPassword,
+                })
+              }
+              disabled={isPending || !passwordValid || !passwordsMatch}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              <KeyRound className="mr-1.5 h-4 w-4" />
+              {directResetMutation.isPending ? "Resetting..." : "Reset Password"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

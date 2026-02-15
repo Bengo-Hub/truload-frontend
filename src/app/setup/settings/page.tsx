@@ -42,6 +42,7 @@ import {
   Bell,
   CreditCard,
   DollarSign,
+  FileText,
   Globe,
   Loader2,
   Plus,
@@ -52,6 +53,7 @@ import {
 } from 'lucide-react';
 
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
+import { DocumentConventionsTab } from '@/components/settings/DocumentConventionsTab';
 
 // ============================================================================
 // Provider Definitions
@@ -136,7 +138,7 @@ function IntegrationSettingsContent() {
 
       {/* Tabs */}
       <Tabs defaultValue="payment-gateways" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="payment-gateways" className="gap-1.5">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Payment Gateways</span>
@@ -152,6 +154,11 @@ function IntegrationSettingsContent() {
             <span className="hidden sm:inline">Exchange Rates</span>
             <span className="sm:hidden">Rates</span>
           </TabsTrigger>
+          <TabsTrigger value="documents" className="gap-1.5">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Documents</span>
+            <span className="sm:hidden">Docs</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="payment-gateways">
@@ -162,6 +169,9 @@ function IntegrationSettingsContent() {
         </TabsContent>
         <TabsContent value="exchange-rates">
           <ExchangeRateSettings />
+        </TabsContent>
+        <TabsContent value="documents">
+          <DocumentConventionsTab canEdit={canEdit} />
         </TabsContent>
       </Tabs>
     </div>

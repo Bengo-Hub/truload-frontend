@@ -1,11 +1,13 @@
 "use client";
 
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Camera, CheckCircle2, Eye, Loader2, Printer, RotateCcw } from 'lucide-react';
+import { Camera, Eye, Loader2, Printer, RotateCcw } from 'lucide-react';
+import { useMemo } from 'react';
 
 interface TicketsListViewProps {
   tickets: WeighingTransaction[];
@@ -57,16 +59,46 @@ function DeckWeightCell({ measured, permissible }: { measured?: number; permissi
   );
 }
 
+function AxleWeightsCell({ axles }: { axles?: WeighingTransaction['weighingAxles'] }) {
+  if (!axles || axles.length === 0) return <TableCell className="text-xs text-center py-2 px-1">—</TableCell>;
+
+  return (
+    <TableCell className="text-xs py-2 px-1 font-mono">
+      <div className="space-y-0.5">
+        {axles.map((axle) => {
+          const overloaded = (axle.overloadKg ?? 0) > 0;
+          return (
+            <div key={axle.axleNumber} className="flex items-center gap-1">
+              <span className="text-[10px] text-gray-400 w-5">A{axle.axleNumber}</span>
+              <span className={cn(overloaded ? 'text-red-600 font-bold' : 'text-gray-900')}>
+                {axle.measuredWeightKg.toLocaleString()}
+              </span>
+              <span className="text-[10px] text-gray-400">/{axle.permissibleWeightKg.toLocaleString()}</span>
+            </div>
+          );
+        })}
+      </div>
+    </TableCell>
+  );
+}
+
 function ComplianceIcon({ ticket }: { ticket: WeighingTransaction }) {
   const status = getComplianceStatus(ticket);
+  const img = status === 'LEGAL'
+    ? { src: '/images/weighing/greenbutton.png', alt: 'Compliant' }
+    : status === 'OVERLOAD'
+    ? { src: '/images/weighing/redbutton.jpg', alt: 'Overloaded' }
+    : { src: '/images/weighing/tagged.png', alt: 'Warning' };
 
-  if (status === 'LEGAL') {
-    return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-  }
-  if (status === 'OVERLOAD') {
-    return <AlertTriangle className="h-5 w-5 text-red-500" />;
-  }
-  return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+  return (
+    <Image
+      src={img.src}
+      alt={img.alt}
+      width={22}
+      height={22}
+      className="shrink-0"
+    />
+  );
 }
 
 export default function TicketsListView({
@@ -78,6 +110,22 @@ export default function TicketsListView({
   onView,
   onPrint,
 }: TicketsListViewProps) {
+  // Determine if we should show deck columns (static/multideck) or axle columns (mobile)
+  const hasDeckTickets = useMemo(
+    () => tickets.some(t => t.weighingType === 'static' || t.weighingType === 'multideck'),
+    [tickets]
+  );
+  const hasMobileTickets = useMemo(
+    () => tickets.some(t => t.weighingType === 'mobile'),
+    [tickets]
+  );
+  // Show deck columns if any static/multideck tickets exist (or if no tickets loaded yet)
+  const showDeckColumns = hasDeckTickets || (!hasMobileTickets && tickets.length === 0);
+  // Show axle details column if any mobile tickets exist
+  const showAxleDetails = hasMobileTickets;
+
+  const colCount = 18 + (showDeckColumns ? 4 : 0) + (showAxleDetails ? 1 : 0);
+
   return (
     <Card className="border border-gray-200 rounded-xl">
       <CardContent className="p-0 overflow-x-auto">
@@ -99,10 +147,17 @@ export default function TicketsListView({
               <TableHead className="text-xs font-semibold text-gray-700 h-10">Transporter</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10">Cargo</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10">Axle</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck A[KG]</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck B[KG]</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck C[KG]</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck D[KG]</TableHead>
+              {showDeckColumns && (
+                <>
+                  <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck A[KG]</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck B[KG]</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck C[KG]</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck D[KG]</TableHead>
+                </>
+              )}
+              {showAxleDetails && (
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap">Axle Weights</TableHead>
+              )}
               <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center">GVW [KG]</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Excess [KG]</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 pr-3 text-right">Actions</TableHead>
@@ -111,7 +166,7 @@ export default function TicketsListView({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={22} className="text-center text-gray-500 py-8">
+                <TableCell colSpan={colCount} className="text-center text-gray-500 py-8">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading transactions...
@@ -120,13 +175,13 @@ export default function TicketsListView({
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={22} className="text-center text-red-500 py-8">
+                <TableCell colSpan={colCount} className="text-center text-red-500 py-8">
                   Failed to load transactions. Please try again.
                 </TableCell>
               </TableRow>
             ) : tickets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={22} className="text-center text-gray-500 py-8">
+                <TableCell colSpan={colCount} className="text-center text-gray-500 py-8">
                   No weighing transactions found.
                 </TableCell>
               </TableRow>
@@ -134,6 +189,7 @@ export default function TicketsListView({
               tickets.map((ticket, idx) => {
                 const compliance = getComplianceStatus(ticket);
                 const excessKg = ticket.excessKg ?? Math.max(0, ticket.overloadKg);
+                const isMobile = ticket.weighingType === 'mobile';
 
                 return (
                   <TableRow key={ticket.id} className="hover:bg-gray-50/50 border-b border-gray-100">
@@ -149,7 +205,7 @@ export default function TicketsListView({
                     <TableCell className="py-2 px-2">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] text-gray-400">
-                          {ticket.weighingType ? `${ticket.weighingType.charAt(0).toUpperCase() + ticket.weighingType.slice(1)}-Deck` : 'Static'}
+                          {ticket.weighingType ? `${ticket.weighingType.charAt(0).toUpperCase() + ticket.weighingType.slice(1)}` : 'Static'}
                           {ticket.bound ? ` (${ticket.bound})` : ''}
                         </span>
                         <a href="#" className="text-xs font-mono text-blue-600 hover:underline">
@@ -241,16 +297,29 @@ export default function TicketsListView({
                       <div className="truncate max-w-[100px]">{ticket.cargoType ?? '—'}</div>
                     </TableCell>
 
-                    {/* Axle */}
+                    {/* Axle Config */}
                     <TableCell className="text-xs text-gray-600 py-2 text-center">
                       {ticket.axleConfiguration ?? '—'}
                     </TableCell>
 
-                    {/* Deck A-D */}
-                    <DeckWeightCell measured={ticket.deckAWeightKg} />
-                    <DeckWeightCell measured={ticket.deckBWeightKg} />
-                    <DeckWeightCell measured={ticket.deckCWeightKg} />
-                    <DeckWeightCell measured={ticket.deckDWeightKg} />
+                    {/* Deck A-D (only for static/multideck) */}
+                    {showDeckColumns && (
+                      <>
+                        <DeckWeightCell measured={!isMobile ? ticket.deckAWeightKg : undefined} />
+                        <DeckWeightCell measured={!isMobile ? ticket.deckBWeightKg : undefined} />
+                        <DeckWeightCell measured={!isMobile ? ticket.deckCWeightKg : undefined} />
+                        <DeckWeightCell measured={!isMobile ? ticket.deckDWeightKg : undefined} />
+                      </>
+                    )}
+
+                    {/* Axle Weights (only for mobile) */}
+                    {showAxleDetails && (
+                      isMobile ? (
+                        <AxleWeightsCell axles={ticket.weighingAxles} />
+                      ) : (
+                        <TableCell className="text-xs text-center py-2 px-1">—</TableCell>
+                      )
+                    )}
 
                     {/* GVW */}
                     <TableCell className="text-xs text-center py-2 px-1 font-mono">
