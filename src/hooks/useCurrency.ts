@@ -32,10 +32,12 @@ export function useCurrency() {
 
   /** Format amount with currency symbol */
   const formatAmount = (amount: number, currency: string): string => {
-    const locale = CURRENCY_LOCALE[currency] ?? 'en-US';
+    // Defensive fallback — Intl.NumberFormat throws if currency is empty/undefined
+    const safeCurrency = currency || 'KES';
+    const locale = CURRENCY_LOCALE[safeCurrency] ?? 'en-US';
     return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency,
+      currency: safeCurrency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);

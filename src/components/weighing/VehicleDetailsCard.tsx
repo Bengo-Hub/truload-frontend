@@ -215,11 +215,14 @@ interface VehicleDetailsCardProps {
   onEditDestination?: () => void;
   onViewDestination?: () => void;
   onAddVehicleMake?: () => void;
+  // API-driven vehicle makes (overrides hardcoded list when provided)
+  vehicleMakes?: { id: string; name: string }[];
   // Refresh handlers for manual refetch
   onRefreshDrivers?: () => void;
   onRefreshTransporters?: () => void;
   onRefreshCargoTypes?: () => void;
   onRefreshLocations?: () => void;
+  onRefreshVehicleMakes?: () => void;
 
   // Other
   onScanANPR?: () => void;
@@ -304,10 +307,12 @@ export function VehicleDetailsCard({
   onEditDestination,
   onViewDestination,
   onAddVehicleMake,
+  vehicleMakes: apiVehicleMakes,
   onRefreshDrivers,
   onRefreshTransporters,
   onRefreshCargoTypes,
   onRefreshLocations,
+  onRefreshVehicleMakes,
   onScanANPR,
   showExtendedDetails = true,
   showPermitSection = false,
@@ -465,33 +470,55 @@ export function VehicleDetailsCard({
         )}
 
         {/* Vehicle Make */}
-        {showPermitSection && onVehicleMakeChange && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Car className="h-4 w-4 text-gray-400" />
-              Vehicle Make:
-            </Label>
-            <div className="flex gap-2">
-              <Select value={vehicleMake || ''} onValueChange={onVehicleMakeChange} disabled={isReadOnly}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {VEHICLE_MAKES.map((make) => (
-                    <SelectItem key={make} value={make}>
-                      {make}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {onAddVehicleMake && !isReadOnly && (
-                <Button variant="outline" size="icon" onClick={onAddVehicleMake} className="bg-green-600 hover:bg-green-700 text-white">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              )}
+        {showPermitSection && onVehicleMakeChange && (() => {
+          // Use API-driven makes if available, fallback to hardcoded list
+          const makesList = apiVehicleMakes && apiVehicleMakes.length > 0
+            ? apiVehicleMakes.map(m => m.name)
+            : VEHICLE_MAKES;
+          return (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Car className="h-4 w-4 text-gray-400" />
+                Vehicle Make:
+              </Label>
+              <div className="flex gap-2">
+                <Select value={vehicleMake || ''} onValueChange={onVehicleMakeChange} disabled={isReadOnly}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {makesList.map((make) => (
+                      <SelectItem key={make} value={make}>
+                        {make}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!isReadOnly && (
+                  <div className="flex gap-1">
+                    {onRefreshVehicleMakes && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={onRefreshVehicleMakes}
+                        title="Refresh vehicle makes"
+                        className="h-10 w-10"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onAddVehicleMake && (
+                      <Button variant="outline" size="icon" onClick={onAddVehicleMake} className="h-10 w-10 bg-green-600 hover:bg-green-700 text-white">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Axle Configuration */}
         <SelectFieldWithCrud

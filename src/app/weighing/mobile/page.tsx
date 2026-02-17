@@ -42,6 +42,7 @@ import {
     useCreateVehicle,
     useCreateVehicleMake,
     useDrivers,
+    useVehicleMakes,
     useMyScaleTestStatus,
     useMyStation,
     useOriginsDestinations,
@@ -120,6 +121,7 @@ export default function MobileWeighingPage() {
   const createCargoTypeMutation = useCreateCargoType();
   const createOriginDestinationMutation = useCreateOriginDestination();
   const createVehicleMakeMutation = useCreateVehicleMake();
+  const { data: vehicleMakesData = [], refetch: refetchVehicleMakes } = useVehicleMakes();
 
   // Bound state for bidirectional stations
   const [currentBoundState, setCurrentBoundState] = useState<string | undefined>();
@@ -764,67 +766,45 @@ export default function MobileWeighingPage() {
 
   // Capture handlers - capture weight from scale and persist to backend via useWeighing hook
   const handleCaptureAxle = useCallback(async () => {
-    if (!capturedAxles.includes(currentAxle)) {
-      // Use actual weight from scale (currentAxleWeight is updated by middleware WebSocket)
-      if (currentAxleWeight <= 0) {
-        toast.error('No weight reading from scale. Ensure scale is connected.');
-        return;
-      }
-
-      const weight = currentAxleWeight;
-
-      // Capture via useWeighing hook to persist to backend
-      const success = await captureAxleWeight(currentAxle, weight);
-
-      if (success) {
-        // Sync axle capture to middleware for autoweigh tracking
-        if (middleware.connected) {
-          middleware.captureAxle(currentAxle, weight);
-        }
-
-        // Update local state for immediate UI feedback
-        setLocalCapturedWeights(prev => [...prev, weight]);
-
-        if (currentAxle < totalAxles) {
-          setCurrentAxle(currentAxle + 1);
-          // Reset weight display for next axle
-          setTimeout(() => setCurrentAxleWeight(0), 500);
-        }
-      } else {
-        toast.error('Failed to capture weight. Please try again.');
-      }
+    if (capturedAxles.includes(currentAxle)) {
+      toast.warning(`Axle ${currentAxle} already captured.`);
+      return;
     }
-  }, [capturedAxles, captureAxleWeight, currentAxle, currentAxleWeight, totalAxles, middleware]);
 
-  // Generate ticket number when moving to vehicle step
-  /**
-   * Generate ticket number using configurable convention:
-   * Format: {StationCode}{Bound}-{YYYYMMDD}{SequenceNumber}
-   * Example: NRB-01A-202601230001
-   *
-   * The sequence number should ideally come from backend for uniqueness.
-   * This frontend fallback uses timestamp-based random for offline support.
-   */
-  const generateTicketNumber = useCallback(() => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const dateStr = `${year}${month}${day}`;
+    // Use actual weight from scale (currentAxleWeight is updated by middleware WebSocket)
+    if (currentAxleWeight <= 0) {
+      toast.error('No weight reading from scale. Check scale connection.');
+      return;
+    }
 
-    // Use station code if available, fallback to MOB for mobile
-    const stationCode = currentStation?.code || 'MOB';
+    if (!weighingSession) {
+      toast.error('No active weighing session. Start a new session first.');
+      return;
+    }
 
-    // Add bound if bidirectional station
-    const boundSuffix = currentBound || '';
+    const weight = currentAxleWeight;
 
-    // Generate sequence (in production, this should come from backend)
-    // Using timestamp-based number for uniqueness in offline mode
-    const timestamp = Date.now().toString().slice(-6);
-    const sequence = timestamp.padStart(6, '0');
+    // Capture via useWeighing hook (persists locally, submitted to backend on confirm)
+    const success = await captureAxleWeight(currentAxle, weight);
 
-    return `${stationCode}${boundSuffix}-${dateStr}${sequence}`;
-  }, [currentStation, currentBound]);
+    if (success) {
+      // Sync axle capture to middleware for autoweigh tracking
+      if (middleware.connected) {
+        middleware.captureAxle(currentAxle, weight);
+      }
+
+      // Update local state for immediate UI feedback
+      setLocalCapturedWeights(prev => [...prev, weight]);
+
+      if (currentAxle < totalAxles) {
+        setCurrentAxle(currentAxle + 1);
+        // Reset weight display for next axle
+        setTimeout(() => setCurrentAxleWeight(0), 500);
+      }
+    } else {
+      toast.error(`Failed to capture axle ${currentAxle}. Please try again.`);
+    }
+  }, [capturedAxles, captureAxleWeight, currentAxle, currentAxleWeight, totalAxles, middleware, weighingSession]);
 
   // ANPR scan handler
   const handleScanPlate = () => {
@@ -977,16 +957,11 @@ export default function MobileWeighingPage() {
         });
       }
 
-      // Use ticket number from transaction or generate one
-      setTicketNumber(transaction.ticketNumber || generateTicketNumber());
+      // Use ticket number from backend (generated by DocumentNumberService)
+      setTicketNumber(transaction.ticketNumber);
       handleNextStep();
     } else {
-      // Fall back to local ticket number if backend fails
-      if (!ticketNumber) {
-        setTicketNumber(generateTicketNumber());
-      }
-      toast.warning('Could not create transaction. Working offline.');
-      handleNextStep();
+      toast.error('Could not create transaction. Please check your connection and try again.');
     }
   };
 
@@ -1350,8 +1325,8 @@ export default function MobileWeighingPage() {
     handleNextStep();
   };
 
-  // Validation for step transitions
-  const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted;
+  // Validation for step transitions (also disable during transaction creation to prevent double-click)
+  const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted && !isLoading;
   const canProceedFromVehicle = selectedConfig !== '' && allAxlesCaptured;
 
   // Derive station display name
@@ -1720,6 +1695,8 @@ export default function MobileWeighingPage() {
                       onAddOriginLocation={() => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); }}
                       onAddDestinationLocation={() => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); }}
                       onAddVehicleMake={() => setIsVehicleMakeModalOpen(true)}
+                      vehicleMakes={vehicleMakesData}
+                      onRefreshVehicleMakes={() => refetchVehicleMakes()}
                       onAddCargoType={() => setIsCargoTypeModalOpen(true)}
                       // Refresh handlers for manual refetch
                       onRefreshDrivers={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS })}
