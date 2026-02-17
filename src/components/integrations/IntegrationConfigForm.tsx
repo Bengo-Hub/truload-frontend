@@ -44,6 +44,15 @@ const ECITIZEN_CREDENTIALS: CredentialFieldDef[] = [
   { key: 'ApiClientId', label: 'API Client ID', placeholder: 'e.g. 588' },
 ];
 
+// Default values for first-time setup per provider
+const PROVIDER_DEFAULTS: Record<string, { displayName: string; baseUrl: string; environment: string }> = {
+  ecitizen_pesaflow: {
+    displayName: 'eCitizen Pesaflow',
+    baseUrl: 'https://test.pesaflow.com',
+    environment: 'test',
+  },
+};
+
 const DEFAULT_CREDENTIALS: CredentialFieldDef[] = [
   { key: 'ApiKey', label: 'API Key', placeholder: 'API Key', sensitive: true },
   { key: 'ApiSecret', label: 'API Secret', placeholder: 'API Secret', sensitive: true },
@@ -99,7 +108,7 @@ export function IntegrationConfigForm({
   const [isEditing, setIsEditing] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
-  // Reset form when config changes
+  // Reset form when config changes; pre-fill defaults for unconfigured providers
   useEffect(() => {
     if (config) {
       setDisplayName(config.displayName ?? '');
@@ -112,8 +121,18 @@ export function IntegrationConfigForm({
       setCredentials({});
       setIsEditing(false);
       setIsActive(config.isActive ?? true);
+    } else {
+      // Pre-fill defaults for first-time setup
+      const defaults = PROVIDER_DEFAULTS[providerName];
+      if (defaults) {
+        setDisplayName(defaults.displayName);
+        setBaseUrl(defaults.baseUrl);
+        setEnvironment(defaults.environment);
+        setIsEditing(true); // Start in edit mode for new configs
+        setIsActive(true);
+      }
     }
-  }, [config]);
+  }, [config, providerName]);
 
   const handleSave = async () => {
     // Only include credentials if they were actually filled in
@@ -200,22 +219,20 @@ export function IntegrationConfigForm({
         </div>
       )}
 
-      {/* Enabled toggle */}
-      {isConfigured && (
-        <div className="flex items-center justify-between gap-4 p-2 border rounded-md bg-muted/50">
-          <div>
-            <div className="text-sm font-medium">Integration status</div>
-            <div className="text-xs text-muted-foreground">Enable or disable this provider</div>
-          </div>
-          <div>
-            <Switch
-              checked={isActive}
-              onCheckedChange={(val) => setIsActive(Boolean(val))}
-              disabled={!canEdit}
-            />
-          </div>
+      {/* Enabled toggle — always visible so users can activate even on first setup */}
+      <div className="flex items-center justify-between gap-4 p-2 border rounded-md bg-muted/50">
+        <div>
+          <div className="text-sm font-medium">Integration status</div>
+          <div className="text-xs text-muted-foreground">Enable or disable this provider</div>
         </div>
-      )}
+        <div>
+          <Switch
+            checked={isActive}
+            onCheckedChange={(val) => setIsActive(Boolean(val))}
+            disabled={!canEdit}
+          />
+        </div>
+      </div>
 
       {/* Connection Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

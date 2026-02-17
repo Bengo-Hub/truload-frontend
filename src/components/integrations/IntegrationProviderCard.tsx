@@ -51,19 +51,19 @@ export function IntegrationProviderCard({
       <div className="flex items-start justify-between gap-3">
         {/* Provider Logo / Icon */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${provider.color}`}>
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${provider.color}`}>
             {provider.logo ? (
               <Image
                 src={provider.logo}
                 alt={provider.displayName}
-                width={24}
-                height={24}
-                className="h-6 w-6 object-contain"
+                width={40}
+                height={40}
+                className="h-9 w-9 object-contain"
               />
             ) : provider.icon ? (
               provider.icon
             ) : (
-              <Settings2 className="h-5 w-5" />
+              <Settings2 className="h-6 w-6" />
             )}
           </div>
           <div className="min-w-0">

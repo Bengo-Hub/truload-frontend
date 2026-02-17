@@ -28,11 +28,24 @@ export function SupersetDashboard() {
 
   // Token cache: avoid re-fetching within TTL
   const tokenCacheRef = useRef<{ token: string; expiresAt: number; dashboardId: number } | null>(null);
-  // Failure guard: if token fetch fails, don't retry for 60s
+  // Failure guard: if token fetch fails, don't retry for 5 minutes
   const failedAtRef = useRef<number>(0);
+  // Deduplicate concurrent fetchGuestToken calls from the SDK
+  const inflightTokenRef = useRef<Promise<string> | null>(null);
+  // Track mounted state to prevent stale SDK callbacks
+  const mountedRef = useRef(true);
 
   const { data: dashboards, isLoading: loadingDashboards } = useSupersetDashboards();
   const guestTokenMutation = useGetSupersetGuestToken();
+
+  // Stable ref for mutateAsync so it doesn't cause useCallback re-creation
+  const mutateAsyncRef = useRef(guestTokenMutation.mutateAsync);
+  mutateAsyncRef.current = guestTokenMutation.mutateAsync;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const embedSelectedDashboard = useCallback(async (dashboardId: string) => {
     if (!mountRef.current || !dashboardId) return;
@@ -49,6 +62,9 @@ export function SupersetDashboard() {
       }
     }
 
+    // Clear in-flight token request on new embed
+    inflightTokenRef.current = null;
+
     setIsEmbedding(true);
 
     try {
@@ -62,9 +78,14 @@ export function SupersetDashboard() {
         supersetDomain: SUPERSET_DOMAIN,
         mountPoint: mountRef.current!,
         fetchGuestToken: async () => {
-          // If we recently failed, reject immediately to prevent SDK retry storm
+          // Component unmounted — reject to stop SDK polling
+          if (!mountedRef.current) {
+            throw new Error('Component unmounted');
+          }
+
+          // If we recently failed, reject immediately to prevent SDK retry storm (5min cooldown)
           const now = Date.now();
-          if (failedAtRef.current && now - failedAtRef.current < 60_000) {
+          if (failedAtRef.current && now - failedAtRef.current < 300_000) {
             throw new Error('Guest token fetch temporarily disabled after failure');
           }
 
@@ -74,22 +95,34 @@ export function SupersetDashboard() {
             return cached.token;
           }
 
-          try {
-            const result = await guestTokenMutation.mutateAsync({
-              dashboardIds: [numericId],
-            });
-            // Cache for 5 minutes
-            tokenCacheRef.current = {
-              token: result.token,
-              expiresAt: now + 5 * 60 * 1000,
-              dashboardId: numericId,
-            };
-            failedAtRef.current = 0;
-            return result.token;
-          } catch (err) {
-            failedAtRef.current = Date.now();
-            throw err;
+          // Deduplicate: if a fetch is already in-flight, reuse it
+          if (inflightTokenRef.current) {
+            return inflightTokenRef.current;
           }
+
+          const fetchPromise = (async () => {
+            try {
+              const result = await mutateAsyncRef.current({
+                dashboardIds: [numericId],
+              });
+              // Cache for 5 minutes
+              tokenCacheRef.current = {
+                token: result.token,
+                expiresAt: Date.now() + 5 * 60 * 1000,
+                dashboardId: numericId,
+              };
+              failedAtRef.current = 0;
+              return result.token;
+            } catch (err) {
+              failedAtRef.current = Date.now();
+              throw err;
+            } finally {
+              inflightTokenRef.current = null;
+            }
+          })();
+
+          inflightTokenRef.current = fetchPromise;
+          return fetchPromise;
         },
         dashboardUiConfig: {
           hideTitle: true,
@@ -103,12 +136,16 @@ export function SupersetDashboard() {
 
       await embeddedRef.current;
     } catch (err) {
-      console.error('Failed to embed Superset dashboard:', err);
-      setEmbedError('Failed to load dashboard. Please try again later.');
+      if (mountedRef.current) {
+        console.error('Failed to embed Superset dashboard:', err);
+        setEmbedError('Failed to load dashboard. Please try again later.');
+      }
     } finally {
-      setIsEmbedding(false);
+      if (mountedRef.current) {
+        setIsEmbedding(false);
+      }
     }
-  }, [guestTokenMutation]);
+  }, []);
 
   // Embed when dashboard selection changes
   useEffect(() => {

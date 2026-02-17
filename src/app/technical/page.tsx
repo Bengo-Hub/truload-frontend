@@ -76,7 +76,7 @@ function TechnicalContent() {
   // Derive service statuses from real data
   const services = [
     {
-      name: 'TruLoad API',
+      name: 'Backend API',
       status: health ? 'healthy' as const : healthLoading ? 'checking' as const : 'down' as const,
       detail: health ? `v${health.version}` : healthLoading ? 'Checking...' : 'Unreachable',
       lastCheck: healthUpdatedAt ? format(new Date(healthUpdatedAt), 'HH:mm:ss') : '-',
