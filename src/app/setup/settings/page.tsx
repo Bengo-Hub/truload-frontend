@@ -266,14 +266,14 @@ function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
             const meta = PAYMENT_PROVIDERS.find((p) => p.providerName === selectedProvider);
             return (
               <>
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${meta?.color ?? 'bg-gray-100'}`}>
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${meta?.color ?? 'bg-gray-100'}`}>
                   {meta?.logo ? (
                     <Image
                       src={meta.logo}
                       alt={meta.displayName}
-                      width={20}
-                      height={20}
-                      className="h-5 w-5 object-contain"
+                      width={36}
+                      height={36}
+                      className="h-8 w-8 object-contain"
                     />
                   ) : (
                     <CreditCard className="h-4 w-4 text-gray-600" />

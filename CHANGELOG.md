@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Sprint 22.1 - Production Bug Fixes - 2026-02-18)
+
+#### Weighing Workflow
+- **Backend WebSocket removed**: Removed `getBackendWsUrl()` from `useMiddleware.ts`; always connects to local TruConnect middleware (no failed `wss://` connection attempts in production)
+- **Frontend ticket number generation removed**: Removed `generateTicketNumber()` from `useWeighing.ts` and `mobile/page.tsx`; backend now generates ticket numbers via `DocumentNumberService` using configurable naming conventions
+- **Double transaction prevention**: Added `createTransactionMutation.isPending` guard in `initializeTransaction`; disabled "Next" button during loading to prevent double-click
+- **Axle capture error handling**: Improved error messages with specific checks for no session, already-captured axle, and no scale weight reading
+
+#### Financial Pages
+- **Currency formatting crash**: Added `currency || 'KES'` fallback in `useCurrency.ts` and `ReconcileDialog.tsx` to prevent `Intl.NumberFormat` crash when currency code is undefined
+
+#### UI Improvements
+- **PDF preview dialog**: Increased dialog size from `max-w-3xl` to `max-w-[90vw]` (portrait) and `max-w-[95vw]` (landscape); height from `h-[85vh]` to `h-[90vh]` for much larger document preview
+- **Vehicle make dropdown**: Added `vehicleMakes` and `onRefreshVehicleMakes` props to `VehicleDetailsCard`; wired `useVehicleMakes` query hook for API-driven makes with refresh button (falls back to hardcoded list)
+
 ### Added (Implemented - Feb 2026)
 - Initial Next.js 16 project setup with App Router
 - PWA support with next-pwa and Workbox

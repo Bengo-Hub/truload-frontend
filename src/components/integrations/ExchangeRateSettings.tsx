@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -20,10 +21,11 @@ import {
   useRateHistory,
   useExchangeRateApiSettings,
   useSetManualRate,
+  useUpdateApiSettings,
   useFetchRatesNow,
 } from '@/hooks/queries/useExchangeRateQueries';
-import { ArrowRightLeft, Clock, DollarSign, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRightLeft, Clock, DollarSign, Eye, EyeOff, Pencil, RefreshCw, Save, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 export function ExchangeRateSettings() {
@@ -32,9 +34,27 @@ export function ExchangeRateSettings() {
   const { data: history, isLoading: historyLoading } = useRateHistory();
   const { data: apiSettings } = useExchangeRateApiSettings();
   const setManualMutation = useSetManualRate();
+  const updateApiSettingsMutation = useUpdateApiSettings();
   const fetchNowMutation = useFetchRatesNow();
 
   const [manualRate, setManualRate] = useState('');
+
+  // Editable API settings state
+  const [isEditingApi, setIsEditingApi] = useState(false);
+  const [editEndpoint, setEditEndpoint] = useState('');
+  const [editAccessKey, setEditAccessKey] = useState('');
+  const [editFetchTime, setEditFetchTime] = useState('');
+  const [editIsActive, setEditIsActive] = useState(false);
+  const [showAccessKey, setShowAccessKey] = useState(false);
+
+  // Sync edit state when apiSettings loads
+  useEffect(() => {
+    if (apiSettings) {
+      setEditEndpoint(apiSettings.apiEndpoint ?? '');
+      setEditFetchTime(apiSettings.fetchTime ?? '00:00');
+      setEditIsActive(apiSettings.isActive ?? false);
+    }
+  }, [apiSettings]);
 
   const handleSetManualRate = async () => {
     const rate = parseFloat(manualRate);
@@ -130,8 +150,8 @@ export function ExchangeRateSettings() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">API Provider</CardTitle>
-                <CardDescription>{apiSettings.providerName}</CardDescription>
+                <CardTitle className="text-base">API Provider Settings</CardTitle>
+                <CardDescription>{apiSettings.providerName ?? 'exchangerate.host'}</CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 {apiSettings.lastFetchStatus && (
@@ -140,6 +160,16 @@ export function ExchangeRateSettings() {
                   >
                     {apiSettings.lastFetchStatus}
                   </Badge>
+                )}
+                {canUpdate && !isEditingApi && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditingApi(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    Edit
+                  </Button>
                 )}
                 {canUpdate && (
                   <Button
@@ -156,30 +186,129 @@ export function ExchangeRateSettings() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-              <div>
-                <span className="text-muted-foreground">Endpoint:</span>
-                <p className="truncate font-mono text-xs">{apiSettings.apiEndpoint}</p>
+            {isEditingApi ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">API Endpoint</Label>
+                    <Input
+                      value={editEndpoint}
+                      onChange={(e) => setEditEndpoint(e.target.value)}
+                      placeholder="https://api.exchangerate.host/live"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">API Access Key</Label>
+                    <div className="relative">
+                      <Input
+                        value={editAccessKey}
+                        onChange={(e) => setEditAccessKey(e.target.value)}
+                        type={showAccessKey ? 'text' : 'password'}
+                        placeholder={apiSettings.hasAccessKey ? '(leave blank to keep existing)' : 'Enter API key'}
+                        className="font-mono text-sm pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAccessKey(!showAccessKey)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gray-700"
+                      >
+                        {showAccessKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Sync Time (UTC)</Label>
+                    <Input
+                      type="time"
+                      value={editFetchTime}
+                      onChange={(e) => setEditFetchTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4 p-2 border rounded-md bg-muted/50">
+                    <div>
+                      <div className="text-sm font-medium">Auto-sync</div>
+                      <div className="text-xs text-muted-foreground">Fetch rates daily at scheduled time</div>
+                    </div>
+                    <Switch
+                      checked={editIsActive}
+                      onCheckedChange={(val) => setEditIsActive(Boolean(val))}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await updateApiSettingsMutation.mutateAsync({
+                          apiEndpoint: editEndpoint || undefined,
+                          accessKey: editAccessKey || undefined,
+                          fetchTime: editFetchTime || undefined,
+                          isActive: editIsActive,
+                        });
+                        toast.success('API settings updated');
+                        setIsEditingApi(false);
+                        setEditAccessKey('');
+                      } catch {
+                        toast.error('Failed to update API settings');
+                      }
+                    }}
+                    disabled={updateApiSettingsMutation.isPending}
+                  >
+                    <Save className="h-3.5 w-3.5 mr-1.5" />
+                    Save Settings
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingApi(false);
+                      setEditEndpoint(apiSettings.apiEndpoint ?? '');
+                      setEditFetchTime(apiSettings.fetchTime ?? '00:00');
+                      setEditIsActive(apiSettings.isActive ?? false);
+                      setEditAccessKey('');
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1.5" />
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">API Key:</span>
-                <p>{apiSettings.hasAccessKey ? '********' : 'Not configured'}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Schedule:</span>
-                <p>Daily at {apiSettings.fetchTime} UTC</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status:</span>
-                <Badge variant={apiSettings.isActive ? 'default' : 'secondary'}>
-                  {apiSettings.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-            </div>
-            {apiSettings.lastFetchError && (
-              <p className="mt-2 text-xs text-destructive">
-                Last error: {apiSettings.lastFetchError}
-              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                  <div>
+                    <span className="text-muted-foreground">Endpoint:</span>
+                    <p className="truncate font-mono text-xs">{apiSettings.apiEndpoint}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">API Key:</span>
+                    <p>{apiSettings.hasAccessKey ? '********' : 'Not configured'}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Sync Schedule:</span>
+                    <p>Daily at {apiSettings.fetchTime} UTC</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>
+                    <Badge variant={apiSettings.isActive ? 'default' : 'secondary'}>
+                      {apiSettings.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </div>
+                {apiSettings.lastFetchError && (
+                  <p className="mt-2 text-xs text-destructive">
+                    Last error: {apiSettings.lastFetchError}
+                  </p>
+                )}
+                {apiSettings.lastFetchAt && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    <Clock className="inline h-3 w-3 mr-1" />
+                    Last synced: {new Date(apiSettings.lastFetchAt).toLocaleString()}
+                  </p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

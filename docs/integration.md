@@ -313,27 +313,18 @@ TruConnect is a Node.js/Electron microservice running on client machines that co
 ```
 
 **Connection Strategy:**
-1. **Real-time (Default)**: Frontend establishes a WebSocket connection to TruConnect `ws://localhost:8080`.
-2. **Polling Fallback**: If WebSocket fails OR polling mode is explicitly enabled in TruConnect, frontend polls `/api/weights/stream`.
-3. **Backend Proxy**: For remote sites, `truload-backend` acts as a proxy to poll the local TruConnect instance and serve the data to the frontend.
+1. **Real-time (Default)**: Frontend establishes a WebSocket connection to the local TruConnect middleware at `ws://localhost:8080`. The connection is always local — there is no backend WebSocket relay.
+2. **Polling Fallback**: If WebSocket fails OR polling mode is explicitly enabled in TruConnect settings, frontend polls `/api/weights/stream` on the local TruConnect HTTP endpoint.
+
+> **Note (Sprint 22.1):** Backend WebSocket relay (`getBackendWsUrl()`) was removed. The frontend always connects directly to local TruConnect. This eliminates failed `wss://` connection attempts in production environments where the backend does not expose a WebSocket endpoint.
 
 **Real-time Implementation (WebSocket):**
 ```typescript
-const useWeightStream = () => {
-  const [data, setData] = useState<WeightData | null>(null);
-  
-  useEffect(() => {
-    const ws = new WebSocket(process.env.NEXT_PUBLIC_TRUCONNECT_WS_URL || 'ws://localhost:8080');
-    
-    ws.onmessage = (event) => {
-      const payload = JSON.parse(event.data);
-      if (payload.type === 'weights') setData(payload.data);
-    };
-    
-    return () => ws.close();
-  }, []);
-  
-  return data;
+// useMiddleware.ts - always connects to local TruConnect
+const ws = new WebSocket('ws://localhost:8080');
+ws.onmessage = (event) => {
+  const payload = JSON.parse(event.data);
+  if (payload.type === 'weights') setData(payload.data);
 };
 ```
 
@@ -346,9 +337,10 @@ For portable axle weighers (Haenni/PAW), weights are captured sequentially:
 5. Once all axles are captured, GVW is finalized and weighing session completes.
 
 **Integration Points:**
-- Frontend connects to TruConnect (default: WebSocket)
+- Frontend connects to local TruConnect via WebSocket (always local, no backend relay)
 - Real-time display for all decks (or live axle in mobile mode)
 - Automatic stabilization capture
+- Backend generates ticket numbers via `DocumentNumberService` (frontend no longer generates ticket numbers)
 - Finalized weights submitted to backend API after session closure
 
 **Status Indicators:**
