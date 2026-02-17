@@ -67,11 +67,11 @@ export function PdfPreviewDialog({
     }
   };
 
-  const dialogMaxWidth = orientation === 'landscape' ? 'max-w-6xl' : 'max-w-3xl';
+  const dialogMaxWidth = orientation === 'landscape' ? 'max-w-[95vw]' : 'max-w-[90vw]';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${dialogMaxWidth} h-[85vh] flex flex-col`}>
+      <DialogContent className={`${dialogMaxWidth} h-[90vh] flex flex-col`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {title}
