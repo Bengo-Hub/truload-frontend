@@ -221,17 +221,8 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     return false;
   }, []);
 
-  // Generate ticket number
-  const generateTicketNumber = useCallback((): string => {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    const prefix = weighingMode === 'mobile' ? 'MOB' : 'MUL';
-    return `${prefix}${dateStr}${random}`;
-  }, [weighingMode]);
-
   // Initialize a new weighing transaction
-  // Sends a single POST request with vehicleRegNo - backend handles vehicle lookup/creation
+  // Sends a single POST request with vehicleRegNo - backend generates ticket number via DocumentNumberService
   const initializeTransaction = useCallback(async (
     vehiclePlate: string,
     axleConfigCode: string = '6C'
@@ -241,15 +232,19 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
       return null;
     }
 
+    // Prevent double creation if a request is already in flight
+    if (createTransactionMutation.isPending) {
+      console.warn('[useWeighing] Transaction creation already in progress, skipping duplicate call');
+      return null;
+    }
+
     try {
       setError(null);
 
       const normalizedPlate = vehiclePlate.toUpperCase().trim();
-      const ticketNumber = generateTicketNumber();
 
-      // Single request - backend handles vehicle lookup/creation
+      // Backend generates ticket number via DocumentNumberService
       const request: CreateWeighingRequest = {
-        ticketNumber,
         stationId: station.id,
         vehicleRegNo: normalizedPlate,
         weighingType: weighingMode,
@@ -260,7 +255,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
 
       const newSession: WeighingSessionState = {
         transactionId: newTransaction.id,
-        ticketNumber: newTransaction.ticketNumber || ticketNumber,
+        ticketNumber: newTransaction.ticketNumber,
         vehiclePlate: normalizedPlate,
         vehicleId: newTransaction.vehicleId || null,
         driverId: null,
@@ -287,7 +282,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
       console.error('Failed to initialize transaction:', e);
       return null;
     }
-  }, [station, weighingMode, bound, createTransactionMutation, generateTicketNumber, persistSession]);
+  }, [station, weighingMode, bound, createTransactionMutation, persistSession]);
 
   // Capture a single axle weight
   const captureAxleWeight = useCallback(async (
@@ -427,17 +422,16 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
 
     try {
       setError(null);
-      const ticketNumber = generateTicketNumber();
 
+      // Backend generates ticket number for reweigh via DocumentNumberService
       const newTransaction = await initiateReweighApi({
         originalWeighingId: session.transactionId,
-        reweighTicketNumber: ticketNumber,
       });
 
       // Create a new session for the reweigh, keeping vehicle details
       const reweighSession: WeighingSessionState = {
         transactionId: newTransaction.id,
-        ticketNumber: newTransaction.ticketNumber || ticketNumber,
+        ticketNumber: newTransaction.ticketNumber,
         vehiclePlate: session.vehiclePlate,
         vehicleId: session.vehicleId,
         driverId: session.driverId,
@@ -467,7 +461,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
       console.error('Failed to initiate reweigh:', e);
       return null;
     }
-  }, [session, generateTicketNumber, persistSession, queryClient]);
+  }, [session, persistSession, queryClient]);
 
   // Set vehicle plate (before transaction initialization)
   const setVehiclePlate = useCallback((plate: string) => {

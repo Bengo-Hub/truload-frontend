@@ -60,7 +60,7 @@ export function ReconcileDialog({
   const [error, setError] = useState<string | null>(null);
 
   const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('en-KE', { style: 'currency', currency }).format(val);
+    new Intl.NumberFormat('en-KE', { style: 'currency', currency: currency || 'KES' }).format(val);
 
   const handleVerify = async () => {
     if (!transactionRef.trim()) {

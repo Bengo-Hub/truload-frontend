@@ -232,28 +232,9 @@ const isDevelopment = () => {
   return process.env.NODE_ENV === 'development';
 };
 
-// Get backend WS URL from environment
-const getBackendWsUrl = () => {
-  // In development, don't use backend WebSocket - TruConnect is the primary
-  if (isDevelopment()) {
-    return null;
-  }
-  
-  if (typeof window !== 'undefined') {
-    // Check for environment variable
-    const envUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
-    if (envUrl) return envUrl;
-
-    // Derive from API URL if available
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (apiUrl) {
-      const url = new URL(apiUrl);
-      const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${wsProtocol}//${url.host}/ws/weights`;
-    }
-  }
-  return null;
-};
+// TruConnect middleware always runs locally — no backend WebSocket relay needed.
+// In production, TruConnect runs on the same machine as the browser (PWA/kiosk).
+// The backend API does not relay WebSocket weight data.
 
 export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareReturn {
   const {
@@ -263,10 +244,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     autoConnect = true,
     clientName = 'TruLoad Frontend',
     clientType = 'truload-frontend',
-    backendWsUrl = getBackendWsUrl(),
+    backendWsUrl = null,  // No backend WS relay — always use local TruConnect
     localWsUrl = DEFAULT_LOCAL_WS_URL,
     localApiUrl = DEFAULT_LOCAL_API_URL,
-    preferBackend = true,
+    preferBackend = false,
     enablePollingFallback = true,
     pollingInterval = DEFAULT_POLLING_INTERVAL,
     reconnectInterval = DEFAULT_RECONNECT_INTERVAL,
