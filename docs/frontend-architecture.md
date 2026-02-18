@@ -1,7 +1,7 @@
 # TruLoad Frontend Architecture
 
 ## Overview
-Next.js 15 App Router PWA with offline-first design, RBAC, and modular feature layout. This document maps the directory structure, routing conventions, shared utilities, and module boundaries used across the frontend.
+Next.js 16 App Router PWA with offline-first design, RBAC, and modular feature layout. This document maps the directory structure, routing conventions, shared utilities, and module boundaries used across the frontend.
 
 ## Core Structure
 ```
@@ -65,8 +65,8 @@ src/
 
 ## Data & Integrations
 - Base URL: `NEXT_PUBLIC_API_URL`; versioned endpoints `/api/v1/*`.
-- Superset: Guest tokens minted by backend; use `@superset-ui/embedded-sdk` for dashboards (planned under `reports/`).
-- TruConnect: Polling or SignalR for live weights (future modules under `(modules)/weighing`).
+- Superset: Guest tokens minted by backend; use `@superset-ui/embedded-sdk` for dashboards (implemented under `reports/`).
+- TruConnect: Local WebSocket (ws://localhost:3030) for live weights via `useMiddleware.ts` hook. No backend relay — always local.
 
 ## Guarding & Access
 - Middleware enforces auth on protected routes.
@@ -79,5 +79,9 @@ src/
 - Use Kubernetes DNS for service discovery in backend calls.
 - Keep Setup limited to configurations; move operational modules to main nav.
 
-## Future Modules (Placeholders)
-- `(modules)/weighing/`, `(modules)/prosecution/`, `(modules)/inspection/`, `(modules)/reports/` following the same structure: `page.tsx`, `components/`, `hooks/`, `types/`, `utils/`.
+## Implemented Modules
+- `weighing/` — Mobile and Multideck/Static weighing with TruConnect integration
+- `prosecution/` — Charge calculation, court hearings, invoices, receipts
+- `cases/` — Case register, special release, tags, yard management
+- `reports/` — Apache Superset embedded dashboards with guest token auth
+- `setup/` — Axle configurations, system settings, integrations
