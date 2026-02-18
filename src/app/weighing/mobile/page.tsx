@@ -32,7 +32,7 @@ import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWa
 import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
 import { WeightConfirmationModal } from '@/components/weighing/WeightConfirmationModal';
 import {
-    useAxleConfigurations,
+    useWeighingAxleConfigurations,
     useAxleWeightReferences,
     useCargoTypes,
     useCreateCargoType,
@@ -100,7 +100,7 @@ export default function MobileWeighingPage() {
     data: axleConfigurations = [],
     isLoading: isLoadingAxleConfigs,
     error: axleConfigError,
-  } = useAxleConfigurations();
+  } = useWeighingAxleConfigurations();
 
   // Fetch pending transactions for resume functionality (only mobile type)
   const { data: pendingWeighings } = usePendingWeighings(currentStation?.id, 'mobile');

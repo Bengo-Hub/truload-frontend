@@ -693,8 +693,10 @@ export interface AxleConfiguration {
   weightReferences?: AxleWeightReferenceDto[];
 }
 
-export async function fetchAxleConfigurations(): Promise<AxleConfiguration[]> {
-  const { data } = await apiClient.get<AxleConfiguration[]>('/AxleConfiguration');
+export async function fetchAxleConfigurations(params?: {
+  hasWeightReferences?: boolean;
+}): Promise<AxleConfiguration[]> {
+  const { data } = await apiClient.get<AxleConfiguration[]>('/AxleConfiguration', { params });
   return data;
 }
 

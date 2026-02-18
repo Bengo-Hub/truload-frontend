@@ -70,8 +70,9 @@ import {
   UserCircle,
   Wrench,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Pagination, usePagination } from '@/components/ui/pagination';
 
 export default function WeighingMetadataPage() {
   return (
@@ -137,11 +138,21 @@ function TransportersTab() {
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [selected, setSelected] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { pageNumber, pageSize, setPage, setPageSize } = usePagination(25);
 
   const { data: transporters, isLoading } = useTransporters(search);
   const createMutation = useCreateTransporter();
   const updateMutation = useUpdateTransporter();
   const deleteMutation = useDeleteTransporter();
+
+  const allItems = transporters ?? [];
+  const paginatedItems = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize;
+    return allItems.slice(start, start + pageSize);
+  }, [allItems, pageNumber, pageSize]);
+
+  // Reset page on search change
+  useEffect(() => { setPage(1); }, [search, setPage]);
 
   const openModal = (mode: ModalMode, item?: any) => {
     setModalMode(mode);
@@ -180,10 +191,11 @@ function TransportersTab() {
       <MetadataCard
         title="Transporters"
         description="Manage transport companies registered in the system"
-        count={transporters?.length}
+        count={allItems.length}
         onAdd={() => openModal('create')}
         search={search}
         onSearchChange={setSearch}
+        paginationProps={{ page: pageNumber, pageSize, totalItems: allItems.length, onPageChange: setPage, onPageSizeChange: setPageSize, isLoading }}
       >
         {isLoading ? <TableSkeleton cols={5} /> : (
           <Table>
@@ -197,10 +209,10 @@ function TransportersTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transporters?.length === 0 && (
+              {allItems.length === 0 && (
                 <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No transporters found</TableCell></TableRow>
               )}
-              {transporters?.map((t: any) => (
+              {paginatedItems.map((t: any) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-mono text-xs">{t.code || '-'}</TableCell>
                   <TableCell className="font-medium">{t.name}</TableCell>
@@ -250,11 +262,20 @@ function DriversTab() {
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [selected, setSelected] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { pageNumber, pageSize, setPage, setPageSize } = usePagination(25);
 
   const { data: drivers, isLoading } = useDrivers(search);
   const createMutation = useCreateDriver();
   const updateMutation = useUpdateDriver();
   const deleteMutation = useDeleteDriver();
+
+  const allItems = drivers ?? [];
+  const paginatedItems = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize;
+    return allItems.slice(start, start + pageSize);
+  }, [allItems, pageNumber, pageSize]);
+
+  useEffect(() => { setPage(1); }, [search, setPage]);
 
   const openModal = (mode: ModalMode, item?: any) => {
     setModalMode(mode);
@@ -293,10 +314,11 @@ function DriversTab() {
       <MetadataCard
         title="Drivers"
         description="Manage registered drivers and their license information"
-        count={drivers?.length}
+        count={allItems.length}
         onAdd={() => openModal('create')}
         search={search}
         onSearchChange={setSearch}
+        paginationProps={{ page: pageNumber, pageSize, totalItems: allItems.length, onPageChange: setPage, onPageSizeChange: setPageSize, isLoading }}
       >
         {isLoading ? <TableSkeleton cols={5} /> : (
           <Table>
@@ -310,10 +332,10 @@ function DriversTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {drivers?.length === 0 && (
+              {allItems.length === 0 && (
                 <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No drivers found</TableCell></TableRow>
               )}
-              {drivers?.map((d: any) => (
+              {paginatedItems.map((d: any) => (
                 <TableRow key={d.id}>
                   <TableCell className="font-medium">{d.fullNames} {d.surname}</TableCell>
                   <TableCell className="hidden md:table-cell font-mono text-xs">{d.drivingLicenseNo || '-'}</TableCell>
@@ -363,6 +385,7 @@ function VehiclesTab() {
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [selected, setSelected] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { pageNumber, pageSize, setPage, setPageSize } = usePagination(25);
 
   const { data: vehicleResults, isLoading } = useVehicleSearch(search);
   const { data: transportersList } = useTransporters();
@@ -370,6 +393,14 @@ function VehiclesTab() {
   const createMutation = useCreateVehicle();
   const updateMutation = useUpdateVehicle();
   const deleteMutation = useDeleteVehicle();
+
+  const allItems = vehicleResults ?? [];
+  const paginatedItems = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize;
+    return allItems.slice(start, start + pageSize);
+  }, [allItems, pageNumber, pageSize]);
+
+  useEffect(() => { setPage(1); }, [search, setPage]);
 
   const openModal = (mode: ModalMode, item?: any) => {
     setModalMode(mode);
@@ -408,10 +439,11 @@ function VehiclesTab() {
       <MetadataCard
         title="Vehicles"
         description="Manage registered vehicles and their configurations"
-        count={vehicleResults?.length}
+        count={allItems.length}
         onAdd={() => openModal('create')}
         search={search}
         onSearchChange={setSearch}
+        paginationProps={{ page: pageNumber, pageSize, totalItems: allItems.length, onPageChange: setPage, onPageSizeChange: setPageSize, isLoading }}
       >
         {isLoading ? <TableSkeleton cols={5} /> : (
           <Table>
@@ -425,10 +457,10 @@ function VehiclesTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {vehicleResults?.length === 0 && (
+              {allItems.length === 0 && (
                 <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No vehicles found. Search by registration number.</TableCell></TableRow>
               )}
-              {vehicleResults?.map((v: any) => (
+              {paginatedItems.map((v: any) => (
                 <TableRow key={v.id}>
                   <TableCell className="font-mono font-medium">{v.regNo}</TableCell>
                   <TableCell className="hidden md:table-cell">{v.vehicleType || '-'}</TableCell>
@@ -480,6 +512,7 @@ function CargoTypesTab() {
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [selected, setSelected] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { pageNumber, pageSize, setPage, setPageSize } = usePagination(25);
 
   const { data: cargoTypes, isLoading } = useCargoTypes();
   const createMutation = useCreateCargoType();
@@ -493,6 +526,13 @@ function CargoTypesTab() {
       c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q)
     );
   }, [cargoTypes, search]);
+
+  const paginatedItems = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, pageNumber, pageSize]);
+
+  useEffect(() => { setPage(1); }, [search, setPage]);
 
   const openModal = (mode: ModalMode, item?: any) => {
     setModalMode(mode);
@@ -535,6 +575,7 @@ function CargoTypesTab() {
         onAdd={() => openModal('create')}
         search={search}
         onSearchChange={setSearch}
+        paginationProps={{ page: pageNumber, pageSize, totalItems: filtered.length, onPageChange: setPage, onPageSizeChange: setPageSize, isLoading }}
       >
         {isLoading ? <TableSkeleton cols={4} /> : (
           <Table>
@@ -550,7 +591,7 @@ function CargoTypesTab() {
               {filtered.length === 0 && (
                 <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No cargo types found</TableCell></TableRow>
               )}
-              {filtered.map((c: any) => (
+              {paginatedItems.map((c: any) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-mono text-xs">{c.code || '-'}</TableCell>
                   <TableCell className="font-medium">{c.name}</TableCell>
@@ -599,6 +640,7 @@ function OriginsDestinationsTab() {
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [selected, setSelected] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { pageNumber, pageSize, setPage, setPageSize } = usePagination(25);
 
   const { data: origDests, isLoading } = useOriginsDestinations();
   const createMutation = useCreateOriginDestination();
@@ -612,6 +654,13 @@ function OriginsDestinationsTab() {
       o.name?.toLowerCase().includes(q) || o.code?.toLowerCase().includes(q) || o.country?.toLowerCase().includes(q)
     );
   }, [origDests, search]);
+
+  const paginatedItems = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, pageNumber, pageSize]);
+
+  useEffect(() => { setPage(1); }, [search, setPage]);
 
   const openModal = (mode: ModalMode, item?: any) => {
     setModalMode(mode);
@@ -654,6 +703,7 @@ function OriginsDestinationsTab() {
         onAdd={() => openModal('create')}
         search={search}
         onSearchChange={setSearch}
+        paginationProps={{ page: pageNumber, pageSize, totalItems: filtered.length, onPageChange: setPage, onPageSizeChange: setPageSize, isLoading }}
       >
         {isLoading ? <TableSkeleton cols={4} /> : (
           <Table>
@@ -669,7 +719,7 @@ function OriginsDestinationsTab() {
               {filtered.length === 0 && (
                 <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No origins/destinations found</TableCell></TableRow>
               )}
-              {filtered.map((o: any) => (
+              {paginatedItems.map((o: any) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-mono text-xs">{o.code || '-'}</TableCell>
                   <TableCell className="font-medium">{o.name}</TableCell>
@@ -718,6 +768,7 @@ function VehicleMakesTab() {
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [selected, setSelected] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { pageNumber, pageSize, setPage, setPageSize } = usePagination(25);
 
   const { data: makes, isLoading } = useVehicleMakes();
   const createMutation = useCreateVehicleMake();
@@ -731,6 +782,13 @@ function VehicleMakesTab() {
       m.name?.toLowerCase().includes(q) || m.code?.toLowerCase().includes(q)
     );
   }, [makes, search]);
+
+  const paginatedItems = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, pageNumber, pageSize]);
+
+  useEffect(() => { setPage(1); }, [search, setPage]);
 
   const openModal = (mode: ModalMode, item?: any) => {
     setModalMode(mode);
@@ -773,6 +831,7 @@ function VehicleMakesTab() {
         onAdd={() => openModal('create')}
         search={search}
         onSearchChange={setSearch}
+        paginationProps={{ page: pageNumber, pageSize, totalItems: filtered.length, onPageChange: setPage, onPageSizeChange: setPageSize, isLoading }}
       >
         {isLoading ? <TableSkeleton cols={3} /> : (
           <Table>
@@ -787,7 +846,7 @@ function VehicleMakesTab() {
               {filtered.length === 0 && (
                 <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">No vehicle makes found</TableCell></TableRow>
               )}
-              {filtered.map((m: any) => (
+              {paginatedItems.map((m: any) => (
                 <TableRow key={m.id}>
                   <TableCell className="font-medium">{m.name}</TableCell>
                   <TableCell className="hidden md:table-cell">{m.country || '-'}</TableCell>
@@ -837,6 +896,7 @@ function MetadataCard({
   search,
   onSearchChange,
   children,
+  paginationProps,
 }: {
   title: string;
   description: string;
@@ -845,6 +905,14 @@ function MetadataCard({
   search: string;
   onSearchChange: (v: string) => void;
   children: React.ReactNode;
+  paginationProps?: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (size: number) => void;
+    isLoading?: boolean;
+  };
 }) {
   return (
     <Card>
@@ -878,7 +946,22 @@ function MetadataCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent>
+        {children}
+        {paginationProps && paginationProps.totalItems > 0 && (
+          <div className="border-t mt-4 pt-3">
+            <Pagination
+              page={paginationProps.page}
+              pageSize={paginationProps.pageSize}
+              totalItems={paginationProps.totalItems}
+              onPageChange={paginationProps.onPageChange}
+              onPageSizeChange={paginationProps.onPageSizeChange}
+              pageSizeOptions={[10, 25, 50]}
+              isLoading={paginationProps.isLoading}
+            />
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }
