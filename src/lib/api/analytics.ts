@@ -38,6 +38,16 @@ export interface NaturalLanguageQueryResponse {
   success: boolean;
 }
 
+export interface AsyncNaturalLanguageQueryRequest {
+  question: string;
+  schemaContext?: string;
+  connectionId: string;
+}
+
+export interface AsyncQueryAcceptedResponse {
+  jobId: string;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -74,11 +84,23 @@ export async function getDashboard(id: number) {
 }
 
 /**
- * Execute a natural language query using AI-powered text-to-SQL
+ * Execute a natural language query using AI-powered text-to-SQL (synchronous)
  */
 export async function executeNaturalLanguageQuery(request: NaturalLanguageQueryRequest) {
   const response = await apiClient.post<NaturalLanguageQueryResponse>(
     '/analytics/query',
+    request
+  );
+  return response.data;
+}
+
+/**
+ * Submit a natural language query for async processing via SignalR.
+ * Results will be pushed to the client's SignalR connection.
+ */
+export async function submitAsyncQuery(request: AsyncNaturalLanguageQueryRequest) {
+  const response = await apiClient.post<AsyncQueryAcceptedResponse>(
+    '/analytics/query/async',
     request
   );
   return response.data;
@@ -93,4 +115,5 @@ export const analyticsApi = {
   getDashboards,
   getDashboard,
   executeNaturalLanguageQuery,
+  submitAsyncQuery,
 };

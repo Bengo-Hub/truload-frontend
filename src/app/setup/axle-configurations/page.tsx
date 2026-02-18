@@ -51,6 +51,7 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Pagination, usePagination } from '@/components/ui/pagination';
 
 interface AxleFormValues {
 	axleCode: string;
@@ -106,6 +107,9 @@ function AxleConfigurationsContent() {
 		queryFn: () => fetchAxleConfigurations({ includeInactive: true }),
 	});
 
+	// Pagination
+	const { pageNumber, pageSize, setPage, setPageSize } = usePagination(25);
+
 	// Filtered configurations
 	const filteredConfigs = useMemo(() => {
 		return configs.filter(cfg => {
@@ -116,6 +120,17 @@ function AxleConfigurationsContent() {
 			return matchesSearch && matchesFramework;
 		});
 	}, [configs, searchQuery, frameworkFilter]);
+
+	// Paginated configurations
+	const paginatedConfigs = useMemo(() => {
+		const start = (pageNumber - 1) * pageSize;
+		return filteredConfigs.slice(start, start + pageSize);
+	}, [filteredConfigs, pageNumber, pageSize]);
+
+	// Reset to page 1 when filters change
+	useEffect(() => {
+		setPage(1);
+	}, [searchQuery, frameworkFilter, setPage]);
 
 	// Statistics
 	const stats = useMemo(() => {
@@ -560,7 +575,7 @@ function AxleConfigurationsContent() {
 											</TableCell>
 										</TableRow>
 									)}
-									{filteredConfigs.map((cfg) => (
+									{paginatedConfigs.map((cfg) => (
 										<TableRow key={cfg.id} className="group">
 											<TableCell className="font-mono font-medium text-primary">{cfg.axleCode}</TableCell>
 											<TableCell>
@@ -626,6 +641,19 @@ function AxleConfigurationsContent() {
 							</Table>
 						</ScrollArea>
 					</div>
+					{filteredConfigs.length > 0 && (
+						<div className="border-t px-4 py-3">
+							<Pagination
+								page={pageNumber}
+								pageSize={pageSize}
+								totalItems={filteredConfigs.length}
+								onPageChange={setPage}
+								onPageSizeChange={setPageSize}
+								pageSizeOptions={[10, 25, 50, 100]}
+								isLoading={isLoading}
+							/>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 

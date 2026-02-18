@@ -32,7 +32,7 @@ import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
 import { useHasPermission } from '@/hooks/useAuth';
 import {
-  useAxleConfigurations,
+  useWeighingAxleConfigurations,
   useAxleWeightReferences,
   useCargoTypes,
   useCreateCargoType,
@@ -110,7 +110,7 @@ export default function MultideckWeighingPage() {
     data: axleConfigurations = [],
     isLoading: isLoadingAxleConfigs,
     error: axleConfigError,
-  } = useAxleConfigurations();
+  } = useWeighingAxleConfigurations();
 
   // Fetch pending transactions for resume (only multideck type)
   const { data: pendingWeighings } = usePendingWeighings(currentStation?.id, 'multideck');

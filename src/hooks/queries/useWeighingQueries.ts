@@ -20,7 +20,19 @@ import { QUERY_KEYS, QUERY_OPTIONS, queryKeys } from '@/lib/query/config';
 export function useAxleConfigurations() {
   return useQuery({
     queryKey: QUERY_KEYS.AXLE_CONFIGURATIONS,
-    queryFn: weighingApi.fetchAxleConfigurations,
+    queryFn: () => weighingApi.fetchAxleConfigurations(),
+    ...QUERY_OPTIONS.static,
+  });
+}
+
+/**
+ * Fetch only axle configurations that have weight references.
+ * Used on weighing screens to prevent selecting configs without compliance data.
+ */
+export function useWeighingAxleConfigurations() {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.AXLE_CONFIGURATIONS, 'with-refs'],
+    queryFn: () => weighingApi.fetchAxleConfigurations({ hasWeightReferences: true }),
     ...QUERY_OPTIONS.static,
   });
 }
