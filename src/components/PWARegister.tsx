@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
+import { PWAInstallPrompt } from './PWAInstallPrompt';
+
+// Guard for debug logging - only emit console.log in development builds
+const isDev = process.env.NODE_ENV === 'development';
 
 export function PWARegister() {
   useEffect(() => {
@@ -18,7 +22,7 @@ export function PWARegister() {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
-          console.log('PWA Service Worker registered successfully:', registration);
+          if (isDev) console.log('PWA Service Worker registered successfully:', registration);
 
           // Check for updates periodically
           setInterval(() => {
@@ -32,7 +36,7 @@ export function PWARegister() {
 
     // Handle app installed event
     const appInstalledHandler = () => {
-      console.log('TruLoad PWA has been installed');
+      if (isDev) console.log('TruLoad PWA has been installed');
     };
 
     window.addEventListener('appinstalled', appInstalledHandler);
@@ -42,6 +46,5 @@ export function PWARegister() {
     };
   }, []);
 
-  // No UI needed - PWA registration is automatic
-  return null;
+  return <PWAInstallPrompt />;
 }

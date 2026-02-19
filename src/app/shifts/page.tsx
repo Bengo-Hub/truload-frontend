@@ -576,7 +576,7 @@ function ShiftFormDialog({ open, onOpenChange, editing }: ShiftFormDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onOpenChange(false); } }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit Work Shift' : 'Create Work Shift'}</DialogTitle>
           <DialogDescription>
@@ -1131,7 +1131,7 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onOpenChange(false); } }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-w-[95vw] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit Shift Rotation' : 'Create Shift Rotation'}</DialogTitle>
           <DialogDescription>

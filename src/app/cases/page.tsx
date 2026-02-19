@@ -162,7 +162,7 @@ export default function CaseRegisterPage() {
       <ProtectedRoute requiredPermissions={['case.read']}>
         <div className="space-y-6">
           {/* Statistics Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -267,7 +267,7 @@ export default function CaseRegisterPage() {
 
               {/* Filters Panel */}
               {showFilters && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
                   <div className="space-y-2">
                     <Label>Station</Label>
                     <Select
@@ -358,7 +358,7 @@ export default function CaseRegisterPage() {
               )}
 
               {/* Data Table */}
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">

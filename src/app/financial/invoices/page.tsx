@@ -200,7 +200,7 @@ export default function InvoicesPage() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           {isLoadingStats ? (
             <>
               {[...Array(4)].map((_, i) => (
@@ -274,7 +274,7 @@ export default function InvoicesPage() {
             <CardDescription>Filter invoices by number, status, or date range</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
                 <Label>Invoice Number</Label>
                 <div className="relative">

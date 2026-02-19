@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { fetchUsers } from '@/lib/api/setup';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -83,6 +86,11 @@ export default function CaseDetailPage() {
   const { data: specialReleases = [] } = useSpecialReleasesByCase(caseId);
   const { data: dispositionTypes = [] } = useDispositionTypes();
   const { data: releaseTypes = [] } = useReleaseTypes();
+  const { data: usersData } = useQuery({
+    queryKey: ['users-for-escalation'],
+    queryFn: () => fetchUsers({ pageSize: 100 }),
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Mutations
   const closeCaseMutation = useCloseCase();
@@ -98,6 +106,8 @@ export default function CaseDetailPage() {
   const [closeDispositionId, setCloseDispositionId] = useState('');
   const [closeReason, setCloseReason] = useState('');
   const [escalateNotes, setEscalateNotes] = useState('');
+  const [selectedCaseManagerId, setSelectedCaseManagerId] = useState('');
+  const [caseManagerSearch, setCaseManagerSearch] = useState('');
   const [releaseTypeId, setReleaseTypeId] = useState('');
   const [releaseReason, setReleaseReason] = useState('');
 
@@ -126,18 +136,24 @@ export default function CaseDetailPage() {
 
   // Handle escalate case
   const handleEscalateCase = useCallback(async () => {
+    if (!selectedCaseManagerId) {
+      toast.error('Please select a case manager');
+      return;
+    }
     try {
       await escalateCaseMutation.mutateAsync({
         id: caseId,
-        caseManagerId: '', // TODO: In production, this should come from a user selector
+        caseManagerId: selectedCaseManagerId,
       });
       toast.success('Case escalated successfully');
       setShowEscalateModal(false);
+      setSelectedCaseManagerId('');
+      setCaseManagerSearch('');
       refetch();
     } catch (_error) {
       toast.error('Failed to escalate case');
     }
-  }, [caseId, escalateCaseMutation, refetch]);
+  }, [caseId, selectedCaseManagerId, escalateCaseMutation, refetch]);
 
   // Handle request special release
   const handleRequestRelease = useCallback(async () => {
@@ -652,6 +668,35 @@ export default function CaseDetailPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
+                <Label>Assign Case Manager <span className="text-red-500">*</span></Label>
+                <Select value={selectedCaseManagerId} onValueChange={setSelectedCaseManagerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a case manager..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="p-2">
+                      <Input
+                        placeholder="Search users..."
+                        value={caseManagerSearch}
+                        onChange={(e) => setCaseManagerSearch(e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                    {(usersData?.items ?? [])
+                      .filter((u: { fullName?: string; email?: string }) =>
+                        !caseManagerSearch ||
+                        (u.fullName ?? '').toLowerCase().includes(caseManagerSearch.toLowerCase()) ||
+                        (u.email ?? '').toLowerCase().includes(caseManagerSearch.toLowerCase())
+                      )
+                      .map((u: { id: string; fullName?: string; email?: string }) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.fullName || u.email}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>Notes (optional)</Label>
                 <Textarea
                   value={escalateNotes}
@@ -667,7 +712,7 @@ export default function CaseDetailPage() {
               </Button>
               <Button
                 onClick={handleEscalateCase}
-                disabled={escalateCaseMutation.isPending}
+                disabled={escalateCaseMutation.isPending || !selectedCaseManagerId}
               >
                 {escalateCaseMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

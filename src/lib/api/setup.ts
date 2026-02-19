@@ -70,6 +70,10 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
   await apiClient.post('/auth/forgot-password', { email });
 }
 
+export async function resetPasswordWithToken(email: string, token: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/reset-password', { email, token, newPassword });
+}
+
 export async function adminResetPassword(userId: string, newPassword: string, confirmNewPassword: string): Promise<void> {
   await apiClient.post(`/user-management/users/${userId}/reset-password`, {
     newPassword,

@@ -135,18 +135,18 @@ export default function TicketsListView({
               <TableHead className="text-xs font-semibold text-gray-700 h-10 pl-3 w-8">#</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 w-8" />
               <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap">Ticket No.</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">Station</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap">Date Time</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden md:table-cell">Station</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap hidden lg:table-cell">Date Time</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10">Registration</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">Anprpic</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">ANPR</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap">ANPR Check</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap text-center">Time Taken (Secs)</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">Source/Dest.</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">User</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">Transporter</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">Cargo</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10">Axle</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Anprpic</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">ANPR</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap hidden xl:table-cell">ANPR Check</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap text-center hidden lg:table-cell">Time Taken (Secs)</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Source/Dest.</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden lg:table-cell">User</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Transporter</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Cargo</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden md:table-cell">Axle</TableHead>
               {showDeckColumns && (
                 <>
                   <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Deck A[KG]</TableHead>
@@ -220,10 +220,10 @@ export default function TicketsListView({
                     </TableCell>
 
                     {/* Station */}
-                    <TableCell className="text-xs text-gray-700 py-2">{ticket.stationCode ?? '—'}</TableCell>
+                    <TableCell className="text-xs text-gray-700 py-2 hidden md:table-cell">{ticket.stationCode ?? '—'}</TableCell>
 
                     {/* Date Time */}
-                    <TableCell className="text-xs text-gray-600 py-2 whitespace-nowrap">
+                    <TableCell className="text-xs text-gray-600 py-2 whitespace-nowrap hidden lg:table-cell">
                       {formatDateTime(ticket.weighedAt)}
                     </TableCell>
 
@@ -233,7 +233,7 @@ export default function TicketsListView({
                     </TableCell>
 
                     {/* ANPR Pic */}
-                    <TableCell className="py-2 px-1">
+                    <TableCell className="py-2 px-1 hidden xl:table-cell">
                       {ticket.vehicleThumbnailUrl ? (
                         <img
                           src={ticket.vehicleThumbnailUrl}
@@ -248,12 +248,12 @@ export default function TicketsListView({
                     </TableCell>
 
                     {/* ANPR Text */}
-                    <TableCell className="text-xs font-mono text-gray-600 py-2">
+                    <TableCell className="text-xs font-mono text-gray-600 py-2 hidden xl:table-cell">
                       {ticket.anprRegistration ?? '—'}
                     </TableCell>
 
                     {/* ANPR Check */}
-                    <TableCell className="text-xs py-2">
+                    <TableCell className="text-xs py-2 hidden xl:table-cell">
                       {ticket.anprMatch == null ? (
                         <span className="text-gray-400">—</span>
                       ) : ticket.anprMatch ? (
@@ -264,12 +264,12 @@ export default function TicketsListView({
                     </TableCell>
 
                     {/* Time Taken */}
-                    <TableCell className="text-xs text-gray-600 py-2 text-center font-mono">
+                    <TableCell className="text-xs text-gray-600 py-2 text-center font-mono hidden lg:table-cell">
                       {ticket.timeTakenSeconds ?? '—'}
                     </TableCell>
 
                     {/* Source/Dest */}
-                    <TableCell className="text-xs text-gray-600 py-2">
+                    <TableCell className="text-xs text-gray-600 py-2 hidden xl:table-cell">
                       {(ticket.sourceLocation || ticket.destinationLocation) ? (
                         <div className="space-y-0.5">
                           {ticket.sourceLocation && (
@@ -283,22 +283,22 @@ export default function TicketsListView({
                     </TableCell>
 
                     {/* User */}
-                    <TableCell className="text-xs text-gray-600 py-2">
+                    <TableCell className="text-xs text-gray-600 py-2 hidden lg:table-cell">
                       {ticket.weighedByUserName ?? '—'}
                     </TableCell>
 
                     {/* Transporter */}
-                    <TableCell className="text-xs text-gray-600 py-2">
+                    <TableCell className="text-xs text-gray-600 py-2 hidden xl:table-cell">
                       <div className="truncate max-w-[100px]">{ticket.transporterName ?? '—'}</div>
                     </TableCell>
 
                     {/* Cargo */}
-                    <TableCell className="text-xs text-gray-600 py-2">
+                    <TableCell className="text-xs text-gray-600 py-2 hidden xl:table-cell">
                       <div className="truncate max-w-[100px]">{ticket.cargoType ?? '—'}</div>
                     </TableCell>
 
                     {/* Axle Config */}
-                    <TableCell className="text-xs text-gray-600 py-2 text-center">
+                    <TableCell className="text-xs text-gray-600 py-2 text-center hidden md:table-cell">
                       {ticket.axleConfiguration ?? '—'}
                     </TableCell>
 

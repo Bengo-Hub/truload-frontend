@@ -215,7 +215,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
             onClick={onMobileClose}
           />
           {/* Drawer */}
-          <aside className="fixed top-0 left-0 z-50 h-screen w-72 flex flex-col border-r border-gray-200 bg-white lg:hidden animate-in slide-in-from-left duration-200">
+          <aside className="fixed top-0 left-0 z-50 h-screen w-[min(18rem,90vw)] flex flex-col border-r border-gray-200 bg-white lg:hidden animate-in slide-in-from-left duration-200">
             {sidebarContent}
           </aside>
         </>
