@@ -232,6 +232,9 @@ const isDevelopment = () => {
   return process.env.NODE_ENV === 'development';
 };
 
+// Guard for debug logging - only emit console.log in development builds
+const isDev = process.env.NODE_ENV === 'development';
+
 // TruConnect middleware always runs locally — no backend WebSocket relay needed.
 // In production, TruConnect runs on the same machine as the browser (PWA/kiosk).
 // The backend API does not relay WebSocket weight data.
@@ -307,7 +310,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       setState(s => ({ ...s, isOnline: false }));
       // When going offline, switch to local if not already
       if (state.connectionMode === 'backend_ws') {
-        console.log('[useMiddleware] Network offline, switching to local connection');
+        if (isDev) console.log('[useMiddleware] Network offline, switching to local connection');
         connectToLocalRef.current?.();
       }
     };
@@ -581,14 +584,14 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       };
 
       try {
-        console.log(`[useMiddleware] Connecting to ${connectionMode}: ${url}`);
+        if (isDev) console.log(`[useMiddleware] Connecting to ${connectionMode}: ${url}`);
         const ws = new WebSocket(url);
         
         // Use a shorter timeout for initial connection attempt (2 seconds)
         // This gives WebSocket priority but doesn't block fallback too long
         const timeoutId = setTimeout(() => {
           if (ws.readyState !== WebSocket.OPEN) {
-            console.log(`[useMiddleware] WebSocket connection timeout for ${url}`);
+            if (isDev) console.log(`[useMiddleware] WebSocket connection timeout for ${url}`);
             ws.close();
             safeResolve(false);
           }
@@ -601,7 +604,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
           // IMPORTANT: If we were polling, stop it now - WebSocket takes over
           if (pollingTimer.current) {
-            console.log('[useMiddleware] WebSocket connected, stopping API polling');
+            if (isDev) console.log('[useMiddleware] WebSocket connected, stopping API polling');
             clearInterval(pollingTimer.current);
             pollingTimer.current = null;
           }
@@ -657,7 +660,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         ws.onerror = (error) => {
           // Don't resolve on error alone - wait for onclose or timeout
           // onerror is always followed by onclose, so we let onclose handle resolution
-          console.log(`[useMiddleware] WebSocket error for ${url}:`, error);
+          if (isDev) console.log(`[useMiddleware] WebSocket error for ${url}:`, error);
           // Note: We do NOT call safeResolve here - onclose will be called after onerror
         };
 
@@ -692,7 +695,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   const startPolling = useCallback(() => {
     if (pollingTimer.current) return;
 
-    console.log(`[useMiddleware] Starting API polling: ${localApiUrl}`);
+    if (isDev) console.log(`[useMiddleware] Starting API polling: ${localApiUrl}`);
 
     const poll = async () => {
       try {
@@ -734,7 +737,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     // This runs every 10 seconds while polling is active
     const wsRetryInterval = setInterval(async () => {
       if (pollingTimer.current && !wsRef.current) {
-        console.log('[useMiddleware] Background retry: attempting WebSocket upgrade from polling...');
+        if (isDev) console.log('[useMiddleware] Background retry: attempting WebSocket upgrade from polling...');
         // Try WebSocket silently - if it connects, it will stop polling automatically
         const ws = new WebSocket(localWsUrl);
         
@@ -746,7 +749,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         
         ws.onopen = () => {
           clearTimeout(retryTimeout);
-          console.log('[useMiddleware] Background WebSocket connected! Upgrading from polling...');
+          if (isDev) console.log('[useMiddleware] Background WebSocket connected! Upgrading from polling...');
           // Stop polling
           if (pollingTimer.current) {
             clearInterval(pollingTimer.current);
@@ -838,7 +841,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   // Only switches to API polling if the endpoint is actually reachable
   const connectToLocal = useCallback(async (): Promise<boolean> => {
     // Try local WebSocket first
-    console.log('[useMiddleware] Trying local WebSocket...');
+    if (isDev) console.log('[useMiddleware] Trying local WebSocket...');
     const wsConnected = await connectWebSocket(localWsUrl, 'local_ws');
 
     if (wsConnected) {
@@ -847,15 +850,15 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     // If WebSocket failed, check if API polling is enabled and endpoint is reachable
     if (enablePollingFallback) {
-      console.log('[useMiddleware] Local WebSocket failed, checking if API is reachable...');
+      if (isDev) console.log('[useMiddleware] Local WebSocket failed, checking if API is reachable...');
       const apiReachable = await isApiEndpointReachable(localApiUrl);
 
       if (apiReachable) {
-        console.log('[useMiddleware] API endpoint is reachable, starting polling');
+        if (isDev) console.log('[useMiddleware] API endpoint is reachable, starting polling');
         startPolling();
         return true;
       } else {
-        console.log('[useMiddleware] API endpoint is NOT reachable, staying disconnected');
+        if (isDev) console.log('[useMiddleware] API endpoint is NOT reachable, staying disconnected');
         // Don't switch to polling if API isn't reachable
         // The connection will stay in its current state and retry later
         setState(s => ({
@@ -885,13 +888,13 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     // If forced to local OR in development mode, skip backend
     if (forceLocalRef.current || isDevelopment()) {
       if (isDevelopment() && !forceLocalRef.current) {
-        console.log('[useMiddleware] Development mode detected, using local WebSocket as primary');
+        if (isDev) console.log('[useMiddleware] Development mode detected, using local WebSocket as primary');
       }
       stopPolling();
       const localSuccess = await connectToLocal();
       if (!localSuccess && currentlyPolling) {
         // Local failed, but we had working polling - restore it
-        console.log('[useMiddleware] Local connection failed, but polling was working - restoring polling');
+        if (isDev) console.log('[useMiddleware] Local connection failed, but polling was working - restoring polling');
         startPolling();
       }
       return;
@@ -899,7 +902,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     // Try backend WebSocket first if online and configured (production only)
     if (state.isOnline && backendWsUrl && preferBackend) {
-      console.log('[useMiddleware] Trying backend WebSocket...');
+      if (isDev) console.log('[useMiddleware] Trying backend WebSocket...');
       const backendConnected = await connectWebSocket(backendWsUrl, 'backend_ws');
 
       if (backendConnected) {
@@ -907,7 +910,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         return; // Successfully connected to backend
       }
 
-      console.log('[useMiddleware] Backend unavailable, falling back to local');
+      if (isDev) console.log('[useMiddleware] Backend unavailable, falling back to local');
     }
 
     // Try local connection (WebSocket first, then API if reachable)
@@ -918,11 +921,11 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       // All connection attempts failed
       if (currentlyPolling) {
         // We had working polling connection - keep it going
-        console.log('[useMiddleware] All new connections failed, keeping current polling connection');
+        if (isDev) console.log('[useMiddleware] All new connections failed, keeping current polling connection');
         // Don't stop polling - it was already working
       } else {
         // Nothing was working, schedule retry
-        console.log('[useMiddleware] All connections failed, scheduling retry');
+        if (isDev) console.log('[useMiddleware] All connections failed, scheduling retry');
         scheduleReconnectRef.current?.();
       }
     }
@@ -938,7 +941,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       30000 // Max 30 seconds
     );
 
-    console.log(`[useMiddleware] Scheduling reconnect in ${delay}ms (attempt ${connectionAttemptsRef.current})`);
+    if (isDev) console.log(`[useMiddleware] Scheduling reconnect in ${delay}ms (attempt ${connectionAttemptsRef.current})`);
 
     reconnectTimer.current = setTimeout(() => {
       reconnectTimer.current = null;
@@ -1060,7 +1063,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     }
 
     // Values changed - send updated registration
-    console.log(`[useMiddleware] Re-registering with updated values: ${stationCode}, bound=${bound}, mode=${mode}`);
+    if (isDev) console.log(`[useMiddleware] Re-registering with updated values: ${stationCode}, bound=${bound}, mode=${mode}`);
     sendMessage('register', { stationCode, bound, mode, clientName, clientType });
     lastRegisteredRef.current = { stationCode, bound, mode };
   }, [stationCode, bound, mode, clientName, clientType, state.connected, state.connectionMode, sendMessage]);

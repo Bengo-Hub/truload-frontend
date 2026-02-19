@@ -194,7 +194,7 @@ export default function ReceiptsPage() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {isLoadingStats ? (
             <>
               {[...Array(3)].map((_, i) => (
@@ -257,7 +257,7 @@ export default function ReceiptsPage() {
             <CardDescription>Filter receipts by number, payment method, or date range</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
                 <Label>Receipt Number</Label>
                 <div className="relative">

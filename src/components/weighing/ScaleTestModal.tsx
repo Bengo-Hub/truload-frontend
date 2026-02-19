@@ -114,6 +114,9 @@ const getLiveDeckWeight = (weights: MiddlewareWeights | null | undefined, deck: 
   }
 };
 
+// Guard for debug logging - only emit console.log in development builds
+const isDev = process.env.NODE_ENV === 'development';
+
 const TEST_WEIGHTS = [1000, 2000, 5000, 10000, 20000]; // Common calibration weights in kg
 const ACCEPTABLE_DEVIATION_PERCENT = 0.5; // 0.5% tolerance
 const MIN_ACCEPTABLE_DEVIATION = 50; // Minimum 50kg tolerance
@@ -245,11 +248,11 @@ export function ScaleTestModal({
       if (useLiveData) {
         // Read live weight from middleware
         reading = getLiveDeckWeight(middlewareWeights, deckNumber);
-        console.log(`[ScaleTest] Deck ${deckNumber} live reading: ${reading}kg from middleware`);
+        if (isDev) console.log(`[ScaleTest] Deck ${deckNumber} live reading: ${reading}kg from middleware`);
       } else {
         // Fallback to simulation when middleware not connected
         reading = simulateScaleReading(expectedWeight, 30);
-        console.log(`[ScaleTest] Deck ${deckNumber} simulated reading: ${reading}kg (middleware not connected)`);
+        if (isDev) console.log(`[ScaleTest] Deck ${deckNumber} simulated reading: ${reading}kg (middleware not connected)`);
       }
 
       newReadings.push({ deck: deckNumber, weight: reading, status: 'captured' });
@@ -309,17 +312,17 @@ export function ScaleTestModal({
       // Use scaleA from weight data (PAW: derived from combined, Haenni: direct)
       scaleAReading = middlewareWeights.scaleA;
       const mode = middlewareWeights.scaleWeightMode || 'combined';
-      console.log(`[ScaleTest] Scale A live reading: ${scaleAReading}kg from middleware (${mode} mode)`);
+      if (isDev) console.log(`[ScaleTest] Scale A live reading: ${scaleAReading}kg from middleware (${mode} mode)`);
     } else if (hasScaleStatus && middlewareScaleStatus?.scaleA) {
       scaleAReading = middlewareScaleStatus.scaleA.weight || 0;
-      console.log(`[ScaleTest] Scale A live reading: ${scaleAReading}kg from scale status`);
+      if (isDev) console.log(`[ScaleTest] Scale A live reading: ${scaleAReading}kg from scale status`);
     } else if (middlewareConnected && middlewareWeights?.currentWeight) {
       // Fallback: derive from combined weight (PAW behavior)
       scaleAReading = Math.round((middlewareWeights.currentWeight || 0) / 2);
-      console.log(`[ScaleTest] Scale A derived reading: ${scaleAReading}kg (from combined weight)`);
+      if (isDev) console.log(`[ScaleTest] Scale A derived reading: ${scaleAReading}kg (from combined weight)`);
     } else {
       scaleAReading = simulateScaleReading(expectedPerScale, 20);
-      console.log(`[ScaleTest] Scale A simulated reading: ${scaleAReading}kg (middleware not connected)`);
+      if (isDev) console.log(`[ScaleTest] Scale A simulated reading: ${scaleAReading}kg (middleware not connected)`);
     }
     setMobileReadings(prev => ({ ...prev, scaleA: scaleAReading }));
 
@@ -331,19 +334,19 @@ export function ScaleTestModal({
       // Use scaleB from weight data (PAW: derived from combined, Haenni: direct)
       scaleBReading = middlewareWeights.scaleB;
       const mode = middlewareWeights.scaleWeightMode || 'combined';
-      console.log(`[ScaleTest] Scale B live reading: ${scaleBReading}kg from middleware (${mode} mode)`);
+      if (isDev) console.log(`[ScaleTest] Scale B live reading: ${scaleBReading}kg from middleware (${mode} mode)`);
     } else if (hasScaleStatus && middlewareScaleStatus?.scaleB) {
       scaleBReading = middlewareScaleStatus.scaleB.weight || 0;
-      console.log(`[ScaleTest] Scale B live reading: ${scaleBReading}kg from scale status`);
+      if (isDev) console.log(`[ScaleTest] Scale B live reading: ${scaleBReading}kg from scale status`);
     } else if (middlewareConnected && middlewareWeights?.currentWeight) {
       // Fallback: derive from combined weight (PAW behavior - second half)
       const total = middlewareWeights.currentWeight || 0;
       const scaleA = Math.round(total / 2);
       scaleBReading = total - scaleA;
-      console.log(`[ScaleTest] Scale B derived reading: ${scaleBReading}kg (from combined weight)`);
+      if (isDev) console.log(`[ScaleTest] Scale B derived reading: ${scaleBReading}kg (from combined weight)`);
     } else {
       scaleBReading = simulateScaleReading(expectedPerScale, 20);
-      console.log(`[ScaleTest] Scale B simulated reading: ${scaleBReading}kg (middleware not connected)`);
+      if (isDev) console.log(`[ScaleTest] Scale B simulated reading: ${scaleBReading}kg (middleware not connected)`);
     }
     setMobileReadings(prev => ({ ...prev, scaleB: scaleBReading }));
 

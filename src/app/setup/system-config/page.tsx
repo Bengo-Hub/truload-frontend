@@ -14,7 +14,7 @@ import {
   useReloadRateLimits,
 } from '@/hooks/queries/useSettingsQueries';
 import type { ApplicationSettingDto, UpdateSettingsBatchRequest } from '@/lib/api/settings';
-import { Gauge, Calculator, Clock, Info, Loader2, RotateCcw, Save, Zap } from 'lucide-react';
+import { Bell, Gauge, Calculator, Clock, Info, Loader2, RotateCcw, Save, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -199,7 +199,7 @@ export default function SystemConfigPage() {
         </div>
 
         <Tabs defaultValue="rate-limiting" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
             <TabsTrigger value="rate-limiting" className="flex items-center gap-2">
               <Gauge className="h-4 w-4" />
               <span className="hidden sm:inline">Rate Limiting</span>
@@ -214,6 +214,11 @@ export default function SystemConfigPage() {
               <Zap className="h-4 w-4" />
               <span className="hidden sm:inline">Financial</span>
               <span className="sm:hidden">Financial</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Notifications</span>
+              <span className="sm:hidden">Notifs</span>
             </TabsTrigger>
             <TabsTrigger value="cache" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -241,6 +246,13 @@ export default function SystemConfigPage() {
             <CategorySettingsTab
               category="Financial"
               description="Configure financial calculation parameters including exchange rates and invoice aging thresholds for reports."
+            />
+          </TabsContent>
+
+          <TabsContent value="notifications" className="mt-4">
+            <CategorySettingsTab
+              category="Notifications"
+              description="Configure notification channels (email, SMS, push) and the centralized notifications service connection."
             />
           </TabsContent>
 

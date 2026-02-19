@@ -459,19 +459,19 @@ function ProsecutionContent() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="border-t">
+          <div className="border-t overflow-x-auto">
             <ScrollArea className="max-h-[calc(100vh-480px)] min-h-[300px]">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="font-semibold w-[120px]">Case No</TableHead>
-                    <TableHead className="font-semibold min-w-[100px]">Vehicle</TableHead>
-                    <TableHead className="font-semibold text-center w-[100px]">Status</TableHead>
-                    <TableHead className="font-semibold text-right w-[100px]">Overload (kg)</TableHead>
-                    <TableHead className="font-semibold text-right w-[130px]">Fine</TableHead>
-                    <TableHead className="font-semibold text-center w-[100px]">Framework</TableHead>
-                    <TableHead className="font-semibold w-[100px]">Date</TableHead>
-                    <TableHead className="font-semibold text-right w-[100px]">Actions</TableHead>
+                    <TableHead className="font-semibold whitespace-nowrap">Case No</TableHead>
+                    <TableHead className="font-semibold whitespace-nowrap">Vehicle</TableHead>
+                    <TableHead className="font-semibold text-center whitespace-nowrap">Status</TableHead>
+                    <TableHead className="font-semibold text-right whitespace-nowrap">Overload (kg)</TableHead>
+                    <TableHead className="font-semibold text-right whitespace-nowrap">Fine</TableHead>
+                    <TableHead className="font-semibold text-center whitespace-nowrap hidden sm:table-cell">Framework</TableHead>
+                    <TableHead className="font-semibold whitespace-nowrap hidden md:table-cell">Date</TableHead>
+                    <TableHead className="font-semibold text-right whitespace-nowrap">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -536,12 +536,12 @@ function ProsecutionContent() {
                             item.chargingCurrency || 'KES'
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden sm:table-cell">
                           <Badge variant={item.bestChargeBasis === 'GVW' ? 'default' : 'secondary'}>
                             {item.bestChargeBasis || '-'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-muted-foreground hidden md:table-cell">
                           {formatDate(item.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
@@ -614,7 +614,7 @@ function ProsecutionContent() {
 
       {/* Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Gavel className="h-5 w-5" />
@@ -728,7 +728,7 @@ function ProsecutionContent() {
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Prosecution Case</DialogTitle>
             <DialogDescription>
