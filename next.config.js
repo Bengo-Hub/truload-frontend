@@ -4,6 +4,8 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  customWorkerDir: 'src',
+  sw: 'sw.js',
   fallbacks: {
     document: '/offline.html',
   },
