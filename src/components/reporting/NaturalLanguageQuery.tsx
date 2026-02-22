@@ -1,10 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -13,15 +12,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { submitAsyncQuery } from '@/lib/api/analytics';
 import type { NaturalLanguageQueryResponse } from '@/lib/api/analytics';
+import { submitAsyncQuery } from '@/lib/api/analytics';
 import {
   getAnalyticsConnection,
+  onConnectionStateChange,
   startAnalyticsConnection,
   stopAnalyticsConnection,
-  onConnectionStateChange,
 } from '@/lib/signalr/analyticsHub';
-import { Brain, Code2, Loader2, Search, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, Brain, Code2, Download, FileSpreadsheet, Loader2, Search, Wifi, WifiOff } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 /** Client-side timeout for async queries (90 seconds). */
 const QUERY_TIMEOUT_MS = 90_000;
@@ -152,6 +153,49 @@ export function NaturalLanguageQuery() {
     }
   }, [isConnected]);
 
+  const handleExport = useCallback((format: 'csv' | 'json') => {
+    if (!results?.results || results.results.length === 0) return;
+
+    try {
+      if (format === 'json') {
+        const blob = new Blob([JSON.stringify(results.results, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ai_query_results_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        // Simple CSV conversion
+        const headers = Object.keys(results.results[0]);
+        const csvRows = [
+          headers.join(','),
+          ...results.results.map((row) =>
+            headers
+              .map((header) => {
+                const val = row[header];
+                const escaped = String(val ?? '').replace(/"/g, '""');
+                return `"${escaped}"`;
+              })
+              .join(',')
+          ),
+        ];
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ai_query_results_${Date.now()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      toast.success(`${format.toUpperCase()} export successful`);
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export results');
+    }
+  }, [results]);
+
   const onFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleSubmit(query);
@@ -260,15 +304,35 @@ export function NaturalLanguageQuery() {
         {/* Generated SQL */}
         {results?.generatedSql && (
           <div className="space-y-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSql(!showSql)}
-              className="text-xs text-muted-foreground"
-            >
-              <Code2 className="h-3 w-3 mr-1" />
-              {showSql ? 'Hide' : 'Show'} Generated SQL
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSql(!showSql)}
+                className="text-xs text-muted-foreground mr-auto"
+              >
+                <Code2 className="h-3 w-3 mr-1" />
+                {showSql ? 'Hide' : 'Show'} Generated SQL
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('csv')}
+                className="text-xs"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('json')}
+                className="text-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
+                Export JSON
+              </Button>
+            </div>
             {showSql && (
               <pre className="p-3 bg-gray-900 text-green-400 rounded-lg text-xs overflow-x-auto font-mono">
                 {results.generatedSql}
