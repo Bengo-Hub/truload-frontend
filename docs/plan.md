@@ -44,6 +44,7 @@
 **Frontend-Backend Integration:** ✅ **VERIFIED** (100+ API endpoints, report system integrated)
 **E2E Test Status:** ✅ **166/166 PASSING** (User, Role, Permission, 2FA, Password, Shift, Config tests)
 **Overall Frontend Completion:** 100%
+**Notifications & Multi-tenancy (Phase 2):** ✅ **COMPLETE** (Next.js 16.1.6, PWA Push, Branding)
 
 ---
 
@@ -141,7 +142,7 @@
 - ✅ **Users & Roles Revamp** - Complete overhaul of all 6 tabs (Accounts, Roles, Permissions, Organizations, Stations, Departments)
 - ✅ **AccountsTab** - Full user CRUD with stats cards, search/filter, create/edit/view/delete dialogs, role badges, avatar initials, skeleton loading
 - ✅ **RolesTab** - Role cards grid with gradient headers, create/edit/delete, view with grouped permissions, full permission management dialog (category sections, checkboxes, search, select all)
-- ✅ **PermissionsTab** - System-wide permission browser with grouped/table view toggle, category color coding, search, filter by category
+- ✅ **PermissionsTab** - System-wide permission browser with grouped/table view, category color coding, search, filter by category
 - ✅ **Entity Tabs** - Organizations, Stations, Departments enhanced with card grids, stat cards, search, loading/empty states
 - ✅ **Users Page Layout** - Modern tabbed interface with icons, responsive grid
 - ✅ **Shifts Page Revamp** - 3-tab layout: Work Shifts (enhanced CRUD), Shift Rotations (new CRUD), User Assignments (new)
@@ -279,8 +280,8 @@
 - **Icons:** Lucide icons
 
 ### PWA & Offline
-- **PWA:** Workbox/next-pwa (offline, background sync)
-- **Service Worker:** Custom service worker for offline-first functionality
+- **PWA:** Workbox/next-pwa (offline, background sync, push notifications)
+- **Service Worker:** Custom service worker with `push` event listeners and deep-linking.
 
 ### Data Analytics
 - **Superset SDK:** @superset-ui packages for dashboard embedding
@@ -342,7 +343,7 @@ Each module in `app/(modules)/` follows a consistent structure:
 ### Communication & Integration Patterns
 - All API calls go through TruLoad backend REST endpoints (no direct external auth service calls).
 - WebSockets/SignalR reserved for TruConnect weight streaming; fallback to polling local TruConnect when offline.
-- Notifications surface from backend responses (backed by notifications-service) rather than client-generated payloads.
+- Notifications surface from `notifications-service` via real-time PWA push and in-app inbox.
 - Superset dashboards embed via backend-issued guest tokens; Superset base URL provided via env (`NEXT_PUBLIC_SUPERSET_URL`).
 - Offline queue uses Dexie with client-generated idempotency keys; backend enforces idempotent writes.
 
