@@ -5,66 +5,15 @@
 
 import { Button } from '@/components/ui/button';
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, CheckCircle, Info, X } from 'lucide-react';
-import { useState } from 'react';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'success' | 'warning' | 'info';
-  read: boolean;
-  timestamp: Date;
-}
-
-const SAMPLE_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    title: 'Overloaded Vehicle Detected',
-    message: 'Vehicle KKA 123A exceeds weight limit by 2.5 tons',
-    type: 'warning',
-    read: false,
-    timestamp: new Date(Date.now() - 5 * 60000),
-  },
-  {
-    id: '2',
-    title: 'Scale Calibration Required',
-    message: 'Scale 01 requires calibration. Last calibration was 30 days ago.',
-    type: 'info',
-    read: false,
-    timestamp: new Date(Date.now() - 15 * 60000),
-  },
-  {
-    id: '3',
-    title: 'New Case Created',
-    message: 'Case #2024-001234 has been created and assigned to you',
-    type: 'success',
-    read: true,
-    timestamp: new Date(Date.now() - 2 * 3600000),
-  },
-  {
-    id: '4',
-    title: 'Document Uploaded',
-    message: 'Prosecution documentation for vehicle KKA 456B uploaded successfully',
-    type: 'success',
-    read: true,
-    timestamp: new Date(Date.now() - 1 * 86400000),
-  },
-  {
-    id: '5',
-    title: 'System Maintenance',
-    message: 'Scheduled system maintenance on Dec 15 from 10 PM to 12 AM',
-    type: 'info',
-    read: true,
-    timestamp: new Date(Date.now() - 2 * 86400000),
-  },
-];
+import { notificationApi, UserNotification } from '@/lib/api/notificationApi';
+import { AlertTriangle, CheckCircle, ExternalLink, Info, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface NotificationsDialogProps {
   isOpen: boolean;
@@ -72,14 +21,51 @@ interface NotificationsDialogProps {
 }
 
 export default function NotificationsDialog({ isOpen, onClose }: NotificationsDialogProps) {
-  const [notifications, setNotifications] = useState<Notification[]>(SAMPLE_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = { toast: (p: any) => console.log(p) }; // Mock toast if missing
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const readNotifications = notifications.filter((n) => n.read);
-  const unreadNotifications = notifications.filter((n) => !n.read);
+  const fetchNotifications = async () => {
+    if (!isOpen) return;
+    setLoading(true);
+    try {
+      const data = await notificationApi.getInbox();
+      setNotifications(data);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleDelete = (id: string) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
+  useEffect(() => {
+    fetchNotifications();
+  }, [isOpen]);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const readNotifications = notifications.filter((n) => n.isRead);
+  const unreadNotifications = notifications.filter((n) => !n.isRead);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await notificationApi.delete(id);
+      setNotifications(notifications.filter((n) => n.id !== id));
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete notification',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await notificationApi.markAsRead(id);
+      setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -95,7 +81,8 @@ export default function NotificationsDialog({ isOpen, onClose }: NotificationsDi
     }
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -109,29 +96,45 @@ export default function NotificationsDialog({ isOpen, onClose }: NotificationsDi
     return date.toLocaleDateString();
   };
 
-  const NotificationItem = ({ notification }: { notification: Notification }) => (
+  const NotificationItem = ({ notification }: { notification: UserNotification }) => (
     <div
-      className={`flex gap-3 border-b border-gray-100 p-4 transition-colors hover:bg-gray-50 ${
-        !notification.read ? 'bg-blue-50' : ''
-      }`}
+      className={`flex gap-3 border-b border-gray-100 p-4 transition-colors hover:bg-gray-50 cursor-pointer ${!notification.isRead ? 'bg-blue-50/50' : ''
+        }`}
+      onClick={() => handleMarkAsRead(notification.id)}
     >
       <div className="mt-1 flex-shrink-0">{getNotificationIcon(notification.type)}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-medium text-gray-900">{notification.title}</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 flex-shrink-0"
-            onClick={() => handleDelete(notification.id)}
-          >
-            <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-          </Button>
+          <h3 className={`font-medium text-gray-900 ${!notification.isRead ? 'font-semibold' : ''}`}>
+            {notification.title}
+          </h3>
+          <div className="flex items-center gap-1">
+            {notification.linkUrl && (
+              <a
+                href={notification.linkUrl}
+                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="h-4 w-4 text-blue-500" />
+              </a>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(notification.id);
+              }}
+            >
+              <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+            </Button>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-gray-600">{notification.message}</p>
+        <p className="mt-1 text-sm text-gray-600 line-clamp-2">{notification.message}</p>
         <p className="mt-2 text-xs text-gray-500">{formatTime(notification.timestamp)}</p>
       </div>
-      {!notification.read && (
+      {!notification.isRead && (
         <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
       )}
     </div>
@@ -158,7 +161,9 @@ export default function NotificationsDialog({ isOpen, onClose }: NotificationsDi
           </TabsList>
 
           <TabsContent value="all" className="flex-1 overflow-y-auto min-h-0">
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div className="py-8 text-center text-gray-500">Loading...</div>
+            ) : notifications.length === 0 ? (
               <div className="py-8 text-center text-gray-500">No notifications</div>
             ) : (
               notifications.map((notification) => (

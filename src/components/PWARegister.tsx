@@ -1,5 +1,6 @@
 'use client';
 
+import { pushNotificationService } from '@/lib/pushNotification';
 import { useEffect } from 'react';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
 
@@ -23,6 +24,11 @@ export function PWARegister() {
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
           if (isDev) console.log('PWA Service Worker registered successfully:', registration);
+
+          // Initialize push notification subscription
+          pushNotificationService.subscribe().catch((err) => {
+            if (isDev) console.warn('Automatic push subscription failed:', err);
+          });
 
           // Check for updates periodically
           setInterval(() => {

@@ -13,13 +13,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser } from '@/hooks/useAuth';
 import {
   use2FAStatus,
-  useGenerate2FASetup,
-  useEnable2FA,
   useDisable2FA,
+  useEnable2FA,
+  useGenerate2FASetup,
 } from '@/hooks/queries/useTwoFactorQueries';
+import { useUser } from '@/hooks/useAuth';
 import { changePassword } from '@/lib/auth/api';
 import { AlertTriangle, Building, Calendar, CheckCircle2, KeyRound, Loader2, Mail, Phone, Shield, ShieldCheck, Smartphone, User } from 'lucide-react';
 import { useState } from 'react';
@@ -277,14 +277,6 @@ function TwoFactorCard() {
                 <div className="flex justify-center">
                   <img
                     src={generateSetup.data.qrCodeDataUrl}
-                    alt="2FA QR Code"
-                    className="w-48 h-48 rounded-lg border"
-                  />
-                </div>
-              ) : generateSetup.data.authenticatorUri ? (
-                <div className="flex justify-center">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(generateSetup.data.authenticatorUri)}&size=200x200`}
                     alt="2FA QR Code"
                     className="w-48 h-48 rounded-lg border"
                   />

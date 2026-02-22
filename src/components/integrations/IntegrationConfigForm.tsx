@@ -44,12 +44,48 @@ const ECITIZEN_CREDENTIALS: CredentialFieldDef[] = [
   { key: 'ApiClientId', label: 'API Client ID', placeholder: 'e.g. 588' },
 ];
 
+const TWILIO_CREDENTIALS: CredentialFieldDef[] = [
+  { key: 'AccountSid', label: 'Account SID', placeholder: 'AC...', sensitive: true },
+  { key: 'AuthToken', label: 'Auth Token', placeholder: 'Token', sensitive: true },
+  { key: 'FromNumber', label: 'From Number', placeholder: 'e.g. +1234567890' },
+];
+
+const AFRICASTALKING_CREDENTIALS: CredentialFieldDef[] = [
+  { key: 'Username', label: 'Username', placeholder: 'sandbox or production username' },
+  { key: 'ApiKey', label: 'API Key', placeholder: 'ATS...', sensitive: true },
+  { key: 'SenderId', label: 'Sender ID / Shortcode', placeholder: 'e.g. TRULOAD' },
+];
+
+const SMTP_CREDENTIALS: CredentialFieldDef[] = [
+  { key: 'SmtpHost', label: 'SMTP Host', placeholder: 'e.g. smtp.gmail.com' },
+  { key: 'SmtpPort', label: 'SMTP Port', placeholder: 'e.g. 587' },
+  { key: 'SmtpUser', label: 'SMTP User', placeholder: 'Username/Email' },
+  { key: 'SmtpPass', label: 'SMTP Password', placeholder: 'Password', sensitive: true },
+  { key: 'FromName', label: 'From Name', placeholder: 'e.g. TruLoad Notifications' },
+  { key: 'FromEmail', label: 'From Email', placeholder: 'e.g. no-reply@truload.com' },
+];
+
 // Default values for first-time setup per provider
 const PROVIDER_DEFAULTS: Record<string, { displayName: string; baseUrl: string; environment: string }> = {
   ecitizen_pesaflow: {
     displayName: 'eCitizen Pesaflow',
     baseUrl: 'https://test.pesaflow.com',
     environment: 'test',
+  },
+  sms_twilio: {
+    displayName: 'Twilio SMS',
+    baseUrl: 'https://api.twilio.com',
+    environment: 'production',
+  },
+  sms_africastalking: {
+    displayName: "Africa's Talking SMS",
+    baseUrl: 'https://api.africastalking.com',
+    environment: 'production',
+  },
+  email_smtp: {
+    displayName: 'SMTP Email',
+    baseUrl: 'smtp://localhost',
+    environment: 'production',
   },
 };
 
@@ -62,6 +98,12 @@ export function getCredentialFields(providerName: string): CredentialFieldDef[] 
   switch (providerName) {
     case 'ecitizen_pesaflow':
       return ECITIZEN_CREDENTIALS;
+    case 'sms_twilio':
+      return TWILIO_CREDENTIALS;
+    case 'sms_africastalking':
+      return AFRICASTALKING_CREDENTIALS;
+    case 'email_smtp':
+      return SMTP_CREDENTIALS;
     default:
       return DEFAULT_CREDENTIALS;
   }
