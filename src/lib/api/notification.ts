@@ -1,4 +1,4 @@
-import { api } from './index';
+import { apiClient } from './client';
 
 export interface NotificationTemplateDto {
     name: string;
@@ -11,7 +11,7 @@ export interface NotificationTemplateDto {
 export const notificationApi = {
     getTemplates: async (channel?: string) => {
         const params = channel ? { channel } : {};
-        const response = await api.get<NotificationTemplateDto[]>('/shared/notifications/templates', { params });
+        const response = await apiClient.get<NotificationTemplateDto[]>('/shared/notifications/templates', { params });
         return response.data;
     },
 };

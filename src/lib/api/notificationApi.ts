@@ -1,4 +1,4 @@
-import { api } from './api';
+import { apiClient } from './client';
 
 export interface UserNotification {
     id: string;
@@ -18,19 +18,19 @@ export const notificationApi = {
         if (isRead !== undefined) params.append('isRead', isRead.toString());
         params.append('limit', limit.toString());
 
-        const response = await api.get<UserNotification[]>(`/shared/notifications/inbox?${params.toString()}`);
+        const response = await apiClient.get<UserNotification[]>(`/shared/notifications/inbox?${params.toString()}`);
         return response.data;
     },
 
     markAsRead: async (id: string) => {
-        await api.post(`/shared/notifications/inbox/${id}/read`);
+        await apiClient.post(`/shared/notifications/inbox/${id}/read`);
     },
 
     delete: async (id: string) => {
-        await api.delete(`/shared/notifications/inbox/${id}`);
+        await apiClient.delete(`/shared/notifications/inbox/${id}`);
     },
 
     updatePushSubscription: async (subscription: any) => {
-        await api.post('/shared/notifications/push-subscription', subscription);
+        await apiClient.post('/shared/notifications/push-subscription', subscription);
     }
 };
