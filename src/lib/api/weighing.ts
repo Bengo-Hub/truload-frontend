@@ -802,6 +802,34 @@ export async function calculateCompliance(weighingId: string): Promise<Complianc
 }
 
 // ============================================================================
+// Annual Calibration Record API
+// ============================================================================
+
+export interface AnnualCalibrationRecord {
+  id: string;
+  stationId?: string;
+  certificateNo: string;
+  issueDate: string;
+  expiryDate: string;
+  targetWeightKg: number;
+  maxDeviationKg: number;
+  certificateFileUrl?: string;
+  status: 'Active' | 'Expired' | 'Revoked';
+  organizationId: string;
+  createdAt: string;
+}
+
+export async function getActiveAnnualCalibration(): Promise<AnnualCalibrationRecord> {
+  const { data } = await apiClient.get<AnnualCalibrationRecord>('/AnnualCalibration/active');
+  return data;
+}
+
+export async function createAnnualCalibration(payload: Partial<AnnualCalibrationRecord>): Promise<AnnualCalibrationRecord> {
+  const { data } = await apiClient.post<AnnualCalibrationRecord>('/AnnualCalibration', payload);
+  return data;
+}
+
+// ============================================================================
 // Scale Test API
 // ============================================================================
 
