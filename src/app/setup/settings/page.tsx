@@ -50,11 +50,13 @@ import {
   Plus,
   RefreshCcw,
   Save,
+  Scale,
   Settings2,
   Trash2,
 } from 'lucide-react';
 
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
+import { CalibrationConfigTab } from '@/components/settings/CalibrationConfigTab';
 import { DocumentConventionsTab } from '@/components/settings/DocumentConventionsTab';
 
 // ============================================================================
@@ -164,7 +166,7 @@ function IntegrationSettingsContent() {
 
       {/* Tabs */}
       <Tabs defaultValue="payment-gateways" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-4xl">
           <TabsTrigger value="payment-gateways" className="gap-1.5">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Payments</span>
@@ -180,6 +182,10 @@ function IntegrationSettingsContent() {
           <TabsTrigger value="exchange-rates" className="gap-1.5">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Rates</span>
+          </TabsTrigger>
+          <TabsTrigger value="calibration" className="gap-1.5">
+            <Scale className="h-4 w-4" />
+            <span className="hidden sm:inline">Calibration</span>
           </TabsTrigger>
           <TabsTrigger value="documents" className="gap-1.5">
             <FileText className="h-4 w-4" />
@@ -198,6 +204,9 @@ function IntegrationSettingsContent() {
         </TabsContent>
         <TabsContent value="exchange-rates">
           <ExchangeRateSettings />
+        </TabsContent>
+        <TabsContent value="calibration">
+          <CalibrationConfigTab canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="documents">
           <DocumentConventionsTab canEdit={canEdit} />
