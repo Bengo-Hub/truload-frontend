@@ -21,8 +21,8 @@
 export const CACHE_TIMES = {
   /** Static data that rarely changes - 30 minutes */
   STATIC: 30 * 60 * 1000,
-  /** Semi-static data that changes occasionally - 5 minutes */
-  SEMI_STATIC: 5 * 60 * 1000,
+  /** Semi-static data that changes occasionally - 24 hours */
+  SEMI_STATIC: 24 * 60 * 60 * 1000,
   /** Dynamic data that changes frequently - 1 minute */
   DYNAMIC: 60 * 1000,
   /** Real-time data that should always be fresh - 30 seconds */
@@ -35,8 +35,8 @@ export const CACHE_TIMES = {
 export const GC_TIMES = {
   /** Keep static data in memory for 1 hour */
   STATIC: 60 * 60 * 1000,
-  /** Keep semi-static data for 15 minutes */
-  SEMI_STATIC: 15 * 60 * 1000,
+  /** Keep semi-static data for 25 hours */
+  SEMI_STATIC: 25 * 60 * 60 * 1000,
   /** Keep dynamic data for 5 minutes */
   DYNAMIC: 5 * 60 * 1000,
   /** Keep real-time data for 2 minutes */
