@@ -282,24 +282,25 @@ const DashboardView = ({ dashboardId, guestToken }) => {
 
 ### Overview
 
-TruConnect is a Node.js/Electron microservice running on client machines that connects to scale indicators and exposes weight data via HTTP endpoints. The frontend polls TruConnect directly (client-side) for real-time weight data.
+TruConnect is a Node.js/Electron microservice running on client machines that connects to scale indicators and mobile scales and exposes normalized weight data via WebSocket/HTTP endpoints. The frontend always talks to **normalized payloads** and remains protocol-agnostic — it does not need to know whether the physical device is Haenni, PAW, or MCGS.
 
 ### Architecture
 
 **Service Configuration:**
-- Service URL: `NEXT_PUBLIC_TRUCONNECT_URL` (typically `http://localhost:3001`)
+- Primary: Local WebSocket `ws://localhost:3030` exposed by TruConnect
+- Fallback: HTTP polling via local API (e.g., `http://localhost:3031/weights`)
 - Polling interval: 500ms (configurable)
 - Timeout: 5 seconds
 - Retry policy: Exponential backoff (3 retries)
 
 **Communication:**
-- HTTP GET requests to `/api/weights/stream`
-- WebSocket fallback (if available)
-- Local-only: Service runs on client machine, not accessible from network
+- WebSocket stream for real-time weights and events (`weights`, `plate`, `axle-captured`, `vehicle-complete`)
+- HTTP GET for polling `/weights` when WebSocket is unavailable
+- Local-only: Service runs on client machine, not exposed on the public network
 
 ### Implementation Details
 
-**Weight Data Format:**
+**Weight Data Format (Normalized):**
 ```json
 {
   "mode": "multideck" | "mobile",
@@ -313,10 +314,10 @@ TruConnect is a Node.js/Electron microservice running on client machines that co
 ```
 
 **Connection Strategy:**
-1. **Real-time (Default)**: Frontend establishes a WebSocket connection to the local TruConnect middleware at `ws://localhost:8080`. The connection is always local — there is no backend WebSocket relay.
-2. **Polling Fallback**: If WebSocket fails OR polling mode is explicitly enabled in TruConnect settings, frontend polls `/api/weights/stream` on the local TruConnect HTTP endpoint.
+1. **Real-time (Default)**: Frontend establishes a WebSocket connection to the local TruConnect middleware at `ws://localhost:3030`. The connection is always local — there is no backend WebSocket relay.
+2. **Polling Fallback**: If WebSocket fails OR polling mode is explicitly enabled in TruConnect settings, frontend polls the local TruConnect HTTP endpoint.
 
-> **Note (Sprint 22.1):** Backend WebSocket relay (`getBackendWsUrl()`) was removed. The frontend always connects directly to local TruConnect. This eliminates failed `wss://` connection attempts in production environments where the backend does not expose a WebSocket endpoint.
+> **Note (Sprint 22.1):** Backend WebSocket relay was removed. The frontend always connects directly to local TruConnect. This eliminates failed `wss://` connection attempts in production environments where the backend does not expose a WebSocket endpoint.
 
 **Real-time Implementation (WebSocket):**
 ```typescript
@@ -328,13 +329,18 @@ ws.onmessage = (event) => {
 };
 ```
 
-**Mobile Scale Workflow:**
-For portable axle weighers (Haenni/PAW), weights are captured sequentially:
+**Mobile Scale Workflow (Haenni / PAW / MCGS):**
+For portable axle weighers (Haenni API, PAW serial/UDP, MCGS serial), TruConnect normalizes all readings into the same **mobile** payload structure, and the frontend treats them identically:
 1. Frontend detects `mode: "mobile"`.
 2. UI displays "Ready for Axle 1".
 3. TruConnect detects stability and sends `captured: true` for the specific axle.
 4. Frontend moves to "Ready for Axle 2" and stores captured weight locally.
 5. Once all axles are captured, GVW is finalized and weighing session completes.
+
+Supported mobile scales (via TruConnect) are:
+- **Haenni WL series** (HTTP API / HNP)
+- **PAW portable axle weighers** (serial / UDP)
+- **MCGS mobile scale** (serial frames `=SG+0000123kR`, combined A+B)
 
 **Integration Points:**
 - Frontend connects to local TruConnect via WebSocket (always local, no backend relay)
