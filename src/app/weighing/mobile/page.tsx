@@ -2,12 +2,12 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
     AxleConfigurationCard,
     CargoTypeModal,
@@ -25,14 +25,13 @@ import {
     WeighingStepper,
     WeightCaptureCard
 } from '@/components/weighing';
+import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
+import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
 import { ScaleHealthPanel, ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
 import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
-import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
-import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
 import { WeightConfirmationModal } from '@/components/weighing/WeightConfirmationModal';
 import {
-    useWeighingAxleConfigurations,
     useAxleWeightReferences,
     useCargoTypes,
     useCreateCargoType,
@@ -42,21 +41,21 @@ import {
     useCreateVehicle,
     useCreateVehicleMake,
     useDrivers,
-    useVehicleMakes,
     useMyScaleTestStatus,
     useMyStation,
     useOriginsDestinations,
-    useTransporters,
     usePendingWeighings,
+    useTransporters,
     useVehicleByRegNo,
+    useVehicleMakes,
+    useWeighingAxleConfigurations,
 } from '@/hooks/queries';
 import { useHasPermission } from '@/hooks/useAuth';
 import { useMiddleware } from '@/hooks/useMiddleware';
 import { useWeighing } from '@/hooks/useWeighing';
-import { downloadAndSavePdf, downloadWeightTicketPdf, ScaleTest, Driver, Transporter, CargoType, OriginDestination, WeighingTransaction } from '@/lib/api/weighing';
-import { QUERY_KEYS } from '@/lib/query/config';
-import { useQueryClient } from '@tanstack/react-query';
+import { CargoType, downloadAndSavePdf, downloadWeightTicketPdf, Driver, OriginDestination, ScaleTest, Transporter, WeighingTransaction } from '@/lib/api/weighing';
 import { createVehicleTag, createYardEntry, fetchTagCategories } from '@/lib/api/yard';
+import { QUERY_KEYS } from '@/lib/query/config';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
 import {
     AxleGroupResult,
@@ -68,6 +67,7 @@ import {
     ScaleStatus,
     WeighingStep,
 } from '@/types/weighing';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Edit3, Loader2, Scale, ScanLine } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -1326,7 +1326,7 @@ export default function MobileWeighingPage() {
   };
 
   // Validation for step transitions (also disable during transaction creation to prevent double-click)
-  const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted && !isLoading;
+  const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted && !isWeighingLoading;
   const canProceedFromVehicle = selectedConfig !== '' && allAxlesCaptured;
 
   // Derive station display name
