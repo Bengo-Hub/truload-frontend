@@ -11,7 +11,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -20,14 +21,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle2, AlertTriangle, Search } from 'lucide-react';
-import { queryPaymentStatus, type PesaflowPaymentStatusResponse } from '@/lib/api/integration';
-import { recordPayment, generateIdempotencyKey } from '@/lib/api/receipt';
-import { updateInvoiceStatus } from '@/lib/api/invoice';
+import { queryPaymentStatus, reconcileInvoice, type PesaflowPaymentStatusResponse } from '@/lib/api/integration';
+import { AlertTriangle, CheckCircle2, Loader2, Search } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 interface ReconcileDialogProps {
@@ -96,33 +94,33 @@ export function ReconcileDialog({
     setStep('reconciling');
 
     try {
-      // Record the payment
-      await recordPayment(invoiceId, {
+      // Use the new unified backend reconciliation endpoint
+      const result = await reconcileInvoice(invoiceId, {
         amountPaid: parseFloat(amount),
-        currency,
-        paymentMethod: paymentStatus?.paymentChannel || 'PESAFLOW',
         transactionReference: paymentStatus?.paymentReference || transactionRef,
-        idempotencyKey: generateIdempotencyKey(),
       });
 
-      // Update invoice status to PAID
-      await updateInvoiceStatus(invoiceId, 'paid');
+      if (result.success) {
+        setStep('done');
+        toast.success(`Invoice ${invoiceNo} reconciled successfully`);
 
-      setStep('done');
-      toast.success(`Invoice ${invoiceNo} reconciled successfully`);
-
-      // Notify parent after short delay so user sees success state
-      setTimeout(() => {
-        onReconciled?.();
-        onOpenChange(false);
-        // Reset state
-        setStep('input');
-        setTransactionRef('');
-        setPaymentStatus(null);
-        setError(null);
-      }, 1500);
-    } catch {
-      setError('Failed to reconcile invoice. Please try again.');
+        // Notify parent after short delay so user sees success state
+        setTimeout(() => {
+          onReconciled?.();
+          onOpenChange(false);
+          // Reset state
+          setStep('input');
+          setTransactionRef('');
+          setPaymentStatus(null);
+          setError(null);
+        }, 1500);
+      } else {
+        setError(result.message || 'Failed to reconcile invoice. Please try again.');
+        setStep('confirmed');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to reconcile invoice. Please try again.';
+      setError(msg);
       setStep('confirmed');
     }
   };

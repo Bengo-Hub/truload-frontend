@@ -70,6 +70,7 @@ export function LoginForm() {
                 placeholder="Enter your email address"
                 {...register('email')}
                 disabled={isLoading}
+                suppressHydrationWarning
                 className={`h-11 rounded-md border ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : 'border-[#e5e8ec] focus-visible:ring-[#0a9f3d]'} bg-[#f2f3f5] pl-10 text-gray-900 placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-offset-0`}
               />
             </div>
@@ -93,6 +94,7 @@ export function LoginForm() {
                 placeholder="Enter your password"
                 {...register('password')}
                 disabled={isLoading}
+                suppressHydrationWarning
                 className={`h-11 rounded-md border ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : 'border-[#e5e8ec] focus-visible:ring-[#0a9f3d]'} bg-[#f2f3f5] pl-10 pr-10 text-gray-900 placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-offset-0`}
               />
               <button
@@ -126,6 +128,7 @@ export function LoginForm() {
             type="submit"
             className="h-11 w-full rounded-md bg-[#0a9f3d] text-white transition-colors hover:bg-[#088b35]"
             disabled={isLoading}
+            suppressHydrationWarning
           >
             {isLoading ? (
               <span className="flex items-center gap-2">

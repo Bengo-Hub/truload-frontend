@@ -78,6 +78,11 @@ export interface ReconcileResult {
   message: string;
 }
 
+export interface ReconcileRequest {
+  transactionReference?: string;
+  amountPaid?: number;
+}
+
 // ============================================================================
 // Integration Config API
 // ============================================================================
@@ -144,5 +149,16 @@ export async function queryPaymentStatus(
 
 export async function reconcilePayments(): Promise<ReconcileResult> {
   const { data } = await apiClient.post<ReconcileResult>('/payments/reconcile');
+  return data;
+}
+
+export async function reconcileInvoice(
+  invoiceId: string,
+  request: ReconcileRequest
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await apiClient.post<{ success: boolean; message: string }>(
+    `/invoices/${invoiceId}/reconcile`,
+    request
+  );
   return data;
 }

@@ -3,27 +3,27 @@
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-    AxleConfigurationCard,
-    CargoTypeModal,
-    ComplianceBanner,
-    ComplianceTable,
-    DecisionPanel,
-    DriverModal,
-    getDefaultAxleConfig,
-    ImageCaptureCard,
-    OriginDestinationModal,
-    TransporterModal,
-    VehicleDetailsCard,
-    VehicleMakeModal,
-    WeighingPageHeader,
-    WeighingStepper,
-    WeightCaptureCard
+  AxleConfigurationCard,
+  CargoTypeModal,
+  ComplianceBanner,
+  ComplianceTable,
+  DecisionPanel,
+  DriverModal,
+  getDefaultAxleConfig,
+  ImageCaptureCard,
+  OriginDestinationModal,
+  TransporterModal,
+  VehicleDetailsCard,
+  VehicleMakeModal,
+  WeighingPageHeader,
+  WeighingStepper,
+  WeightCaptureCard
 } from '@/components/weighing';
 import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
 import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
@@ -32,23 +32,23 @@ import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
 import { WeightConfirmationModal } from '@/components/weighing/WeightConfirmationModal';
 import {
-    useAxleWeightReferences,
-    useCargoTypes,
-    useCreateCargoType,
-    useCreateDriver,
-    useCreateOriginDestination,
-    useCreateTransporter,
-    useCreateVehicle,
-    useCreateVehicleMake,
-    useDrivers,
-    useMyScaleTestStatus,
-    useMyStation,
-    useOriginsDestinations,
-    usePendingWeighings,
-    useTransporters,
-    useVehicleByRegNo,
-    useVehicleMakes,
-    useWeighingAxleConfigurations,
+  useAxleWeightReferences,
+  useCargoTypes,
+  useCreateCargoType,
+  useCreateDriver,
+  useCreateOriginDestination,
+  useCreateTransporter,
+  useCreateVehicle,
+  useCreateVehicleMake,
+  useDrivers,
+  useMyScaleTestStatus,
+  useMyStation,
+  useOriginsDestinations,
+  usePendingWeighings,
+  useTransporters,
+  useVehicleByRegNo,
+  useVehicleMakes,
+  useWeighingAxleConfigurations,
 } from '@/hooks/queries';
 import { useHasPermission } from '@/hooks/useAuth';
 import { useMiddleware } from '@/hooks/useMiddleware';
@@ -58,14 +58,14 @@ import { createVehicleTag, createYardEntry, fetchTagCategories } from '@/lib/api
 import { QUERY_KEYS } from '@/lib/query/config';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
 import {
-    AxleGroupResult,
-    ComplianceStatus,
-    CreateDriverRequest,
-    CreateOriginDestinationRequest,
-    CreateTransporterRequest,
-    CreateVehicleMakeRequest,
-    ScaleStatus,
-    WeighingStep,
+  AxleGroupResult,
+  ComplianceStatus,
+  CreateDriverRequest,
+  CreateOriginDestinationRequest,
+  CreateTransporterRequest,
+  CreateVehicleMakeRequest,
+  ScaleStatus,
+  WeighingStep,
 } from '@/types/weighing';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Edit3, Loader2, Scale, ScanLine } from 'lucide-react';
@@ -281,10 +281,19 @@ export default function MobileWeighingPage() {
 
   // Vehicle state (declared before effects that use them)
   const [vehiclePlate, setVehiclePlate] = useState('');
+  const [debouncedPlate, setDebouncedPlate] = useState('');
   const [isPlateDisabled, setIsPlateDisabled] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<string>('');
   const [_axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
   const [ticketNumber, setTicketNumber] = useState('');
+
+  // Debounce vehicle plate for lookup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedPlate(vehiclePlate);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [vehiclePlate]);
 
   // Derive selected configuration ID for weight references lookup
   const selectedConfigId = useMemo(() => {
@@ -343,8 +352,8 @@ export default function MobileWeighingPage() {
   const [comment, setComment] = useState('');
   const [reliefVehicleReg, setReliefVehicleReg] = useState('');
 
-  // Auto-lookup vehicle by registration number
-  const { data: existingVehicle } = useVehicleByRegNo(vehiclePlate.length >= 5 ? vehiclePlate : undefined);
+  // Auto-lookup vehicle by registration number (using debounced value)
+  const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
 
   // Update selected vehicle when lookup returns
   useEffect(() => {
@@ -477,22 +486,26 @@ export default function MobileWeighingPage() {
     }
 
     // Check if we're in an Electron environment
-    const electronAPI = (window as { electronAPI?: {
-      getScaleStatus: () => Promise<{ success: boolean; scales: {
-        scaleA: ScaleStatusData;
-        scaleB: ScaleStatusData;
-        anyConnected: boolean;
-      }}>;
-      onScaleStatusChanged: (callback: (data: {
-        scaleId: string;
-        status: ScaleStatusData;
-        allScales: {
-          scaleA: ScaleStatusData;
-          scaleB: ScaleStatusData;
-          anyConnected: boolean;
-        };
-      }) => void) => () => void;
-    }}).electronAPI;
+    const electronAPI = (window as {
+      electronAPI?: {
+        getScaleStatus: () => Promise<{
+          success: boolean; scales: {
+            scaleA: ScaleStatusData;
+            scaleB: ScaleStatusData;
+            anyConnected: boolean;
+          }
+        }>;
+        onScaleStatusChanged: (callback: (data: {
+          scaleId: string;
+          status: ScaleStatusData;
+          allScales: {
+            scaleA: ScaleStatusData;
+            scaleB: ScaleStatusData;
+            anyConnected: boolean;
+          };
+        }) => void) => () => void;
+      }
+    }).electronAPI;
 
     // If not in Electron, the useMiddleware hook handles WebSocket connection
     // No need for direct API fetch here - it would duplicate the connection
@@ -1435,23 +1448,20 @@ export default function MobileWeighingPage() {
                             {/* Connection bubble indicator */}
                             <div className="relative">
                               <Scale className={`h-5 w-5 ${scale.status === 'connected' ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                                scale.status === 'connected' && middlewareConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-                              }`} />
+                              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${scale.status === 'connected' && middlewareConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                                }`} />
                             </div>
                             <span className="font-semibold">{scale.name}</span>
                             {/* Sync status badge */}
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              scale.status === 'connected' && middlewareConnected
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${scale.status === 'connected' && middlewareConnected
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-500'
-                            }`}>
+                              }`}>
                               {scale.status === 'connected' && middlewareConnected ? 'Synced' : 'Offline'}
                             </span>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            scale.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${scale.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                            }`}>
                             {scale.status.charAt(0).toUpperCase() + scale.status.slice(1)}
                           </span>
                         </div>
@@ -1645,7 +1655,7 @@ export default function MobileWeighingPage() {
                     {/* Vehicle Details Card */}
                     <VehicleDetailsCard
                       vehiclePlate={vehiclePlate}
-                      onVehiclePlateChange={() => {}} // Read-only in step 2
+                      onVehiclePlateChange={() => { }} // Read-only in step 2
                       selectedVehicleId={selectedVehicleId}
                       onVehicleIdChange={setSelectedVehicleId}
                       selectedConfig={selectedConfig}
