@@ -2,12 +2,12 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   AxleConfigurationCard,
   CargoTypeModal,
@@ -27,12 +27,12 @@ import {
   WeighingStepper,
 } from '@/components/weighing';
 import { BoundSelector } from '@/components/weighing/BoundSelector';
+import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
+import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
 import { ScaleHealthPanel, ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
 import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
-import { useHasPermission } from '@/hooks/useAuth';
 import {
-  useWeighingAxleConfigurations,
   useAxleWeightReferences,
   useCargoTypes,
   useCreateCargoType,
@@ -48,24 +48,23 @@ import {
   usePendingWeighings,
   useTransporters,
   useVehicleByRegNo,
+  useWeighingAxleConfigurations,
 } from '@/hooks/queries';
-import { useWeighing } from '@/hooks/useWeighing';
+import { useHasPermission } from '@/hooks/useAuth';
 import { useMiddleware } from '@/hooks/useMiddleware';
+import { useWeighing } from '@/hooks/useWeighing';
 import {
-  ScaleTest,
-  WeighingTransaction,
-  downloadWeightTicketPdf,
-  downloadAndSavePdf,
-  Driver,
-  Transporter,
   CargoType,
+  downloadAndSavePdf,
+  downloadWeightTicketPdf,
+  Driver,
   OriginDestination,
+  ScaleTest,
+  Transporter,
+  WeighingTransaction,
 } from '@/lib/api/weighing';
+import { createVehicleTag, createYardEntry, fetchTagCategories } from '@/lib/api/yard';
 import { QUERY_KEYS } from '@/lib/query/config';
-import { useQueryClient } from '@tanstack/react-query';
-import { createYardEntry, createVehicleTag, fetchTagCategories } from '@/lib/api/yard';
-import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
-import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
 import {
   AxleGroupResult,
@@ -78,6 +77,7 @@ import {
   ScaleStatus,
   WeighingStep,
 } from '@/types/weighing';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Edit3, Loader2, RefreshCcw, Scale, ScanLine, Truck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -275,10 +275,19 @@ export default function MultideckWeighingPage() {
 
   // Vehicle state - declared before useEffects that reference them
   const [vehiclePlate, setVehiclePlate] = useState('');
+  const [debouncedPlate, setDebouncedPlate] = useState('');
   const [isPlateDisabled, setIsPlateDisabled] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<string>('');
   const [_axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
   const [ticketNumber, setTicketNumber] = useState('');
+
+  // Debounce vehicle plate for lookup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedPlate(vehiclePlate);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [vehiclePlate]);
 
   // Set bound when station loads
   useEffect(() => {
@@ -333,8 +342,8 @@ export default function MultideckWeighingPage() {
   const [comment, setComment] = useState('');
   const [reliefVehicleReg, setReliefVehicleReg] = useState('');
 
-  // Auto-lookup vehicle by registration number
-  const { data: existingVehicle } = useVehicleByRegNo(vehiclePlate.length >= 5 ? vehiclePlate : undefined);
+  // Auto-lookup vehicle by registration number (using debounced value)
+  const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
 
   // Update selected vehicle when lookup returns
   useEffect(() => {
@@ -401,18 +410,22 @@ export default function MultideckWeighingPage() {
   // WebSocket connection is handled by useMiddleware hook for PWA/browser mode
   useEffect(() => {
     // Check if we're in an Electron environment
-    const electronAPI = (window as { electronAPI?: {
-      getScaleStatus: () => Promise<{ success: boolean; scales: {
-        scaleA: { connected: boolean; weight: number; signalStrength: number };
-        anyConnected: boolean;
-      }}>;
-      onScaleStatusChanged: (callback: (data: {
-        allScales: {
-          scaleA: { connected: boolean; weight: number; signalStrength: number };
-          anyConnected: boolean;
-        };
-      }) => void) => () => void;
-    }}).electronAPI;
+    const electronAPI = (window as {
+      electronAPI?: {
+        getScaleStatus: () => Promise<{
+          success: boolean; scales: {
+            scaleA: { connected: boolean; weight: number; signalStrength: number };
+            anyConnected: boolean;
+          }
+        }>;
+        onScaleStatusChanged: (callback: (data: {
+          allScales: {
+            scaleA: { connected: boolean; weight: number; signalStrength: number };
+            anyConnected: boolean;
+          };
+        }) => void) => () => void;
+      }
+    }).electronAPI;
 
     // If not in Electron, the useMiddleware hook handles WebSocket connection
     // No need for direct API fetch here - it would duplicate the connection
@@ -1472,7 +1485,7 @@ export default function MultideckWeighingPage() {
                   <div className="col-span-5 space-y-4">
                     <VehicleDetailsCard
                       vehiclePlate={vehiclePlate}
-                      onVehiclePlateChange={() => {}}
+                      onVehiclePlateChange={() => { }}
                       selectedVehicleId={selectedVehicleId}
                       onVehicleIdChange={setSelectedVehicleId}
                       selectedConfig={selectedConfig}
