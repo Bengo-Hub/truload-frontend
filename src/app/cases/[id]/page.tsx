@@ -2,14 +2,14 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import {
-    ArrestWarrantList,
-    CaseAssignmentLog,
-    CasePartyList,
-    CaseSubfileList,
-    ClosureChecklistPanel,
-    CourtHearingList,
-    EscalateCaseModal,
-    ProsecutionSection,
+  ArrestWarrantList,
+  CaseAssignmentLog,
+  CasePartyList,
+  CaseSubfileList,
+  ClosureChecklistPanel,
+  CourtHearingList,
+  EscalateCaseModal,
+  ProsecutionSection,
 } from '@/components/case';
 import { DocumentsTab } from '@/components/case/DocumentsTab';
 import { AppShell } from '@/components/layout/AppShell';
@@ -17,49 +17,49 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
-    useCaseById,
-    useCloseCase,
-    useCreateSpecialRelease,
-    useDispositionTypes,
-    useReleaseTypes,
-    useSpecialReleasesByCase,
+  useCaseById,
+  useCloseCase,
+  useCreateSpecialRelease,
+  useDispositionTypes,
+  useReleaseTypes,
+  useSpecialReleasesByCase,
 } from '@/hooks/queries';
 import { fetchUsers } from '@/lib/api/setup';
 import { useQuery } from '@tanstack/react-query';
 import {
-    AlertTriangle,
-    ArrowLeft,
-    Calendar,
-    Car,
-    CheckCircle,
-    Clock,
-    FileText,
-    Loader2,
-    Scale,
-    Send,
-    Shield,
-    TrendingUp,
-    User,
-    XCircle,
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  Car,
+  CheckCircle,
+  Clock,
+  FileText,
+  Loader2,
+  Scale,
+  Send,
+  Shield,
+  TrendingUp,
+  User,
+  XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';

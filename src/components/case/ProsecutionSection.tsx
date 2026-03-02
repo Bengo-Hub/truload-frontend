@@ -53,7 +53,6 @@ import type { ChargeCalculationResult } from '@/lib/api/prosecution';
 import { generateIdempotencyKey } from '@/lib/api/receipt';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import Link from 'next/link';
 import {
     AlertTriangle,
     Calculator,
@@ -68,6 +67,7 @@ import {
     Receipt,
     Scale,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
