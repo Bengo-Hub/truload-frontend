@@ -1,85 +1,84 @@
 "use client";
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import {
+    ArrestWarrantList,
+    CaseAssignmentLog,
+    CasePartyList,
+    CaseSubfileList,
+    ClosureChecklistPanel,
+    CourtHearingList,
+    EscalateCaseModal,
+    ProsecutionSection,
+} from '@/components/case';
+import { DocumentsTab } from '@/components/case/DocumentsTab';
 import { AppShell } from '@/components/layout/AppShell';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    useCaseById,
+    useCloseCase,
+    useCreateSpecialRelease,
+    useDispositionTypes,
+    useReleaseTypes,
+    useSpecialReleasesByCase,
+} from '@/hooks/queries';
 import { fetchUsers } from '@/lib/api/setup';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  useCaseById,
-  useCloseCase,
-  useEscalateCase,
-  useSpecialReleasesByCase,
-  useDispositionTypes,
-  useReleaseTypes,
-  useCreateSpecialRelease,
-} from '@/hooks/queries';
-import {
-  CourtHearingList,
-  ProsecutionSection,
-  CasePartyList,
-  CaseSubfileList,
-  ArrestWarrantList,
-  ClosureChecklistPanel,
-  CaseAssignmentLog,
-} from '@/components/case';
-import { DocumentsTab } from '@/components/case/DocumentsTab';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Calendar,
-  Car,
-  CheckCircle,
-  Clock,
-  FileText,
-  Loader2,
-  Scale,
-  Send,
-  Shield,
-  TrendingUp,
-  User,
-  XCircle,
+    AlertTriangle,
+    ArrowLeft,
+    Calendar,
+    Car,
+    CheckCircle,
+    Clock,
+    FileText,
+    Loader2,
+    Scale,
+    Send,
+    Shield,
+    TrendingUp,
+    User,
+    XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useState, useCallback } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 /**
  * Case Detail Page
  *
- * Displays full case details with actions:
- * - View case information
- * - View linked weighing/prohibition
- * - Escalate case
- * - Close case
- * - Request special release
+ * Displays full case details. When opened from Case management (?from=case-management),
+ * register-only actions (Escalate, Create prosecution / Pay) are hidden.
+ * - Case register: view, escalate, create prosecution, request release, close
+ * - Case management: view, subfiles, hearings, documents, closure; no escalate/prosecution create
  */
 export default function CaseDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const caseId = params.id as string;
+  const isCaseManagementView = searchParams.get('from') === 'case-management';
 
   // Queries
   const { data: caseData, isLoading, error, refetch } = useCaseById(caseId);
@@ -94,7 +93,6 @@ export default function CaseDetailPage() {
 
   // Mutations
   const closeCaseMutation = useCloseCase();
-  const escalateCaseMutation = useEscalateCase();
   const createReleaseMutation = useCreateSpecialRelease();
 
   // Modal states
@@ -102,12 +100,9 @@ export default function CaseDetailPage() {
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
 
-  // Form states
+  // Form states (close + release only; escalate uses EscalateCaseModal)
   const [closeDispositionId, setCloseDispositionId] = useState('');
   const [closeReason, setCloseReason] = useState('');
-  const [escalateNotes, setEscalateNotes] = useState('');
-  const [selectedCaseManagerId, setSelectedCaseManagerId] = useState('');
-  const [caseManagerSearch, setCaseManagerSearch] = useState('');
   const [releaseTypeId, setReleaseTypeId] = useState('');
   const [releaseReason, setReleaseReason] = useState('');
 
@@ -133,27 +128,6 @@ export default function CaseDetailPage() {
       toast.error('Failed to close case');
     }
   }, [caseId, closeDispositionId, closeReason, closeCaseMutation, refetch]);
-
-  // Handle escalate case
-  const handleEscalateCase = useCallback(async () => {
-    if (!selectedCaseManagerId) {
-      toast.error('Please select a case manager');
-      return;
-    }
-    try {
-      await escalateCaseMutation.mutateAsync({
-        id: caseId,
-        caseManagerId: selectedCaseManagerId,
-      });
-      toast.success('Case escalated successfully');
-      setShowEscalateModal(false);
-      setSelectedCaseManagerId('');
-      setCaseManagerSearch('');
-      refetch();
-    } catch (_error) {
-      toast.error('Failed to escalate case');
-    }
-  }, [caseId, selectedCaseManagerId, escalateCaseMutation, refetch]);
 
   // Handle request special release
   const handleRequestRelease = useCallback(async () => {
@@ -223,10 +197,10 @@ export default function CaseDetailPage() {
               <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold">Case Not Found</h3>
               <p className="text-gray-500 mt-2">The case you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.</p>
-              <Link href="/cases">
+              <Link href={isCaseManagementView ? '/case-management' : '/cases'}>
                 <Button className="mt-4">
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Cases
+                  {isCaseManagementView ? 'Back to case management' : 'Back to Cases'}
                 </Button>
               </Link>
             </CardContent>
@@ -237,16 +211,21 @@ export default function CaseDetailPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link href="/cases">
+              <Link href={isCaseManagementView ? '/case-management' : '/cases'}>
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
+                  {isCaseManagementView ? 'Back to case management' : 'Back'}
                 </Button>
               </Link>
               <div>
                 <h1 className="text-2xl font-bold">{caseData.caseNo}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   {getStatusBadge(caseData.caseStatus)}
+                  {isCaseManagementView && (
+                    <Badge variant="outline" className="bg-slate-100 text-slate-700">
+                      Case management
+                    </Badge>
+                  )}
                   {caseData.escalatedToCaseManager && (
                     <Badge variant="outline" className="bg-orange-50">
                       <TrendingUp className="h-3 w-3 mr-1" />
@@ -259,14 +238,16 @@ export default function CaseDetailPage() {
             <div className="flex items-center gap-2">
               {!isClosed && (
                 <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowReleaseModal(true)}
-                  >
-                    <Shield className="mr-2 h-4 w-4" />
-                    Request Release
-                  </Button>
-                  {!caseData.escalatedToCaseManager && (
+                  {!isCaseManagementView && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowReleaseModal(true)}
+                    >
+                      <Shield className="mr-2 h-4 w-4" />
+                      Request Release
+                    </Button>
+                  )}
+                  {!isCaseManagementView && !caseData.escalatedToCaseManager && (
                     <Button
                       variant="outline"
                       onClick={() => setShowEscalateModal(true)}
@@ -292,11 +273,12 @@ export default function CaseDetailPage() {
             {/* Left Column - Tabbed Case Details */}
             <div className="lg:col-span-2 space-y-6">
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="parties">Parties</TabsTrigger>
-                  <TabsTrigger value="subfiles">Subfiles</TabsTrigger>
+                  <TabsTrigger value="subfiles">Subfiles (A–J)</TabsTrigger>
                   <TabsTrigger value="hearings">Hearings</TabsTrigger>
+                  <TabsTrigger value="diary">Diary</TabsTrigger>
                   <TabsTrigger value="warrants">Warrants</TabsTrigger>
                   <TabsTrigger value="prosecution">Prosecution</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -462,17 +444,47 @@ export default function CaseDetailPage() {
                   <CourtHearingList caseId={caseId} caseNo={caseData.caseNo} />
                 </TabsContent>
 
+                {/* Case diary – notes, timeline summary, link to hearings/documents */}
+                <TabsContent value="diary" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-slate-500" />
+                        Case diary & notes
+                      </CardTitle>
+                      <CardDescription>
+                        Timeline, internal notes, and references to hearings and documents
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+                        <p className="font-medium text-foreground mb-1">Key events</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>Created {formatDate(caseData.createdAt)} by {caseData.createdByName || 'System'}</li>
+                          {caseData.closedAt && (
+                            <li>Closed {formatDate(caseData.closedAt)} by {caseData.closedByName}</li>
+                          )}
+                        </ul>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Use the <strong>Hearings</strong> tab for court dates and minute sheets. Use <strong>Subfiles (A–J)</strong> for evidence and document categories, and <strong>Documents</strong> for file attachments.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
                 {/* Warrants Tab */}
                 <TabsContent value="warrants">
                   <ArrestWarrantList caseId={caseId} caseNo={caseData.caseNo} />
                 </TabsContent>
 
-                {/* Prosecution Tab */}
+                {/* Prosecution Tab – create/pay only from Case register */}
                 <TabsContent value="prosecution">
                   <ProsecutionSection
                     caseId={caseId}
                     caseNo={caseData.caseNo}
                     weighingId={caseData.weighingId}
+                    readOnly={isCaseManagementView}
                   />
                 </TabsContent>
 
@@ -657,73 +669,17 @@ export default function CaseDetailPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Escalate Modal */}
-        <Dialog open={showEscalateModal} onOpenChange={setShowEscalateModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Escalate Case</DialogTitle>
-              <DialogDescription>
-                Escalate this case to a case manager for further review.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Assign Case Manager <span className="text-red-500">*</span></Label>
-                <Select value={selectedCaseManagerId} onValueChange={setSelectedCaseManagerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a case manager..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="p-2">
-                      <Input
-                        placeholder="Search users..."
-                        value={caseManagerSearch}
-                        onChange={(e) => setCaseManagerSearch(e.target.value)}
-                        className="h-8"
-                      />
-                    </div>
-                    {(usersData?.items ?? [])
-                      .filter((u: { fullName?: string; email?: string }) =>
-                        !caseManagerSearch ||
-                        (u.fullName ?? '').toLowerCase().includes(caseManagerSearch.toLowerCase()) ||
-                        (u.email ?? '').toLowerCase().includes(caseManagerSearch.toLowerCase())
-                      )
-                      .map((u: { id: string; fullName?: string; email?: string }) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.fullName || u.email}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Notes (optional)</Label>
-                <Textarea
-                  value={escalateNotes}
-                  onChange={(e) => setEscalateNotes(e.target.value)}
-                  placeholder="Add any notes for the case manager..."
-                  rows={4}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEscalateModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleEscalateCase}
-                disabled={escalateCaseMutation.isPending || !selectedCaseManagerId}
-              >
-                {escalateCaseMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                )}
-                Escalate
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Escalate Modal – Case register only; hidden in case management view */}
+        {!isCaseManagementView && (
+          <EscalateCaseModal
+            open={showEscalateModal}
+            onOpenChange={setShowEscalateModal}
+            caseId={caseId}
+            caseData={caseData}
+            users={usersData?.items ?? []}
+            onSuccess={refetch}
+          />
+        )}
 
         {/* Special Release Modal */}
         <Dialog open={showReleaseModal} onOpenChange={setShowReleaseModal}>

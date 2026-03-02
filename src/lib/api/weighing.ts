@@ -163,6 +163,8 @@ export interface WeighingResult {
   hasPermit: boolean;
   reweighCycleNo: number;
   weighedAt: string;
+  /** Whether vehicle has been sent to yard (auto-created on overload or manual). */
+  isSentToYard?: boolean;
   axleCompliance: {
     axleNumber: number;
     measuredWeightKg: number;

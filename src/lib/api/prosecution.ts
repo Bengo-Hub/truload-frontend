@@ -52,20 +52,16 @@ export interface ChargeCalculationResult {
   priorOffenseCount: number;
 }
 
+/**
+ * Matches backend CreateProsecutionRequest.
+ * Only actId is required; backend computes charges when chargeCalculation is omitted.
+ */
 export interface CreateProsecutionRequest {
-  weighingId?: string;
+  /** Applicable Act ID (EAC or Traffic Act) - must be a valid GUID from GET /acts */
   actId: string;
-  gvwOverloadKg: number;
-  gvwFeeUsd: number;
-  gvwFeeKes: number;
-  maxAxleOverloadKg: number;
-  maxAxleFeeUsd: number;
-  maxAxleFeeKes: number;
-  bestChargeBasis: string;
-  penaltyMultiplier: number;
-  totalFeeUsd: number;
-  totalFeeKes: number;
-  forexRate: number;
+  /** Pre-calculated charges (optional; backend will calculate from weighing if omitted) */
+  chargeCalculation?: ChargeCalculationResult;
+  /** Additional notes */
   caseNotes?: string;
 }
 

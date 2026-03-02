@@ -8,32 +8,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useQuery } from '@tanstack/react-query';
 import {
-  use2FAStatus,
-  useAuditLogs,
-  useAuditLogSummary,
-  useBackupList,
-  useBackupStatus,
-  useCreateBackup,
-  useDeleteBackup,
-  useDisable2FA,
-  useDownloadBackup,
-  useEnable2FA,
-  useGenerate2FASetup,
-  usePasswordPolicy,
-  useRestoreBackup,
-  useShiftSettings,
-  useUpdatePasswordPolicy,
-  useUpdateShiftSettings,
+    use2FAStatus,
+    useAuditLogs,
+    useAuditLogSummary,
+    useBackupList,
+    useBackupStatus,
+    useCreateBackup,
+    useDeleteBackup,
+    useDisable2FA,
+    useDownloadBackup,
+    useEnable2FA,
+    useGenerate2FASetup,
+    usePasswordPolicy,
+    useRestoreBackup,
+    useShiftSettings,
+    useUpdatePasswordPolicy,
+    useUpdateShiftSettings,
 } from '@/hooks/queries';
 import { useHasPermission } from '@/hooks/useAuth';
 import { formatFileSize } from '@/lib/api/backup';
 import { fetchRoles } from '@/lib/api/setup';
 import type { RoleDto } from '@/types/setup';
+import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Database, Download, FileText, Info, Key, Loader2, RefreshCcw, Save, Shield, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -798,7 +798,7 @@ export default function SecurityPage() {
                               {formatTimestamp(log.createdAt)}
                             </TableCell>
                             <TableCell className="text-sm">
-                              {log.userFullName || log.userName || 'System'}
+                              {log.userFullName || log.userEmail || log.userName || 'System'}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="font-mono text-xs">

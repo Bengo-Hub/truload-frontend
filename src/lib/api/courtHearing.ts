@@ -96,7 +96,7 @@ export interface HearingOutcomeDto {
  * Get hearings by case ID
  */
 export async function getHearingsByCaseId(caseId: string): Promise<CourtHearingDto[]> {
-  const { data } = await apiClient.get<CourtHearingDto[]>(`/case/cases/${caseId}/hearings`);
+  const { data } = await apiClient.get<CourtHearingDto[]>(`/cases/${caseId}/hearings`);
   return data;
 }
 
@@ -115,7 +115,7 @@ export async function scheduleHearing(
   caseId: string,
   request: CreateCourtHearingRequest
 ): Promise<CourtHearingDto> {
-  const { data } = await apiClient.post<CourtHearingDto>(`/case/cases/${caseId}/hearings`, request);
+  const { data } = await apiClient.post<CourtHearingDto>(`/cases/${caseId}/hearings`, request);
   return data;
 }
 
@@ -177,7 +177,7 @@ export async function downloadCourtMinutesPdf(id: string): Promise<Blob> {
  * Fetch courts
  */
 export async function fetchCourts(): Promise<CourtDto[]> {
-  const { data } = await apiClient.get<CourtDto[]>('/case/courts');
+  const { data } = await apiClient.get<CourtDto[]>('/courts');
   return data;
 }
 
@@ -185,7 +185,7 @@ export async function fetchCourts(): Promise<CourtDto[]> {
  * Fetch hearing types
  */
 export async function fetchHearingTypes(): Promise<HearingTypeDto[]> {
-  const { data } = await apiClient.get<HearingTypeDto[]>('/case/hearing-types');
+  const { data } = await apiClient.get<HearingTypeDto[]>('/case/taxonomy/hearing-types');
   return data;
 }
 
@@ -193,7 +193,7 @@ export async function fetchHearingTypes(): Promise<HearingTypeDto[]> {
  * Fetch hearing statuses
  */
 export async function fetchHearingStatuses(): Promise<HearingStatusDto[]> {
-  const { data } = await apiClient.get<HearingStatusDto[]>('/case/hearing-statuses');
+  const { data } = await apiClient.get<HearingStatusDto[]>('/case/taxonomy/hearing-statuses');
   return data;
 }
 
@@ -201,6 +201,6 @@ export async function fetchHearingStatuses(): Promise<HearingStatusDto[]> {
  * Fetch hearing outcomes
  */
 export async function fetchHearingOutcomes(): Promise<HearingOutcomeDto[]> {
-  const { data } = await apiClient.get<HearingOutcomeDto[]>('/case/hearing-outcomes');
+  const { data } = await apiClient.get<HearingOutcomeDto[]>('/case/taxonomy/hearing-outcomes');
   return data;
 }

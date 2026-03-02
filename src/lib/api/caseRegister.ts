@@ -24,6 +24,7 @@ export interface CaseRegisterDto {
   actName?: string;
   driverNtacNo?: string;
   transporterNtacNo?: string;
+  transporterName?: string;
   obNo?: string;
   courtId?: string;
   courtName?: string;
@@ -38,6 +39,9 @@ export interface CaseRegisterDto {
   prosecutorName?: string;
   complainantOfficerId?: string;
   complainantOfficerName?: string;
+  /** Station where the vehicle is detained (for court/prosecution cases). */
+  detentionStationId?: string;
+  detentionStationName?: string;
   investigatingOfficerId?: string;
   investigatingOfficerName?: string;
   createdById?: string;
@@ -67,13 +71,19 @@ export interface CreateCaseRequest {
 
 export interface UpdateCaseRequest {
   violationDetails?: string;
+  /** Driver NTAC for this case (mandatory only when escalating to case manager; optional for prosecution). */
   driverNtacNo?: string;
+  /** Transporter/owner NTAC for this case (mandatory only when escalating to case manager; optional for prosecution). */
   transporterNtacNo?: string;
   obNo?: string;
   courtId?: string;
   dispositionTypeId?: string;
   caseManagerId?: string;
   prosecutorId?: string;
+  /** Complainant officer (for court/prosecution cases). */
+  complainantOfficerId?: string;
+  /** Station where the vehicle is detained. */
+  detentionStationId?: string;
   investigatingOfficerId?: string;
 }
 
@@ -380,8 +390,10 @@ export async function createSpecialRelease(request: CreateSpecialReleaseRequest)
 /**
  * Approve special release
  */
-export async function approveSpecialRelease(id: string): Promise<SpecialReleaseDto> {
-  const { data } = await apiClient.post<SpecialReleaseDto>(`/case/special-releases/${id}/approve`);
+export async function approveSpecialRelease(id: string, approvalNotes?: string): Promise<SpecialReleaseDto> {
+  const { data } = await apiClient.post<SpecialReleaseDto>(`/case/special-releases/${id}/approve`, {
+    approvalNotes: approvalNotes ?? undefined,
+  });
   return data;
 }
 
@@ -389,7 +401,9 @@ export async function approveSpecialRelease(id: string): Promise<SpecialReleaseD
  * Reject special release
  */
 export async function rejectSpecialRelease(id: string, reason: string): Promise<SpecialReleaseDto> {
-  const { data } = await apiClient.post<SpecialReleaseDto>(`/case/special-releases/${id}/reject`, { reason });
+  const { data } = await apiClient.post<SpecialReleaseDto>(`/case/special-releases/${id}/reject`, {
+    rejectionReason: reason,
+  });
   return data;
 }
 
@@ -397,7 +411,7 @@ export async function rejectSpecialRelease(id: string, reason: string): Promise<
  * Fetch release types
  */
 export async function fetchReleaseTypes(): Promise<ReleaseTypeDto[]> {
-  const { data } = await apiClient.get<ReleaseTypeDto[]>('/case/release-types');
+  const { data } = await apiClient.get<ReleaseTypeDto[]>('/case/taxonomy/release-types');
   return data;
 }
 

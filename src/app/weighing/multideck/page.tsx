@@ -80,7 +80,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Edit3, Loader2, RefreshCcw, Scale, ScanLine, Truck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 /**
@@ -1167,7 +1167,14 @@ export default function MultideckWeighingPage() {
       });
     } catch (error) {
       console.error('Failed to send to yard:', error);
-      toast.error('Failed to create yard entry');
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('already exists') || (error as { response?: { status?: number } })?.response?.status === 409) {
+        toast.info('Vehicle has already been sent to yard', {
+          description: 'A yard entry was created automatically when the overload was detected.',
+        });
+      } else {
+        toast.error('Failed to create yard entry');
+      }
     }
   }, [weighingSession, currentStation, overallStatus, gvwOverload]);
 
@@ -1211,6 +1218,7 @@ export default function MultideckWeighingPage() {
     setVehicleMake('');
     setComment('');
     setReliefVehicleReg('');
+    hasShownSentToYardToast.current = false;
     toast.success('Weighing completed. Ready for next vehicle.');
   }, [handlePrintTicket, resetSession, middleware]);
 
@@ -1235,6 +1243,22 @@ export default function MultideckWeighingPage() {
   }), [selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId]);
 
   const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const hasShownSentToYardToast = useRef(false);
+
+  // Toast when vehicle already sent to yard (backend auto-created on overload)
+  useEffect(() => {
+    if (
+      currentStep === 'decision' &&
+      overallStatus === 'OVERLOAD' &&
+      complianceResult?.isSentToYard &&
+      !hasShownSentToYardToast.current
+    ) {
+      hasShownSentToYardToast.current = true;
+      toast.info('Vehicle has been sent to yard', {
+        description: 'The yard entry was created automatically when the overload was detected.',
+      });
+    }
+  }, [currentStep, overallStatus, complianceResult?.isSentToYard]);
 
   // Validation
   const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted;
@@ -1671,6 +1695,7 @@ export default function MultideckWeighingPage() {
                   canSendToYard={canSendToYard}
                   canSpecialRelease={canSpecialRelease}
                   canReweigh={reweighCycleNo < 8}
+                  isSentToYard={complianceResult?.isSentToYard ?? false}
                 />
 
                 {/* Missing Fields Warning Modal */}

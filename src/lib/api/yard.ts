@@ -23,6 +23,8 @@ export interface YardEntryDto {
   totalFeeUsd?: number;
   createdAt: string;
   updatedAt: string;
+  /** Whether the linked case is closed. Release is only allowed when true (per FRD). */
+  isCaseClosed?: boolean;
 }
 
 export interface CreateYardEntryRequest {
@@ -133,6 +135,19 @@ export async function searchYardEntries(
 export async function getYardEntry(id: string): Promise<YardEntryDto> {
   const { data } = await apiClient.get<YardEntryDto>(`/yard-entries/${id}`);
   return data;
+}
+
+export async function getYardEntryByWeighingId(weighingId: string): Promise<YardEntryDto | null> {
+  try {
+    const { data } = await apiClient.get<YardEntryDto>(
+      `/yard-entries/by-weighing/${weighingId}`
+    );
+    return data;
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
+    if (status === 404) return null;
+    throw err;
+  }
 }
 
 export async function createYardEntry(

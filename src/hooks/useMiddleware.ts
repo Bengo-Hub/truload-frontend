@@ -13,11 +13,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Connection Priority Chain (Production):
  * 1. Backend WebSocket (wss://backend/ws/weights) - when online & configured
  * 2. Local WebSocket (ws://localhost:3030) - offline or backend unavailable
- * 3. Local API Polling (http://localhost:3031/weights) - WebSocket unavailable
+ * 3. Local API Polling (http://localhost:3031/api/v1/weights) - WebSocket unavailable
  *
  * Connection Priority Chain (Development):
  * 1. Local WebSocket (ws://localhost:3030) - TruConnect middleware
- * 2. Local API Polling (http://localhost:3031/weights) - WebSocket unavailable
+ * 2. Local API Polling (http://localhost:3031/api/v1/weights) - WebSocket unavailable
  *
  * Key Insight: When PWA is installed and running offline, the browser runs
  * locally on the user's machine, so it CAN connect to localhost even without internet!
