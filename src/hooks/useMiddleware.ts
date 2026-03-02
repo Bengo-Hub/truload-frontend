@@ -476,47 +476,66 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       const { data, mode: apiMode, connection } = apiResponse;
 
       if (apiMode === 'mobile') {
-        // Mobile mode response
+        // Mobile mode response (match API /weights structure with scaleAStatus, scaleBStatus)
         const mobileData = data as {
           currentWeight: number;
-          runningGvw: number;  // Real-time total (captured + current on scale)
+          scaleA?: number;
+          scaleB?: number;
+          scaleWeightMode?: 'combined' | 'separate';
+          scaleAStatus?: { connected: boolean; weight: number; battery?: number; temperature?: number; signalStrength?: number };
+          scaleBStatus?: { connected: boolean; weight: number; battery?: number; temperature?: number; signalStrength?: number };
+          runningGvw: number;
           stable: boolean;
           session: { currentAxle: number; totalAxles: number; axles: { axleNumber: number; weight: number }[]; gvw: number };
-          scaleInfo?: { battery: number; temperature: number; signalStrength: number };
+          scaleInfo?: { battery: number; temperature: number; signalStrength: number; make?: string; model?: string };
         };
 
         // runningGvw = captured axles + current weight on scale
         const runningGvw = mobileData.runningGvw ?? (mobileData.session?.gvw || 0) + mobileData.currentWeight;
+        const isConnected = connection?.connected ?? false;
 
         weightData = {
           mode: 'mobile',
           weight: mobileData.currentWeight,
+          currentWeight: mobileData.currentWeight,
           deck1: mobileData.currentWeight,
-          gvw: runningGvw,  // Use running GVW for real-time display
+          gvw: runningGvw,
           stable: mobileData.stable,
           axleNumber: mobileData.session?.currentAxle || 0,
           axleWeights: mobileData.session?.axles?.map(a => a.weight) || [],
-          runningTotal: runningGvw,  // Real-time total
+          runningTotal: runningGvw,
+          runningGvw,
           source: connection?.source,
+          connection,
+          scaleA: mobileData.scaleA,
+          scaleB: mobileData.scaleB,
+          scaleWeightMode: mobileData.scaleWeightMode,
+          scaleAStatus: mobileData.scaleAStatus,
+          scaleBStatus: mobileData.scaleBStatus,
+          scaleInfo: mobileData.scaleInfo,
         };
 
-        // Update scale status with connection and scale info
-        if (mobileData.scaleInfo || connection) {
-          const scaleStatus: ScaleStatus = {
-            mode: 'mobile',
-            connected: connection?.connected || false,
-            simulation: false,
-            protocol: connection?.protocol || '',
-            scaleA: {
-              status: connection?.connected ? 'connected' : 'disconnected',
-              weight: mobileData.currentWeight,
-              battery: mobileData.scaleInfo?.battery,
-              temp: mobileData.scaleInfo?.temperature,
-            },
-          };
-          setState(s => ({ ...s, scaleStatus }));
-          onScaleStatusChange?.(scaleStatus);
-        }
+        // Build scale status with both Scale A and Scale B (match WebSocket payload so UI shows both)
+        const scaleStatus: ScaleStatus = {
+          mode: 'mobile',
+          connected: isConnected,
+          simulation: false,
+          protocol: connection?.protocol || '',
+          scaleA: {
+            status: (mobileData.scaleAStatus?.connected ?? isConnected) ? 'connected' : 'disconnected',
+            weight: mobileData.scaleAStatus?.weight ?? mobileData.scaleA ?? Math.round(mobileData.currentWeight / 2),
+            battery: mobileData.scaleAStatus?.battery ?? mobileData.scaleInfo?.battery,
+            temp: mobileData.scaleAStatus?.temperature ?? mobileData.scaleInfo?.temperature,
+          },
+          scaleB: {
+            status: (mobileData.scaleBStatus?.connected ?? isConnected) ? 'connected' : 'disconnected',
+            weight: mobileData.scaleBStatus?.weight ?? mobileData.scaleB ?? (mobileData.currentWeight - Math.round(mobileData.currentWeight / 2)),
+            battery: mobileData.scaleBStatus?.battery ?? mobileData.scaleInfo?.battery,
+            temp: mobileData.scaleBStatus?.temperature ?? mobileData.scaleInfo?.temperature,
+          },
+        };
+        setState(s => ({ ...s, scaleStatus }));
+        onScaleStatusChange?.(scaleStatus);
       } else {
         // Multideck mode response
         const multideckData = data as {
@@ -704,8 +723,11 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           headers: { 'Accept': 'application/json' },
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        const data = response.ok ? await response.json() : null;
+        // Skip applying poll result if we're no longer polling (e.g. WebSocket took over)
+        if (!pollingTimer.current) return;
+
+        if (response.ok && data) {
           handlePollingResponse(data);
 
           if (!state.connected) {
@@ -720,7 +742,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           }
         }
       } catch {
-        // Polling failed, will retry
+        if (!pollingTimer.current) return;
         if (state.connectionMode === 'local_api') {
           setState(s => ({ ...s, connected: false, connectionMode: 'disconnected' }));
         }

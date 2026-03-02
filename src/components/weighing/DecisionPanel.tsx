@@ -3,17 +3,18 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { formatFeeUsd, getDecisionMessage, getStatusColor } from '@/lib/weighing-utils';
 import { ComplianceStatus } from '@/types/weighing';
-import { cn } from '@/lib/utils';
 import {
-  Printer,
-  Truck,
-  FileCheck,
-  AlertTriangle,
-  CheckCircle2,
-  RefreshCw,
-  ShieldAlert,
+    AlertTriangle,
+    CheckCircle2,
+    FileCheck,
+    LogOut,
+    Printer,
+    RefreshCw,
+    ShieldAlert,
+    Truck,
 } from 'lucide-react';
 
 interface DecisionPanelProps {
@@ -27,7 +28,10 @@ interface DecisionPanelProps {
   missingFields?: string[];
 
   // Action handlers
+  /** Always available: end session, reset middleware, redirect to capture for next vehicle */
   onFinishExit?: () => void;
+  /** For LEGAL/WARNING: print ticket then finish (optional) */
+  onFinishAndPrint?: () => void;
   onSendToYard?: () => void;
   onSpecialRelease?: () => void;
   onReweigh?: () => void;
@@ -68,6 +72,7 @@ export function DecisionPanel({
   requiredFieldsValid = true,
   missingFields = [],
   onFinishExit,
+  onFinishAndPrint,
   onSendToYard,
   onSpecialRelease,
   onReweigh,
@@ -154,19 +159,32 @@ export function DecisionPanel({
 
         {/* Decision Actions */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {/* Finish & Exit - for LEGAL/WARNING */}
-          {isLegalOrWarning && (
+          {/* Finish & Exit - always visible: end session, reset middleware, go to capture for next vehicle */}
+          {onFinishExit && (
             <Button
-              className="flex-1 sm:flex-initial bg-green-600 hover:bg-green-700 text-white"
+              variant="outline"
+              className="flex-1 sm:flex-initial border-green-600 text-green-700 hover:bg-green-50 hover:text-green-800"
               onClick={onFinishExit}
-              disabled={actionsDisabled || isFinishing}
+              disabled={isFinishing}
             >
               {isFinishing ? (
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <CheckCircle2 className="mr-2 h-4 w-4" />
+                <LogOut className="mr-2 h-4 w-4" />
               )}
-              {isFinishing ? 'Finishing...' : 'Finish & Print Ticket'}
+              {isFinishing ? 'Finishing...' : 'Finish & Exit'}
+            </Button>
+          )}
+
+          {/* Finish & Print Ticket - for LEGAL/WARNING (print then finish) */}
+          {isLegalOrWarning && onFinishAndPrint && (
+            <Button
+              className="flex-1 sm:flex-initial bg-green-600 hover:bg-green-700 text-white"
+              onClick={onFinishAndPrint}
+              disabled={actionsDisabled || isFinishing}
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Finish & Print Ticket
             </Button>
           )}
 
