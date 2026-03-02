@@ -1,76 +1,78 @@
 "use client";
 
-import { useState, useCallback } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { PesaflowCheckoutDialog } from '@/components/payments/PesaflowCheckoutDialog';
+import { ReconcileDialog } from '@/components/payments/ReconcileDialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
 import {
-  useProsecutionByCaseId,
-  useChargeCalculation,
-  useCreateProsecution,
-  useDownloadChargeSheet,
-  useGenerateInvoice,
-  useInvoicesByProsecutionId,
-  useDownloadInvoice,
-  useReceiptsByInvoiceId,
-  useRecordPayment,
-  useDownloadReceipt,
+    useChargeCalculation,
+    useCreateProsecution,
+    useDownloadChargeSheet,
+    useDownloadInvoice,
+    useDownloadReceipt,
+    useGenerateInvoice,
+    useInvoicesByProsecutionId,
+    useProsecutionByCaseId,
+    useReceiptsByInvoiceId,
+    useRecordPayment,
 } from '@/hooks/queries';
+import { useAllActs } from '@/hooks/queries/useActQueries';
 import {
-  useCreatePesaflowInvoice,
+    useCreatePesaflowInvoice,
 } from '@/hooks/queries/useIntegrationQueries';
-import { generateIdempotencyKey } from '@/lib/api/receipt';
-import type { ChargeCalculationResult } from '@/lib/api/prosecution';
-import type { InvoiceDto } from '@/lib/api/invoice';
-import { PesaflowCheckoutDialog } from '@/components/payments/PesaflowCheckoutDialog';
-import { ReconcileDialog } from '@/components/payments/ReconcileDialog';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useCurrency } from '@/hooks/useCurrency';
-import { FinancialSummary } from './FinancialSummary';
-import {
-  AlertTriangle,
-  Calculator,
-  CheckCircle2,
-  CreditCard,
-  DollarSign,
-  Download,
-  FileText,
-  Globe,
-  Loader2,
-  Plus,
-  Receipt,
-  Scale,
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import type { InvoiceDto } from '@/lib/api/invoice';
+import type { ChargeCalculationResult } from '@/lib/api/prosecution';
+import { generateIdempotencyKey } from '@/lib/api/receipt';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
+import Link from 'next/link';
+import {
+    AlertTriangle,
+    Calculator,
+    CheckCircle2,
+    CreditCard,
+    DollarSign,
+    Download,
+    FileText,
+    Globe,
+    Loader2,
+    Plus,
+    Receipt,
+    Scale,
+} from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
+import { FinancialSummary } from './FinancialSummary';
 
 const pesaflowSchema = z.object({
   clientName: z.string().min(1, 'Client name is required'),
@@ -85,6 +87,8 @@ interface ProsecutionSectionProps {
   caseId: string;
   caseNo: string;
   weighingId?: string;
+  /** When true (e.g. case opened from Case management), hide create prosecution and pay actions. */
+  readOnly?: boolean;
 }
 
 const PAYMENT_METHODS = [
@@ -96,8 +100,9 @@ const PAYMENT_METHODS = [
   { value: 'pesaflow', label: 'Pesaflow (eCitizen)' },
 ];
 
-export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: ProsecutionSectionProps) {
+export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOnly = false }: ProsecutionSectionProps) {
   const isOnline = useOnlineStatus();
+  const { data: acts } = useAllActs();
 
   // Queries
   const { data: prosecution, isLoading, refetch } = useProsecutionByCaseId(caseId);
@@ -160,26 +165,21 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
 
   const { formatAmount: formatCurrency } = useCurrency();
 
-  // Handle create prosecution from charges
+  // Handle create prosecution from charges — use real act ID from GET /acts
   const handleCreateProsecution = useCallback(
     async (charges: ChargeCalculationResult) => {
+      const actCode = charges.legalFramework === 'EAC_ACT' ? 'EAC_ACT' : 'TRAFFIC_ACT';
+      const act = acts?.find((a) => a.code === actCode);
+      if (!act?.id) {
+        toast.error(`No act found for ${actCode}. Configure acts in Setup → Acts.`);
+        return;
+      }
       try {
         await createProsecutionMutation.mutateAsync({
           caseId,
           request: {
-            weighingId: charges.weighingId,
-            actId: charges.legalFramework === 'EAC_ACT' ? 'eac-act-id' : 'traffic-act-id', // These should come from lookup
-            gvwOverloadKg: charges.gvwOverloadKg,
-            gvwFeeUsd: charges.gvwFeeUsd,
-            gvwFeeKes: charges.gvwFeeKes,
-            maxAxleOverloadKg: charges.maxAxleOverloadKg,
-            maxAxleFeeUsd: charges.maxAxleFeeUsd,
-            maxAxleFeeKes: charges.maxAxleFeeKes,
-            bestChargeBasis: charges.bestChargeBasis,
-            penaltyMultiplier: charges.penaltyMultiplier,
-            totalFeeUsd: charges.totalFeeUsd,
-            totalFeeKes: charges.totalFeeKes,
-            forexRate: charges.forexRate,
+            actId: act.id,
+            caseNotes: undefined,
           },
         });
         toast.success('Prosecution case created successfully');
@@ -188,7 +188,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
         toast.error('Failed to create prosecution case');
       }
     },
-    [caseId, createProsecutionMutation, refetch]
+    [caseId, acts, createProsecutionMutation, refetch]
   );
 
   // Handle generate invoice
@@ -314,8 +314,26 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
     );
   }
 
-  // No prosecution exists - show charge calculation
+  // No prosecution exists - show charge calculation or read-only message
   if (!prosecution) {
+    if (readOnly) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5 text-orange-500" />
+              Prosecution & Charges
+            </CardTitle>
+            <CardDescription>Prosecution and payment actions are done from Case register</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              To create a prosecution case or record payment, open this case from <Link href="/cases" className="text-primary underline">Case register</Link>.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
     return (
       <Card>
         <CardHeader>
@@ -480,6 +498,11 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {readOnly && (
+            <p className="text-sm text-muted-foreground rounded-md bg-muted/50 p-3">
+              Create prosecution and payment are done from Case register. Open this case from <Link href="/cases" className="text-primary underline">Case register</Link> to create or pay.
+            </p>
+          )}
           {/* Charge Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-3 bg-gray-50 rounded-lg">
@@ -512,7 +535,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
                 <FileText className="h-4 w-4" />
                 Invoices
               </h4>
-              {prosecution.status === 'pending' && (
+              {!readOnly && prosecution.status === 'pending' && (
                 <Button
                   size="sm"
                   onClick={handleGenerateInvoice}
@@ -586,7 +609,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                          {invoice.status !== 'paid' && invoice.balanceRemaining > 0 && (
+                          {!readOnly && invoice.status !== 'paid' && invoice.balanceRemaining > 0 && (
                             <>
                               <Button
                                 size="sm"
@@ -621,7 +644,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId }: Pros
                               )}
                             </>
                           )}
-                          {invoice.pesaflowPaymentLink && invoice.status !== 'paid' && (
+                          {!readOnly && invoice.pesaflowPaymentLink && invoice.status !== 'paid' && (
                             <Button
                               size="sm"
                               variant="ghost"

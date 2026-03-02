@@ -333,7 +333,11 @@ function DriversTab() {
             </TableHeader>
             <TableBody>
               {allItems.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No drivers found</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    {search ? 'No drivers match your search.' : 'No drivers yet. Click Add to register a driver.'}
+                  </TableCell>
+                </TableRow>
               )}
               {paginatedItems.map((d: any) => (
                 <TableRow key={d.id}>
@@ -458,7 +462,11 @@ function VehiclesTab() {
             </TableHeader>
             <TableBody>
               {allItems.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No vehicles found. Search by registration number.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    {search ? 'No vehicles match your search.' : 'No vehicles yet. Click Add to register a vehicle.'}
+                  </TableCell>
+                </TableRow>
               )}
               {paginatedItems.map((v: any) => (
                 <TableRow key={v.id}>

@@ -1,6 +1,9 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { DocumentConventionsTab } from '@/components/settings/DocumentConventionsTab';
+import { DocumentSequencesTab } from '@/components/settings/DocumentSequencesTab';
+import { ProsecutionSettingsTab } from '@/components/settings/ProsecutionSettingsTab';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,13 +11,14 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  useSettingsByCategory,
-  useUpdateSettingsBatch,
-  useRestoreCategoryDefaults,
-  useReloadRateLimits,
+    useReloadRateLimits,
+    useRestoreCategoryDefaults,
+    useSettingsByCategory,
+    useUpdateSettingsBatch,
 } from '@/hooks/queries/useSettingsQueries';
+import { useHasPermission } from '@/hooks/useAuth';
 import type { ApplicationSettingDto, UpdateSettingsBatchRequest } from '@/lib/api/settings';
-import { Bell, Gauge, Calculator, Clock, Info, Loader2, RotateCcw, Save, Zap } from 'lucide-react';
+import { Bell, Calculator, Clock, FileText, Gauge, Gavel, Info, Loader2, RotateCcw, Save, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -188,18 +192,20 @@ function CategorySettingsTab({ category, description, showReloadRateLimits = fal
 // ============================================================================
 
 export default function SystemConfigPage() {
+  const canEdit = useHasPermission(['config.read', 'config.update'], 'any');
+
   return (
-    <ProtectedRoute requiredPermissions={["system.security_policy"]}>
+    <ProtectedRoute requiredPermissions={['system.security_policy', 'config.read']}>
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold text-gray-900">System Configuration</h2>
           <p className="text-sm text-gray-500">
-            Manage rate limits, business logic parameters, cache durations, and integration timeouts
+            Manage rate limits, business logic parameters, document numbering, cache durations, and integration timeouts
           </p>
         </div>
 
         <Tabs defaultValue="rate-limiting" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7">
             <TabsTrigger value="rate-limiting" className="flex items-center gap-2">
               <Gauge className="h-4 w-4" />
               <span className="hidden sm:inline">Rate Limiting</span>
@@ -214,6 +220,16 @@ export default function SystemConfigPage() {
               <Zap className="h-4 w-4" />
               <span className="hidden sm:inline">Financial</span>
               <span className="sm:hidden">Financial</span>
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Documents</span>
+              <span className="sm:hidden">Docs</span>
+            </TabsTrigger>
+            <TabsTrigger value="prosecution" className="flex items-center gap-2">
+              <Gavel className="h-4 w-4" />
+              <span className="hidden sm:inline">Prosecution</span>
+              <span className="sm:hidden">Court</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
@@ -247,6 +263,25 @@ export default function SystemConfigPage() {
               category="Financial"
               description="Configure financial calculation parameters including exchange rates and invoice aging thresholds for reports."
             />
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-4">
+            <Tabs defaultValue="conventions" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="conventions">Numbering conventions</TabsTrigger>
+                <TabsTrigger value="sequences">Sequence counters</TabsTrigger>
+              </TabsList>
+              <TabsContent value="conventions">
+                <DocumentConventionsTab canEdit={canEdit} />
+              </TabsContent>
+              <TabsContent value="sequences">
+                <DocumentSequencesTab canEdit={canEdit} />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          <TabsContent value="prosecution" className="mt-4">
+            <ProsecutionSettingsTab />
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-4">

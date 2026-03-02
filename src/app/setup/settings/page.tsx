@@ -7,17 +7,17 @@ import { toast } from 'sonner';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import {
-  useIntegrations,
-  useUpsertIntegration,
+    useIntegrations,
+    useUpsertIntegration,
 } from '@/hooks/queries/useIntegrationQueries';
 import { useHasPermission } from '@/hooks/useAuth';
 import type { UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 import { reconcilePayments, testIntegrationConnectivity } from '@/lib/api/integration';
 import { notificationApi } from '@/lib/api/notification';
 import {
-  fetchApiSettings,
-  saveApiSettings,
-  type KeyValueEntry,
+    fetchApiSettings,
+    saveApiSettings,
+    type KeyValueEntry,
 } from '@/lib/api/setup';
 
 // Layout & UI
@@ -31,33 +31,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Modular integration components
 import {
-  IntegrationConfigForm,
-  IntegrationProviderCard,
-  ReconciliationPanel,
-  type ProviderMeta,
+    IntegrationConfigForm,
+    IntegrationProviderCard,
+    ReconciliationPanel,
+    type ProviderMeta,
 } from '@/components/integrations';
 
 // Icons
 import {
-  AlertCircle,
-  Bell,
-  CreditCard,
-  DollarSign,
-  FileText,
-  Globe,
-  Loader2,
-  Mail,
-  Plus,
-  RefreshCcw,
-  Save,
-  Scale,
-  Settings2,
-  Trash2,
+    AlertCircle,
+    Bell,
+    CreditCard,
+    DollarSign,
+    FileText,
+    Globe,
+    Loader2,
+    Mail,
+    Plus,
+    RefreshCcw,
+    Save,
+    Settings2,
+    Trash2,
 } from 'lucide-react';
 
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
-import { CalibrationConfigTab } from '@/components/settings/CalibrationConfigTab';
-import { DocumentConventionsTab } from '@/components/settings/DocumentConventionsTab';
 
 // ============================================================================
 // Provider Definitions
@@ -166,7 +163,7 @@ function IntegrationSettingsContent() {
 
       {/* Tabs */}
       <Tabs defaultValue="payment-gateways" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 max-w-4xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-4xl">
           <TabsTrigger value="payment-gateways" className="gap-1.5">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Payments</span>
@@ -183,14 +180,6 @@ function IntegrationSettingsContent() {
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Rates</span>
           </TabsTrigger>
-          <TabsTrigger value="calibration" className="gap-1.5">
-            <Scale className="h-4 w-4" />
-            <span className="hidden sm:inline">Calibration</span>
-          </TabsTrigger>
-          <TabsTrigger value="documents" className="gap-1.5">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Docs</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="payment-gateways">
@@ -204,12 +193,6 @@ function IntegrationSettingsContent() {
         </TabsContent>
         <TabsContent value="exchange-rates">
           <ExchangeRateSettings />
-        </TabsContent>
-        <TabsContent value="calibration">
-          <CalibrationConfigTab canEdit={canEdit} />
-        </TabsContent>
-        <TabsContent value="documents">
-          <DocumentConventionsTab canEdit={canEdit} />
         </TabsContent>
       </Tabs>
     </div>
@@ -245,6 +228,13 @@ function NotificationsTab({ canEdit }: { canEdit: boolean }) {
       }
     },
     [upsertMutation]
+  );
+
+  const handleTestConnection = useCallback(
+    async (providerName: string) => {
+      return testIntegrationConnectivity(providerName);
+    },
+    []
   );
 
   const { data: templates, isLoading: isLoadingTemplates } = useQuery({

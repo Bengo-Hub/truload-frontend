@@ -378,9 +378,20 @@ export default function YardListTab() {
                           </Button>
                         )}
                         {entry.status !== 'released' && canRelease && (
-                          <Button variant="ghost" size="sm" onClick={() => handleRelease(entry)} title="Release">
-                            <ArrowRightFromLine className="h-4 w-4 text-green-600" />
-                          </Button>
+                          entry.isCaseClosed !== false ? (
+                            <Button variant="ghost" size="sm" onClick={() => handleRelease(entry)} title="Release">
+                              <ArrowRightFromLine className="h-4 w-4 text-green-600" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              title="Case must be closed before yard release"
+                            >
+                              <ArrowRightFromLine className="h-4 w-4 text-gray-400" />
+                            </Button>
+                          )
                         )}
                       </div>
                     </TableCell>

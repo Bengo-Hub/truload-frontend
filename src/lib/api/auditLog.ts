@@ -9,6 +9,8 @@ export interface AuditLogDto {
   userId: string;
   userName?: string;
   userFullName?: string;
+  /** User email (prefer for display over userName). */
+  userEmail?: string;
   action: string;
   resourceType: string;
   resourceId?: string;

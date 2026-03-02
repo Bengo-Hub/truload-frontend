@@ -2,38 +2,40 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
+import { CalibrationConfigTab } from '@/components/settings/CalibrationConfigTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle,
-  HardDrive,
-  Network,
-  RefreshCcw,
-  Scale,
-  Server,
-  Signal,
-  Wifi,
-  WifiOff,
-  XCircle,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useHealthStatus } from '@/hooks/queries/useTechnicalQueries';
 import { useMyStation, useScaleTestStatus } from '@/hooks/queries/useWeighingQueries';
+import { useHasPermission } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import {
+    Activity,
+    AlertTriangle,
+    CheckCircle,
+    HardDrive,
+    Network,
+    RefreshCcw,
+    Scale,
+    Server,
+    Signal,
+    Wifi,
+    WifiOff,
+    XCircle,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function TechnicalPage() {
   return (
@@ -48,6 +50,7 @@ export default function TechnicalPage() {
 function TechnicalContent() {
   const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(true);
+  const canEdit = useHasPermission('config.read');
 
   // Real data hooks
   const { data: health, isLoading: healthLoading, dataUpdatedAt: healthUpdatedAt } = useHealthStatus();
@@ -199,9 +202,9 @@ function TechnicalContent() {
         </Card>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs (Calibration moved from Integrations to Technical per Section 19) */}
       <Tabs defaultValue="services" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="services" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
             <span className="hidden sm:inline">Services</span>
@@ -209,6 +212,10 @@ function TechnicalContent() {
           <TabsTrigger value="scale-test" className="flex items-center gap-2">
             <Scale className="h-4 w-4" />
             <span className="hidden sm:inline">Scale Test</span>
+          </TabsTrigger>
+          <TabsTrigger value="calibration" className="flex items-center gap-2">
+            <Scale className="h-4 w-4" />
+            <span className="hidden sm:inline">Calibration</span>
           </TabsTrigger>
           <TabsTrigger value="network" className="flex items-center gap-2">
             <Network className="h-4 w-4" />
@@ -411,6 +418,11 @@ function TechnicalContent() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Calibration Tab (moved from Integrations) */}
+        <TabsContent value="calibration" className="space-y-6">
+          <CalibrationConfigTab canEdit={canEdit} />
         </TabsContent>
 
         {/* Network Tab */}

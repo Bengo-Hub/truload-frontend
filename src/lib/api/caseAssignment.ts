@@ -37,9 +37,25 @@ export async function getAssignmentsByCaseId(caseId: string): Promise<CaseAssign
   return data;
 }
 
-export async function getCurrentAssignment(caseId: string): Promise<CaseAssignmentLogDto> {
-  const { data } = await apiClient.get<CaseAssignmentLogDto>(`/cases/${caseId}/assignments/current`);
-  return data;
+/**
+ * Get current investigating officer assignment for a case.
+ * Returns null when no current assignment (backend returns 404).
+ */
+export async function getCurrentAssignment(
+  caseId: string
+): Promise<CaseAssignmentLogDto | null> {
+  try {
+    const { data } = await apiClient.get<CaseAssignmentLogDto>(
+      `/cases/${caseId}/assignments/current`
+    );
+    return data;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const err = error as { response?: { status?: number } };
+      if (err.response?.status === 404) return null;
+    }
+    throw error;
+  }
 }
 
 export async function logAssignment(

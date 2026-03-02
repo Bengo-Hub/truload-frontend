@@ -39,6 +39,9 @@ interface DecisionPanelProps {
   canSpecialRelease?: boolean;
   canReweigh?: boolean;
 
+  /** When true, vehicle already sent to yard - hide "Send to Yard", show info instead. */
+  isSentToYard?: boolean;
+
   // Loading states
   isFinishing?: boolean;
   isSendingToYard?: boolean;
@@ -73,6 +76,7 @@ export function DecisionPanel({
   canSendToYard = true,
   canSpecialRelease = false,
   canReweigh = false,
+  isSentToYard = false,
   isFinishing = false,
   isSendingToYard = false,
   className,
@@ -166,8 +170,8 @@ export function DecisionPanel({
             </Button>
           )}
 
-          {/* Send to Yard - for OVERLOAD */}
-          {isOverloaded && canSendToYard && (
+          {/* Send to Yard - for OVERLOAD (hidden when already sent) */}
+          {isOverloaded && canSendToYard && !isSentToYard && (
             <Button
               variant="destructive"
               className="flex-1 sm:flex-initial"
@@ -181,6 +185,14 @@ export function DecisionPanel({
               )}
               {isSendingToYard ? 'Sending...' : 'Send to Yard'}
             </Button>
+          )}
+
+          {/* Vehicle sent to yard info - when overload and already sent */}
+          {isOverloaded && isSentToYard && (
+            <div className="flex items-center gap-2 p-3 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-700">
+              <Truck className="h-4 w-4 text-slate-500" />
+              <span>Vehicle has been sent to yard</span>
+            </div>
           )}
 
           {/* Special Release - for OVERLOAD/WARNING */}
