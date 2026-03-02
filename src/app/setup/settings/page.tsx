@@ -7,17 +7,17 @@ import { toast } from 'sonner';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import {
-    useIntegrations,
-    useUpsertIntegration,
+  useIntegrations,
+  useUpsertIntegration,
 } from '@/hooks/queries/useIntegrationQueries';
 import { useHasPermission } from '@/hooks/useAuth';
 import type { UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 import { reconcilePayments, testIntegrationConnectivity } from '@/lib/api/integration';
 import { notificationApi } from '@/lib/api/notification';
 import {
-    fetchApiSettings,
-    saveApiSettings,
-    type KeyValueEntry,
+  fetchApiSettings,
+  saveApiSettings,
+  type KeyValueEntry,
 } from '@/lib/api/setup';
 
 // Layout & UI
@@ -31,27 +31,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Modular integration components
 import {
-    IntegrationConfigForm,
-    IntegrationProviderCard,
-    ReconciliationPanel,
-    type ProviderMeta,
+  IntegrationConfigForm,
+  IntegrationProviderCard,
+  ReconciliationPanel,
+  type ProviderMeta,
 } from '@/components/integrations';
 
 // Icons
 import {
-    AlertCircle,
-    Bell,
-    CreditCard,
-    DollarSign,
-    FileText,
-    Globe,
-    Loader2,
-    Mail,
-    Plus,
-    RefreshCcw,
-    Save,
-    Settings2,
-    Trash2,
+  AlertCircle,
+  Bell,
+  CreditCard,
+  DollarSign,
+  FileText,
+  Globe,
+  Loader2,
+  Mail,
+  Plus,
+  RefreshCcw,
+  Save,
+  Settings2,
+  Trash2,
 } from 'lucide-react';
 
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
@@ -104,13 +104,6 @@ interface ApiServiceDef {
 }
 
 const API_SERVICES: ApiServiceDef[] = [
-  {
-    value: 'notifications',
-    label: 'Notifications',
-    description: 'Push notifications, SMS, and email gateway',
-    icon: <Bell className="h-5 w-5 text-blue-600" />,
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
-  },
   {
     value: 'ntsa',
     label: 'NTSA',

@@ -3,27 +3,27 @@
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  AxleConfigurationCard,
-  CargoTypeModal,
-  ComplianceBanner,
-  ComplianceTable,
-  DecisionPanel,
-  DriverModal,
-  getDefaultAxleConfig,
-  ImageCaptureCard,
-  OriginDestinationModal,
-  TransporterModal,
-  VehicleDetailsCard,
-  VehicleMakeModal,
-  WeighingPageHeader,
-  WeighingStepper,
-  WeightCaptureCard
+    AxleConfigurationCard,
+    CargoTypeModal,
+    ComplianceBanner,
+    ComplianceTable,
+    DecisionPanel,
+    DriverModal,
+    getDefaultAxleConfig,
+    ImageCaptureCard,
+    OriginDestinationModal,
+    TransporterModal,
+    VehicleDetailsCard,
+    VehicleMakeModal,
+    WeighingPageHeader,
+    WeighingStepper,
+    WeightCaptureCard
 } from '@/components/weighing';
 import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
 import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
@@ -32,23 +32,23 @@ import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
 import { WeightConfirmationModal } from '@/components/weighing/WeightConfirmationModal';
 import {
-  useAxleWeightReferences,
-  useCargoTypes,
-  useCreateCargoType,
-  useCreateDriver,
-  useCreateOriginDestination,
-  useCreateTransporter,
-  useCreateVehicle,
-  useCreateVehicleMake,
-  useDrivers,
-  useMyScaleTestStatus,
-  useMyStation,
-  useOriginsDestinations,
-  usePendingWeighings,
-  useTransporters,
-  useVehicleByRegNo,
-  useVehicleMakes,
-  useWeighingAxleConfigurations,
+    useAxleWeightReferences,
+    useCargoTypes,
+    useCreateCargoType,
+    useCreateDriver,
+    useCreateOriginDestination,
+    useCreateTransporter,
+    useCreateVehicle,
+    useCreateVehicleMake,
+    useDrivers,
+    useMyScaleTestStatus,
+    useMyStation,
+    useOriginsDestinations,
+    usePendingWeighings,
+    useTransporters,
+    useVehicleByRegNo,
+    useVehicleMakes,
+    useWeighingAxleConfigurations,
 } from '@/hooks/queries';
 import { useHasPermission } from '@/hooks/useAuth';
 import { useMiddleware } from '@/hooks/useMiddleware';
@@ -58,14 +58,14 @@ import { createVehicleTag, createYardEntry, fetchTagCategories } from '@/lib/api
 import { QUERY_KEYS } from '@/lib/query/config';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
 import {
-  AxleGroupResult,
-  ComplianceStatus,
-  CreateDriverRequest,
-  CreateOriginDestinationRequest,
-  CreateTransporterRequest,
-  CreateVehicleMakeRequest,
-  ScaleStatus,
-  WeighingStep,
+    AxleGroupResult,
+    ComplianceStatus,
+    CreateDriverRequest,
+    CreateOriginDestinationRequest,
+    CreateTransporterRequest,
+    CreateVehicleMakeRequest,
+    ScaleStatus,
+    WeighingStep,
 } from '@/types/weighing';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Edit3, Loader2, Scale, ScanLine } from 'lucide-react';
@@ -202,13 +202,13 @@ export default function MobileWeighingPage() {
       if (weight.connection?.connected !== undefined) {
         setIsScalesConnected(weight.connection.connected);
       }
-      // Update scale info from weight data if available
-      // Now handles both scaleAStatus and scaleBStatus from enhanced middleware data
-      if (weight.scaleInfo || weight.scaleAStatus || weight.scaleBStatus) {
+      // Update scale info from weight data (connection + scaleAStatus/scaleBStatus from middleware/polling)
+      if (weight.scaleInfo || weight.scaleAStatus || weight.scaleBStatus || weight.connection) {
+        const conn = weight.connection?.connected ?? false;
         setScales(prev => [
           {
             ...prev[0],
-            status: (weight.scaleAStatus?.connected ?? weight.connection?.connected) ? 'connected' : 'disconnected',
+            status: (weight.scaleAStatus?.connected ?? conn) ? 'connected' : 'disconnected',
             weight: weight.scaleA ?? weight.weight ?? 0,
             battery: weight.scaleAStatus?.battery ?? weight.scaleInfo?.battery ?? prev[0].battery,
             temperature: weight.scaleAStatus?.temperature ?? weight.scaleInfo?.temperature ?? prev[0].temperature,
@@ -218,8 +218,7 @@ export default function MobileWeighingPage() {
           },
           {
             ...prev[1],
-            // Scale B status - for PAW/simulation, both scales are connected since weight is split
-            status: (weight.scaleBStatus?.connected ?? weight.connection?.connected) ? 'connected' : 'disconnected',
+            status: (weight.scaleBStatus?.connected ?? conn) ? 'connected' : 'disconnected',
             weight: weight.scaleB ?? (weight.weight ? Math.floor(weight.weight / 2) : 0),
             battery: weight.scaleBStatus?.battery ?? weight.scaleInfo?.battery ?? prev[1].battery,
             temperature: weight.scaleBStatus?.temperature ?? weight.scaleInfo?.temperature ?? prev[1].temperature,
@@ -817,7 +816,7 @@ export default function MobileWeighingPage() {
     const success = await captureAxleWeight(currentAxle, weight);
 
     if (success) {
-      // Sync axle capture to middleware for autoweigh tracking
+      // Sync axle capture to middleware (autoweigh tracking; middleware sends weigh command to console for next axle)
       if (middleware.connected) {
         middleware.captureAxle(currentAxle, weight);
       }
@@ -1300,20 +1299,12 @@ export default function MobileWeighingPage() {
     router.push(`/weighing/special-release?transactionId=${weighingSession.transactionId}`);
   }, [weighingSession, router]);
 
-  // Finish weighing and reset for next vehicle
-  const handleFinishAndNew = useCallback(async () => {
-    // Print ticket first
-    await handlePrintTicket();
-
-    // Reset hook session (clears backend session and localStorage)
+  // Finish & Exit: end session, reset middleware, redirect to capture (no print). Always available on decision screen.
+  const handleFinishOnly = useCallback(() => {
     resetSession();
-
-    // Reset middleware session
     if (middleware.connected) {
       middleware.resetSession();
     }
-
-    // Reset local UI state
     setLocalCapturedWeights([]);
     setLocalCurrentAxle(1);
     setCurrentAxleWeight(0);
@@ -1330,17 +1321,21 @@ export default function MobileWeighingPage() {
     hasShownSentToYardToast.current = false;
     setCompletedSteps([]);
     setCurrentStep('capture');
-
-    // Reset linked entity IDs
     setSelectedDriverId(undefined);
     setSelectedTransporterId(undefined);
     setSelectedCargoId(undefined);
     setSelectedOriginId(undefined);
     setSelectedDestinationId(undefined);
     setSelectedVehicleId(undefined);
+    toast.success('Session ended. Ready for next vehicle.');
+  }, [resetSession, middleware]);
 
+  // Finish & Print Ticket: print then finish (for compliant vehicles). Calls handleFinishOnly after print.
+  const handleFinishAndNew = useCallback(async () => {
+    await handlePrintTicket();
+    handleFinishOnly();
     toast.success('Weighing completed. Ready for next vehicle.');
-  }, [handlePrintTicket, resetSession, middleware]);
+  }, [handlePrintTicket, handleFinishOnly]);
 
   // Initiate a reweigh - creates new transaction linked to original
   const handleReweigh = useCallback(async () => {
@@ -1916,7 +1911,8 @@ export default function MobileWeighingPage() {
                   reweighCycleNo={reweighCycleNo}
                   requiredFieldsValid={validationResult.isValid}
                   missingFields={validationResult.missingFields}
-                  onFinishExit={handleFinishAndNew}
+                  onFinishExit={handleFinishOnly}
+                  onFinishAndPrint={handleFinishAndNew}
                   onSendToYard={handleSendToYard}
                   onSpecialRelease={handleSpecialRelease}
                   onReweigh={handleReweigh}
