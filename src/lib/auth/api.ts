@@ -5,23 +5,33 @@
 
 import { apiClient } from '@/lib/api/client';
 import type { LoginRequest, LoginResponse, RefreshTokenResponse, User } from '../../types/auth/types';
-import { clearTokens, setTokens, setTenantContext } from './token';
+import { clearTokens, setTenantContext, setTokens } from './token';
 
 /**
  * Login user with email and password.
- * Backend proxies credentials to auth-service, syncs user, returns JWT in httpOnly cookie.
- * 
- * @param email - User email address
- * @param password - User password
- * @param tenantSlug - Tenant slug (default: 'codevertex')
- * @returns LoginResponse with user details and token expiry
+ * If backend returns requires2FA, do NOT set tokens; caller must show 2FA step and call loginVerify2FA.
+ * Optional org/station for tenant login with pre-login station selection.
  */
-export async function login(email: string, password: string): Promise<LoginResponse> {
-  const payload: LoginRequest = { email, password };
+export async function login(
+  email: string,
+  password: string,
+  options?: { organizationCode?: string; stationCode?: string }
+): Promise<LoginResponse> {
+  const payload: LoginRequest = {
+    email,
+    password,
+    organizationCode: options?.organizationCode,
+    stationCode: options?.stationCode,
+  };
 
   const { data } = await apiClient.post<LoginResponse>('/auth/login', payload);
 
-  // Store tokens if provided
+  // If 2FA required, do not set tokens; return challenge to caller
+  if (data.requires2FA && data.twoFactorToken) {
+    return data;
+  }
+
+  // Store tokens if provided (full login success)
   if (data.accessToken && data.refreshToken && data.expiresIn) {
     setTokens({
       accessToken: data.accessToken,
@@ -30,11 +40,44 @@ export async function login(email: string, password: string): Promise<LoginRespo
     });
   }
 
-  // Store tenant context (organization and station) for multi-tenant API headers
   if (data.user) {
+    const isHqUser = !!data.user.isHqUser;
     setTenantContext({
       organizationId: data.user.organizationId,
       stationId: data.user.stationId,
+      isHqUser,
+    });
+  }
+
+  return data;
+}
+
+/**
+ * Complete login after 2FA: verify TOTP or recovery code and receive tokens.
+ */
+export async function loginVerify2FA(twoFactorToken: string, code: string, useRecoveryCode = false): Promise<LoginResponse> {
+  const { data } = await apiClient.post<LoginResponse>('/auth/login/2fa-verify', {
+    twoFactorToken,
+    code: code.replace(/\s/g, '').replace(/-/g, ''),
+    useRecoveryCode,
+  });
+
+  if (!data.accessToken || !data.refreshToken) {
+    throw new Error('Invalid verification code');
+  }
+
+  setTokens({
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    expiresIn: data.expiresIn ?? 3600,
+  });
+
+  if (data.user) {
+    const isHqUser = !!data.user.isHqUser;
+    setTenantContext({
+      organizationId: data.user.organizationId,
+      stationId: data.user.stationId,
+      isHqUser,
     });
   }
 
@@ -93,5 +136,35 @@ export async function changePassword(currentPassword: string, newPassword: strin
     currentPassword,
     newPassword,
     confirmNewPassword,
+  });
+}
+
+/** Password policy shape returned by public GET /auth/password-policy (for login, register, reset, change-expired flows). */
+export interface PublicPasswordPolicy {
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireDigit: boolean;
+  requireSpecial: boolean;
+  lockoutThreshold: number;
+  lockoutMinutes: number;
+  passwordExpiryDays?: number;
+}
+
+/**
+ * Get password policy (public, no auth). Use on login, register, forgot-password, reset-password, change-expired-password pages.
+ */
+export async function getPasswordPolicyPublic(): Promise<PublicPasswordPolicy> {
+  const { data } = await apiClient.get<PublicPasswordPolicy>('/auth/password-policy');
+  return data ?? { minLength: 8, requireUppercase: true, requireLowercase: true, requireDigit: true, requireSpecial: false, lockoutThreshold: 5, lockoutMinutes: 15, passwordExpiryDays: 0 };
+}
+
+/**
+ * Change expired password (public). Token comes from login 401 response when password has expired.
+ */
+export async function changeExpiredPassword(changePasswordToken: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/change-expired-password', {
+    changePasswordToken,
+    newPassword,
   });
 }

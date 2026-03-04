@@ -58,6 +58,7 @@ export const QUERY_KEYS = {
   VEHICLE_MAKES: ['vehicle-makes'] as const,
   VEHICLE_CLASSES: ['vehicle-classes'] as const,
   ORIGINS_DESTINATIONS: ['origins-destinations'] as const,
+  ROADS: ['roads'] as const,
 
   // Organization Data (Semi-static)
   ORGANIZATIONS: ['organizations'] as const,

@@ -6,6 +6,7 @@
 'use client';
 
 import { useAuth, useHasPermission, useHasRole } from '@/hooks/useAuth';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -25,7 +26,9 @@ export function ProtectedRoute({
   matchAllPermissions = false,
 }: ProtectedRouteProps) {
   const router = useRouter();
+  const orgSlug = useOrgSlug();
   const { isAuthenticated, isLoading, user } = useAuth();
+  // orgSlug used for unauthorized redirect (tenant routes)
   const hasRequiredRole = useHasRole(requiredRoles ?? [], matchAllRoles ? 'all' : 'any');
   const hasRequiredPermission = useHasPermission(
     requiredPermissions ?? [],
@@ -34,7 +37,7 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push('/auth/login');
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -44,7 +47,7 @@ export function ProtectedRoute({
       const permissionsSatisfied = !requiredPermissions?.length || hasRequiredPermission;
 
       if (!rolesSatisfied || !permissionsSatisfied) {
-        router.push('/unauthorized');
+        router.push(`/${orgSlug}/unauthorized`);
       }
     }
   }, [
@@ -52,6 +55,7 @@ export function ProtectedRoute({
     hasRequiredRole,
     isAuthenticated,
     isLoading,
+    orgSlug,
     requiredPermissions,
     requiredRoles,
     router,
@@ -70,6 +74,13 @@ export function ProtectedRoute({
   }
 
   if (!isAuthenticated) {
+    return null;
+  }
+
+  // Do not render children when user lacks required role/permission (avoids flash before redirect)
+  const rolesSatisfied = !requiredRoles?.length || hasRequiredRole;
+  const permissionsSatisfied = !requiredPermissions?.length || hasRequiredPermission;
+  if (!rolesSatisfied || !permissionsSatisfied) {
     return null;
   }
 

@@ -5,9 +5,9 @@
  * for lookup data, vehicles, transactions, and scale tests.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as weighingApi from '@/lib/api/weighing';
 import { QUERY_KEYS, QUERY_OPTIONS, queryKeys } from '@/lib/query/config';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 // ============================================================================
 // STATIC LOOKUP DATA HOOKS
@@ -71,6 +71,22 @@ export function useOriginsDestinations() {
   return useQuery({
     queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS,
     queryFn: weighingApi.fetchOriginsDestinations,
+    ...QUERY_OPTIONS.semiStatic,
+  });
+}
+
+/**
+ * Fetch roads with server-side pagination (default page size 50)
+ */
+export function useRoadsPaged(params: { pageNumber: number; pageSize: number; search?: string; includeInactive?: boolean }) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.ROADS, 'paged', params.pageNumber, params.pageSize, params.search ?? '', params.includeInactive ?? false],
+    queryFn: () => weighingApi.fetchRoadsPaged({
+      pageNumber: params.pageNumber,
+      pageSize: params.pageSize,
+      search: params.search,
+      includeInactive: params.includeInactive,
+    }),
     ...QUERY_OPTIONS.semiStatic,
   });
 }
@@ -421,6 +437,49 @@ export function useCreateOriginDestination() {
     mutationFn: weighingApi.createOriginDestination,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS });
+    },
+  });
+}
+
+/**
+ * Create road mutation
+ */
+export function useCreateRoad() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.createRoad,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ROADS });
+    },
+  });
+}
+
+/**
+ * Update road mutation
+ */
+export function useUpdateRoad() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: weighingApi.CreateRoadRequest }) =>
+      weighingApi.updateRoad(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ROADS });
+    },
+  });
+}
+
+/**
+ * Delete road mutation
+ */
+export function useDeleteRoad() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteRoad,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ROADS });
     },
   });
 }

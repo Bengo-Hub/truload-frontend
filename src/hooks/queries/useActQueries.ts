@@ -3,9 +3,9 @@
  * Acts are static reference data - cached for 30 minutes.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { QUERY_OPTIONS } from '@/lib/query/config';
 import * as actsApi from '@/lib/api/acts';
+import { QUERY_OPTIONS } from '@/lib/query/config';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const ACT_QUERY_KEYS = {
   ALL: ['acts'] as const,
@@ -114,6 +114,19 @@ export function useSetDefaultAct() {
       queryClient.invalidateQueries({ queryKey: ACT_QUERY_KEYS.ALL });
       queryClient.invalidateQueries({ queryKey: ACT_QUERY_KEYS.DEFAULT });
       queryClient.invalidateQueries({ queryKey: ACT_QUERY_KEYS.SUMMARY });
+    },
+  });
+}
+
+export function useUpdateToleranceSetting() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: actsApi.UpdateToleranceSettingRequest }) =>
+      actsApi.updateToleranceSetting(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ACT_QUERY_KEYS.ALL });
+      queryClient.invalidateQueries({ queryKey: ['acts'] });
     },
   });
 }

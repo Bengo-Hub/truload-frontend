@@ -153,3 +153,16 @@ export async function getActsSummary() {
   const response = await apiClient.get<ActConfigurationSummaryDto>('/acts/summary');
   return response.data;
 }
+
+// Request type for updating a tolerance setting (partial)
+export interface UpdateToleranceSettingRequest {
+  tolerancePercentage?: number;
+  toleranceKg?: number | null;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+export async function updateToleranceSetting(id: string, body: UpdateToleranceSettingRequest) {
+  const response = await apiClient.patch<ToleranceSettingDto>(`/acts/tolerances/${id}`, body);
+  return response.data;
+}

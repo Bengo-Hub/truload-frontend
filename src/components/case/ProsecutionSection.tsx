@@ -48,6 +48,7 @@ import {
 } from '@/hooks/queries/useIntegrationQueries';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
 import type { InvoiceDto } from '@/lib/api/invoice';
 import type { ChargeCalculationResult } from '@/lib/api/prosecution';
 import { generateIdempotencyKey } from '@/lib/api/receipt';
@@ -101,6 +102,7 @@ const PAYMENT_METHODS = [
 ];
 
 export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOnly = false }: ProsecutionSectionProps) {
+  const orgSlug = useOrgSlug();
   const isOnline = useOnlineStatus();
   const { data: acts } = useAllActs();
 
@@ -328,7 +330,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              To create a prosecution case or record payment, open this case from <Link href="/cases" className="text-primary underline">Case register</Link>.
+              To create a prosecution case or record payment, open this case from <Link href={`/${orgSlug}/cases`} className="text-primary underline">Case register</Link>.
             </p>
           </CardContent>
         </Card>
@@ -500,7 +502,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
         <CardContent className="space-y-6">
           {readOnly && (
             <p className="text-sm text-muted-foreground rounded-md bg-muted/50 p-3">
-              Create prosecution and payment are done from Case register. Open this case from <Link href="/cases" className="text-primary underline">Case register</Link> to create or pay.
+              Create prosecution and payment are done from Case register. Open this case from <Link href={`/${orgSlug}/cases`} className="text-primary underline">Case register</Link> to create or pay.
             </p>
           )}
           {/* Charge Summary */}

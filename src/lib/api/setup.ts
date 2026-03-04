@@ -1,41 +1,43 @@
 import { apiClient } from '@/lib/api/client';
 import type {
-  AssignPermissionsRequest,
-  AssignRolesRequest,
-  AxleConfigurationLookupData,
-  AxleConfigurationResponse,
-  AxleWeightReferenceResponse,
-  CreateAxleConfigurationRequest,
-  CreateAxleWeightReferenceRequest,
-  CreateDepartmentRequest,
-  CreateOrganizationRequest,
-  CreateRoleRequest,
-  CreateShiftRotationRequest,
-  CreateStationRequest,
-  CreateUserRequest,
-  CreateUserShiftRequest,
-  CreateWorkShiftRequest,
-  DepartmentDto,
-  OrganizationDto,
-  PagedResponse,
-  PermissionDto,
-  RoleDto,
-  RolePermissionsDto,
-  ShiftRotationDto,
-  StationDto,
-  UpdateAxleConfigurationRequest,
-  UpdateAxleWeightReferenceRequest,
-  UpdateDepartmentRequest,
-  UpdateOrganizationRequest,
-  UpdateRoleRequest,
-  UpdateShiftRotationRequest,
-  UpdateStationRequest,
-  UpdateUserRequest,
-  UpdateUserShiftRequest,
-  UpdateWorkShiftRequest,
-  UserShiftDto,
-  UserSummary,
-  WorkShiftDto,
+    AssignPermissionsRequest,
+    AssignRolesRequest,
+    AxleConfigurationLookupData,
+    AxleConfigurationResponse,
+    AxleWeightReferenceResponse,
+    CreateAxleConfigurationRequest,
+    CreateAxleWeightReferenceRequest,
+    CreateDepartmentRequest,
+    CreateOrganizationRequest,
+    CreateRoleRequest,
+    CreateShiftRotationRequest,
+    CreateStationRequest,
+    CreateUserRequest,
+    CreateUserShiftRequest,
+    CreateWorkShiftRequest,
+    DepartmentDto,
+    OrganizationDto,
+    PagedResponse,
+    PermissionDto,
+    RoleDto,
+    RolePermissionsDto,
+    ShiftRotationDto,
+    StationDto,
+    UpdateAxleConfigurationRequest,
+    UpdateAxleWeightReferenceRequest,
+    UpdateDepartmentRequest,
+    UpdateOrganizationBrandingRequest,
+    UpdateOrganizationModulesRequest,
+    UpdateOrganizationRequest,
+    UpdateRoleRequest,
+    UpdateShiftRotationRequest,
+    UpdateStationRequest,
+    UpdateUserRequest,
+    UpdateUserShiftRequest,
+    UpdateWorkShiftRequest,
+    UserShiftDto,
+    UserSummary,
+    WorkShiftDto,
 } from '@/types/setup';
 
 // User Management
@@ -70,8 +72,18 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
   await apiClient.post('/auth/forgot-password', { email });
 }
 
-export async function resetPasswordWithToken(email: string, token: string, newPassword: string): Promise<void> {
-  await apiClient.post('/auth/reset-password', { email, token, newPassword });
+export async function resetPasswordWithToken(
+  email: string,
+  token: string,
+  newPassword: string,
+  confirmNewPassword?: string
+): Promise<void> {
+  await apiClient.post('/auth/reset-password', {
+    email,
+    token,
+    newPassword,
+    confirmNewPassword: confirmNewPassword ?? newPassword,
+  });
 }
 
 export async function adminResetPassword(userId: string, newPassword: string, confirmNewPassword: string): Promise<void> {
@@ -166,6 +178,25 @@ export async function createOrganization(payload: CreateOrganizationRequest): Pr
 
 export async function updateOrganization(id: string, payload: UpdateOrganizationRequest): Promise<OrganizationDto> {
   const { data } = await apiClient.put<OrganizationDto>(`/Organizations/${id}`, payload);
+  return data;
+}
+
+export async function updateOrganizationModules(id: string, payload: UpdateOrganizationModulesRequest): Promise<OrganizationDto> {
+  const { data } = await apiClient.patch<OrganizationDto>(`/Organizations/${id}/modules`, payload);
+  return data;
+}
+
+export async function getCurrentOrganization(): Promise<OrganizationDto | null> {
+  try {
+    const { data } = await apiClient.get<OrganizationDto>('/Organizations/current');
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateCurrentOrganizationBranding(payload: UpdateOrganizationBrandingRequest): Promise<OrganizationDto> {
+  const { data } = await apiClient.patch<OrganizationDto>('/Organizations/current/branding', payload);
   return data;
 }
 

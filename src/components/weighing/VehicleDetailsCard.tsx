@@ -16,7 +16,7 @@ import {
   Vehicle,
 } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { Eye, Locate, MapPin, Package, Pencil, Plus, RefreshCw, Scan, Truck, User, Building2, FileText, Car } from 'lucide-react';
+import { Eye, Locate, MapPin, Package, Pencil, Plus, RefreshCw, Scan, Truck, User, Building2, FileText, Car, BookOpen } from 'lucide-react';
 
 // Vehicle makes list
 const VEHICLE_MAKES = [
@@ -181,6 +181,11 @@ interface VehicleDetailsCardProps {
   /** Distance text for suggested origin */
   suggestedOriginDistance?: string;
 
+  // Act (legal framework for compliance and fees; default: Traffic Act)
+  selectedActId?: string;
+  onActIdChange?: (value: string) => void;
+  acts?: { id: string; name: string; code: string; chargingCurrency: string; isDefault?: boolean }[];
+
   // Permit & Additional Fields
   permitNo?: string;
   onPermitNoChange?: (value: string) => void;
@@ -276,6 +281,9 @@ export function VehicleDetailsCard({
   onRequestGeolocation,
   isGeoLoading = false,
   suggestedOriginDistance,
+  selectedActId,
+  onActIdChange,
+  acts = [],
   permitNo,
   onPermitNoChange,
   onViewPermit,
@@ -678,6 +686,36 @@ export function VehicleDetailsCard({
                 onEdit={selectedDestinationId ? onEditDestination : undefined}
                 onView={selectedDestinationId ? onViewDestination : undefined}
               />
+            )}
+
+            {/* Act (legal framework for compliance and fees; default: Traffic Act) */}
+            {acts.length > 0 && onActIdChange && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-gray-400" />
+                  Act
+                </Label>
+                <Select
+                  value={selectedActId || acts.find(a => a.isDefault)?.id || acts[0]?.id || ''}
+                  onValueChange={onActIdChange}
+                  disabled={isReadOnly}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Default: Traffic Act" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {acts.map((act) => (
+                      <SelectItem key={act.id} value={act.id}>
+                        <span>
+                          <span className="font-medium">{act.name}</span>
+                          <span className="text-gray-500 ml-2 text-xs">({act.chargingCurrency})</span>
+                          {act.isDefault && <span className="ml-1 text-xs text-primary">Default</span>}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
             {/* Relief Vehicle Reg */}

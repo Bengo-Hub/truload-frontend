@@ -8,11 +8,10 @@
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useStations } from '@/hooks/queries/useWeighingQueries';
 import { RotateCcw } from 'lucide-react';
 
 // Control status options
@@ -32,7 +31,6 @@ const WEIGHING_TYPE_OPTIONS = [
 
 export function DashboardFilters() {
   const { filters, setFilter, resetFilters } = useDashboardFilters();
-  const { data: stations, isLoading: isLoadingStations } = useStations();
 
   return (
     <Card className="w-full">
@@ -66,31 +64,13 @@ export function DashboardFilters() {
             />
           </div>
 
-          {/* Station */}
+          {/* Station - centralized: HQ/superuser get All + stations; others see only assigned station (disabled) */}
           <div className="space-y-2">
-            <Label htmlFor="station" className="text-sm font-medium">
-              Station
-            </Label>
-            {isLoadingStations ? (
-              <Skeleton className="h-9 w-full" />
-            ) : (
-              <Select
-                value={filters.stationId}
-                onValueChange={(value) => setFilter('stationId', value)}
-              >
-                <SelectTrigger id="station" className="h-9">
-                  <SelectValue placeholder="Select station" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stations</SelectItem>
-                  {stations?.map((station) => (
-                    <SelectItem key={station.id} value={station.id}>
-                      {station.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <StationSelectFilter
+              label="Station"
+              value={filters.stationId === 'all' ? undefined : filters.stationId}
+              onValueChange={(v) => setFilter('stationId', v ?? 'all')}
+            />
           </div>
 
           {/* Weighing Type */}
