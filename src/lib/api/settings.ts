@@ -12,6 +12,7 @@ export interface PasswordPolicyDto {
   requireSpecial: boolean;
   lockoutThreshold: number;
   lockoutMinutes: number;
+  passwordExpiryDays?: number;
 }
 
 export interface UpdatePasswordPolicyRequest {
@@ -22,6 +23,7 @@ export interface UpdatePasswordPolicyRequest {
   requireSpecial: boolean;
   lockoutThreshold: number;
   lockoutMinutes: number;
+  passwordExpiryDays?: number;
 }
 
 export interface ShiftSettingsDto {

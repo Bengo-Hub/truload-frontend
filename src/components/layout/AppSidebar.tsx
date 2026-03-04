@@ -5,6 +5,8 @@
  */
 
 import { Button } from '@/components/ui/button';
+import { getPostLogoutRedirectPath } from '@/lib/auth/lastLoginStation';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useAuthStore } from '@/stores/auth.store';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -42,6 +44,8 @@ interface MenuItem {
   icon: LucideIcon;
   /** Permission codes - user needs at least one to see this item. Empty = always visible. */
   permissions: string[];
+  /** Module key for tenant-based visibility; must be in user.enabledModules (or all if superuser / no list). */
+  moduleKey: string;
 }
 
 interface MenuSection {
@@ -53,34 +57,34 @@ const menuSections: MenuSection[] = [
   {
     title: 'Main Menu',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissions: [] },
-      { href: '/weighing', label: 'Weighing', icon: Weight, permissions: ['weighing.read', 'weighing.create'] },
-      { href: '/cases', label: 'Case Register', icon: FolderOpen, permissions: ['case.read'] },
-      { href: '/case-management', label: 'Case management', icon: LayoutList, permissions: ['case.read'] },
-      { href: '/cases/special-releases', label: 'Special releases', icon: ShieldAlert, permissions: ['case.special_release'] },
-      { href: '/prosecution', label: 'Prosecution', icon: Gavel, permissions: ['prosecution.read'] },
-      { href: '/reporting', label: 'Reporting', icon: BarChart3, permissions: ['analytics.read'] },
-      { href: '/users', label: 'Users & Roles', icon: Users, permissions: ['user.read'] },
-      { href: '/shifts', label: 'Shift Management', icon: Clock4, permissions: ['user.manage_shifts'] },
-      { href: '/technical', label: 'Technical', icon: Wrench, permissions: ['config.read', 'station.manage_devices'] },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissions: [], moduleKey: 'dashboard' },
+      { href: '/weighing', label: 'Weighing', icon: Weight, permissions: ['weighing.read', 'weighing.create'], moduleKey: 'weighing' },
+      { href: '/cases', label: 'Case Register', icon: FolderOpen, permissions: ['case.read'], moduleKey: 'cases' },
+      { href: '/case-management', label: 'Case management', icon: LayoutList, permissions: ['case.read'], moduleKey: 'case_management' },
+      { href: '/cases/special-releases', label: 'Special releases', icon: ShieldAlert, permissions: ['case.special_release'], moduleKey: 'special_releases' },
+      { href: '/prosecution', label: 'Prosecution', icon: Gavel, permissions: ['prosecution.read'], moduleKey: 'prosecution' },
+      { href: '/reporting', label: 'Reporting', icon: BarChart3, permissions: ['analytics.read'], moduleKey: 'reporting' },
+      { href: '/users', label: 'Users & Roles', icon: Users, permissions: ['user.read'], moduleKey: 'users' },
+      { href: '/shifts', label: 'Shift Management', icon: Clock4, permissions: ['user.manage_shifts'], moduleKey: 'shifts' },
+      { href: '/technical', label: 'Technical', icon: Wrench, permissions: ['config.read', 'station.manage_devices'], moduleKey: 'technical' },
     ],
   },
   {
     title: 'Financial',
     items: [
-      { href: '/financial/invoices', label: 'Invoices', icon: Receipt, permissions: ['invoice.read'] },
-      { href: '/financial/receipts', label: 'Receipts', icon: CreditCard, permissions: ['receipt.read'] },
+      { href: '/financial/invoices', label: 'Invoices', icon: Receipt, permissions: ['invoice.read'], moduleKey: 'financial_invoices' },
+      { href: '/financial/receipts', label: 'Receipts', icon: CreditCard, permissions: ['receipt.read'], moduleKey: 'financial_receipts' },
     ],
   },
   {
     title: 'Setup',
     items: [
-      { href: '/setup/security', label: 'Security', icon: Shield, permissions: ['system.security_policy'] },
-      { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.manage_axle', 'config.read'] },
-      { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read', 'weighing.create'] },
-      { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'] },
-      { href: '/setup/settings', label: 'Integrations', icon: Settings, permissions: ['config.read'] },
-      { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['system.security_policy'] },
+      { href: '/setup/security', label: 'Security', icon: Shield, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
+      { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.manage_axle', 'config.read'], moduleKey: 'setup_axle' },
+      { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read', 'weighing.create'], moduleKey: 'setup_weighing_metadata' },
+      { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
+      { href: '/setup/settings', label: 'Integrations', icon: Settings, permissions: ['config.read'], moduleKey: 'setup_settings' },
+      { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['system.security_policy'], moduleKey: 'setup_system_config' },
     ],
   },
 ];
@@ -93,6 +97,7 @@ interface AppSidebarProps {
 export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const orgSlug = useOrgSlug();
   const { logout, user } = useAuthStore();
 
   // Close mobile sidebar on route change
@@ -106,25 +111,29 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login');
+      router.push(getPostLogoutRedirectPath(orgSlug));
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
-  // Filter menu items based on user permissions
+  // Filter menu items by permissions and tenant-enabled modules
   const filteredSections = useMemo(() => {
     if (!user) return [];
     const userPerms = (user.permissions ?? []).map((p) => p.toLowerCase());
     const isSuperUser = user.isSuperUser === true;
+    const enabledModules = user.enabledModules ?? [];
+    const hasModuleFilter = enabledModules.length > 0;
 
     return menuSections
       .map((section) => ({
         ...section,
         items: section.items.filter((item) => {
-          // No permissions required = always visible
+          // Tenant module filter: if org has enabledModules and user is not superuser, hide items whose moduleKey is not enabled
+          if (hasModuleFilter && !isSuperUser && !enabledModules.includes(item.moduleKey)) return false;
+          // No permissions required = always visible (subject to module filter above)
           if (item.permissions.length === 0) return true;
-          // Superuser sees everything
+          // Superuser sees everything (module filter already passed)
           if (isSuperUser) return true;
           // User needs at least one of the listed permissions
           return item.permissions.some((p) => userPerms.includes(p.toLowerCase()));
@@ -167,11 +176,12 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
             <ul className="space-y-1">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.href || pathname.startsWith(item.href + '/');
+                const href = `/${orgSlug}${item.href}`;
+                const active = pathname === href || pathname.startsWith(href + '/');
                 return (
-                  <li key={item.href}>
+                  <li key={href}>
                     <Link
-                      href={item.href}
+                      href={href}
                       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                         active
                           ? 'bg-emerald-50 text-emerald-700'
@@ -188,6 +198,19 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
           </div>
         ))}
       </nav>
+
+      {/* Platform admin (superuser only) */}
+      {user?.isSuperUser && (
+        <div className="border-t border-gray-200 px-4 py-2">
+          <Link
+            href="/platform"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          >
+            <Shield className="h-5 w-5" />
+            Platform admin
+          </Link>
+        </div>
+      )}
 
       {/* Logout Button */}
       <div className="border-t border-gray-200 px-4 py-4">

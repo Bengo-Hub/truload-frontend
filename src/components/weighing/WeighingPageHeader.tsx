@@ -1,10 +1,11 @@
 "use client";
 
 import { Button } from '@/components/ui/button';
-import { ScaleStatus } from '@/types/weighing';
-import { getScaleStatusColor } from '@/lib/weighing-utils';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { getScaleStatusColor } from '@/lib/weighing-utils';
+import { ScaleStatus } from '@/types/weighing';
+import { AlertCircle, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface WeighingPageHeaderProps {
@@ -32,11 +33,13 @@ export function WeighingPageHeader({
   subtitle,
   scaleStatus,
   scaleLabel = 'Scale',
-  backHref = '/weighing',
+  backHref,
   onBack,
   rightContent,
   className,
 }: WeighingPageHeaderProps) {
+  const orgSlug = useOrgSlug();
+  const resolvedBackHref = backHref ?? `/${orgSlug}/weighing`;
   const getStatusIcon = () => {
     switch (scaleStatus) {
       case 'connected':
@@ -61,7 +64,7 @@ export function WeighingPageHeader({
         {onBack ? (
           <BackButton />
         ) : (
-          <Link href={backHref}>
+          <Link href={resolvedBackHref}>
             <BackButton />
           </Link>
         )}

@@ -8,6 +8,8 @@ const ACCESS_TOKEN_KEY = 'truload_access_token';
 const REFRESH_TOKEN_KEY = 'truload_refresh_token';
 const ORG_ID_KEY = 'truload_org_id';
 const STATION_ID_KEY = 'truload_station_id';
+const IS_HQ_USER_KEY = 'truload_is_hq_user';
+const SELECTED_STATION_ID_KEY = 'truload_selected_station_id';
 
 interface TokenBundle {
   accessToken: string;
@@ -15,9 +17,10 @@ interface TokenBundle {
   expiresIn: number; // seconds
 }
 
-interface TenantContext {
+export interface TenantContext {
   organizationId?: string;
   stationId?: string;
+  isHqUser?: boolean;
 }
 
 export function setTokens({ accessToken, refreshToken, expiresIn }: TokenBundle): void {
@@ -47,6 +50,8 @@ export function clearTokens(): void {
   localStorage.removeItem(TOKEN_EXPIRY_KEY);
   localStorage.removeItem(ORG_ID_KEY);
   localStorage.removeItem(STATION_ID_KEY);
+  localStorage.removeItem(IS_HQ_USER_KEY);
+  localStorage.removeItem(SELECTED_STATION_ID_KEY);
 
   // Clear cookies
   const now = new Date(0).toUTCString();
@@ -58,16 +63,60 @@ export function clearTokens(): void {
 /**
  * Store tenant context (organization and station IDs) from logged-in user.
  * These are sent as X-Org-ID and X-Station-ID headers on all API requests.
+ * When isHqUser is true, we do not store stationId so backend does not filter by station; HQ users can set a selected station for drill-down via setSelectedStationId.
  */
-export function setTenantContext({ organizationId, stationId }: TenantContext): void {
+export function setTenantContext({ organizationId, stationId, isHqUser }: TenantContext): void {
   if (typeof window === 'undefined') return;
 
   if (organizationId) {
     localStorage.setItem(ORG_ID_KEY, organizationId);
   }
-  if (stationId) {
+  if (isHqUser !== undefined) {
+    if (isHqUser) {
+      localStorage.setItem(IS_HQ_USER_KEY, '1');
+      localStorage.removeItem(STATION_ID_KEY);
+    } else {
+      localStorage.removeItem(IS_HQ_USER_KEY);
+      if (stationId) localStorage.setItem(STATION_ID_KEY, stationId);
+    }
+  } else if (stationId) {
     localStorage.setItem(STATION_ID_KEY, stationId);
+  } else {
+    localStorage.removeItem(STATION_ID_KEY);
   }
+}
+
+/** True when the current user is an HQ user (can access all stations; station filter is for drill-down only). */
+export function getIsHqUser(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(IS_HQ_USER_KEY) === '1';
+}
+
+/** HQ users: set the selected station for drill-down (sent as X-Station-ID). Pass null to clear (view all stations). */
+export function setSelectedStationId(stationId: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (stationId) {
+    localStorage.setItem(SELECTED_STATION_ID_KEY, stationId);
+  } else {
+    localStorage.removeItem(SELECTED_STATION_ID_KEY);
+  }
+}
+
+/** HQ users: get the currently selected station for drill-down. */
+export function getSelectedStationId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(SELECTED_STATION_ID_KEY);
+}
+
+/**
+ * Station ID to send in X-Station-ID header. For HQ users: selected station (or null = all stations). For non-HQ: their assigned station.
+ */
+export function getEffectiveStationId(): string | null {
+  if (typeof window === 'undefined') return null;
+  if (getIsHqUser()) {
+    return getSelectedStationId();
+  }
+  return localStorage.getItem(STATION_ID_KEY);
 }
 
 /**
@@ -82,9 +131,7 @@ export function getOrganizationId(): string | null {
   }
 }
 
-/**
- * Get current station ID for API headers.
- */
+/** Get stored station ID (assigned station for non-HQ users). */
 export function getStationId(): string | null {
   if (typeof window === 'undefined') return null;
   try {

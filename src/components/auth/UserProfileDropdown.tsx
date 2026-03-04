@@ -14,12 +14,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
+import { getPostLogoutRedirectPath } from '@/lib/auth/lastLoginStation';
 import { ChevronDown, LogOut, User as UserIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 export function UserProfileDropdown() {
   const router = useRouter();
+  const orgSlug = useOrgSlug();
   const { user, logout } = useAuth();
 
   if (!user) return null;
@@ -28,7 +31,7 @@ export function UserProfileDropdown() {
     try {
       await logout();
       toast.success('Logged out successfully');
-      router.push('/login');
+      router.push(getPostLogoutRedirectPath(orgSlug));
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Logout failed');
@@ -78,7 +81,7 @@ export function UserProfileDropdown() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/profile')} className="gap-2">
+        <DropdownMenuItem onClick={() => router.push(`/${orgSlug}/profile`)} className="gap-2">
           <UserIcon className="h-4 w-4" />
           Profile
         </DropdownMenuItem>

@@ -387,11 +387,12 @@ export async function getHearingOutcomes(filters?: DashboardFilterParams) {
 }
 
 /**
- * Get axle type violation distribution
+ * Get axle type violation distribution (Steering, SingleDrive, Tandem, Tridem).
+ * Uses axle-type-violations endpoint; respects dateFrom, dateTo, stationId.
  */
 export async function getAxleViolations(filters?: DashboardFilterParams) {
   const response = await apiClient.get<OverloadDistributionData[]>(
-    '/weighing-transactions/axle-violations',
+    '/weighing-transactions/axle-type-violations',
     { params: buildParams(filters) }
   );
   return response.data;

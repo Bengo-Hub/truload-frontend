@@ -227,17 +227,20 @@ export interface WeighingValidationResult {
 /**
  * Validate required fields before taking a decision action.
  * Returns which fields are missing so the UI can highlight them.
+ * Mandatory per FRD: Driver, Transporter, Origin, Destination, Cargo.
  */
 export function validateRequiredFields(params: {
   driverId?: string;
   transporterId?: string;
   originId?: string;
   destinationId?: string;
+  cargoId?: string;
 }): WeighingValidationResult {
   const missingFields: string[] = [];
   if (!params.driverId) missingFields.push('Driver');
   if (!params.transporterId) missingFields.push('Transporter');
   if (!params.originId) missingFields.push('Origin');
   if (!params.destinationId) missingFields.push('Destination');
+  if (!params.cargoId) missingFields.push('Cargo');
   return { isValid: missingFields.length === 0, missingFields };
 }

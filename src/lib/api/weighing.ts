@@ -225,6 +225,8 @@ export interface CreateWeighingRequest {
   originId?: string;
   destinationId?: string;
   cargoId?: string;
+  /** Applicable Act (Traffic Act, EAC). When null, backend uses default act. */
+  actId?: string;
 }
 
 export interface UpdateWeighingRequest {
@@ -234,6 +236,8 @@ export interface UpdateWeighingRequest {
   originId?: string;
   destinationId?: string;
   cargoId?: string;
+  /** Applicable Act (Traffic Act, EAC). When null, backend uses default act. */
+  actId?: string;
 }
 
 export interface CaptureWeightsRequest {
@@ -575,6 +579,67 @@ export async function deleteOriginDestination(id: string): Promise<void> {
 }
 
 // ============================================================================
+// Roads API (location / weighing setup)
+// ============================================================================
+
+export interface Road {
+  id: string;
+  code: string;
+  name: string;
+  roadClass: string;
+  districtId?: string;
+  totalLengthKm?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PagedResponse<T> {
+  items: T[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface RoadsPagedParams {
+  pageNumber?: number;
+  pageSize?: number;
+  includeInactive?: boolean;
+  search?: string;
+}
+
+export async function fetchRoadsPaged(params: RoadsPagedParams = {}): Promise<PagedResponse<Road>> {
+  const { pageNumber = 1, pageSize = 50, includeInactive = false, search } = params;
+  const { data } = await apiClient.get<PagedResponse<Road>>('/roads/paged', {
+    params: { pageNumber, pageSize, includeInactive, search: search || undefined },
+  });
+  return data;
+}
+
+export interface CreateRoadRequest {
+  code: string;
+  name: string;
+  roadClass: string;
+  districtId?: string;
+  totalLengthKm?: number;
+}
+
+export async function createRoad(payload: CreateRoadRequest): Promise<Road> {
+  const { data } = await apiClient.post<Road>('/roads', payload);
+  return data;
+}
+
+export async function updateRoad(id: string, payload: CreateRoadRequest): Promise<Road> {
+  const { data } = await apiClient.put<Road>(`/roads/${id}`, payload);
+  return data;
+}
+
+export async function deleteRoad(id: string): Promise<void> {
+  await apiClient.delete(`/roads/${id}`);
+}
+
+// ============================================================================
 // Vehicle Makes API
 // ============================================================================
 
@@ -633,6 +698,7 @@ export interface Station {
   boundACode?: string;
   boundBCode?: string;
   isActive: boolean;
+  isHq?: boolean;
   createdAt: string;
   updatedAt: string;
 }

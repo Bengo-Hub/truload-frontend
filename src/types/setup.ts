@@ -67,12 +67,24 @@ export interface OrganizationDto {
   code: string;
   name: string;
   orgType?: string;
+  tenantType?: string;
+  enabledModules?: string[];
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
+  logoUrl?: string | null;
+  platformLogoUrl?: string | null;
+  loginPageImageUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface UpdateOrganizationModulesRequest {
+  tenantType?: string;
+  enabledModules?: string[];
 }
 
 export interface CreateOrganizationRequest {
@@ -91,7 +103,20 @@ export interface UpdateOrganizationRequest {
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
+  logoUrl?: string | null;
+  platformLogoUrl?: string | null;
+  loginPageImageUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
   isActive?: boolean;
+}
+
+export interface UpdateOrganizationBrandingRequest {
+  logoUrl?: string | null;
+  platformLogoUrl?: string | null;
+  loginPageImageUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
 }
 
 export interface StationDto {

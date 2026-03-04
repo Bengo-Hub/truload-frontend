@@ -37,6 +37,9 @@ export * from './useDashboardQueries';
 // Settings queries
 export * from './useSettingsQueries';
 
+// Act configuration queries (acts & compliance)
+export * from './useActQueries';
+
 // Two-Factor Authentication queries
 export * from './useTwoFactorQueries';
 

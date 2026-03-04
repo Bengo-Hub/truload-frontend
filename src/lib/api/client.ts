@@ -1,5 +1,5 @@
+import { getEffectiveStationId, getOrganizationId } from '@/lib/auth/token';
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import { getOrganizationId, getStationId } from '@/lib/auth/token';
 
 // Prefer same-origin relative base to ensure httpOnly cookies are sent.
 // Override via NEXT_PUBLIC_API_URL when calling a different origin deliberately.
@@ -105,9 +105,9 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
 
-      // Add multi-tenant headers for organization and station filtering
+      // Add multi-tenant headers. For HQ users, station is only sent when they select one for drill-down.
       const orgId = getOrganizationId();
-      const stationId = getStationId();
+      const stationId = getEffectiveStationId();
 
       if (orgId) {
         config.headers[ORG_ID_HEADER] = orgId;
