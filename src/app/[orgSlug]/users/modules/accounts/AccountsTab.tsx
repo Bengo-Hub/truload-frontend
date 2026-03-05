@@ -3,28 +3,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-    AlertTriangle,
-    Building2,
-    Download,
-    Eye,
-    Filter,
-    KeyRound,
-    Layers,
-    Mail,
-    MapPin,
-    Pencil,
-    Phone,
-    Plus,
-    RefreshCcw,
-    Search,
-    Shield,
-    ShieldCheck,
-    Trash2,
-    UserCheck,
-    UserPlus,
-    Users,
-    UsersRound,
-    X,
+  AlertTriangle,
+  Building2,
+  Download,
+  Eye,
+  Filter,
+  KeyRound,
+  Layers,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  RefreshCcw,
+  Search,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+  UserPlus,
+  Users,
+  UsersRound,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -34,55 +34,55 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { useHasPermission } from "@/hooks/useAuth";
-import { useAuthStore } from "@/stores/auth.store";
 import {
-    adminResetPassword,
-    assignRoles,
-    createUser,
-    deleteUser,
-    fetchDepartments,
-    fetchOrganizations,
-    fetchRoles,
-    fetchStations,
-    fetchUsers,
-    sendPasswordResetEmail,
-    updateUser,
+  adminResetPassword,
+  assignRoles,
+  createUser,
+  deleteUser,
+  fetchDepartments,
+  fetchOrganizations,
+  fetchRoles,
+  fetchStations,
+  fetchUsers,
+  sendPasswordResetEmail,
+  updateUser,
 } from "@/lib/api/setup";
+import { useAuthStore } from "@/stores/auth.store";
 import type {
-    CreateUserRequest,
-    DepartmentDto,
-    OrganizationDto,
-    RoleDto,
-    StationDto,
-    UpdateUserRequest,
-    UserSummary,
+  CreateUserRequest,
+  DepartmentDto,
+  OrganizationDto,
+  RoleDto,
+  StationDto,
+  UpdateUserRequest,
+  UserSummary,
 } from "@/types/setup";
 
 // ---------------------------------------------------------------------------
@@ -1475,6 +1475,19 @@ export default function AccountsTab() {
   const activeDepartments = departments.filter((d) => d.isActive);
   const hasActiveFilters = !!(search || roleFilter || orgFilter || deptFilter);
 
+  // Station dropdown: only superuser or HQ users can select any station; others see only their assigned station (disabled)
+  const currentUser = useAuthStore((s) => s.user);
+  const canSelectStation = (currentUser?.isSuperUser ?? false) || (currentUser?.isHqUser ?? false);
+  const stationsForForm = useMemo(
+    () =>
+      canSelectStation
+        ? stations
+        : currentUser?.stationId
+          ? stations.filter((s) => s.id === currentUser.stationId)
+          : [],
+    [canSelectStation, stations, currentUser?.stationId]
+  );
+
   // -- Handlers
   const handleClearFilters = useCallback(() => {
     setSearch("");
@@ -1826,8 +1839,9 @@ export default function AccountsTab() {
           onClose={() => setCreateDialogOpen(false)}
           roles={roles}
           orgs={orgs}
-          stations={stations}
+          stations={stationsForForm}
           departments={departments}
+          stationSelectDisabled={!canSelectStation}
         />
       )}
 
@@ -1837,10 +1851,11 @@ export default function AccountsTab() {
         onClose={() => setEditUser(null)}
         roles={roles}
         orgs={orgs}
-        stations={stations}
+        stations={stationsForForm}
         departments={departments}
         canEdit={canEdit}
         canAssignRoles={canAssignRoles}
+        stationSelectDisabled={!canSelectStation}
       />
 
       <ViewUserDialog

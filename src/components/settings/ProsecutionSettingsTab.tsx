@@ -1,43 +1,48 @@
 'use client';
 
 import { useOrgSlug } from '@/hooks/useOrgSlug';
-import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { COURT_HEARING_QUERY_KEYS, useCourts } from '@/hooks/queries/useCourtHearingQueries';
+import { GEOGRAPHIC_QUERY_KEYS, useCounties, useSubcounties } from '@/hooks/queries/useGeographicQueries';
 import {
-    useSettingsByCategory,
-    useUpdateSettingsBatch,
+  useSettingsByCategory,
+  useUpdateSettingsBatch,
 } from '@/hooks/queries/useSettingsQueries';
-import type { CourtDto } from '@/lib/api/courtHearing';
-import { fetchCourts } from '@/lib/api/courtHearing';
-import type { CountyDto, SubcountyDto } from '@/lib/api/geographic';
-import { fetchCounties, fetchSubcounties } from '@/lib/api/geographic';
+import {
+  useRoadsByCounty,
+  useRoadsByDistrict,
+  useRoadsPaged,
+} from '@/hooks/queries/useWeighingQueries';
+import { fetchSubcounties, type CountyDto, type SubcountyDto } from '@/lib/api/geographic';
 import type { ApplicationSettingDto, UpdateSettingsBatchRequest } from '@/lib/api/settings';
-import type { UserSummary } from '@/lib/api/setup';
 import { fetchUsers } from '@/lib/api/setup';
 import type { Road } from '@/lib/api/weighing';
-import { fetchRoadsPaged } from '@/lib/api/weighing';
+import { QUERY_KEYS, QUERY_OPTIONS } from '@/lib/query/config';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { ExternalLink, Info, Loader2, MapPin, Save, Settings2 } from 'lucide-react';
+import { AddCountyModal } from '@/components/settings/prosecution/AddCountyModal';
+import { AddCourtModal } from '@/components/settings/prosecution/AddCourtModal';
+import { AddRoadModal } from '@/components/settings/prosecution/AddRoadModal';
+import { AddSubcountyModal } from '@/components/settings/prosecution/AddSubcountyModal';
+import { Info, Loader2, MapPin, Save, Settings2 } from 'lucide-react';
 
 const KEY_DEFAULT_COURT = 'prosecution.default_court_id';
 const KEY_DEFAULT_COMPLAINANT = 'prosecution.default_complainant_officer_id';
-const KEY_DEFAULT_DISTRICT = 'prosecution.default_district';
 const KEY_DEFAULT_COUNTY = 'prosecution.default_county_id';
 const KEY_DEFAULT_SUBCOUNTY = 'prosecution.default_subcounty_id';
 const KEY_DEFAULT_ROAD = 'prosecution.default_road_id';
@@ -52,64 +57,49 @@ function isProsecutionRelatedRole(roleName: string): boolean {
 
 export function ProsecutionSettingsTab() {
   const orgSlug = useOrgSlug();
+  const queryClient = useQueryClient();
   const { data: settings, isLoading } = useSettingsByCategory('Prosecution');
   const updateBatch = useUpdateSettingsBatch();
-  const [courts, setCourts] = useState<CourtDto[]>([]);
-  const [users, setUsers] = useState<UserSummary[]>([]);
-  const [counties, setCounties] = useState<CountyDto[]>([]);
-  const [subcounties, setSubcounties] = useState<SubcountyDto[]>([]);
-  const [roads, setRoads] = useState<Road[]>([]);
-  const [loadingLookups, setLoadingLookups] = useState(true);
   const [defaultCourtId, setDefaultCourtId] = useState<string>('');
   const [defaultComplainantId, setDefaultComplainantId] = useState<string>('');
-  const [defaultDistrict, setDefaultDistrict] = useState<string>('');
   const [defaultCountyId, setDefaultCountyId] = useState<string>('');
   const [defaultSubcountyId, setDefaultSubcountyId] = useState<string>('');
   const [defaultRoadId, setDefaultRoadId] = useState<string>('');
   const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [courtsRes, usersRes, countiesRes, roadsRes] = await Promise.all([
-          fetchCourts(),
-          fetchUsers({ pageNumber: 1, pageSize: 500 }),
-          fetchCounties(),
-          fetchRoadsPaged({ pageNumber: 1, pageSize: 200 }),
-        ]);
-        setCourts(courtsRes ?? []);
-        setUsers(usersRes?.items ?? []);
-        setCounties(countiesRes ?? []);
-        setRoads(roadsRes?.items ?? []);
-      } catch {
-        toast.error('Failed to load courts, users, counties or roads');
-      } finally {
-        setLoadingLookups(false);
-      }
-    };
-    load();
-  }, []);
+  const { data: counties = [], isLoading: countiesLoading } = useCounties();
+  const { data: subcounties = [], isLoading: subcountiesLoading } = useSubcounties(defaultCountyId || undefined);
+  const { data: courts = [], isLoading: courtsLoading } = useCourts();
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: [...QUERY_KEYS.USERS, 'list', 500],
+    queryFn: () => fetchUsers({ pageNumber: 1, pageSize: 500 }),
+    ...QUERY_OPTIONS.semiStatic,
+  });
+  const users = usersData?.items ?? [];
 
-  useEffect(() => {
-    if (!defaultCountyId) {
-      setSubcounties([]);
-      return;
-    }
-    let cancelled = false;
-    fetchSubcounties(defaultCountyId).then((list) => {
-      if (!cancelled) setSubcounties(list ?? []);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [defaultCountyId]);
+  const roadsByDistrict = useRoadsByDistrict(defaultSubcountyId || undefined);
+  const roadsByCounty = useRoadsByCounty(defaultCountyId && !defaultSubcountyId ? defaultCountyId : undefined);
+  const roadsPaged = useRoadsPaged({ pageNumber: 1, pageSize: 500 });
+
+  const roads: Road[] = useMemo(() => {
+    if (defaultSubcountyId && roadsByDistrict.data) return roadsByDistrict.data;
+    if (defaultCountyId && !defaultSubcountyId && roadsByCounty.data) return roadsByCounty.data;
+    return roadsPaged.data?.items ?? [];
+  }, [defaultSubcountyId, defaultCountyId, roadsByDistrict.data, roadsByCounty.data, roadsPaged.data?.items]);
+
+  const roadsLoading = defaultSubcountyId
+    ? roadsByDistrict.isLoading
+    : defaultCountyId
+      ? roadsByCounty.isLoading
+      : roadsPaged.isLoading;
+
+  const loadingLookups = countiesLoading || courtsLoading || usersLoading || subcountiesLoading || roadsLoading;
 
   useEffect(() => {
     if (!settings?.length) return;
     const get = (key: string) => settings.find((s: ApplicationSettingDto) => s.settingKey === key)?.settingValue ?? '';
     setDefaultCourtId(get(KEY_DEFAULT_COURT));
     setDefaultComplainantId(get(KEY_DEFAULT_COMPLAINANT));
-    setDefaultDistrict(get(KEY_DEFAULT_DISTRICT));
     setDefaultCountyId(get(KEY_DEFAULT_COUNTY));
     setDefaultSubcountyId(get(KEY_DEFAULT_SUBCOUNTY));
     setDefaultRoadId(get(KEY_DEFAULT_ROAD));
@@ -119,7 +109,6 @@ export function ProsecutionSettingsTab() {
     const updates: UpdateSettingsBatchRequest['settings'] = [
       { settingKey: KEY_DEFAULT_COURT, settingValue: defaultCourtId },
       { settingKey: KEY_DEFAULT_COMPLAINANT, settingValue: defaultComplainantId },
-      { settingKey: KEY_DEFAULT_DISTRICT, settingValue: defaultDistrict },
       { settingKey: KEY_DEFAULT_COUNTY, settingValue: defaultCountyId },
       { settingKey: KEY_DEFAULT_SUBCOUNTY, settingValue: defaultSubcountyId },
       { settingKey: KEY_DEFAULT_ROAD, settingValue: defaultRoadId },
@@ -134,7 +123,6 @@ export function ProsecutionSettingsTab() {
   }, [
     defaultCourtId,
     defaultComplainantId,
-    defaultDistrict,
     defaultCountyId,
     defaultSubcountyId,
     defaultRoadId,
@@ -147,12 +135,11 @@ export function ProsecutionSettingsTab() {
     const changed =
       (get(KEY_DEFAULT_COURT) ?? '') !== defaultCourtId ||
       (get(KEY_DEFAULT_COMPLAINANT) ?? '') !== defaultComplainantId ||
-      (get(KEY_DEFAULT_DISTRICT) ?? '') !== defaultDistrict ||
       (get(KEY_DEFAULT_COUNTY) ?? '') !== defaultCountyId ||
       (get(KEY_DEFAULT_SUBCOUNTY) ?? '') !== defaultSubcountyId ||
       (get(KEY_DEFAULT_ROAD) ?? '') !== defaultRoadId;
     setHasChanges(changed);
-  }, [settings, defaultCourtId, defaultComplainantId, defaultDistrict, defaultCountyId, defaultSubcountyId, defaultRoadId]);
+  }, [settings, defaultCourtId, defaultComplainantId, defaultCountyId, defaultSubcountyId, defaultRoadId]);
 
   const complainantUsers = users.filter((u) =>
     (u.roles ?? []).some((r) => isProsecutionRelatedRole(r))
@@ -196,46 +183,63 @@ export function ProsecutionSettingsTab() {
           <Card className="divide-y p-4 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="prosecution-default-county">Default county</Label>
-              <Select value={defaultCountyId || 'none'} onValueChange={(v) => setDefaultCountyId(v === 'none' ? '' : v)}>
-                <SelectTrigger id="prosecution-default-county">
-                  <SelectValue placeholder="Select default county" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {counties.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                      {c.code ? ` (${c.code})` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={defaultCountyId || 'none'} onValueChange={(v) => setDefaultCountyId(v === 'none' ? '' : v)}>
+                  <SelectTrigger id="prosecution-default-county" className="flex-1">
+                    <SelectValue placeholder="Select default county" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {counties.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {c.code ? ` (${c.code})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <AddCountyModal
+                  onCreated={(c) => {
+                    queryClient.invalidateQueries({ queryKey: GEOGRAPHIC_QUERY_KEYS.counties });
+                    setDefaultCountyId(c.id);
+                  }}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="prosecution-default-subcounty">Default subcounty</Label>
-              <Select
-                value={defaultSubcountyId || 'none'}
-                onValueChange={(v) => setDefaultSubcountyId(v === 'none' ? '' : v)}
-              >
-                <SelectTrigger id="prosecution-default-subcounty">
-                  <SelectValue placeholder="Select default subcounty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {subcounties.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                      {s.code ? ` (${s.code})` : ''}
-                    </SelectItem>
-                  ))}
-                  {defaultCountyId && subcounties.length === 0 && (
-                    <SelectItem value="_empty" disabled>
-                      No subcounties for this county
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={defaultSubcountyId || 'none'}
+                  onValueChange={(v) => setDefaultSubcountyId(v === 'none' ? '' : v)}
+                >
+                  <SelectTrigger id="prosecution-default-subcounty" className="flex-1">
+                    <SelectValue placeholder="Select default subcounty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {subcounties.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                        {s.code ? ` (${s.code})` : ''}
+                      </SelectItem>
+                    ))}
+                    {defaultCountyId && subcounties.length === 0 && (
+                      <SelectItem value="_empty" disabled>
+                        No subcounties for this county
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <AddSubcountyModal
+                  counties={counties}
+                  onCreated={(s) => {
+                    queryClient.invalidateQueries({ queryKey: GEOGRAPHIC_QUERY_KEYS.subcounties(defaultCountyId) });
+                    if (s.countyId === defaultCountyId) setDefaultSubcountyId(s.id);
+                  }}
+                />
+              </div>
               {defaultCountyId && (
                 <p className="text-xs text-muted-foreground">Filtered by selected county. Subcounty and district mean the same.</p>
               )}
@@ -257,30 +261,42 @@ export function ProsecutionSettingsTab() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="icon" asChild title="Manage roads">
-                  <Link href={`/${orgSlug}/setup/weighing-metadata?tab=roads`}>
-                    <ExternalLink className="h-4 w-4" />
-                  </Link>
-                </Button>
+                <AddRoadModal
+                  onCreated={(r) => {
+                    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ROADS });
+                    setDefaultRoadId(r.id);
+                  }}
+                />
               </div>
+              <p className="text-xs text-muted-foreground">Roads filtered by selected county/subcounty when set.</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="prosecution-default-court">Default court</Label>
-              <Select value={defaultCourtId || 'none'} onValueChange={(v) => setDefaultCourtId(v === 'none' ? '' : v)}>
-                <SelectTrigger id="prosecution-default-court">
-                  <SelectValue placeholder="Select default court" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {courts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                      {c.code ? ` (${c.code})` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={defaultCourtId || 'none'} onValueChange={(v) => setDefaultCourtId(v === 'none' ? '' : v)}>
+                  <SelectTrigger id="prosecution-default-court" className="flex-1">
+                    <SelectValue placeholder="Select default court" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {courts.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {c.code ? ` (${c.code})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <AddCourtModal
+                  counties={counties}
+                  subcounties={subcounties}
+                  onCreated={(c) => {
+                    queryClient.invalidateQueries({ queryKey: COURT_HEARING_QUERY_KEYS.courts });
+                    setDefaultCourtId(c.id);
+                  }}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -307,16 +323,6 @@ export function ProsecutionSettingsTab() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">Filtered to users with case or prosecution related roles.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="prosecution-default-district">Default district (legacy text)</Label>
-              <Input
-                id="prosecution-default-district"
-                value={defaultDistrict}
-                onChange={(e) => setDefaultDistrict(e.target.value)}
-                placeholder="e.g. Nairobi, Mombasa (optional; prefer Default Subcounty)"
-              />
             </div>
 
             <div className="pt-2">

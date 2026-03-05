@@ -23,3 +23,24 @@ export async function fetchSubcounties(countyId?: string): Promise<SubcountyDto[
   const { data } = await apiClient.get<SubcountyDto[]>('/geographic/subcounties', { params });
   return data ?? [];
 }
+
+export interface CreateCountyRequest {
+  name: string;
+  code?: string;
+}
+
+export interface CreateSubcountyRequest {
+  countyId: string;
+  name: string;
+  code?: string;
+}
+
+export async function createCounty(payload: CreateCountyRequest): Promise<CountyDto> {
+  const { data } = await apiClient.post<CountyDto>('/geographic/counties', payload);
+  return data!;
+}
+
+export async function createSubcounty(payload: CreateSubcountyRequest): Promise<SubcountyDto> {
+  const { data } = await apiClient.post<SubcountyDto>('/geographic/subcounties', payload);
+  return data!;
+}
