@@ -617,6 +617,16 @@ export async function fetchRoadsPaged(params: RoadsPagedParams = {}): Promise<Pa
   return data;
 }
 
+export async function fetchRoadsByDistrict(districtId: string): Promise<Road[]> {
+  const { data } = await apiClient.get<Road[]>(`/roads/district/${districtId}`);
+  return data ?? [];
+}
+
+export async function fetchRoadsByCounty(countyId: string): Promise<Road[]> {
+  const { data } = await apiClient.get<Road[]>(`/roads/county/${countyId}`);
+  return data ?? [];
+}
+
 export interface CreateRoadRequest {
   code: string;
   name: string;

@@ -92,6 +92,30 @@ export function useRoadsPaged(params: { pageNumber: number; pageSize: number; se
 }
 
 /**
+ * Fetch roads that pass through a district (subcounty). Cached for prosecution/setup screens.
+ */
+export function useRoadsByDistrict(districtId: string | undefined) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.ROADS, 'district', districtId ?? ''],
+    queryFn: () => weighingApi.fetchRoadsByDistrict(districtId!),
+    ...QUERY_OPTIONS.semiStatic,
+    enabled: !!districtId,
+  });
+}
+
+/**
+ * Fetch roads that pass through a county. Cached for prosecution/setup screens.
+ */
+export function useRoadsByCounty(countyId: string | undefined) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.ROADS, 'county', countyId ?? ''],
+    queryFn: () => weighingApi.fetchRoadsByCounty(countyId!),
+    ...QUERY_OPTIONS.semiStatic,
+    enabled: !!countyId,
+  });
+}
+
+/**
  * Fetch transporters with optional search
  */
 export function useTransporters(search?: string) {

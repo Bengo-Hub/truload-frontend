@@ -40,7 +40,7 @@ import { useEffect, useState } from 'react';
 export default function TechnicalPage() {
   return (
     <AppShell title="Technical" subtitle="System monitoring and device health">
-      <ProtectedRoute requiredPermissions={['config.read']}>
+      <ProtectedRoute requiredPermissions={['technical.read']}>
         <TechnicalContent />
       </ProtectedRoute>
     </AppShell>

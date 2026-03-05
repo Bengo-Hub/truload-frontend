@@ -83,6 +83,14 @@ export const QUERY_KEYS = {
 
   // Settings
   SETTINGS: ['settings'] as const,
+
+  // Geographic & prosecution lookups (cached for setup/prosecution screens)
+  GEOGRAPHIC: ['geographic'] as const,
+  COUNTIES: ['geographic', 'counties'] as const,
+  SUBCOUNTIES: (countyId: string) => ['geographic', 'subcounties', countyId] as const,
+  COURTS: ['courts'] as const,
+  ROADS_BY_DISTRICT: (districtId: string) => ['roads', 'district', districtId] as const,
+  ROADS_BY_COUNTY: (countyId: string) => ['roads', 'county', countyId] as const,
 } as const;
 
 /**

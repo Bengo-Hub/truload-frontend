@@ -5,8 +5,8 @@
  */
 
 import { Button } from '@/components/ui/button';
-import { getPostLogoutRedirectPath } from '@/lib/auth/lastLoginStation';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
+import { getPostLogoutRedirectPath } from '@/lib/auth/lastLoginStation';
 import { useAuthStore } from '@/stores/auth.store';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -53,12 +53,14 @@ interface MenuSection {
   items: MenuItem[];
 }
 
+// Menu visibility: only "read" (or primary read) permission is required to show the item.
+// If user lacks the read permission, the item is hidden and they cannot open the page (unauthorized).
 const menuSections: MenuSection[] = [
   {
     title: 'Main Menu',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissions: [], moduleKey: 'dashboard' },
-      { href: '/weighing', label: 'Weighing', icon: Weight, permissions: ['weighing.read', 'weighing.create'], moduleKey: 'weighing' },
+      { href: '/weighing', label: 'Weighing', icon: Weight, permissions: ['weighing.read'], moduleKey: 'weighing' },
       { href: '/cases', label: 'Case Register', icon: FolderOpen, permissions: ['case.read'], moduleKey: 'cases' },
       { href: '/case-management', label: 'Case management', icon: LayoutList, permissions: ['case.read'], moduleKey: 'case_management' },
       { href: '/cases/special-releases', label: 'Special releases', icon: ShieldAlert, permissions: ['case.special_release'], moduleKey: 'special_releases' },
@@ -66,7 +68,7 @@ const menuSections: MenuSection[] = [
       { href: '/reporting', label: 'Reporting', icon: BarChart3, permissions: ['analytics.read'], moduleKey: 'reporting' },
       { href: '/users', label: 'Users & Roles', icon: Users, permissions: ['user.read'], moduleKey: 'users' },
       { href: '/shifts', label: 'Shift Management', icon: Clock4, permissions: ['user.manage_shifts'], moduleKey: 'shifts' },
-      { href: '/technical', label: 'Technical', icon: Wrench, permissions: ['config.read', 'station.manage_devices'], moduleKey: 'technical' },
+      { href: '/technical', label: 'Technical', icon: Wrench, permissions: ['technical.read'], moduleKey: 'technical' },
     ],
   },
   {
@@ -80,11 +82,11 @@ const menuSections: MenuSection[] = [
     title: 'Setup',
     items: [
       { href: '/setup/security', label: 'Security', icon: Shield, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
-      { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.manage_axle', 'config.read'], moduleKey: 'setup_axle' },
-      { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read', 'weighing.create'], moduleKey: 'setup_weighing_metadata' },
+      { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.read'], moduleKey: 'setup_axle' },
+      { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read'], moduleKey: 'setup_weighing_metadata' },
       { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
       { href: '/setup/settings', label: 'Integrations', icon: Settings, permissions: ['config.read'], moduleKey: 'setup_settings' },
-      { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['system.security_policy'], moduleKey: 'setup_system_config' },
+      { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['system.security_policy', 'config.read'], moduleKey: 'setup_system_config' },
     ],
   },
 ];

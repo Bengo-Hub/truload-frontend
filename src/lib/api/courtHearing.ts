@@ -61,7 +61,24 @@ export interface CourtDto {
   code: string;
   name: string;
   location?: string;
+  courtType?: string;
+  countyId?: string;
+  districtId?: string;
   isActive: boolean;
+}
+
+export interface CreateCourtRequest {
+  code: string;
+  name: string;
+  location?: string;
+  courtType?: string;
+  countyId?: string;
+  districtId?: string;
+}
+
+export async function createCourt(payload: CreateCourtRequest): Promise<CourtDto> {
+  const { data } = await apiClient.post<CourtDto>('/courts', payload);
+  return data!;
 }
 
 export interface HearingTypeDto {
