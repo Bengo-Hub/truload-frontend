@@ -76,5 +76,8 @@ export * from './useUserQueries';
 // Report queries
 export * from './useReportQueries';
 
+// Geographic queries
+export * from './useGeographicQueries';
+
 // Re-export query configuration for advanced usage
 export { QUERY_KEYS, QUERY_OPTIONS, CACHE_TIMES, queryKeys } from '@/lib/query/config';

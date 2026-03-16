@@ -1,27 +1,32 @@
 "use client";
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
-import { DeckWeight, ScaleStatus } from '@/types/weighing';
 import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  Edit3,
-  FileText,
-  Play,
-  RefreshCcw,
-  Scan,
-  Square,
-  Truck,
+    AlertTriangle,
+    ArrowLeft,
+    ArrowRight,
+    CheckCircle2,
+    Edit3,
+    FileText,
+    Play,
+    Plus,
+    RefreshCcw,
+    Scan,
+    Square,
+    Truck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { VehiclePlaceholderImage } from './VehiclePlaceholderImage';
+import { DeckWeight, ScaleStatus } from '@/types/weighing';
+import { AddRoadModal } from '../settings/prosecution/AddRoadModal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CountyDto, SubcountyDto } from '@/lib/api/geographic';
+import { Road } from '@/lib/api/weighing';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 type WeighingMode = 'mobile' | 'multideck';
 
@@ -60,6 +65,20 @@ interface CaptureScreenProps {
   onEditPlate?: () => void;
   plateEditReason?: string;
 
+  // Location info
+  counties?: CountyDto[];
+  subcounties?: SubcountyDto[];
+  roads?: Road[];
+  countyId?: string;
+  onCountyChange?: (id: string) => void;
+  subcountyId?: string;
+  onSubcountyChange?: (id: string) => void;
+  town?: string;
+  onTownChange?: (town: string) => void;
+  roadId?: string;
+  onRoadChange?: (id: string) => void;
+  onRoadCreated?: (road: Road) => void;
+
   // Auto acquire
   autoAcquire: boolean;
   onAutoAcquireChange: (value: boolean) => void;
@@ -95,6 +114,7 @@ interface CaptureScreenProps {
  *
  * Displays:
  * - Scale status and weight readings
+ * - Location configuration (County, Sub-county, Town, Road)
  * - Vehicle images (ANPR front view, overview camera)
  * - Vehicle plate entry (auto via ANPR or manual)
  * - Vehicle control buttons (traffic lights, booms)
@@ -119,6 +139,18 @@ export function CaptureScreen({
   onScanPlate,
   onEditPlate,
   plateEditReason,
+  counties = [],
+  subcounties = [],
+  roads = [],
+  countyId,
+  onCountyChange,
+  subcountyId,
+  onSubcountyChange,
+  town,
+  onTownChange,
+  roadId,
+  onRoadChange,
+  onRoadCreated,
   autoAcquire,
   onAutoAcquireChange,
   isScaleTestRequired = false,
@@ -164,6 +196,67 @@ export function CaptureScreen({
           <span className="text-yellow-400">{bound}</span>
         )}
       </div>
+
+      {/* Location Configurations */}
+      <Card className="border-gray-200 bg-gray-50/50">
+        <CardContent className="p-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <Label className="text-[10px] text-gray-500 uppercase font-bold">County</Label>
+              <Select value={countyId} onValueChange={onCountyChange}>
+                <SelectTrigger className="h-9 bg-white">
+                  <SelectValue placeholder="Select County" />
+                </SelectTrigger>
+                <SelectContent>
+                  {counties.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-gray-500 uppercase font-bold">Sub County</Label>
+              <Select value={subcountyId} onValueChange={onSubcountyChange} disabled={!countyId}>
+                <SelectTrigger className="h-9 bg-white">
+                  <SelectValue placeholder="Select Sub County" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subcounties.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-gray-500 uppercase font-bold">Town/City</Label>
+              <Input
+                value={town}
+                onChange={(e) => onTownChange?.(e.target.value)}
+                placeholder="Enter Town"
+                className="h-9 bg-white"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-gray-500 uppercase font-bold">Location (Road)</Label>
+              <div className="flex gap-2">
+                <Select value={roadId} onValueChange={onRoadChange} disabled={!countyId}>
+                  <SelectTrigger className="h-9 bg-white flex-1">
+                    <SelectValue placeholder="Select Road" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roads.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.name} ({r.code})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {onRoadCreated && (
+                  <AddRoadModal onCreated={onRoadCreated} />
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -15,7 +15,8 @@ import { fetchOrganizationByCode } from '@/lib/api/public';
 import { getEffectiveStationId } from '@/lib/auth/token';
 import { useAuthStore } from '@/stores/auth.store';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, MapPin, Menu } from 'lucide-react';
+import { Bell, Copy, MapPin, Menu } from 'lucide-react';
+import { useHealthStatus } from '@/hooks/queries/useTechnicalQueries';
 import Image from 'next/image';
 import { ReactNode, useState } from 'react';
 import { AppSidebar } from './AppSidebar';
@@ -124,6 +125,16 @@ export function AppShell({ children, title, subtitle }: AppShellProps) {
         <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 lg:py-8 lg:px-8">
           <div className="max-w-[1920px] mx-auto w-full min-w-0">{children}</div>
         </main>
+        <footer className="shrink-0 border-t border-gray-200 bg-white px-6 py-3">
+          <div className="flex items-center justify-between text-[11px] text-gray-400">
+            <p>© {new Date().getFullYear()} TruLoad. All rights reserved.</p>
+            <div className="flex items-center gap-2">
+              <span className="font-mono bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}
+              </span>
+            </div>
+          </div>
+        </footer>
       </div>
       <NotificationsDialog isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </div>
