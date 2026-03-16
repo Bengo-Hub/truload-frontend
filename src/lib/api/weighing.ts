@@ -590,6 +590,8 @@ export interface Road {
   districtId?: string;
   totalLengthKm?: number;
   isActive: boolean;
+  roadCounties?: { countyId: string }[];
+  roadDistricts?: { districtId: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -633,6 +635,8 @@ export interface CreateRoadRequest {
   roadClass: string;
   districtId?: string;
   totalLengthKm?: number;
+  roadCounties?: { countyId: string }[];
+  roadDistricts?: { districtId: string }[];
 }
 
 export async function createRoad(payload: CreateRoadRequest): Promise<Road> {

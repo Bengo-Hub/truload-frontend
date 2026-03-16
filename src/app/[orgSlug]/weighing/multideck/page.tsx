@@ -41,11 +41,14 @@ import {
     useCreateTransporter,
     useCreateVehicle,
     useCreateVehicleMake,
+    useCounties,
     useDrivers,
     useMyScaleTestStatus,
     useMyStation,
     useOriginsDestinations,
     usePendingWeighings,
+    useRoadsByCounty,
+    useSubcounties,
     useTransporters,
     useVehicleByRegNo,
     useWeighingAxleConfigurations,
@@ -309,6 +312,56 @@ export default function MultideckWeighingPage() {
       }
     }
   }, [axleConfigurations, selectedConfig]);
+
+  // Location / Road switching state
+  const [selectedCountyId, setSelectedCountyId] = useState<string>('');
+  const [selectedSubcountyId, setSelectedSubcountyId] = useState<string>('');
+  const [currentTown, setCurrentTown] = useState<string>('');
+  const [selectedRoadId, setSelectedRoadId] = useState<string>('');
+
+  // Location data hooks
+  const { data: counties = [] } = useCounties();
+  const { data: subcounties = [] } = useSubcounties(selectedCountyId);
+  const { data: roadsByCounty = [] } = useRoadsByCounty(selectedCountyId);
+
+  // Default to Nairobi and persist station settings
+  useEffect(() => {
+    if (!currentStation?.id) return;
+
+    const storageKey = `truload_settings_${currentStation.id}`;
+    const savedSettings = localStorage.getItem(storageKey);
+
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.countyId) setSelectedCountyId(parsed.countyId);
+        if (parsed.subcountyId) setSelectedSubcountyId(parsed.subcountyId);
+        if (parsed.town) setCurrentTown(parsed.town);
+        if (parsed.roadId) setSelectedRoadId(parsed.roadId);
+      } catch (e) {
+        console.error('Failed to parse saved settings', e);
+      }
+    } else if (counties.length > 0 && !selectedCountyId) {
+      // Default to Nairobi City
+      const nairobi = counties.find(c => c.name.includes('Nairobi'));
+      if (nairobi) {
+        setSelectedCountyId(nairobi.id);
+      }
+    }
+  }, [currentStation?.id, counties]);
+
+  // Save settings when they change
+  useEffect(() => {
+    if (!currentStation?.id) return;
+    const storageKey = `truload_settings_${currentStation.id}`;
+    const settings = {
+      countyId: selectedCountyId,
+      subcountyId: selectedSubcountyId,
+      town: currentTown,
+      roadId: selectedRoadId,
+    };
+    localStorage.setItem(storageKey, JSON.stringify(settings));
+  }, [currentStation?.id, selectedCountyId, selectedSubcountyId, currentTown, selectedRoadId]);
 
   // Derive selected configuration ID for weight references lookup
   const selectedConfigId = useMemo(() => {

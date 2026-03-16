@@ -68,6 +68,10 @@ export function LoginPageLayout({ org, children, subtitle, primaryColor = '#0a9f
           </Link>
           {subtitle && <div className="mb-6 text-center text-sm font-medium text-gray-600">{subtitle}</div>}
           <div className="rounded-xl border-0 bg-white shadow-none">{children}</div>
+          <div className="mt-8 flex flex-col items-center gap-1 text-[11px] text-gray-400">
+            <p>© {new Date().getFullYear()} TruLoad. All rights reserved.</p>
+            <span className="font-mono">v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}</span>
+          </div>
         </div>
       </div>
 
