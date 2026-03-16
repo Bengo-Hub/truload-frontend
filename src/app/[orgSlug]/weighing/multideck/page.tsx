@@ -1264,7 +1264,7 @@ export default function MultideckWeighingPage() {
   }, [currentStep, overallStatus, complianceResult?.isSentToYard]);
 
   // Validation
-  const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted;
+  const canProceedFromCapture = vehiclePlate.length >= 5;
   const canProceedFromVehicle = selectedConfig !== '' && isCaptured;
 
   // Station display

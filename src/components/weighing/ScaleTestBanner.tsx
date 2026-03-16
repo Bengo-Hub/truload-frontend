@@ -43,7 +43,7 @@ export function ScaleTestBanner({
       'shadow-sm transition-colors',
       isCompleted
         ? 'border-green-200 bg-green-50/50'
-        : 'border-orange-200 bg-orange-50/50',
+        : 'border-blue-200 bg-blue-50/50',
       className
     )}>
       <CardContent className={cn('flex items-center justify-between', compact ? 'p-3' : 'p-4')}>
@@ -57,7 +57,7 @@ export function ScaleTestBanner({
             {isCompleted ? (
               <CheckCircle2 className={cn('text-green-600', compact ? 'h-5 w-5' : 'h-6 w-6')} />
             ) : (
-              <AlertTriangle className={cn('text-orange-600', compact ? 'h-5 w-5' : 'h-6 w-6')} />
+              <Scale className={cn('text-blue-600', compact ? 'h-5 w-5' : 'h-6 w-6')} />
             )}
           </div>
 
@@ -66,14 +66,14 @@ export function ScaleTestBanner({
             <p className={cn(
               'font-semibold',
               compact ? 'text-sm' : 'text-base',
-              isCompleted ? 'text-green-700' : 'text-orange-700'
+              isCompleted ? 'text-green-700' : 'text-blue-700'
             )}>
-              {isCompleted ? 'Scale Test Passed' : 'Scale Test Required'}
+              {isCompleted ? 'Scale Test Passed' : 'Scale Test Recommended'}
             </p>
             <p className={cn('text-gray-500', compact ? 'text-xs' : 'text-sm')}>
               {isCompleted
                 ? `Last: ${formatTime(lastTestAt!)}`
-                : 'Required before weighing'}
+                : 'Optional but recommended for accuracy'}
             </p>
           </div>
         </div>
@@ -87,7 +87,7 @@ export function ScaleTestBanner({
             compact ? 'text-xs' : 'text-sm',
             isCompleted
               ? 'border-green-300 text-green-700 hover:bg-green-100'
-              : 'bg-orange-500 hover:bg-orange-600 text-white'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
           )}
         >
           <Scale className={cn('mr-1.5', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />

@@ -1374,7 +1374,7 @@ export default function MobileWeighingPage() {
   };
 
   // Validation for step transitions (also disable during transaction creation to prevent double-click)
-  const canProceedFromCapture = vehiclePlate.length >= 5 && isScaleTestCompleted && !isWeighingLoading;
+  const canProceedFromCapture = vehiclePlate.length >= 5 && !isWeighingLoading;
   const canProceedFromVehicle = selectedConfig !== '' && allAxlesCaptured;
 
   // Derive station display name
