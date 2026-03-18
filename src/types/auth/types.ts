@@ -24,7 +24,9 @@ export interface User {
   /** Organization code (slug) for routing, e.g. "kura" */
   organizationCode?: string;
   /** Tenant type: CommercialWeighing | AxleLoadEnforcement */
-  tenantType?: string;
+  tenantType?: 'CommercialWeighing' | 'AxleLoadEnforcement' | string;
+  /** True when the tenant is a commercial weighing operator (not enforcement). */
+  isCommercialTenant?: boolean;
   /** Module keys enabled for the user's org (sidebar filtering). Empty/missing = all modules. */
   enabledModules?: string[];
   stationId?: string;
@@ -45,6 +47,19 @@ export interface LoginResponse {
   twoFactorToken?: string;
   /** When true, user must enable 2FA from profile (org policy); frontend should redirect to profile and show 2FA setup */
   requires2FASetup?: boolean;
+  /** When true (SSO exchange), user must select a station before getting a full session. */
+  requiresStationSelection?: boolean;
+  /** Short-lived exchange token used only for the /auth/select-station call (SSO path). */
+  ssoExchangeToken?: string;
+}
+
+/** Public tenant info returned by GET /api/v1/auth/tenant-info?code={orgSlug} */
+export interface TenantInfo {
+  tenantType: 'CommercialWeighing' | 'AxleLoadEnforcement';
+  name: string;
+  logoUrl?: string;
+  ssoTenantSlug?: string;
+  organizationCode: string;
 }
 
 export interface RefreshTokenRequest {

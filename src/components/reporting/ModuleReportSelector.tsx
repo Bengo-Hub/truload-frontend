@@ -49,14 +49,14 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const STATUS_OPTIONS_WEIGHING = [
-  { value: '', label: 'All Statuses' },
+  { value: 'all', label: 'All Statuses' },
   { value: 'LEGAL', label: 'Legal' },
   { value: 'WARNING', label: 'Warning' },
   { value: 'OVERLOAD', label: 'Overloaded' },
 ];
 
 const WEIGHING_TYPE_OPTIONS = [
-  { value: '', label: 'All Types' },
+  { value: 'all', label: 'All Types' },
   { value: 'multideck', label: 'Multideck' },
   { value: 'mobile', label: 'Mobile' },
   { value: 'static', label: 'Static' },
@@ -67,9 +67,9 @@ export function ModuleReportSelector() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [stationId, setStationId] = useState<string | undefined>(undefined);
-  const [status, setStatus] = useState('');
-  const [weighingType, setWeighingType] = useState('');
-  const [controlStatus, setControlStatus] = useState('');
+  const [status, setStatus] = useState('all');
+  const [weighingType, setWeighingType] = useState('all');
+  const [controlStatus, setControlStatus] = useState('all');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewFileName, setPreviewFileName] = useState('');
@@ -99,9 +99,9 @@ export function ModuleReportSelector() {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
           stationId: stationId && stationId !== 'all' ? stationId : undefined,
-          status: status || undefined,
-          weighingType: module === 'weighing' && weighingType ? weighingType : undefined,
-          controlStatus: module === 'weighing' && controlStatus ? controlStatus : undefined,
+          status: status && status !== 'all' ? status : undefined,
+          weighingType: module === 'weighing' && weighingType && weighingType !== 'all' ? weighingType : undefined,
+          controlStatus: module === 'weighing' && controlStatus && controlStatus !== 'all' ? controlStatus : undefined,
         },
       });
 
@@ -192,7 +192,7 @@ export function ModuleReportSelector() {
                     </SelectTrigger>
                     <SelectContent>
                       {WEIGHING_TYPE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value || '_all'} value={opt.value || ''}>
+                        <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
                       ))}
@@ -207,7 +207,7 @@ export function ModuleReportSelector() {
                     </SelectTrigger>
                     <SelectContent>
                       {STATUS_OPTIONS_WEIGHING.map((opt) => (
-                        <SelectItem key={opt.value || '_all'} value={opt.value || ''}>
+                        <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
                       ))}
@@ -219,12 +219,12 @@ export function ModuleReportSelector() {
             {selectedModule !== 'weighing' && (
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={status || ''} onValueChange={(v) => setStatus(v)}>
+                <Select value={status} onValueChange={(v) => setStatus(v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="All" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {selectedModule === 'cases' && (
                       <>
                         <SelectItem value="OPEN">Open</SelectItem>
