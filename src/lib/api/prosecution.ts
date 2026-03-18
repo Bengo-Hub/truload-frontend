@@ -201,3 +201,29 @@ export async function downloadChargeSheetPdf(id: string): Promise<Blob> {
   });
   return data;
 }
+
+export interface ProsecutionDefaults {
+  defaultCourtId?: string;
+  defaultComplainantOfficerId?: string;
+  defaultCountyId?: string;
+  defaultSubcountyId?: string;
+  defaultRoadId?: string;
+}
+
+/**
+ * Get prosecution default settings
+ */
+export async function getProsecutionDefaults(): Promise<ProsecutionDefaults> {
+  const { data } = await apiClient.get<ProsecutionDefaults>('/prosecutions/defaults');
+  return data;
+}
+
+/**
+ * Update prosecution default settings
+ */
+export async function updateProsecutionDefaults(
+  request: ProsecutionDefaults
+): Promise<{ message: string }> {
+  const { data } = await apiClient.put<{ message: string }>('/prosecutions/defaults', request);
+  return data;
+}

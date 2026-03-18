@@ -107,14 +107,29 @@ export function AddRoadModal({
           <DialogTitle>Add road</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="road-name">Name</Label>
+            <Input
+              id="road-name"
+              value={name}
+              onChange={(e) => {
+                const val = e.target.value;
+                setName(val);
+                const generated = val.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
+                setCode(generated);
+              }}
+              placeholder="e.g. Langata Road"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="road-code">Code</Label>
               <Input
                 id="road-code"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="e.g. A109"
+                disabled={true}
+                placeholder="AUTO-GENERATED"
+                className="bg-gray-50 border-gray-200"
               />
             </div>
             <div className="space-y-2">
@@ -130,15 +145,6 @@ export function AddRoadModal({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="road-name">Name</Label>
-            <Input
-              id="road-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Langata Road"
-            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

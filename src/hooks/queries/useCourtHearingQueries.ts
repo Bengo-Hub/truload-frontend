@@ -53,12 +53,18 @@ export function useHearingById(id?: string) {
 // ============================================================================
 
 /**
- * Fetch courts
+ * Fetch courts, optionally filtered by county
  */
-export function useCourts() {
+export function useCourts(countyId?: string) {
   return useQuery({
-    queryKey: COURT_HEARING_QUERY_KEYS.courts,
-    queryFn: courtHearingApi.fetchCourts,
+    queryKey: countyId ? [...COURT_HEARING_QUERY_KEYS.courts, 'by-county', countyId] : COURT_HEARING_QUERY_KEYS.courts,
+    queryFn: async () => {
+      const courts = await courtHearingApi.fetchCourts();
+      if (countyId) {
+        return courts.filter(c => c.countyId === countyId);
+      }
+      return courts;
+    },
     ...QUERY_OPTIONS.static,
   });
 }

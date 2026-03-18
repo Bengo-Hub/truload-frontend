@@ -27,6 +27,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReportCatalog, useDownloadReport } from '@/hooks/queries/useReportQueries';
+import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { ReportPreviewDialog } from './ReportPreviewDialog';
 
 const MODULE_ICONS: Record<string, LucideIcon> = {
@@ -47,10 +48,28 @@ const MODULE_LABELS: Record<string, string> = {
   security: 'Security',
 };
 
+const STATUS_OPTIONS_WEIGHING = [
+  { value: '', label: 'All Statuses' },
+  { value: 'LEGAL', label: 'Legal' },
+  { value: 'WARNING', label: 'Warning' },
+  { value: 'OVERLOAD', label: 'Overloaded' },
+];
+
+const WEIGHING_TYPE_OPTIONS = [
+  { value: '', label: 'All Types' },
+  { value: 'multideck', label: 'Multideck' },
+  { value: 'mobile', label: 'Mobile' },
+  { value: 'static', label: 'Static' },
+];
+
 export function ModuleReportSelector() {
   const [selectedModule, setSelectedModule] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [stationId, setStationId] = useState<string | undefined>(undefined);
+  const [status, setStatus] = useState('');
+  const [weighingType, setWeighingType] = useState('');
+  const [controlStatus, setControlStatus] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewFileName, setPreviewFileName] = useState('');
@@ -79,6 +98,10 @@ export function ModuleReportSelector() {
           format,
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
+          stationId: stationId && stationId !== 'all' ? stationId : undefined,
+          status: status || undefined,
+          weighingType: module === 'weighing' && weighingType ? weighingType : undefined,
+          controlStatus: module === 'weighing' && controlStatus ? controlStatus : undefined,
         },
       });
 
@@ -108,7 +131,7 @@ export function ModuleReportSelector() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
             <div className="space-y-2">
               <Label>Module</Label>
               <Select value={selectedModule} onValueChange={setSelectedModule}>
@@ -152,6 +175,81 @@ export function ModuleReportSelector() {
                 onChange={(e) => setDateTo(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <StationSelectFilter
+                label="Station"
+                value={stationId}
+                onValueChange={(v) => setStationId(v ?? 'all')}
+              />
+            </div>
+            {selectedModule === 'weighing' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Weighing Type</Label>
+                  <Select value={weighingType || ''} onValueChange={(v) => setWeighingType(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WEIGHING_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value || '_all'} value={opt.value || ''}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Control Status</Label>
+                  <Select value={controlStatus || ''} onValueChange={(v) => setControlStatus(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS_WEIGHING.map((opt) => (
+                        <SelectItem key={opt.value || '_all'} value={opt.value || ''}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            {selectedModule !== 'weighing' && (
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={status || ''} onValueChange={(v) => setStatus(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All</SelectItem>
+                    {selectedModule === 'cases' && (
+                      <>
+                        <SelectItem value="OPEN">Open</SelectItem>
+                        <SelectItem value="CLOSED">Closed</SelectItem>
+                      </>
+                    )}
+                    {selectedModule === 'prosecution' && (
+                      <>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="invoiced">Invoiced</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="court">Court</SelectItem>
+                      </>
+                    )}
+                    {selectedModule === 'yard' && (
+                      <>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="released">Released</SelectItem>
+                        <SelectItem value="escalated">Escalated</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

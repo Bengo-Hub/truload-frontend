@@ -235,6 +235,8 @@ export function validateRequiredFields(params: {
   originId?: string;
   destinationId?: string;
   cargoId?: string;
+  roadId?: string;
+  subcountyId?: string;
 }): WeighingValidationResult {
   const missingFields: string[] = [];
   if (!params.driverId) missingFields.push('Driver');
@@ -242,5 +244,8 @@ export function validateRequiredFields(params: {
   if (!params.originId) missingFields.push('Origin');
   if (!params.destinationId) missingFields.push('Destination');
   if (!params.cargoId) missingFields.push('Cargo');
+  // Road and Subcounty are recommended but maybe not strictly mandatory in all cases,
+  // but let's include them if we want to enforce full location tracking.
+  // For now, let's keep it consistent with the frontend usage.
   return { isValid: missingFields.length === 0, missingFields };
 }

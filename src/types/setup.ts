@@ -132,6 +132,9 @@ export interface StationDto {
   supportsBidirectional: boolean;
   boundACode?: string;
   boundBCode?: string;
+  countyId?: string;
+  subcountyId?: string;
+  roadId?: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;

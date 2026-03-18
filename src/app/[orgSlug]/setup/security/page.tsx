@@ -22,6 +22,7 @@ import {
     usePasswordPolicy,
     useRestoreBackup,
     useShiftSettings,
+    useUpdateBackupSettings,
     useUpdatePasswordPolicy,
     useUpdateShiftSettings,
 } from '@/hooks/queries';
@@ -34,6 +35,7 @@ import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Database, 
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { BackupSettingsForm } from '@/components/settings/BackupSettingsForm';
 
 interface PasswordPolicyForm {
   minLength: number;
@@ -453,6 +455,9 @@ export default function SecurityPage() {
                   </div>
                 </Card>
               </div>
+
+              {/* Backup Settings Form */}
+              <BackupSettingsForm canEdit={canEdit} />
 
               {/* Backup List */}
               <Card>

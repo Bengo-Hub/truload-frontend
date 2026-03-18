@@ -126,11 +126,19 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
     const isSuperUser = user.isSuperUser === true;
     const enabledModules = user.enabledModules ?? [];
     const hasModuleFilter = enabledModules.length > 0;
+    const isTruConnectOperator = user.email === 'user@truconnect.com';
 
     return menuSections
       .map((section) => ({
         ...section,
         items: section.items.filter((item) => {
+          // Special restriction for TruConnect Operator
+          if (isTruConnectOperator) {
+            const allowedModules = ['weighing', 'setup_settings', 'setup_system_config'];
+            // Also allow dashboard if needed, but the request says specifically weighing and settings
+            return allowedModules.includes(item.moduleKey);
+          }
+
           // Tenant module filter: if org has enabledModules and user is not superuser, hide items whose moduleKey is not enabled
           if (hasModuleFilter && !isSuperUser && !enabledModules.includes(item.moduleKey)) return false;
           // No permissions required = always visible (subject to module filter above)

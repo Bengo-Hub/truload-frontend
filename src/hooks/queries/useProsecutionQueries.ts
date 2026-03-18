@@ -173,3 +173,28 @@ export function useDownloadChargeSheet() {
     },
   });
 }
+
+/**
+ * Get prosecution default settings
+ */
+export function useProsecutionDefaults() {
+  return useQuery({
+    queryKey: ['prosecution-defaults'],
+    queryFn: prosecutionApi.getProsecutionDefaults,
+    ...QUERY_OPTIONS.semiStatic,
+  });
+}
+
+/**
+ * Update prosecution default settings
+ */
+export function useUpdateProsecutionDefaults() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: prosecutionApi.updateProsecutionDefaults,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prosecution-defaults'] });
+    },
+  });
+}

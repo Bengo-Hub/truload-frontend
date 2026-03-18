@@ -125,7 +125,9 @@ export interface WeighingTransaction {
   anprCheckCount?: number;
   anprMatch?: boolean;
 
-  // Route & Cargo
+  // Route & Cargo (IDs for form prefill)
+  roadId?: string;
+  subcountyId?: string;
   sourceLocation?: string;
   destinationLocation?: string;
   cargoType?: string;
@@ -165,6 +167,7 @@ export interface WeighingResult {
   weighedAt: string;
   /** Whether vehicle has been sent to yard (auto-created on overload or manual). */
   isSentToYard?: boolean;
+  operationalToleranceKg?: number;
   axleCompliance: {
     axleNumber: number;
     measuredWeightKg: number;
@@ -227,6 +230,13 @@ export interface CreateWeighingRequest {
   cargoId?: string;
   /** Applicable Act (Traffic Act, EAC). When null, backend uses default act. */
   actId?: string;
+  roadId?: string;
+  subcountyId?: string;
+  locationTown?: string;
+  locationSubcounty?: string;
+  locationCounty?: string;
+  locationLat?: number;
+  locationLng?: number;
 }
 
 export interface UpdateWeighingRequest {
@@ -238,6 +248,15 @@ export interface UpdateWeighingRequest {
   cargoId?: string;
   /** Applicable Act (Traffic Act, EAC). When null, backend uses default act. */
   actId?: string;
+  roadId?: string;
+  subcountyId?: string;
+  locationTown?: string;
+  locationSubcounty?: string;
+  locationCounty?: string;
+  locationLat?: number;
+  locationLng?: number;
+  reliefVehicleReg?: string;
+  comment?: string;
 }
 
 export interface CaptureWeightsRequest {
@@ -619,8 +638,13 @@ export async function fetchRoadsPaged(params: RoadsPagedParams = {}): Promise<Pa
   return data;
 }
 
+/** @deprecated Use fetchRoadsBySubcounty; backend replaced district with subcounty. */
 export async function fetchRoadsByDistrict(districtId: string): Promise<Road[]> {
-  const { data } = await apiClient.get<Road[]>(`/roads/district/${districtId}`);
+  return fetchRoadsBySubcounty(districtId);
+}
+
+export async function fetchRoadsBySubcounty(subcountyId: string): Promise<Road[]> {
+  const { data } = await apiClient.get<Road[]>(`/roads/subcounty/${subcountyId}`);
   return data ?? [];
 }
 
@@ -713,6 +737,9 @@ export interface Station {
   boundBCode?: string;
   isActive: boolean;
   isHq?: boolean;
+  countyId?: string;
+  subcountyId?: string;
+  roadId?: string;
   createdAt: string;
   updatedAt: string;
 }

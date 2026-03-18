@@ -5,8 +5,10 @@
  * for lookup data, vehicles, transactions, and scale tests.
  */
 
+import * as permitsApi from '@/lib/api/permits';
 import * as weighingApi from '@/lib/api/weighing';
 import { QUERY_KEYS, QUERY_OPTIONS, queryKeys } from '@/lib/query/config';
+import { ExtendPermitRequest, UpdatePermitRequest } from '@/types/weighing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 // ============================================================================
@@ -92,15 +94,21 @@ export function useRoadsPaged(params: { pageNumber: number; pageSize: number; se
 }
 
 /**
- * Fetch roads that pass through a district (subcounty). Cached for prosecution/setup screens.
+ * Fetch roads that pass through a subcounty. Cached for prosecution/setup screens.
+ * Backend uses subcounty (district was replaced).
  */
-export function useRoadsByDistrict(districtId: string | undefined) {
+export function useRoadsBySubcounty(subcountyId: string | undefined) {
   return useQuery({
-    queryKey: [...QUERY_KEYS.ROADS, 'district', districtId ?? ''],
-    queryFn: () => weighingApi.fetchRoadsByDistrict(districtId!),
+    queryKey: [...QUERY_KEYS.ROADS, 'subcounty', subcountyId ?? ''],
+    queryFn: () => weighingApi.fetchRoadsBySubcounty(subcountyId!),
     ...QUERY_OPTIONS.semiStatic,
-    enabled: !!districtId,
+    enabled: !!subcountyId,
   });
+}
+
+/** @deprecated Use useRoadsBySubcounty; backend replaced district with subcounty. */
+export function useRoadsByDistrict(districtId: string | undefined) {
+  return useRoadsBySubcounty(districtId);
 }
 
 /**
@@ -284,18 +292,21 @@ export function usePendingWeighings(stationId?: string, weighingType?: string) {
       sortOrder: 'desc',
     }),
     ...QUERY_OPTIONS.dynamic,
+    staleTime: 2 * 60 * 1000, // Cache for at least 2 minutes before refetch
     enabled: !!stationId,
   });
 }
 
 /**
- * Fetch a single weighing transaction by ID
+ * Fetch a single weighing transaction by ID.
+ * Cached 2 minutes to avoid refetch storms on the weighing screen.
  */
 export function useWeighingTransaction(id?: string) {
   return useQuery({
     queryKey: queryKeys.transaction(id ?? ''),
     queryFn: () => weighingApi.getWeighingTransaction(id!),
     ...QUERY_OPTIONS.dynamic,
+    staleTime: 2 * 60 * 1000,
     enabled: !!id,
   });
 }
@@ -366,6 +377,131 @@ export function useWeighingStatistics(params: {
     queryKey: [...QUERY_KEYS.WEIGHING_TRANSACTIONS, 'statistics', params],
     queryFn: () => weighingApi.getWeighingStatistics(params),
     ...QUERY_OPTIONS.semiStatic,
+  });
+}
+
+// ============================================================================
+// PERMIT HOOKS
+// ============================================================================
+
+/**
+ * Fetch all permit types (static data)
+ */
+export function usePermitTypes() {
+  return useQuery({
+    queryKey: QUERY_KEYS.PERMIT_TYPES,
+    queryFn: permitsApi.fetchPermitTypes,
+    ...QUERY_OPTIONS.static,
+  });
+}
+
+/**
+ * Fetch permits for a vehicle
+ */
+export function usePermitsByVehicle(vehicleId?: string) {
+  return useQuery({
+    queryKey: queryKeys.permitsByVehicle(vehicleId ?? ''),
+    queryFn: () => permitsApi.fetchPermitsByVehicle(vehicleId!),
+    ...QUERY_OPTIONS.dynamic,
+    enabled: !!vehicleId,
+  });
+}
+
+/**
+ * Fetch active permit for a vehicle
+ */
+export function useActivePermit(vehicleId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.permitsByVehicle(vehicleId ?? ''), 'active'],
+    queryFn: () => permitsApi.fetchActivePermitForVehicle(vehicleId!),
+    ...QUERY_OPTIONS.dynamic,
+    enabled: !!vehicleId,
+  });
+}
+
+/**
+ * Fetch permit by number (for live lookup)
+ */
+export function usePermitByNo(permitNo?: string) {
+  return useQuery({
+    queryKey: queryKeys.permitByNo(permitNo ?? ''),
+    queryFn: () => permitsApi.getPermitByNo(permitNo!),
+    ...QUERY_OPTIONS.dynamic,
+    enabled: !!permitNo && permitNo.length >= 3,
+    retry: false,
+  });
+}
+
+/**
+ * Create permit mutation
+ */
+export function useCreatePermit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: permitsApi.createPermit,
+    onSuccess: (newPermit) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PERMITS });
+      if (newPermit.vehicleId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.permitsByVehicle(newPermit.vehicleId) });
+      }
+    },
+  });
+}
+
+/**
+ * Update permit mutation
+ */
+export function useUpdatePermit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: UpdatePermitRequest }) =>
+      permitsApi.updatePermit(id, request),
+    onSuccess: (updatedPermit) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PERMITS });
+      queryClient.invalidateQueries({ queryKey: queryKeys.permit(updatedPermit.id) });
+      if (updatedPermit.vehicleId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.permitsByVehicle(updatedPermit.vehicleId) });
+      }
+    },
+  });
+}
+
+/**
+ * Revoke permit mutation
+ */
+export function useRevokePermit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: permitsApi.revokePermit,
+    onSuccess: (revokedPermit) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PERMITS });
+      queryClient.invalidateQueries({ queryKey: queryKeys.permit(revokedPermit.id) });
+      if (revokedPermit.vehicleId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.permitsByVehicle(revokedPermit.vehicleId) });
+      }
+    },
+  });
+}
+
+/**
+ * Extend permit mutation
+ */
+export function useExtendPermit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: ExtendPermitRequest }) =>
+      permitsApi.extendPermit(id, request),
+    onSuccess: (updatedPermit) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PERMITS });
+      queryClient.invalidateQueries({ queryKey: queryKeys.permit(updatedPermit.id) });
+      if (updatedPermit.vehicleId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.permitsByVehicle(updatedPermit.vehicleId) });
+      }
+    },
   });
 }
 
@@ -712,7 +848,8 @@ export function useCreateWeighingTransaction() {
 }
 
 /**
- * Update weighing transaction mutation
+ * Update weighing transaction mutation.
+ * retry: 0 to avoid amplifying 429 rate-limit errors.
  */
 export function useUpdateWeighingTransaction() {
   const queryClient = useQueryClient();
@@ -725,9 +862,24 @@ export function useUpdateWeighingTransaction() {
       id: string;
       payload: weighingApi.UpdateWeighingRequest;
     }) => weighingApi.updateWeighingTransaction(id, payload),
+    retry: 0,
     onSuccess: (updatedTransaction, { id }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
       queryClient.setQueryData(queryKeys.transaction(id), updatedTransaction);
+    },
+  });
+}
+
+/**
+ * Delete/Discard weighing transaction mutation
+ */
+export function useDeleteWeighingTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: weighingApi.deleteWeighingTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
     },
   });
 }
@@ -761,25 +913,25 @@ export function usePrefetchLookupData() {
   return () => {
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.AXLE_CONFIGURATIONS,
-      queryFn: weighingApi.fetchAxleConfigurations,
+      queryFn: () => weighingApi.fetchAxleConfigurations(),
       ...QUERY_OPTIONS.static,
     });
 
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.CARGO_TYPES,
-      queryFn: weighingApi.fetchCargoTypes,
+      queryFn: () => weighingApi.fetchCargoTypes(),
       ...QUERY_OPTIONS.static,
     });
 
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS,
-      queryFn: weighingApi.fetchOriginsDestinations,
+      queryFn: () => weighingApi.fetchOriginsDestinations(),
       ...QUERY_OPTIONS.semiStatic,
     });
 
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.STATIONS,
-      queryFn: weighingApi.fetchStations,
+      queryFn: () => weighingApi.fetchStations(),
       ...QUERY_OPTIONS.semiStatic,
     });
   };

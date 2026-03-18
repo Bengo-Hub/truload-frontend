@@ -9,6 +9,7 @@ import { Clock, Play, Truck } from 'lucide-react';
 interface PendingTransactionCardProps {
   transactions: WeighingTransaction[];
   onResume: (transaction: WeighingTransaction) => void;
+  onDiscard?: (transaction: WeighingTransaction) => void;
   isLoading?: boolean;
   className?: string;
 }
@@ -22,6 +23,7 @@ interface PendingTransactionCardProps {
 export function PendingTransactionCard({
   transactions,
   onResume,
+  onDiscard,
   isLoading = false,
   className,
 }: PendingTransactionCardProps) {
@@ -41,40 +43,57 @@ export function PendingTransactionCard({
   };
 
   return (
-    <Card className={cn('border-amber-200 bg-amber-50/50', className)}>
-      <CardHeader className="pb-2 px-4 pt-3">
-        <CardTitle className="text-sm font-medium text-amber-800 flex items-center gap-2">
-          <Clock className="h-4 w-4" />
+    <Card className={cn('border-amber-200 bg-amber-50/20 shadow-sm', className)}>
+      <CardHeader className="pb-2 px-4 pt-3 flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-amber-600" />
           Pending Transactions ({transactions.length})
         </CardTitle>
+        <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+          Incomplete
+        </span>
       </CardHeader>
       <CardContent className="px-4 pb-3">
-        <div className="space-y-2">
-          {transactions.slice(0, 5).map((txn) => (
+        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+          {transactions.map((txn) => (
             <div
               key={txn.id}
-              className="flex items-center justify-between gap-3 p-2 bg-white rounded-lg border border-amber-100"
+              className="flex items-center justify-between gap-3 p-2.5 bg-white rounded-lg border border-amber-100/50 hover:border-amber-200 transition-all shadow-sm group"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Truck className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                <div className="h-8 w-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 group-hover:bg-amber-100 transition-colors">
+                  <Truck className="h-4 w-4" />
+                </div>
                 <div className="min-w-0">
-                  <p className="font-mono font-semibold text-sm truncate">
+                  <p className="font-mono font-bold text-sm text-gray-900 tracking-tight truncate">
                     {txn.vehicleRegNumber}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-[10px] text-gray-500 font-medium">
                     {txn.ticketNumber} &middot; {getRelativeTime(txn.weighedAt)}
                   </p>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-shrink-0 text-amber-700 border-amber-300 hover:bg-amber-100"
-                onClick={() => onResume(txn)}
-              >
-                <Play className="mr-1 h-3 w-3" />
-                Resume
-              </Button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {onDiscard && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-[11px] font-medium"
+                    onClick={() => onDiscard(txn)}
+                  >
+                    Discard
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300 shadow-sm text-[11px] font-bold"
+                  onClick={() => onResume(txn)}
+                >
+                  <Play className="mr-1.5 h-3 w-3 fill-current" />
+                  Resume
+                </Button>
+              </div>
             </div>
           ))}
         </div>

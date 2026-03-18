@@ -116,30 +116,42 @@ export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, prima
         setLastLoginStation(orgSlug.toLowerCase(), stationCode);
       }
       const user = useAuthStore.getState().user;
-      const slug = user?.organizationCode?.toLowerCase() || orgSlug;
+      const userOrgSlug = user?.organizationCode?.toLowerCase();
+      const slug = userOrgSlug || orgSlug || 'kura';
+
       if (useAuthStore.getState().requires2FASetup) {
         toast.info('Your organization requires 2FA. Please set it up in your profile.');
         router.push(`/${slug}/profile`);
         return;
       }
-      // Tenant login (e.g. /kura/auth/login): always go to tenant dashboard, including superusers
+
+      // 1. If we are in tenant mode (e.g. /kura/auth/login)
       if (mode === 'tenant' && orgSlug) {
+        // If the logged in user belongs to a DIFFERENT tenant, redirect them to THEIR tenant login
+        if (userOrgSlug && userOrgSlug !== orgSlug.toLowerCase() && !user?.isSuperUser) {
+          toast.info(`Redirecting you to ${userOrgSlug.toUpperCase()} login...`);
+          router.push(`/${userOrgSlug}/auth/login`);
+          return;
+        }
         router.push(fromParam || `/${slug}/dashboard`);
         return;
       }
-      // Platform login (/auth/login): superusers go to platform, tenant users to their org
+
+      // 2. Platform login (/auth/login): superusers go to platform, tenant users to their org
       if (mode === 'platform') {
         if (user?.isSuperUser) {
           router.push('/platform');
           return;
         }
-        if (user?.organizationCode) {
-          router.push(`/${user.organizationCode.toLowerCase()}/auth`);
+        if (userOrgSlug) {
+          router.push(`/${userOrgSlug}/dashboard`);
           return;
         }
         toast.error('You are not linked to any organisation. Please contact your administrator.');
         return;
       }
+
+      // Fallback
       router.push(fromParam || `/${slug}/dashboard`);
     } catch (error: unknown) {
       const err = error as { response?: { status?: number; data?: { message?: string; passwordExpired?: boolean; changePasswordToken?: string } } };
@@ -165,18 +177,27 @@ export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, prima
         setLastLoginStation(orgSlug.toLowerCase(), stationCode);
       }
       const user = useAuthStore.getState().user;
-      const slug = user?.organizationCode?.toLowerCase() || orgSlug;
+      const userOrgSlug = user?.organizationCode?.toLowerCase();
+      const slug = userOrgSlug || orgSlug || 'kura';
+
       if (mode === 'tenant' && orgSlug) {
+        // If the logged in user belongs to a DIFFERENT tenant, redirect them to THEIR tenant login
+        if (userOrgSlug && userOrgSlug !== orgSlug.toLowerCase() && !user?.isSuperUser) {
+          toast.info(`Redirecting you to ${userOrgSlug.toUpperCase()} login...`);
+          router.push(`/${userOrgSlug}/auth/login`);
+          return;
+        }
         router.push(fromParam || `/${slug}/dashboard`);
         return;
       }
+
       if (mode === 'platform') {
         if (user?.isSuperUser) {
           router.push('/platform');
           return;
         }
-        if (user?.organizationCode) {
-          router.push(`/${user.organizationCode.toLowerCase()}/auth`);
+        if (userOrgSlug) {
+          router.push(`/${userOrgSlug}/dashboard`);
           return;
         }
         toast.error('You are not linked to any organisation. Please contact your administrator.');

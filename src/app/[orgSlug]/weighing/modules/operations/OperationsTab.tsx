@@ -5,39 +5,40 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMyStation, useRecentWeighings, useScaleTests, useTodayWeighingStats } from '@/hooks/queries';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/auth.store';
 import { endOfDay, format, startOfDay, subDays } from 'date-fns';
 import {
-    Activity,
-    AlertCircle,
-    AlertTriangle,
-    Calendar,
-    CheckCircle2,
-    Download,
-    Filter,
-    Gauge,
-    Loader2,
-    RefreshCw,
-    Scale,
-    Search,
-    ShieldCheck,
-    Truck,
-    XCircle,
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  Download,
+  Filter,
+  Gauge,
+  Loader2,
+  RefreshCw,
+  Scale,
+  Search,
+  ShieldCheck,
+  Truck,
+  XCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
-type WeighingType = 'mobile' | 'multideck';
+type WeighingType = 'mobile' | 'multideck' | 'mobile-commercial' | 'multideck-commercial';
 type WeighingStatus = 'Normal' | 'Overloaded' | 'Warning';
 type DateRangePreset = 'today' | 'yesterday' | 'week' | 'month';
 type ResultFilter = 'all' | 'pass' | 'fail';
@@ -63,6 +64,9 @@ interface RecentWeighing {
 export default function OperationsTab() {
   const router = useRouter();
   const orgSlug = useOrgSlug();
+  const user = useAuthStore((s) => s.user);
+  const tenantType = user?.tenantType ?? 'AxleLoadEnforcement';
+  const isCommercialTenant = tenantType === 'CommercialWeighing';
 
   // Station data for scale tests
   const { data: currentStation, isLoading: _isLoadingStation } = useMyStation();
@@ -163,7 +167,9 @@ export default function OperationsTab() {
   }
 
   const handleWeighingTypeSelect = (type: WeighingType) => {
-    router.push(`/${orgSlug}/weighing/${type}`);
+    const [baseType, isCommercial] = type.split('-');
+    const url = `/${orgSlug}/weighing/${baseType}${isCommercial ? '?commercial=true' : ''}`;
+    router.push(url);
   };
 
   const getStatusBadge = (status: WeighingStatus) => {
@@ -203,40 +209,69 @@ export default function OperationsTab() {
 
   return (
     <div className="space-y-4">
-      {/* Top Row: Weighing Type Selection + Indicator Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Weighing Type Selection - spans 2 columns */}
-        <Card className="lg:col-span-2 border border-gray-200 rounded-xl">
+      {/* Top Row: Select Weighing Type + Today's Summary (balanced 2-column layout) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Select Weighing Type */}
+        <Card className="border border-gray-200 rounded-xl shadow-sm">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-semibold text-gray-900">Select Weighing Type</CardTitle>
+            <p className="text-xs text-gray-500 font-normal mt-0.5">Choose mobile or platform weighing to start.</p>
           </CardHeader>
           <CardContent className="px-4 pb-4">
             <div className="grid grid-cols-2 gap-3">
-              {/* Mobile Weighing Card */}
-              <button
-                onClick={() => handleWeighingTypeSelect('mobile')}
-                className="flex flex-col items-center justify-center py-6 px-4 rounded-lg border border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-              >
-                <Scale className="h-8 w-8 text-emerald-600 mb-2" />
-                <h3 className="text-base font-semibold text-gray-900">Mobile Weighing</h3>
-                <p className="text-xs text-gray-500">Axle-by-axle portable weighing</p>
-              </button>
-
-              {/* Multideck Weighing Card */}
-              <button
-                onClick={() => handleWeighingTypeSelect('multideck')}
-                className="flex flex-col items-center justify-center py-6 px-4 rounded-lg border border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                <Gauge className="h-8 w-8 text-blue-600 mb-2" />
-                <h3 className="text-base font-semibold text-gray-900">Multideck Weighing</h3>
-                <p className="text-xs text-gray-500">4-deck platform weighing system</p>
-              </button>
+              {isCommercialTenant ? (
+                <>
+                  <button
+                    onClick={() => handleWeighingTypeSelect('mobile-commercial')}
+                    className="flex flex-col items-center justify-center py-5 px-4 rounded-lg border border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 active:scale-[0.98]"
+                  >
+                    <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mb-2">
+                      <Truck className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">Commercial (Mobile)</h3>
+                    <p className="text-[10px] text-center uppercase font-bold tracking-tighter text-purple-600 mt-0.5">No Enforcement</p>
+                  </button>
+                  <button
+                    onClick={() => handleWeighingTypeSelect('multideck-commercial')}
+                    className="flex flex-col items-center justify-center py-5 px-4 rounded-lg border border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50/50 hover:shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:scale-[0.98]"
+                  >
+                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center mb-2">
+                      <Gauge className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">Commercial (Deck)</h3>
+                    <p className="text-[10px] text-center uppercase font-bold tracking-tighter text-orange-600 mt-0.5">No Enforcement</p>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleWeighingTypeSelect('mobile')}
+                    className="flex flex-col items-center justify-center py-5 px-4 rounded-lg border border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50 hover:shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 active:scale-[0.98]"
+                  >
+                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center mb-2">
+                      <Scale className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">Mobile Weighing</h3>
+                    <p className="text-[10px] text-gray-500 text-center mt-0.5">Axle-by-axle portable</p>
+                  </button>
+                  <button
+                    onClick={() => handleWeighingTypeSelect('multideck')}
+                    className="flex flex-col items-center justify-center py-5 px-4 rounded-lg border border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98]"
+                  >
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                      <Gauge className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">Multideck Weighing</h3>
+                    <p className="text-[10px] text-gray-500 text-center mt-0.5">4-deck platform system</p>
+                  </button>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Today's Summary Card */}
-        <Card className="border border-gray-200 rounded-xl">
+        {/* Today's Summary */}
+        <Card className="border border-gray-200 rounded-xl shadow-sm">
           <CardHeader className="pb-2 pt-4 px-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold text-gray-900">Today&apos;s Summary</CardTitle>
@@ -251,49 +286,42 @@ export default function OperationsTab() {
                 <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
               </div>
             ) : (
-              <div className="space-y-3">
-                {/* Total Weighings */}
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <Truck className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Total Weighings</p>
-                      <p className="text-lg font-bold text-gray-900">{todayStats?.total || 0}</p>
-                    </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                    <Truck className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Total Weighings</p>
+                    <p className="text-lg font-bold text-gray-900">{todayStats?.total || 0}</p>
                   </div>
                 </div>
-
-                {/* Compliance Rate */}
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-green-50 border border-green-100">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center">
-                      <ShieldCheck className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Compliance Rate</p>
-                      <p className="text-lg font-bold text-green-600">{todayStats?.complianceRate || 100}%</p>
-                    </div>
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-50 border border-green-100">
+                  <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-xs text-green-600">{todayStats?.compliant || 0} compliant</span>
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Compliance Rate</p>
+                    <p className="text-lg font-bold text-green-600">{todayStats?.complianceRate ?? 100}%</p>
+                    <p className="text-[10px] text-green-600">{todayStats?.compliant ?? 0} compliant</p>
+                  </div>
                 </div>
-
-                {/* Overloads & Warnings */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 border border-red-100">
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-50 border border-red-100">
+                  <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
                     <XCircle className="h-4 w-4 text-red-500" />
-                    <div>
-                      <p className="text-[10px] text-gray-500">Overloads</p>
-                      <p className="text-sm font-bold text-red-600">{todayStats?.overloaded || 0}</p>
-                    </div>
                   </div>
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Overloads</p>
+                    <p className="text-sm font-bold text-red-600">{todayStats?.overloaded ?? 0}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <div className="h-8 w-8 rounded-lg bg-yellow-100 flex items-center justify-center shrink-0">
                     <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                    <div>
-                      <p className="text-[10px] text-gray-500">Warnings</p>
-                      <p className="text-sm font-bold text-yellow-600">{todayStats?.warnings || 0}</p>
-                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Warnings</p>
+                    <p className="text-sm font-bold text-yellow-600">{todayStats?.warnings ?? 0}</p>
                   </div>
                 </div>
               </div>

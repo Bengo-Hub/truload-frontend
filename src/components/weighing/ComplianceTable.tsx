@@ -48,9 +48,7 @@ export function ComplianceTable({
   className,
 }: ComplianceTableProps) {
   // Track expanded groups in hierarchical mode
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(groupResults.map((g) => g.groupLabel))
-  );
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const toggleGroup = (groupLabel: string) => {
     setExpandedGroups((prev) => {
@@ -164,6 +162,7 @@ export function ComplianceTable({
                 <th className="px-3 py-2 text-left font-semibold">Type</th>
                 <th className="px-3 py-2 text-right font-semibold">Permissible</th>
                 <th className="px-3 py-2 text-right font-semibold">Tolerance (+5%)</th>
+                <th className="px-3 py-2 text-right font-semibold">Op. Tol.</th>
                 <th className="px-3 py-2 text-right font-semibold">Measured</th>
                 <th className="px-3 py-2 text-right font-semibold">Excess</th>
                 <th className="px-3 py-2 text-right font-semibold">PDF</th>
@@ -218,6 +217,9 @@ export function ComplianceTable({
                         ) : (
                           <span className="text-slate-400">N/A</span>
                         )}
+                      </td>
+                      <td className={cn('px-3 py-2.5 text-right font-mono text-slate-500', compact ? 'text-xs' : 'text-sm')}>
+                        {group.operationalToleranceKg ? `+${group.operationalToleranceKg}` : '-'}
                       </td>
                       <td className={cn('px-3 py-2.5 text-right font-mono font-bold', compact ? 'text-xs' : 'text-sm')}>
                         {group.measuredKg > 0 ? formatKg(group.measuredKg) : '-'}
@@ -329,6 +331,9 @@ export function ComplianceTable({
                 <td className={cn('px-3 py-3 text-right text-slate-400', compact ? 'text-sm' : 'text-base')}>
                   0% (strict)
                 </td>
+                <td className={cn('px-3 py-3 text-right text-slate-400', compact ? 'text-sm' : 'text-base')}>
+                  -
+                </td>
                 <td className={cn('px-3 py-3 text-right font-mono', compact ? 'text-sm' : 'text-base')}>
                   {gvwMeasured > 0 ? formatKg(gvwMeasured) : '-'}
                 </td>
@@ -406,6 +411,12 @@ export function ComplianceTable({
                     <span className="text-slate-500">Tolerance:</span>
                     <span className="ml-1 font-mono">
                       {groupTolerance > 0 ? `${formatKg(effectiveLimit)} kg` : 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Op. Tol:</span>
+                    <span className="ml-1 font-mono">
+                      {group.operationalToleranceKg ? `+${group.operationalToleranceKg} kg` : '-'}
                     </span>
                   </div>
                   <div>

@@ -1,11 +1,13 @@
 /**
  * Dashboard Filter Context
- * Manages filter state shared across dashboard components
+ * Manages filter state shared across dashboard components.
+ * Default station: HQ users get "all"; non-HQ users get their assigned station (from token/auth).
  */
 
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
+import { getIsHqUser, getStationId } from '@/lib/auth/token';
+import { createContext, useContext, useState, useCallback, ReactNode, useMemo, useEffect } from 'react';
 
 export interface DashboardFilters {
   dateFrom: string;
@@ -33,17 +35,29 @@ const getDefaultDateRange = () => {
   };
 };
 
-const defaultFilters: DashboardFilters = {
+/** Default stationId: HQ -> "all", non-HQ -> user's station or "all" if none. */
+function getDefaultStationId(): string {
+  if (typeof window === 'undefined') return 'all';
+  return getIsHqUser() ? 'all' : (getStationId() || 'all');
+}
+
+const getDefaultFilters = (): DashboardFilters => ({
   ...getDefaultDateRange(),
   stationId: 'all',
   weighingType: 'all',
   controlStatus: 'all',
-};
+});
 
 const DashboardFilterContext = createContext<DashboardFilterContextValue | null>(null);
 
 export function DashboardFilterProvider({ children }: { children: ReactNode }) {
-  const [filters, setFiltersState] = useState<DashboardFilters>(defaultFilters);
+  const [filters, setFiltersState] = useState<DashboardFilters>(getDefaultFilters);
+
+  // Sync stationId from token on mount: HQ -> "all", non-HQ -> user station
+  useEffect(() => {
+    const stationId = getDefaultStationId();
+    setFiltersState((prev) => (prev.stationId === stationId ? prev : { ...prev, stationId }));
+  }, []);
 
   const setFilter = useCallback(<K extends keyof DashboardFilters>(
     key: K,
@@ -57,7 +71,12 @@ export function DashboardFilterProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFiltersState(defaultFilters);
+    setFiltersState({
+      ...getDefaultDateRange(),
+      stationId: getDefaultStationId(),
+      weighingType: 'all',
+      controlStatus: 'all',
+    });
   }, []);
 
   const value = useMemo(

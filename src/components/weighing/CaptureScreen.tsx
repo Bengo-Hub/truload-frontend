@@ -1,32 +1,37 @@
 "use client";
 
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import {
-    AlertTriangle,
-    ArrowLeft,
-    ArrowRight,
-    CheckCircle2,
-    Edit3,
-    FileText,
-    Play,
-    Plus,
-    RefreshCcw,
-    Scan,
-    Square,
-    Truck,
-} from 'lucide-react';
-import { useState } from 'react';
-import { VehiclePlaceholderImage } from './VehiclePlaceholderImage';
-import { DeckWeight, ScaleStatus } from '@/types/weighing';
-import { AddRoadModal } from '../settings/prosecution/AddRoadModal';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { CountyDto, SubcountyDto } from '@/lib/api/geographic';
 import { Road } from '@/lib/api/weighing';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { DeckWeight, ScaleStatus } from '@/types/weighing';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Cpu,
+  Download,
+  Edit3,
+  FileText,
+  Play,
+  Plus,
+  RefreshCcw,
+  Scan,
+  Square,
+  Truck
+} from 'lucide-react';
+import { useState } from 'react';
+import { AddRoadModal } from '../settings/prosecution/AddRoadModal';
+import { ApplyPermitModal } from './modals/ApplyPermitModal';
+import { PermitModal } from './modals/PermitModal';
+import { VehiclePlaceholderImage } from './VehiclePlaceholderImage';
 
 type WeighingMode = 'mobile' | 'multideck';
 
@@ -106,6 +111,7 @@ interface CaptureScreenProps {
   onOpenExitBoom?: () => void;
   onResetExitBoom?: () => void;
 
+  isCommercial?: boolean;
   className?: string;
 }
 
@@ -168,10 +174,14 @@ export function CaptureScreen({
   onStop,
   onOpenExitBoom,
   onResetExitBoom,
+  isCommercial = false,
   className,
 }: CaptureScreenProps) {
   const [isCapturingFront, setIsCapturingFront] = useState(false);
   const [isCapturingOverview, setIsCapturingOverview] = useState(false);
+  const [isApplyPermitOpen, setIsApplyPermitOpen] = useState(false);
+  const [isViewPermitsOpen, setIsViewPermitsOpen] = useState(false);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>();
 
   const handleCaptureFront = async () => {
     setIsCapturingFront(true);
@@ -196,6 +206,9 @@ export function CaptureScreen({
           <span className="text-yellow-400">{bound}</span>
         )}
       </div>
+
+      {/* Middleware Connection Prompt */}
+      <MiddlewarePrompt scaleInfo={scaleInfo} deckWeights={deckWeights} mode={mode} />
 
       {/* Location Configurations */}
       <Card className="border-gray-200 bg-gray-50/50">
@@ -490,11 +503,22 @@ export function CaptureScreen({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={onPermit}
+                  onClick={() => setIsViewPermitsOpen(true)}
                   className="border-purple-400 text-purple-700 hover:bg-purple-50"
                 >
                   <FileText className="h-4 w-4 mr-1" />
                   PERMIT
+                </Button>
+              )}
+              {onPermit && !isCommercial && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsApplyPermitOpen(true)}
+                  className="border-blue-400 text-blue-700 hover:bg-blue-50"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  APPLY PERMIT
                 </Button>
               )}
               {onStop && (
@@ -653,8 +677,8 @@ function DeckWeightDisplay({
       <div className={cn(
         'text-3xl font-bold font-mono',
         status === 'offline' ? 'text-red-400' :
-        status === 'unstable' ? 'text-yellow-500' :
-        weight > 0 ? 'text-green-600' : 'text-gray-400'
+          status === 'unstable' ? 'text-yellow-500' :
+            weight > 0 ? 'text-green-600' : 'text-gray-400'
       )}>
         {weight.toLocaleString()}
       </div>
@@ -694,6 +718,49 @@ function ScaleStatusButton({
         label
       )}
     </Button>
+  );
+}
+
+/**
+ * MiddlewarePrompt - Shows a helpful message if TruConnect is disconnected
+ */
+function MiddlewarePrompt({
+  scaleInfo,
+  deckWeights,
+  mode
+}: {
+  scaleInfo?: ScaleInfo;
+  deckWeights: DeckWeight[];
+  mode: WeighingMode
+}) {
+  const isDisconnected = mode === 'mobile'
+    ? (!scaleInfo || scaleInfo.scaleA.status === 'disconnected' || (scaleInfo.scaleB && scaleInfo.scaleB.status === 'disconnected'))
+    : (deckWeights.length === 0 || deckWeights.some(d => d.status === 'offline'));
+
+  if (!isDisconnected) return null;
+
+  return (
+    <Card className="border-blue-200 bg-blue-50 border-dashed">
+      <CardContent className="p-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+              <Cpu className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-900">TruConnect Not Detected</p>
+              <p className="text-xs text-blue-700">Ensure TruConnect is running to connect to your scales.</p>
+            </div>
+          </div>
+          <Button asChild size="sm" variant="outline" className="bg-white border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 shrink-0">
+            <a href="https://github.com/Bengo-Hub/TruConnect/releases/latest" target="_blank" rel="noopener noreferrer">
+              <Download className="h-3.5 w-3.5" />
+              Download Middleware
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

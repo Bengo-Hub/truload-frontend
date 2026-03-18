@@ -34,22 +34,6 @@ export function TransporterFormFields({
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-code`} className="text-sm font-medium">
-            Code {required('code') && <span className="text-red-500">*</span>}
-          </Label>
-          <Input
-            id={`${idPrefix}-code`}
-            placeholder="e.g., TRN001"
-            value={values.code ?? ''}
-            onChange={(e) => onChange('code', e.target.value)}
-            disabled={disabled}
-            className="font-mono uppercase"
-          />
-          {errors.code && (
-            <p className="text-xs text-red-500">{errors.code}</p>
-          )}
-        </div>
-        <div className="space-y-2">
           <Label htmlFor={`${idPrefix}-name`} className="text-sm font-medium">
             Company Name {required('name') && <span className="text-red-500">*</span>}
           </Label>
@@ -57,11 +41,39 @@ export function TransporterFormFields({
             id={`${idPrefix}-name`}
             placeholder="Transport company name"
             value={values.name ?? ''}
-            onChange={(e) => onChange('name', e.target.value)}
+            onChange={(e) => {
+              const newName = e.target.value;
+              onChange('name', newName);
+              // Auto-generate code if empty or looks like a default code
+              if (newName.trim()) {
+                const generatedCode = newName
+                  .trim()
+                  .toUpperCase()
+                  .replace(/[^A-Z0-9]/g, '')
+                  .substring(0, 10);
+                onChange('code', generatedCode);
+              }
+            }}
             disabled={disabled}
           />
           {errors.name && (
             <p className="text-xs text-red-500">{errors.name}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-code`} className="text-sm font-medium">
+            Code {required('code') && <span className="text-red-500">*</span>}
+          </Label>
+          <Input
+            id={`${idPrefix}-code`}
+            placeholder="AUTO-GENERATED"
+            value={values.code ?? ''}
+            onChange={(e) => onChange('code', e.target.value)}
+            disabled={true} // Always disabled as per request
+            className="font-mono uppercase bg-gray-50"
+          />
+          {errors.code && (
+            <p className="text-xs text-red-500">{errors.code}</p>
           )}
         </div>
         <div className="space-y-2">

@@ -27,7 +27,9 @@ export interface ReportFilterParams {
   dateTo?: string;
   stationId?: string;
   status?: string;
-  format?: 'pdf' | 'csv';
+  weighingType?: string;
+  controlStatus?: string;
+  format?: 'pdf' | 'csv' | 'xlsx';
 }
 
 // ============================================================================
@@ -53,10 +55,10 @@ export async function downloadReport(
   reportType: string,
   filters: ReportFilterParams = {}
 ): Promise<{ blob: Blob; fileName: string; contentType: string }> {
-  const { format = 'pdf', dateFrom, dateTo, stationId, status } = filters;
+  const { format = 'pdf', dateFrom, dateTo, stationId, status, weighingType, controlStatus } = filters;
 
   const response = await apiClient.get(`/reports/${module}/${reportType}`, {
-    params: { format, dateFrom, dateTo, stationId, status },
+    params: { format, dateFrom, dateTo, stationId, status, weighingType, controlStatus },
     responseType: 'blob',
   });
 

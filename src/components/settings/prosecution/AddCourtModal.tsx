@@ -100,21 +100,29 @@ export function AddCourtModal({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="court-name">Name</Label>
+            <Input
+              id="court-name"
+              value={name}
+              onChange={(e) => {
+                const newName = e.target.value;
+                setName(newName);
+                if (newName.trim()) {
+                  setCode(newName.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10));
+                }
+              }}
+              placeholder="e.g. Nairobi Law Courts"
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="court-code">Code</Label>
             <Input
               id="court-code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="e.g. NAI-MIL"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="court-name">Name</Label>
-            <Input
-              id="court-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Nairobi Law Courts"
+              placeholder="AUTO-GENERATED"
+              disabled={true}
+              className="bg-gray-50 font-mono"
             />
           </div>
           <div className="space-y-2">

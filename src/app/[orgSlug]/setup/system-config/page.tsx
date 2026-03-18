@@ -199,6 +199,7 @@ export default function SystemConfigPage() {
   const canEditBranding = useHasPermission(['config.update'], 'any');
   const canReadConfig = useHasPermission(['config.read'], 'any');
   const isSuperUser = user?.isSuperUser === true;
+  const isOperator = user?.email === 'user@truconnect.com';
 
   return (
     <ProtectedRoute requiredPermissions={['system.security_policy', 'config.read']}>
@@ -222,7 +223,7 @@ export default function SystemConfigPage() {
           </Card>
         )}
 
-        {!isSuperUser && (
+        {!isSuperUser && !isOperator && (
           <Card className="p-6 border-amber-200 bg-amber-50">
             <div className="flex items-center gap-3 text-amber-800">
               <Lock className="h-6 w-6 shrink-0" />
@@ -234,58 +235,66 @@ export default function SystemConfigPage() {
           </Card>
         )}
 
-        {isSuperUser && (
-        <Tabs defaultValue="rate-limiting" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-8">
-            <TabsTrigger value="rate-limiting" className="flex items-center gap-2">
-              <Gauge className="h-4 w-4" />
-              <span className="hidden sm:inline">Rate Limiting</span>
-              <span className="sm:hidden">Limits</span>
-            </TabsTrigger>
+        {(isSuperUser || isOperator) && (
+        <Tabs defaultValue={isOperator ? "weighing" : "rate-limiting"} className="w-full">
+          <TabsList className={`grid w-full ${isOperator ? 'grid-cols-1 max-w-xs' : 'grid-cols-3 lg:grid-cols-8'}`}>
+            {!isOperator && (
+              <TabsTrigger value="rate-limiting" className="flex items-center gap-2">
+                <Gauge className="h-4 w-4" />
+                <span className="hidden sm:inline">Rate Limiting</span>
+                <span className="sm:hidden">Limits</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="weighing" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
               <span className="hidden sm:inline">Weighing</span>
               <span className="sm:hidden">Weighing</span>
             </TabsTrigger>
-            <TabsTrigger value="financial" className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              <span className="hidden sm:inline">Financial</span>
-              <span className="sm:hidden">Financial</span>
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Documents</span>
-              <span className="sm:hidden">Docs</span>
-            </TabsTrigger>
-            <TabsTrigger value="prosecution" className="flex items-center gap-2">
-              <Gavel className="h-4 w-4" />
-              <span className="hidden sm:inline">Prosecution</span>
-              <span className="sm:hidden">Court</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Notifications</span>
-              <span className="sm:hidden">Notifs</span>
-            </TabsTrigger>
-            <TabsTrigger value="cache" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Cache & Timeouts</span>
-              <span className="sm:hidden">Cache</span>
-            </TabsTrigger>
-            <TabsTrigger value="modules" className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="hidden sm:inline">Module access</span>
-              <span className="sm:hidden">Modules</span>
-            </TabsTrigger>
+            {!isOperator && (
+              <>
+                <TabsTrigger value="financial" className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  <span className="hidden sm:inline">Financial</span>
+                  <span className="sm:hidden">Financial</span>
+                </TabsTrigger>
+                <TabsTrigger value="documents" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Documents</span>
+                  <span className="sm:hidden">Docs</span>
+                </TabsTrigger>
+                <TabsTrigger value="prosecution" className="flex items-center gap-2">
+                  <Gavel className="h-4 w-4" />
+                  <span className="hidden sm:inline">Prosecution</span>
+                  <span className="sm:hidden">Court</span>
+                </TabsTrigger>
+                <TabsTrigger value="notifications" className="flex items-center gap-2">
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:inline">Notifications</span>
+                  <span className="sm:hidden">Notifs</span>
+                </TabsTrigger>
+                <TabsTrigger value="cache" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span className="hidden sm:inline">Cache & Timeouts</span>
+                  <span className="sm:hidden">Cache</span>
+                </TabsTrigger>
+                <TabsTrigger value="modules" className="flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline">Module access</span>
+                  <span className="sm:hidden">Modules</span>
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
-          <TabsContent value="rate-limiting" className="mt-4">
-            <CategorySettingsTab
-              category="Rate Limiting"
-              description="Configure request rate limits per endpoint policy. Changes are applied immediately to the runtime rate limiter after saving."
-              showReloadRateLimits
-            />
-          </TabsContent>
+          {!isOperator && (
+            <TabsContent value="rate-limiting" className="mt-4">
+              <CategorySettingsTab
+                category="Rate Limiting"
+                description="Configure request rate limits per endpoint policy. Changes are applied immediately to the runtime rate limiter after saving."
+                showReloadRateLimits
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="weighing" className="mt-4">
             <CategorySettingsTab
@@ -294,55 +303,59 @@ export default function SystemConfigPage() {
             />
           </TabsContent>
 
-          <TabsContent value="financial" className="mt-4">
-            <CategorySettingsTab
-              category="Financial"
-              description="Configure financial calculation parameters including exchange rates and invoice aging thresholds for reports."
-            />
-          </TabsContent>
-
-          <TabsContent value="documents" className="mt-4">
-            <Tabs defaultValue="conventions" className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="conventions">Numbering conventions</TabsTrigger>
-                <TabsTrigger value="sequences">Sequence counters</TabsTrigger>
-              </TabsList>
-              <TabsContent value="conventions">
-                <DocumentConventionsTab canEdit={canEdit} />
+          {!isOperator && (
+            <>
+              <TabsContent value="financial" className="mt-4">
+                <CategorySettingsTab
+                  category="Financial"
+                  description="Configure financial calculation parameters including exchange rates and invoice aging thresholds for reports."
+                />
               </TabsContent>
-              <TabsContent value="sequences">
-                <DocumentSequencesTab canEdit={canEdit} />
+
+              <TabsContent value="documents" className="mt-4">
+                <Tabs defaultValue="conventions" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="conventions">Numbering conventions</TabsTrigger>
+                    <TabsTrigger value="sequences">Sequence counters</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="conventions">
+                    <DocumentConventionsTab canEdit={canEdit} />
+                  </TabsContent>
+                  <TabsContent value="sequences">
+                    <DocumentSequencesTab canEdit={canEdit} />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
-            </Tabs>
-          </TabsContent>
 
-          <TabsContent value="prosecution" className="mt-4">
-            <ProsecutionSettingsTab />
-          </TabsContent>
+              <TabsContent value="prosecution" className="mt-4">
+                <ProsecutionSettingsTab />
+              </TabsContent>
 
-          <TabsContent value="notifications" className="mt-4">
-            <CategorySettingsTab
-              category="Notifications"
-              description="Configure notification channels (email, SMS, push) and the centralized notifications service connection."
-            />
-          </TabsContent>
+              <TabsContent value="notifications" className="mt-4">
+                <CategorySettingsTab
+                  category="Notifications"
+                  description="Configure notification channels (email, SMS, push) and the centralized notifications service connection."
+                />
+              </TabsContent>
 
-          <TabsContent value="cache" className="mt-4">
-            <div className="space-y-6">
-              <CategorySettingsTab
-                category="Cache"
-                description="Configure cache time-to-live durations for various data sources. Changes take effect after the current cache expires."
-              />
-              <CategorySettingsTab
-                category="Integrations"
-                description="Configure HTTP request timeouts for external service integrations (eCitizen, KeNHA, NTSA, Ollama)."
-              />
-            </div>
-          </TabsContent>
+              <TabsContent value="cache" className="mt-4">
+                <div className="space-y-6">
+                  <CategorySettingsTab
+                    category="Cache"
+                    description="Configure cache time-to-live durations for various data sources. Changes take effect after the current cache expires."
+                  />
+                  <CategorySettingsTab
+                    category="Integrations"
+                    description="Configure HTTP request timeouts for external service integrations (eCitizen, KeNHA, NTSA, Ollama)."
+                  />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="modules" className="mt-4">
-            <ModuleAccessTab />
-          </TabsContent>
+              <TabsContent value="modules" className="mt-4">
+                <ModuleAccessTab />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
         )}
       </div>

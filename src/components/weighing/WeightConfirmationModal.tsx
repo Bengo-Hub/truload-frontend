@@ -17,6 +17,7 @@ interface AxleGroup {
   tolerance: number;
   actual: number;
   overload: number;
+  operationalTolerance?: number;
   result: 'Legal' | 'Overload';
 }
 
@@ -32,6 +33,7 @@ interface WeightConfirmationModalProps {
     tolerance: number;
     actual: number;
     overload: number;
+    operationalTolerance?: number;
     result: 'Legal' | 'Overload';
   };
   isLoading?: boolean;
@@ -97,6 +99,7 @@ export function WeightConfirmationModal({
                   <th className="px-4 py-2.5 text-left font-medium text-gray-700">Group</th>
                   <th className="px-4 py-2.5 text-right font-medium text-gray-700">Permissible</th>
                   <th className="px-4 py-2.5 text-right font-medium text-gray-700">Tolerance</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-gray-700">Op. Tol.</th>
                   <th className="px-4 py-2.5 text-right font-medium text-gray-700">Actual</th>
                   <th className="px-4 py-2.5 text-right font-medium text-gray-700">Overload</th>
                   <th className="px-4 py-2.5 text-center font-medium text-gray-700">Result</th>
@@ -108,6 +111,9 @@ export function WeightConfirmationModal({
                     <td className="px-4 py-2.5 font-medium">{group.group}</td>
                     <td className="px-4 py-2.5 text-right font-mono">{formatWeight(group.permissible)}</td>
                     <td className="px-4 py-2.5 text-right">{group.tolerance}%</td>
+                    <td className="px-4 py-2.5 text-right text-gray-500">
+                      {group.operationalTolerance ? `+${group.operationalTolerance}` : '-'}
+                    </td>
                     <td className="px-4 py-2.5 text-right font-mono font-medium">{formatWeight(group.actual)}</td>
                     <td className={cn(
                       "px-4 py-2.5 text-right font-mono font-medium",
@@ -135,6 +141,9 @@ export function WeightConfirmationModal({
                   <td className="px-4 py-2.5">GVW</td>
                   <td className="px-4 py-2.5 text-right font-mono">{formatWeight(gvw.permissible)}</td>
                   <td className="px-4 py-2.5 text-right">{gvw.tolerance}%</td>
+                  <td className="px-4 py-2.5 text-right text-gray-500">
+                    {gvw.operationalTolerance ? `+${gvw.operationalTolerance}` : '-'}
+                  </td>
                   <td className="px-4 py-2.5 text-right font-mono">{formatWeight(gvw.actual)}</td>
                   <td className={cn(
                     "px-4 py-2.5 text-right font-mono",

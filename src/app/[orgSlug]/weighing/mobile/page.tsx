@@ -7,74 +7,59 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
-    AxleConfigurationCard,
     CargoTypeModal,
-    ComplianceBanner,
-    ComplianceTable,
-    DecisionPanel,
     DriverModal,
-    getDefaultAxleConfig,
-    ImageCaptureCard,
     OriginDestinationModal,
+    SCALE_TEST_SUCCESS_DESCRIPTION,
+    SCALE_TEST_SUCCESS_MESSAGE,
     TransporterModal,
-    VehicleDetailsCard,
     VehicleMakeModal,
+    WeighingCaptureStep,
+    WeighingDecisionStep,
     WeighingPageHeader,
     WeighingStepper,
-    WeightCaptureCard
+    WeighingVehicleStep,
+    WeightCaptureCard,
+    WeightConfirmationModal
 } from '@/components/weighing';
 import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
-import { PendingTransactionCard } from '@/components/weighing/PendingTransactionCard';
-import { ScaleHealthPanel, ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
-import { ScaleTestBanner } from '@/components/weighing/ScaleTestBanner';
+import { ScaleInfo as ComponentScaleInfo } from '@/components/weighing/ScaleHealthPanel';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
-import { WeightConfirmationModal } from '@/components/weighing/WeightConfirmationModal';
 import {
     useAllActs,
+    useAllSettings,
     useAxleWeightReferences,
-    useCargoTypes,
-    useCreateCargoType,
-    useCreateDriver,
-    useCreateOriginDestination,
-    useCreateTransporter,
     useCreateVehicle,
-    useCreateVehicleMake,
-    useCounties,
-    useDrivers,
+    useDeleteWeighingTransaction,
     useMyScaleTestStatus,
     useMyStation,
-    useOriginsDestinations,
     usePendingWeighings,
-    useRoadsByCounty,
-    useSubcounties,
-    useTransporters,
+    useProsecutionDefaults,
+    useUpdateProsecutionDefaults,
+    useUpdateVehicle,
     useVehicleByRegNo,
-    useVehicleMakes,
-    useWeighingAxleConfigurations,
+    useWeighingAxleConfigurations
 } from '@/hooks/queries';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useGeolocation } from '@/hooks/useGeolocation';
 import { useMiddleware } from '@/hooks/useMiddleware';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useWeighing } from '@/hooks/useWeighing';
-import { CargoType, downloadAndSavePdf, downloadWeightTicketPdf, Driver, OriginDestination, ScaleTest, Transporter, WeighingTransaction } from '@/lib/api/weighing';
+import { useWeighingUI } from '@/hooks/useWeighingUI';
+import { downloadAndSavePdf, downloadWeightTicketPdf, ScaleTest, UpdateWeighingRequest, WeighingTransaction } from '@/lib/api/weighing';
 import { createVehicleTag, createYardEntry, fetchTagCategories } from '@/lib/api/yard';
-import { QUERY_KEYS } from '@/lib/query/config';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
+import { useAuthStore } from '@/stores/auth.store';
 import {
     AxleGroupResult,
     ComplianceStatus,
-    CreateDriverRequest,
-    CreateOriginDestinationRequest,
-    CreateTransporterRequest,
-    CreateVehicleMakeRequest,
     ScaleStatus,
-    WeighingStep,
+    WeighingStep
 } from '@/types/weighing';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Edit3, Loader2, Scale, ScanLine } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -88,6 +73,11 @@ import { toast } from 'sonner';
  */
 export default function MobileWeighingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const user = useAuthStore((s) => s.user);
+  const tenantType = user?.tenantType ?? 'AxleLoadEnforcement';
+  const isCommercialTenant = tenantType === 'CommercialWeighing';
+  const isCommercial = isCommercialTenant || searchParams.get('commercial') === 'true';
   const orgSlug = useOrgSlug();
   const queryClient = useQueryClient();
 
@@ -112,22 +102,18 @@ export default function MobileWeighingPage() {
   const { data: pendingWeighings } = usePendingWeighings(currentStation?.id, 'mobile');
   const pendingTransactions = pendingWeighings?.items ?? [];
 
-  // Fetch drivers, transporters, cargo types, and locations for VehicleDetailsCard
-  const { data: drivers = [] } = useDrivers();
-  const { data: transporters = [] } = useTransporters();
-  const { data: cargoTypes = [] } = useCargoTypes();
-  const { data: locations = [] } = useOriginsDestinations();
+  // Fetch all settings to check for scale test requirement
+  const { data: allSettings = [] } = useAllSettings();
+  const scaleTestRequired = useMemo(() => {
+    const setting = allSettings.find(s => s.settingKey === 'weighing.scale_test_required');
+    if (!setting) return false;
+    return setting.settingValue?.toLowerCase() === 'true';
+  }, [allSettings]);
 
+  // Entity creation mutations are now handled by useWeighingUI
   // Vehicle lookup mutation for auto-creating vehicles
   const createVehicleMutation = useCreateVehicle();
-
-  // Entity creation mutations
-  const createDriverMutation = useCreateDriver();
-  const createTransporterMutation = useCreateTransporter();
-  const createCargoTypeMutation = useCreateCargoType();
-  const createOriginDestinationMutation = useCreateOriginDestination();
-  const createVehicleMakeMutation = useCreateVehicleMake();
-  const { data: vehicleMakesData = [], refetch: refetchVehicleMakes } = useVehicleMakes();
+  const deleteWeighingMutation = useDeleteWeighingTransaction();
 
   // Bound state for bidirectional stations
   const [currentBoundState, setCurrentBoundState] = useState<string | undefined>();
@@ -139,7 +125,7 @@ export default function MobileWeighingPage() {
   const [currentAxleWeight, setCurrentAxleWeight] = useState(0);
 
   // Scale health panel state - MUST be declared before useMiddleware hook
-  const [scales, setScales] = useState<ScaleInfo[]>([
+  const [scales, setScales] = useState<ComponentScaleInfo[]>([
     {
       id: 'scale-a',
       name: 'Scale A',
@@ -182,6 +168,65 @@ export default function MobileWeighingPage() {
     model: null,
   });
 
+  // UI state and common handlers extracted to custom hook
+  const ui = useWeighingUI({ stationId: currentStation?.id });
+
+  const {
+    // Geographic
+    counties, subcounties, roads,
+    selectedCountyId, setSelectedCountyId,
+    selectedSubcountyId, setSelectedSubcountyId,
+    selectedRoadId, setSelectedRoadId,
+
+    // Media
+    frontViewImage, setFrontViewImage,
+    overviewImage, setOverviewImage,
+    handleCaptureFront, handleCaptureOverview,
+
+    // Vehicle/Plate
+    vehiclePlate, setVehiclePlate, debouncedPlate,
+    isPlateDisabled, setIsPlateDisabled, handleScanPlate,
+
+    // Config
+    selectedConfig, setSelectedConfig,
+
+    // Handlers
+    handleSaveDriver, handleSaveTransporter,
+    handleSaveLocation, handleSaveCargoType,
+    handleSaveVehicleMake,
+
+    // Master Data
+    drivers, transporters, cargoTypes, locations, vehicleMakesData,
+
+    // Modal States
+    isDriverModalOpen, setIsDriverModalOpen,
+    isTransporterModalOpen, setIsTransporterModalOpen,
+    isLocationModalOpen, setIsLocationModalOpen,
+    locationModalTarget, setLocationModalTarget,
+    isVehicleMakeModalOpen, setIsVehicleMakeModalOpen,
+    isCargoTypeModalOpen, setIsCargoTypeModalOpen,
+    isSavingEntity, setIsSavingEntity,
+    isScaleTestModalOpen, setIsScaleTestModalOpen,
+    showCancelConfirm, setShowCancelConfirm,
+    isConfirmModalOpen, setIsConfirmModalOpen,
+    isMissingFieldsModalOpen, setIsMissingFieldsModalOpen,
+
+    // Selections
+    selectedDriverId, setSelectedDriverId,
+    selectedTransporterId, setSelectedTransporterId,
+    selectedCargoId, setSelectedCargoId,
+    selectedOriginId, setSelectedOriginId,
+    selectedDestinationId, setSelectedDestinationId,
+    vehicleMake, setVehicleMake,
+
+    // Refetch Functions
+    refetchDrivers,
+    refetchTransporters,
+    refetchLocations,
+    refetchCargoTypes,
+    refetchVehicleMakes,
+  } = ui;
+
   // useWeighing hook for backend persistence
   const weighingHook = useWeighing({
     weighingMode: 'mobile',
@@ -189,309 +234,32 @@ export default function MobileWeighingPage() {
     autoInitialize: true,
   });
 
-  // useMiddleware hook for real-time WebSocket connection to TruConnect middleware
-  const middleware = useMiddleware({
-    stationCode: currentStation?.code || 'DEFAULT',
-    bound: (currentBound as 'A' | 'B') || 'A',
-    mode: 'mobile',
-    autoConnect: true,
-    clientName: `TruLoad Frontend - ${currentStation?.name || 'Mobile'}`,
-    clientType: 'truload-frontend',
-    onWeightUpdate: (weight) => {
-      // Update current axle weight from middleware
-      if (weight.weight !== undefined) {
-        setCurrentAxleWeight(weight.weight);
-      }
-      // Update simulation mode from weight data
-      setIsSimulationMode(weight.simulation || false);
-      // Update connection status from weight data
-      if (weight.connection?.connected !== undefined) {
-        setIsScalesConnected(weight.connection.connected);
-      }
-      // Update scale info from weight data (connection + scaleAStatus/scaleBStatus from middleware/polling)
-      if (weight.scaleInfo || weight.scaleAStatus || weight.scaleBStatus || weight.connection) {
-        const conn = weight.connection?.connected ?? false;
-        setScales(prev => [
-          {
-            ...prev[0],
-            status: (weight.scaleAStatus?.connected ?? conn) ? 'connected' : 'disconnected',
-            weight: weight.scaleA ?? weight.weight ?? 0,
-            battery: weight.scaleAStatus?.battery ?? weight.scaleInfo?.battery ?? prev[0].battery,
-            temperature: weight.scaleAStatus?.temperature ?? weight.scaleInfo?.temperature ?? prev[0].temperature,
-            signalStrength: weight.scaleAStatus?.signalStrength ?? weight.scaleInfo?.signalStrength ?? prev[0].signalStrength,
-            make: weight.scaleInfo?.make ?? prev[0].make,
-            model: weight.scaleInfo?.model ?? prev[0].model,
-          },
-          {
-            ...prev[1],
-            status: (weight.scaleBStatus?.connected ?? conn) ? 'connected' : 'disconnected',
-            weight: weight.scaleB ?? (weight.weight ? Math.floor(weight.weight / 2) : 0),
-            battery: weight.scaleBStatus?.battery ?? weight.scaleInfo?.battery ?? prev[1].battery,
-            temperature: weight.scaleBStatus?.temperature ?? weight.scaleInfo?.temperature ?? prev[1].temperature,
-            signalStrength: weight.scaleBStatus?.signalStrength ?? weight.scaleInfo?.signalStrength ?? prev[1].signalStrength,
-            make: weight.scaleInfo?.make ?? prev[1].make,
-            model: weight.scaleInfo?.model ?? prev[1].model,
-          },
-        ]);
-      }
-      console.log('[Mobile] Weight update from middleware:', weight);
-    },
-    onScaleStatusChange: (status) => {
-      console.log('[Mobile] Scale status from middleware:', status);
-      // Update simulation mode
-      setIsSimulationMode(status.simulation || false);
-      // Update scale connection status - now handles both scales properly
-      if (status.scaleA || status.scaleB) {
-        setScales(prev => [
-          {
-            ...prev[0],
-            status: status.scaleA?.status === 'connected' ? 'connected' : 'disconnected',
-            weight: status.scaleA?.weight || 0,
-            battery: status.scaleA?.battery || prev[0].battery,
-            temperature: status.scaleA?.temp || prev[0].temperature,
-          },
-          {
-            ...prev[1],
-            status: status.scaleB?.status === 'connected' ? 'connected' : 'disconnected',
-            weight: status.scaleB?.weight || 0,
-            battery: status.scaleB?.battery || prev[1].battery,
-            temperature: status.scaleB?.temp || prev[1].temperature,
-          },
-        ]);
-      }
-      setIsScalesConnected(status.connected);
-    },
-    onConnectionModeChange: (mode, url) => {
-      console.log(`[Mobile] Connection mode changed: ${mode} (${url})`);
-      setMiddlewareConnected(mode !== 'disconnected');
-    },
-  });
-
-  // Scale test status query (depends on currentBound)
-  const {
-    data: scaleTestStatus,
-    isLoading: isLoadingScaleTest,
-  } = useMyScaleTestStatus(currentBound);
-
-  // Derive scale test state from query
-  const isScaleTestCompleted = scaleTestStatus?.hasValidTest ?? false;
-  const lastScaleTestAt = scaleTestStatus?.latestTest ? new Date(scaleTestStatus.latestTest.carriedAt) : undefined;
-  const [_currentScaleTest, setCurrentScaleTest] = useState<ScaleTest | null>(null);
-
-  // Combined loading state
-  const isLoadingData = isLoadingStation || isLoadingAxleConfigs || isLoadingScaleTest;
-  const loadError = stationError || axleConfigError
-    ? 'Failed to load data. The page will work with limited functionality.'
-    : null;
-
-  // Vehicle state (declared before effects that use them)
-  const [vehiclePlate, setVehiclePlate] = useState('');
-  const [debouncedPlate, setDebouncedPlate] = useState('');
-  const [isPlateDisabled, setIsPlateDisabled] = useState(false);
-  const [selectedConfig, setSelectedConfig] = useState<string>('');
-  const [_axleConfig, setAxleConfig] = useState(getDefaultAxleConfig(''));
-  const [ticketNumber, setTicketNumber] = useState('');
-
-  // Debounce vehicle plate for lookup
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedPlate(vehiclePlate);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [vehiclePlate]);
-
-  // Location / Road switching state
-  const [selectedCountyId, setSelectedCountyId] = useState<string>('');
-  const [selectedSubcountyId, setSelectedSubcountyId] = useState<string>('');
-  const [currentTown, setCurrentTown] = useState<string>('');
-  const [selectedRoadId, setSelectedRoadId] = useState<string>('');
-
-  // Location data hooks
-  const { data: counties = [] } = useCounties();
-  const { data: subcounties = [] } = useSubcounties(selectedCountyId);
-  const { data: roadsByCounty = [] } = useRoadsByCounty(selectedCountyId);
-
-  // Default to Nairobi and persist station settings
-  useEffect(() => {
-    if (!currentStation?.id) return;
-
-    const storageKey = `truload_settings_${currentStation.id}`;
-    const savedSettings = localStorage.getItem(storageKey);
-
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        if (parsed.countyId) setSelectedCountyId(parsed.countyId);
-        if (parsed.subcountyId) setSelectedSubcountyId(parsed.subcountyId);
-        if (parsed.town) setCurrentTown(parsed.town);
-        if (parsed.roadId) setSelectedRoadId(parsed.roadId);
-      } catch (e) {
-        console.error('Failed to parse saved settings', e);
-      }
-    } else if (counties.length > 0 && !selectedCountyId) {
-      // Default to Nairobi City
-      const nairobi = counties.find(c => c.name.includes('Nairobi'));
-      if (nairobi) {
-        setSelectedCountyId(nairobi.id);
-      }
-    }
-  }, [currentStation?.id, counties]);
-
-  // Save settings when they change
-  useEffect(() => {
-    if (!currentStation?.id) return;
-    const storageKey = `truload_settings_${currentStation.id}`;
-    const settings = {
-      countyId: selectedCountyId,
-      subcountyId: selectedSubcountyId,
-      town: currentTown,
-      roadId: selectedRoadId,
-    };
-    localStorage.setItem(storageKey, JSON.stringify(settings));
-  }, [currentStation?.id, selectedCountyId, selectedSubcountyId, currentTown, selectedRoadId]);
-
-  // Derive selected configuration ID for weight references lookup
-  const selectedConfigId = useMemo(() => {
-    if (!selectedConfig || axleConfigurations.length === 0) return undefined;
-    const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
-    return config?.id;
-  }, [selectedConfig, axleConfigurations]);
-
-  // Fetch weight references for the selected configuration
-  const { data: weightReferences = [] } = useAxleWeightReferences(selectedConfigId);
-
-  // Update scale test from query result
-  useEffect(() => {
-    if (scaleTestStatus?.latestTest) {
-      setCurrentScaleTest(scaleTestStatus.latestTest);
-    }
-  }, [scaleTestStatus]);
-
-  // Set bound when station loads
-  useEffect(() => {
-    if (currentStation?.supportsBidirectional && currentStation.boundACode && !currentBoundState) {
-      setCurrentBoundState(currentStation.boundACode);
-    }
-  }, [currentStation, currentBoundState]);
-
-  // Set default axle config when data loads
-  useEffect(() => {
-    if (axleConfigurations.length > 0 && !selectedConfig) {
-      const defaultConfig = axleConfigurations.find(c => c.axleCode === '2A') || axleConfigurations[0];
-      setSelectedConfig(defaultConfig.axleCode);
-      setAxleConfig(getDefaultAxleConfig(defaultConfig.axleCode));
-    }
-  }, [axleConfigurations, selectedConfig]);
-
-  // Show warning if no station assigned
-  useEffect(() => {
-    if (!isLoadingStation && !currentStation) {
-      toast.warning('No station assigned to your account.', {
-        description: 'Contact administrator to link a station to your profile.',
-      });
-    }
-  }, [isLoadingStation, currentStation]);
-
-  // Vehicle details form state - linked entity IDs
-  const [selectedDriverId, setSelectedDriverId] = useState<string | undefined>();
-  const [selectedTransporterId, setSelectedTransporterId] = useState<string | undefined>();
-  const [selectedCargoId, setSelectedCargoId] = useState<string | undefined>();
-  const [selectedOriginId, setSelectedOriginId] = useState<string | undefined>();
-  const [selectedDestinationId, setSelectedDestinationId] = useState<string | undefined>();
-  const [selectedActId, setSelectedActId] = useState<string | undefined>();
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>();
-
-  // Acts for compliance (default: Traffic Act)
-  const { data: acts = [] } = useAllActs();
-  const defaultActId = acts.find((a) => a.isDefault)?.id ?? acts[0]?.id;
-  const effectiveActId = selectedActId || defaultActId;
-
-  // Vehicle details form state - simple values
-  const [permitNo, setPermitNo] = useState('');
-  const [trailerNo, setTrailerNo] = useState('');
-  const [vehicleMake, setVehicleMake] = useState('');
-  const [comment, setComment] = useState('');
-  const [reliefVehicleReg, setReliefVehicleReg] = useState('');
-
-  // Auto-lookup vehicle by registration number (using debounced value)
-  const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
-
-  // Update selected vehicle when lookup returns
-  useEffect(() => {
-    if (existingVehicle?.id) {
-      setSelectedVehicleId(existingVehicle.id);
-      // Auto-populate fields from existing vehicle
-      if (existingVehicle.transporterId) {
-        setSelectedTransporterId(existingVehicle.transporterId);
-      }
-      if (existingVehicle.axleConfigurationId) {
-        const config = axleConfigurations.find(c => c.id === existingVehicle.axleConfigurationId);
-        if (config) {
-          setSelectedConfig(config.axleCode);
-          setAxleConfig(getDefaultAxleConfig(config.axleCode));
-        }
-      }
-    } else {
-      setSelectedVehicleId(undefined);
-    }
-  }, [existingVehicle, axleConfigurations]);
-
-  // Sync driver/transporter/cargo/origin/destination selections to backend transaction
-  useEffect(() => {
-    // Only sync if we have an active transaction
-    if (!weighingHook.session?.transactionId) return;
-
-    // Debounce updates to avoid excessive API calls
-    const timeoutId = setTimeout(() => {
-      const updates: Record<string, string | undefined> = {};
-
-      if (selectedDriverId) updates.driverId = selectedDriverId;
-      if (selectedTransporterId) updates.transporterId = selectedTransporterId;
-      if (selectedOriginId) updates.originId = selectedOriginId;
-      if (selectedDestinationId) updates.destinationId = selectedDestinationId;
-      if (selectedCargoId) updates.cargoId = selectedCargoId;
-      if (effectiveActId) updates.actId = effectiveActId;
-
-      // Only update if there's something to update
-      if (Object.keys(updates).length > 0) {
-        weighingHook.updateVehicleDetails(updates).catch((err) => {
-          console.warn('Failed to sync vehicle details to backend:', err);
-        });
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [
-    weighingHook.session?.transactionId,
-    selectedDriverId,
-    selectedTransporterId,
-    selectedOriginId,
-    selectedDestinationId,
-    selectedCargoId,
-    effectiveActId,
-  ]);
-
   // Use capture state from useWeighing hook (with local fallbacks for UI)
   const {
-    capturedAxles: _hookCapturedAxles,
+    capturedAxles: hookCapturedAxles,
     currentAxle: hookCurrentAxle,
     setCurrentAxle: setHookCurrentAxle,
-    totalAxles: _hookTotalAxles,
+    totalAxles: hookTotalAxles,
     allAxlesCaptured: hookAllAxlesCaptured,
     initializeTransaction,
     captureAxleWeight,
     confirmWeight,
     initiateReweigh,
-    updateVehicleDetails: _updateVehicleDetails,
+    updateVehicleDetails,
     resetSession,
     session: weighingSession,
-    transaction: _weighingTransaction,
+    transaction: weighingTransaction,
     complianceResult,
     reweighCycleNo,
     isWeightConfirmed,
     isLoading: isWeighingLoading,
-    error: _weighingError,
+    isUpdatingDetails,
+    error: weighingError,
+    setVehiclePlate: setHookVehiclePlate,
+    setAxleConfig,
   } = weighingHook;
+
+  const { position: geoPosition, refresh: refreshGeolocation, isSupported: isGeolocationSupported } = useGeolocation({ enableHighAccuracy: true, timeout: 10000 });
 
   // Local state for captured weights (for UI display during capture)
   const [localCapturedWeights, setLocalCapturedWeights] = useState<number[]>([]);
@@ -506,166 +274,376 @@ export default function MobileWeighingPage() {
     setLocalCurrentAxle(axle);
   };
 
-  // Image state
-  const [frontViewImage, setFrontViewImage] = useState<string | undefined>();
-  const [overviewImage, setOverviewImage] = useState<string | undefined>();
+  const [autoAcquire, setAutoAcquire] = useState(false);
 
-  // Sync middleware hook state with component state
+  // Middleware hook - handles WebSocket connection to local scale bridge
+  const middleware = useMiddleware({
+    stationCode: currentStation?.code || '',
+    bound: currentBound as 'A' | 'B',
+    mode: 'mobile',
+    onWeightUpdate: (weight) => {
+      if (weight.mode === 'mobile') {
+        setCurrentAxleWeight(weight.weight || 0);
+      }
+      setIsSimulationMode(weight.simulation || false);
+      if (weight.connection?.connected !== undefined) {
+        setIsScalesConnected(weight.connection.connected);
+      }
+    },
+    onScaleStatusChange: (status) => {
+      setIsScalesConnected(status.connected);
+      setIsSimulationMode(status.simulation || false);
+
+      // Update individual scales array for health panel
+      setScales(prev => prev.map(s => {
+        const info = s.id === 'scale-a' ? status.scaleA : status.scaleB;
+        if (!info) return s;
+
+        return {
+          ...s,
+          status: info.status,
+          weight: info.weight || 0,
+          isActive: info.status === 'connected',
+          temperature: info.temp || s.temperature,
+          battery: info.battery || s.battery,
+          lastReading: new Date(),
+        };
+      }));
+    },
+    onConnectionModeChange: (mode) => {
+      setMiddlewareConnected(mode !== 'disconnected');
+    },
+  });
+
+  // Sync middleware connected state
   useEffect(() => {
-    // Update middleware connection status from the hook
     setMiddlewareConnected(middleware.connected);
-
-    // Sync simulation mode from middleware state or weight data
-    const simMode = middleware.simulation || middleware.weights?.simulation || false;
-    setIsSimulationMode(simMode);
-
-    if (simMode) {
-      console.log('[Mobile] Running in simulation mode');
-    }
-
-    // Update weight from middleware if available
-    if (middleware.weights?.weight !== undefined) {
-      setCurrentAxleWeight(middleware.weights.weight);
-    }
-
-    // Sync connection status from weight data
-    if (middleware.weights?.connection?.connected !== undefined) {
-      setIsScalesConnected(middleware.weights.connection.connected);
-    }
-  }, [middleware.connected, middleware.simulation, middleware.weights]);
-
-  // Electron IPC fallback for scale sync (only used when running in Electron app)
-  // WebSocket connection is handled by useMiddleware hook for PWA/browser mode
-  useEffect(() => {
-    // Define type for scale status with make/model
-    interface ScaleStatusData {
-      connected: boolean;
-      weight: number;
-      battery: number;
-      temperature: number;
-      signalStrength: number;
-      make?: string;
-      model?: string;
-    }
-
-    // Check if we're in an Electron environment
-    const electronAPI = (window as {
-      electronAPI?: {
-        getScaleStatus: () => Promise<{
-          success: boolean; scales: {
-            scaleA: ScaleStatusData;
-            scaleB: ScaleStatusData;
-            anyConnected: boolean;
-          }
-        }>;
-        onScaleStatusChanged: (callback: (data: {
-          scaleId: string;
-          status: ScaleStatusData;
-          allScales: {
-            scaleA: ScaleStatusData;
-            scaleB: ScaleStatusData;
-            anyConnected: boolean;
-          };
-        }) => void) => () => void;
-      }
-    }).electronAPI;
-
-    // If not in Electron, the useMiddleware hook handles WebSocket connection
-    // No need for direct API fetch here - it would duplicate the connection
-    if (!electronAPI) {
-      console.log('[Mobile] Running in browser/PWA mode - WebSocket handled by useMiddleware');
-      return;
-    }
-
-    // Get initial scale status from middleware (Electron only)
-    electronAPI.getScaleStatus().then(result => {
-      if (result.success && result.scales) {
-        updateScalesFromMiddleware(result.scales);
-        // Update metadata from first scale that has it
-        if (result.scales.scaleA?.make || result.scales.scaleB?.make) {
-          setScaleMetadata({
-            make: result.scales.scaleA?.make || result.scales.scaleB?.make || null,
-            model: result.scales.scaleA?.model || result.scales.scaleB?.model || null,
-          });
-        }
-        setMiddlewareConnected(true);
-      }
-    }).catch(err => {
-      console.error('[Mobile] Failed to get scale status:', err);
-    });
-
-    // Listen for scale status changes (Electron only)
-    const unsubscribe = electronAPI.onScaleStatusChanged((data) => {
-      console.log('[Mobile] Scale status changed:', data);
-      updateScalesFromMiddleware(data.allScales);
-      setMiddlewareConnected(true);
-    });
-
-    return () => {
-      unsubscribe?.();
-    };
-  }, []);
-
-  // Helper to update scales from middleware data
-  const updateScalesFromMiddleware = useCallback((allScales: {
-    scaleA: { connected: boolean; weight: number; battery: number; temperature: number; signalStrength: number; make?: string; model?: string };
-    scaleB: { connected: boolean; weight: number; battery: number; temperature: number; signalStrength: number; make?: string; model?: string };
-    anyConnected: boolean;
-  }) => {
-    setScales(prev => [
-      {
-        ...prev[0],
-        status: allScales.scaleA?.connected ? 'connected' : 'disconnected',
-        weight: allScales.scaleA?.weight || 0,
-        battery: allScales.scaleA?.battery || 0,
-        temperature: allScales.scaleA?.temperature || 0,
-        signalStrength: allScales.scaleA?.signalStrength || 0,
-        isActive: allScales.scaleA?.connected || false,
-        make: allScales.scaleA?.make || scaleMetadata.make || prev[0].make,
-        model: allScales.scaleA?.model || scaleMetadata.model || prev[0].model,
-        lastReading: new Date(),
-      },
-      {
-        ...prev[1],
-        status: allScales.scaleB?.connected ? 'connected' : 'disconnected',
-        weight: allScales.scaleB?.weight || 0,
-        battery: allScales.scaleB?.battery || 0,
-        temperature: allScales.scaleB?.temperature || 0,
-        signalStrength: allScales.scaleB?.signalStrength || 0,
-        isActive: allScales.scaleB?.connected || false,
-        make: allScales.scaleB?.make || scaleMetadata.make || prev[1].make,
-        model: allScales.scaleB?.model || scaleMetadata.model || prev[1].model,
-        lastReading: new Date(),
-      },
-    ]);
-    setIsScalesConnected(allScales.anyConnected);
-  }, [scaleMetadata]);
-
-  // Entity Modal States
-  const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
-  const [isTransporterModalOpen, setIsTransporterModalOpen] = useState(false);
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [locationModalTarget, setLocationModalTarget] = useState<'origin' | 'destination'>('origin');
-  const [isVehicleMakeModalOpen, setIsVehicleMakeModalOpen] = useState(false);
-  const [isCargoTypeModalOpen, setIsCargoTypeModalOpen] = useState(false);
-  const [isSavingEntity, setIsSavingEntity] = useState(false);
-
-  // Scale test modal state (scale test status is now from TanStack Query)
-  const [isScaleTestModalOpen, setIsScaleTestModalOpen] = useState(false);
+  }, [middleware.connected]);
 
   // Weight confirmation modal state
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isCapturingWeight, setIsCapturingWeight] = useState(false);
 
+  // Prosecution defaults for pre-filling location
+  const { data: prosecutionDefaults } = useProsecutionDefaults();
+  const updateProsecutionDefaultsMutation = useUpdateProsecutionDefaults();
+
+  // Ensure location defaults are applied only once per station to avoid update loops
+  const [locationInitialized, setLocationInitialized] = useState(false);
+
+  // Default to Nairobi and persist station settings (run once per station)
+  useEffect(() => {
+    if (!currentStation?.id || locationInitialized) return;
+
+    const storageKey = `truload_settings_${currentStation.id}`;
+    const savedSettings = localStorage.getItem(storageKey);
+
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.countyId) setSelectedCountyId(parsed.countyId);
+        if (parsed.subcountyId) setSelectedSubcountyId(parsed.subcountyId);
+        if (parsed.roadId) setSelectedRoadId(parsed.roadId);
+      } catch (e) {
+        console.error('Failed to parse saved settings', e);
+      }
+    } else if (prosecutionDefaults) {
+      // Use prosecution defaults if no saved settings for this station
+      if (prosecutionDefaults.defaultCountyId) setSelectedCountyId(prosecutionDefaults.defaultCountyId);
+      if (prosecutionDefaults.defaultSubcountyId) setSelectedSubcountyId(prosecutionDefaults.defaultSubcountyId);
+      if (prosecutionDefaults.defaultRoadId) setSelectedRoadId(prosecutionDefaults.defaultRoadId);
+    } else if (counties?.length > 0) {
+      // Default to Nairobi City
+      const nairobi = (counties as { name: string; id: string }[]).find(c => (c.name || '').includes('Nairobi'));
+      if (nairobi) {
+        setSelectedCountyId(nairobi.id);
+      }
+    }
+
+    setLocationInitialized(true);
+  }, [currentStation?.id, counties, prosecutionDefaults, locationInitialized, setSelectedCountyId, setSelectedSubcountyId, setSelectedRoadId]);
+
+  // Save settings when they change
+  useEffect(() => {
+    if (!currentStation?.id) return;
+    const storageKey = `truload_settings_${currentStation.id}`;
+    const settings = {
+      countyId: selectedCountyId,
+      subcountyId: selectedSubcountyId,
+      roadId: selectedRoadId,
+    };
+    localStorage.setItem(storageKey, JSON.stringify(settings));
+  }, [currentStation?.id, selectedCountyId, selectedSubcountyId, selectedRoadId]);
+
+  // Derive selected configuration ID for weight references lookup
+  const selectedConfigId = useMemo(() => {
+    if (!selectedConfig || axleConfigurations.length === 0) return undefined;
+    const config = axleConfigurations.find((c: any) => c.axleCode === selectedConfig);
+    return config?.id;
+  }, [selectedConfig, axleConfigurations]);
+
+  // Fetch weight references for the selected configuration
+  const { data: weightReferences = [] } = useAxleWeightReferences(selectedConfigId);
+
+  // Scale test status from TanStack Query (same source as multideck; banner and message shared)
+  const { data: scaleTestStatus } = useMyScaleTestStatus(currentBound);
+
+  // Set bound when station loads
+  useEffect(() => {
+    if (currentStation?.supportsBidirectional && currentStation.boundACode && !currentBoundState) {
+      setCurrentBoundState(currentStation.boundACode);
+    }
+  }, [currentStation, currentBoundState]);
+
+  // Set default axle config when data loads
+  useEffect(() => {
+    if (axleConfigurations.length > 0 && !selectedConfig) {
+      const defaultConfig = axleConfigurations.find((c: any) => c.axleCode === '2A') || axleConfigurations[0];
+      setSelectedConfig(defaultConfig.axleCode);
+      setAxleConfig(defaultConfig.axleCode);
+    }
+  }, [axleConfigurations, selectedConfig]);
+
+  // Show warning if no station assigned
+  useEffect(() => {
+    if (!isLoadingStation && !currentStation) {
+      toast.warning('No station assigned to your account.', {
+        description: 'Contact administrator to link a station to your profile.',
+      });
+    }
+  }, [isLoadingStation, currentStation]);
+
+  // Vehicle details form state - linked entity IDs
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>();
+  const [selectedActId, setSelectedActId] = useState<string | undefined>();
+
+  // Acts for compliance (default: Traffic Act)
+  const { data: acts = [] } = useAllActs();
+  const defaultActId = acts.find((a) => a.isDefault)?.id ?? acts[0]?.id;
+  const effectiveActId = selectedActId || defaultActId;
+
+  // Vehicle details form state - simple values
+  const [permitNo, setPermitNo] = useState('');
+  const [trailerNo, setTrailerNo] = useState('');
+  const [comment, setComment] = useState('');
+  const [reliefVehicleReg, setReliefVehicleReg] = useState('');
+
+  // Auto-lookup vehicle by registration number (using debounced value)
+  const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
+
+  // Mutations
+  const updateVehicleMutation = useUpdateVehicle();
+
+  // Update selected vehicle when lookup returns
+  useEffect(() => {
+    if (existingVehicle?.id) {
+      setSelectedVehicleId(existingVehicle.id);
+      // Auto-populate fields from existing vehicle
+      if (existingVehicle.transporterId) {
+        setSelectedTransporterId(existingVehicle.transporterId);
+      }
+      if (existingVehicle.axleConfigurationId) {
+        const config = axleConfigurations.find((c: any) => c.id === existingVehicle.axleConfigurationId);
+        if (config) {
+          setSelectedConfig(config.axleCode);
+          setAxleConfig(config.axleCode);
+        }
+      }
+      if (existingVehicle.makeModel) {
+        setVehicleMake(existingVehicle.makeModel);
+      }
+    } else {
+      setSelectedVehicleId(undefined);
+    }
+  }, [existingVehicle, axleConfigurations]);
+
+  // Prefill vehicle details form from transaction when we land on vehicle step (e.g. after create or resume)
+  const lastPrefilledTransactionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const txn = weighingHook.transaction;
+    if (currentStep !== 'vehicle' || !txn?.id) return;
+    if (lastPrefilledTransactionIdRef.current === txn.id) return;
+    lastPrefilledTransactionIdRef.current = txn.id;
+    if (txn.driverId) setSelectedDriverId(txn.driverId);
+    if (txn.transporterId) setSelectedTransporterId(txn.transporterId);
+    if (txn.originId) setSelectedOriginId(txn.originId);
+    if (txn.destinationId) setSelectedDestinationId(txn.destinationId);
+    if (txn.cargoId) setSelectedCargoId(txn.cargoId);
+    if (txn.roadId) setSelectedRoadId(txn.roadId);
+    if (txn.subcountyId) setSelectedSubcountyId(txn.subcountyId);
+    if (txn.vehicleMake) setVehicleMake(txn.vehicleMake);
+    if (txn.axleConfiguration) {
+      setSelectedConfig(txn.axleConfiguration);
+      setAxleConfig(txn.axleConfiguration);
+    }
+    // County: resolve from subcounty if we have subcounties loaded
+    if (txn.subcountyId && subcounties?.length) {
+      const sub = (subcounties as { id: string; countyId?: string }[]).find(s => s.id === txn.subcountyId);
+      if (sub?.countyId) setSelectedCountyId(sub.countyId);
+    }
+  }, [currentStep, weighingHook.transaction, subcounties]);
+
+  // Sync vehicle make and axle config to Vehicle entity only when a vehicle make is selected; always pass regNo so backend does not 400.
+  useEffect(() => {
+    if (!selectedVehicleId || !vehiclePlate?.trim()) return;
+    if (!vehicleMake) return;
+
+    const timeoutId = setTimeout(() => {
+      const config = axleConfigurations.find((c: any) => c.axleCode === selectedConfig);
+      const updates: { regNo: string; make?: string; axleConfigurationId?: string } = {
+        regNo: vehiclePlate.trim().toUpperCase(),
+      };
+      let hasChanges = false;
+
+      if (vehicleMake && vehicleMake !== existingVehicle?.makeModel) {
+        updates.make = vehicleMake;
+        hasChanges = true;
+      }
+      if (config?.id && config.id !== existingVehicle?.axleConfigurationId) {
+        updates.axleConfigurationId = config.id;
+        hasChanges = true;
+      }
+
+      if (hasChanges) {
+        updateVehicleMutation.mutate({
+          id: selectedVehicleId,
+          payload: updates,
+        });
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedVehicleId, vehiclePlate, vehicleMake, selectedConfig, axleConfigurations, existingVehicle, updateVehicleMutation]);
+
+  // Sync axle configuration to middleware when it changes during an active weighing session
+  useEffect(() => {
+    if (middleware.connected && weighingHook.session?.transactionId && selectedConfig) {
+      const config = axleConfigurations.find((c: any) => c.axleCode === selectedConfig);
+      const totalAxles = getTotalAxles(selectedConfig);
+
+      middleware.syncTransaction({
+        transactionId: weighingHook.session.transactionId,
+        vehicleRegNumber: vehiclePlate,
+        axleConfigCode: selectedConfig,
+        totalAxles: totalAxles,
+        stationId: currentStation?.id || '',
+        bound: currentBound,
+        weighingMode: 'mobile',
+      });
+
+      console.log(`[WebSocket] Synced axle configuration change to middleware: ${selectedConfig} (${totalAxles} axles)`);
+    }
+  }, [selectedConfig, middleware.connected, weighingHook.session?.transactionId, vehiclePlate, currentStation?.id, currentBound, axleConfigurations]);
+
+  // Request location when on vehicle step (optional; used for weighing location coordinates)
+  useEffect(() => {
+    if (currentStep === 'vehicle' && weighingHook.session?.transactionId && isGeolocationSupported) {
+      refreshGeolocation();
+    }
+  }, [currentStep, weighingHook.session?.transactionId, isGeolocationSupported, refreshGeolocation]);
+
+  // Derived primitives so sync effect doesn't re-run on every counties/subcounties/roads/geo ref change (avoids PUT storm)
+  const locationCountyName = useMemo(
+    () => (counties as { id?: string; name?: string }[]).find((c) => c.id === selectedCountyId)?.name ?? '',
+    [counties, selectedCountyId]
+  );
+  const locationSubcountyName = useMemo(
+    () => (subcounties as { id?: string; name?: string }[]).find((s) => s.id === selectedSubcountyId)?.name ?? '',
+    [subcounties, selectedSubcountyId]
+  );
+  const locationRoadName = useMemo(
+    () => (roads as { id?: string; name?: string; code?: string }[]).find((r) => r.id === selectedRoadId)?.name
+      ?? (roads as { id?: string; code?: string }[]).find((r) => r.id === selectedRoadId)?.code ?? '',
+    [roads, selectedRoadId]
+  );
+  const geoLat = geoPosition?.latitude;
+  const geoLng = geoPosition?.longitude;
+
+  // Don't sync for the first few seconds after transaction appears (avoids PUT on load when dropdowns populate)
+  const syncAllowedAfterRef = useRef<number>(0);
+  useEffect(() => {
+    const tid = weighingHook.session?.transactionId;
+    if (tid) {
+      if (syncAllowedAfterRef.current === 0) syncAllowedAfterRef.current = Date.now() + 3000;
+    } else {
+      syncAllowedAfterRef.current = 0;
+    }
+  }, [weighingHook.session?.transactionId]);
+
+  // Sync driver/transporter/cargo/origin/destination selections to backend. Debounce 2s + throttle/backoff in updateVehicleDetails.
+  useEffect(() => {
+    if (!weighingHook.session?.transactionId) return;
+
+    const timeoutId = setTimeout(() => {
+      if (Date.now() < syncAllowedAfterRef.current) return;
+      const updates: Partial<UpdateWeighingRequest> = {};
+      if (selectedDriverId) updates.driverId = selectedDriverId;
+      if (selectedTransporterId) updates.transporterId = selectedTransporterId;
+      if (selectedOriginId) updates.originId = selectedOriginId;
+      if (selectedDestinationId) updates.destinationId = selectedDestinationId;
+      if (selectedCargoId) updates.cargoId = selectedCargoId;
+      if (effectiveActId) updates.actId = effectiveActId;
+      if (locationCountyName) updates.locationCounty = locationCountyName;
+      if (selectedSubcountyId) {
+        updates.subcountyId = selectedSubcountyId;
+        if (locationSubcountyName) updates.locationSubcounty = locationSubcountyName;
+      }
+      if (selectedRoadId) {
+        updates.roadId = selectedRoadId;
+        if (locationRoadName) updates.locationTown = locationRoadName;
+      }
+      if (geoLat != null && geoLng != null) {
+        updates.locationLat = geoLat;
+        updates.locationLng = geoLng;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        weighingHook.updateVehicleDetails(updates).catch((err) => {
+          console.warn('Failed to sync vehicle details to backend:', err);
+        });
+      }
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    weighingHook.session?.transactionId,
+    weighingHook.updateVehicleDetails,
+    selectedDriverId,
+    selectedTransporterId,
+    selectedOriginId,
+    selectedDestinationId,
+    selectedCargoId,
+    effectiveActId,
+    selectedCountyId,
+    locationCountyName,
+    selectedSubcountyId,
+    locationSubcountyName,
+    selectedRoadId,
+    locationRoadName,
+    geoLat,
+    geoLng,
+  ]);
+
+
   // Permissions - mapped to backend permission codes
-  const _canCapture = useHasPermission('weighing.create');
+  const canCapture = useHasPermission('weighing.create');
   const canPrint = useHasPermission('weighing.export');
-  const _canTag = useHasPermission('tag.create');
+  const canTag = useHasPermission('tag.create');
   const canSendToYard = useHasPermission('weighing.send_to_yard');
   const canSpecialRelease = useHasPermission('case.special_release');
 
   // Scale status derived from middleware connection state
   const scaleStatus: ScaleStatus = middlewareConnected ? 'connected' : 'disconnected';
+
+  // Ticket number derived from session
+  const ticketNumber = weighingSession?.ticketNumber || weighingTransaction?.ticketNumber;
+
+  // Loading and Error states
+  const isLoadingData = isLoadingStation || isLoadingAxleConfigs || isWeighingLoading;
+  const loadError = stationError || axleConfigError || weighingError;
+
+  // Scale test helpers (aligned with multideck: same card, same message)
+  const isScaleTestCompleted = scaleTestStatus?.hasValidTest ?? false;
+  const lastScaleTestAt = scaleTestStatus?.latestTest ? new Date(scaleTestStatus.latestTest.carriedAt) : undefined;
 
   // Get total axles based on selected config
   const getTotalAxles = (config: string): number => {
@@ -736,10 +714,10 @@ export default function MobileWeighingPage() {
 
     for (const groupLabel of sortedGroups) {
       const refs = groupMap.get(groupLabel)!;
-      const sortedRefs = refs.sort((a, b) => a.axlePosition - b.axlePosition);
+      const sortedRefs = refs.sort((a: any, b: any) => a.axlePosition - b.axlePosition);
 
       // Calculate permissible weight for the group (sum of individual axle limits)
-      const permissibleKg = sortedRefs.reduce((sum, r) => sum + r.axleLegalWeightKg, 0);
+      const permissibleKg = sortedRefs.reduce((sum: number, r: any) => sum + r.axleLegalWeightKg, 0);
 
       // Apply tolerance per Kenya Traffic Act Cap 403:
       // 5% for any single-axle group (Steering or Single Drive), 0% for grouped (Tandem/Tridem)
@@ -748,8 +726,7 @@ export default function MobileWeighingPage() {
       const toleranceKg = Math.round(permissibleKg * tolerancePercent / 100);
       const effectiveLimitKg = permissibleKg + toleranceKg;
 
-      // Calculate measured weight for the group
-      const axles = sortedRefs.map(ref => {
+      const axles = sortedRefs.map((ref: any) => {
         const measured = capturedWeightMap.get(ref.axlePosition) || 0;
         return {
           axleNumber: ref.axlePosition,
@@ -758,7 +735,7 @@ export default function MobileWeighingPage() {
         };
       });
 
-      const measuredKg = axles.reduce((sum, a) => sum + a.measuredKg, 0);
+      const measuredKg = axles.reduce((sum: number, a: any) => sum + a.measuredKg, 0);
       const overloadKg = Math.max(0, measuredKg - effectiveLimitKg);
 
       // Determine status
@@ -809,8 +786,6 @@ export default function MobileWeighingPage() {
     cargoId: selectedCargoId,
   }), [selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId, selectedCargoId]);
 
-  // Missing fields warning modal state
-  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
   const hasShownSentToYardToast = useRef(false);
 
   // Toast when vehicle already sent to yard (backend auto-created on overload)
@@ -842,7 +817,21 @@ export default function MobileWeighingPage() {
   // Step order: capture → vehicle → decision (3 steps)
   const steps: WeighingStep[] = ['capture', 'vehicle', 'decision'];
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
+    // If moving from capture to vehicle, save prosecution defaults
+    if (currentStep === 'capture') {
+      try {
+        await updateProsecutionDefaultsMutation.mutateAsync({
+          defaultCountyId: selectedCountyId || undefined,
+          defaultSubcountyId: selectedSubcountyId || undefined,
+          defaultRoadId: selectedRoadId || undefined,
+        });
+        console.log('Prosecution defaults updated with current location');
+      } catch (err) {
+        console.warn('Failed to update prosecution defaults:', err);
+      }
+    }
+
     completeCurrentStep();
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
@@ -899,11 +888,6 @@ export default function MobileWeighingPage() {
     }
   }, [capturedAxles, captureAxleWeight, currentAxle, currentAxleWeight, totalAxles, middleware, weighingSession]);
 
-  // ANPR scan handler
-  const handleScanPlate = () => {
-    toast.info('ANPR camera not connected. Enter plate number manually.');
-  };
-
   // Edit plate handler (logs event)
   const handleEditPlate = () => {
     console.log('[AUDIT] Plate edit requested for:', vehiclePlate);
@@ -952,18 +936,13 @@ export default function MobileWeighingPage() {
     setIsScaleTestModalOpen(true);
   }, []);
 
-  // Handle scale test completion from modal
-  // TanStack Query will automatically refetch and update the UI
+  // Handle scale test completion (same message as multideck; query invalidation via mutation)
   const handleScaleTestComplete = useCallback((test: ScaleTest) => {
-    setCurrentScaleTest(test);
-
     if (test.result === 'pass') {
-      toast.success('Scale test completed successfully!', {
-        description: 'Weighing operations are now enabled.',
+      toast.success(SCALE_TEST_SUCCESS_MESSAGE, {
+        description: SCALE_TEST_SUCCESS_DESCRIPTION,
       });
     }
-    // Note: TanStack Query will automatically invalidate and refetch scale test status
-    // via the useCreateScaleTest mutation's onSuccess callback
   }, []);
 
   // Weight confirmation handlers
@@ -1010,6 +989,17 @@ export default function MobileWeighingPage() {
     toast.info(`Resuming weighing for ${txn.vehicleRegNumber}`);
   }, [resetSession, setCurrentAxle]);
 
+  // Discard a pending transaction
+  const handleDiscardTransaction = useCallback(async (txn: WeighingTransaction) => {
+    try {
+      await deleteWeighingMutation.mutateAsync(txn.id);
+      toast.success(`Transaction ${txn.vehicleRegNumber} discarded successfully.`);
+    } catch (error) {
+      console.error('Failed to discard transaction:', error);
+      toast.error('Failed to discard transaction.');
+    }
+  }, [deleteWeighingMutation]);
+
   // Proceed to vehicle step - auto-create vehicle if needed and initialize transaction
   const handleProceedToVehicle = async () => {
     let _vehicleId = selectedVehicleId;
@@ -1038,7 +1028,13 @@ export default function MobileWeighingPage() {
     // Initialize transaction via useWeighing hook
     // Use selected config, or fallback to first available config from loaded configurations
     const configToUse = selectedConfig || axleConfigurations[0]?.axleCode || '6C';
-    const transaction = await initializeTransaction(vehiclePlate, configToUse);
+    
+    // Add default prosecution settings to the initial transaction
+    const transaction = await initializeTransaction(vehiclePlate, configToUse, {
+      roadId: selectedRoadId || undefined,
+      subcountyId: selectedSubcountyId || undefined,
+      locationCounty: locationCountyName || undefined,
+    });
 
     if (transaction) {
       // Sync transaction context to middleware for autoweigh tracking
@@ -1054,36 +1050,35 @@ export default function MobileWeighingPage() {
         });
       }
 
-      // Use ticket number from backend (generated by DocumentNumberService)
-      setTicketNumber(transaction.ticketNumber);
       handleNextStep();
     } else {
       toast.error('Could not create transaction. Please check your connection and try again.');
     }
   };
 
-  // Cancel weighing - confirmation state
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-
   const handleCancelWeighing = () => {
     setShowCancelConfirm(true);
   };
 
-  const confirmCancelWeighing = () => {
-    // Reset hook session (clears backend session and localStorage)
-    resetSession();
-
-    // Reset middleware session
-    if (middleware.connected) {
-      middleware.resetSession();
+  const confirmCancelWeighing = async () => {
+    setShowCancelConfirm(false);
+    if (weighingSession?.transactionId) {
+      try {
+        await deleteWeighingMutation.mutateAsync(weighingSession.transactionId);
+      } catch (err) {
+        console.error('Failed to delete pending transaction:', err);
+      }
     }
+    
+    // Explicitly reset middleware and frontend session
+    middleware.resetSession();
+    resetSession();
 
     // Reset local UI state
     setLocalCapturedWeights([]);
     setLocalCurrentAxle(1);
     setCurrentAxleWeight(0);
     setVehiclePlate('');
-    setTicketNumber('');
     setCurrentStep('capture');
     setCompletedSteps([]);
 
@@ -1099,149 +1094,10 @@ export default function MobileWeighingPage() {
     setVehicleMake('');
     setComment('');
     setReliefVehicleReg('');
-    setShowCancelConfirm(false);
+    toast.success('Weighing cancelled.');
   };
 
-  // Entity modal handlers - wired to backend mutations
-  const handleSaveDriver = useCallback(async (data: CreateDriverRequest) => {
-    setIsSavingEntity(true);
-    try {
-      const newDriver = await createDriverMutation.mutateAsync({
-        fullNames: data.fullNames,
-        surname: data.surname,
-        idNumber: data.idNumber || '',
-        drivingLicenseNo: data.drivingLicenseNo || '',
-        phoneNumber: data.phoneNumber,
-        email: data.email,
-        transporterId: selectedTransporterId,
-      });
-
-      // Optimistically add to cache so dropdown immediately shows the new entry
-      queryClient.setQueryData([...QUERY_KEYS.DRIVERS, ''], (old: Driver[] | undefined) =>
-        old ? [...old, newDriver] : [newDriver]
-      );
-      // Auto-select the newly created driver
-      setSelectedDriverId(newDriver.id);
-      setIsDriverModalOpen(false);
-      toast.success('Driver added successfully');
-    } catch (error) {
-      console.error('Failed to save driver:', error);
-      toast.error('Failed to add driver');
-      throw error;
-    } finally {
-      setIsSavingEntity(false);
-    }
-  }, [createDriverMutation, selectedTransporterId, queryClient]);
-
-  const handleSaveTransporter = useCallback(async (data: CreateTransporterRequest) => {
-    setIsSavingEntity(true);
-    try {
-      const newTransporter = await createTransporterMutation.mutateAsync({
-        name: data.name,
-        code: data.code,
-        address: data.address,
-        phoneNumber: data.phone,
-        email: data.email,
-      });
-
-      // Optimistically add to cache so dropdown immediately shows the new entry
-      queryClient.setQueryData([...QUERY_KEYS.TRANSPORTERS, ''], (old: Transporter[] | undefined) =>
-        old ? [...old, newTransporter] : [newTransporter]
-      );
-      // Auto-select the newly created transporter
-      setSelectedTransporterId(newTransporter.id);
-      setIsTransporterModalOpen(false);
-      toast.success('Transporter added successfully');
-    } catch (error) {
-      console.error('Failed to save transporter:', error);
-      toast.error('Failed to add transporter');
-      throw error;
-    } finally {
-      setIsSavingEntity(false);
-    }
-  }, [createTransporterMutation, queryClient]);
-
-  const handleSaveLocation = useCallback(async (data: CreateOriginDestinationRequest) => {
-    setIsSavingEntity(true);
-    try {
-      const newLocation = await createOriginDestinationMutation.mutateAsync({
-        name: data.name,
-        code: data.code,
-        locationType: data.locationType,
-        country: data.country,
-      });
-
-      // Optimistically add to cache so dropdown immediately shows the new entry
-      queryClient.setQueryData(QUERY_KEYS.ORIGINS_DESTINATIONS, (old: OriginDestination[] | undefined) =>
-        old ? [...old, newLocation] : [newLocation]
-      );
-      // Auto-select into the field that triggered the modal
-      if (locationModalTarget === 'origin') {
-        setSelectedOriginId(newLocation.id);
-      } else {
-        setSelectedDestinationId(newLocation.id);
-      }
-      setIsLocationModalOpen(false);
-      toast.success('Location added successfully');
-    } catch (error) {
-      console.error('Failed to save location:', error);
-      toast.error('Failed to add location');
-      throw error;
-    } finally {
-      setIsSavingEntity(false);
-    }
-  }, [createOriginDestinationMutation, queryClient, locationModalTarget]);
-
-  const handleSaveCargoType = useCallback(async (data: { code: string; name: string; category?: string; description?: string }) => {
-    setIsSavingEntity(true);
-    try {
-      // Map category string to the allowed enum values, defaulting to General
-      let category: 'General' | 'Hazardous' | 'Perishable' = 'General';
-      if (data.category === 'Hazardous') category = 'Hazardous';
-      else if (data.category === 'Perishable') category = 'Perishable';
-
-      const newCargoType = await createCargoTypeMutation.mutateAsync({
-        code: data.code,
-        name: data.name,
-        category,
-      });
-
-      // Optimistically add to cache so dropdown immediately shows the new entry
-      queryClient.setQueryData(QUERY_KEYS.CARGO_TYPES, (old: CargoType[] | undefined) =>
-        old ? [...old, newCargoType] : [newCargoType]
-      );
-      setSelectedCargoId(newCargoType.id);
-      setIsCargoTypeModalOpen(false);
-      toast.success('Cargo type added successfully');
-    } catch (error) {
-      console.error('Failed to save cargo type:', error);
-      toast.error('Failed to add cargo type');
-      throw error;
-    } finally {
-      setIsSavingEntity(false);
-    }
-  }, [createCargoTypeMutation, queryClient]);
-
-  const handleSaveVehicleMake = useCallback(async (data: CreateVehicleMakeRequest) => {
-    setIsSavingEntity(true);
-    try {
-      const created = await createVehicleMakeMutation.mutateAsync({
-        code: data.code || data.name.toUpperCase().slice(0, 10).replace(/\s+/g, '_'),
-        name: data.name,
-        country: data.country,
-        description: data.description,
-      });
-      setVehicleMake(created.name);
-      setIsVehicleMakeModalOpen(false);
-      toast.success('Vehicle make added successfully');
-    } catch (error) {
-      console.error('Failed to save vehicle make:', error);
-      toast.error('Failed to add vehicle make');
-      throw error;
-    } finally {
-      setIsSavingEntity(false);
-    }
-  }, [createVehicleMakeMutation]);
+  // Modal handlers are now managed by useWeighingUI
 
   // Decision Panel Action Handlers
 
@@ -1323,12 +1179,57 @@ export default function MobileWeighingPage() {
     }
   }, [vehiclePlate, currentStation, overallStatus, gvwOverload]);
 
+  // Proceed to decision step (flushes vehicle details to backend)
+  const handleProceedToDecision = useCallback(async () => {
+    if (!weighingSession?.transactionId) {
+      handleNextStep();
+      return;
+    }
+    const payload: Partial<UpdateWeighingRequest> = {};
+    if (vehiclePlate?.trim()) payload.vehicleRegNumber = vehiclePlate.trim().toUpperCase();
+    if (selectedDriverId) payload.driverId = selectedDriverId;
+    if (selectedTransporterId) payload.transporterId = selectedTransporterId;
+    if (selectedOriginId) payload.originId = selectedOriginId;
+    if (selectedDestinationId) payload.destinationId = selectedDestinationId;
+    if (selectedCargoId) payload.cargoId = selectedCargoId;
+    if (effectiveActId) payload.actId = effectiveActId;
+    if (selectedRoadId) payload.roadId = selectedRoadId;
+    if (selectedSubcountyId) payload.subcountyId = selectedSubcountyId;
+    if (locationCountyName) payload.locationCounty = locationCountyName;
+    if (reliefVehicleReg) payload.reliefVehicleReg = reliefVehicleReg;
+    if (comment) payload.comment = comment;
+    if (geoLat != null && geoLng != null) {
+      payload.locationLat = geoLat;
+      payload.locationLng = geoLng;
+    }
+    
+    if (Object.keys(payload).length === 0) {
+      handleNextStep();
+      return;
+    }
+
+    try {
+      // Use force: true to bypass debouncing and ensure it saves NOW
+      const ok = await updateVehicleDetails(payload, { force: true });
+      if (!ok) {
+        toast.error('Could not save vehicle details. Please try again.');
+        return;
+      }
+      handleNextStep();
+    } catch {
+      toast.error('Failed to update weighing transaction.');
+    }
+  }, [weighingSession, vehiclePlate, selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId, selectedCargoId, effectiveActId, selectedRoadId, selectedSubcountyId, locationCountyName, reliefVehicleReg, comment, geoLat, geoLng, updateVehicleDetails, handleNextStep]);
+
   // Send to yard - creates a yard entry for non-compliant vehicles
   const handleSendToYard = useCallback(async () => {
     if (!weighingSession?.transactionId || !currentStation?.id) {
       toast.error('No active transaction or station');
       return;
     }
+
+    // Ensure all details are flushed before sending to yard
+    await handleProceedToDecision();
 
     try {
       const reason = overallStatus === 'OVERLOAD'
@@ -1358,15 +1259,18 @@ export default function MobileWeighingPage() {
   }, [weighingSession, currentStation, overallStatus, gvwOverload]);
 
   // Special release - navigates to special release workflow
-  const handleSpecialRelease = useCallback(() => {
+  const handleSpecialRelease = useCallback(async () => {
     if (!weighingSession?.transactionId) {
       toast.error('No active transaction');
       return;
     }
 
+    // Ensure all details are flushed before special release
+    await handleProceedToDecision();
+
     // Navigate to special release page with transaction context
     router.push(`/${orgSlug}/weighing/special-release?transactionId=${weighingSession.transactionId}`);
-  }, [weighingSession, router, orgSlug]);
+  }, [weighingSession, router, orgSlug, handleProceedToDecision]);
 
   // Finish & Exit: end session, reset middleware, redirect to capture (no print). Always available on decision screen.
   const handleFinishOnly = useCallback(() => {
@@ -1374,37 +1278,26 @@ export default function MobileWeighingPage() {
     if (middleware.connected) {
       middleware.resetSession();
     }
-    setLocalCapturedWeights([]);
-    setLocalCurrentAxle(1);
-    setCurrentAxleWeight(0);
     setVehiclePlate('');
     setIsPlateDisabled(false);
-    setTicketNumber('');
     setFrontViewImage(undefined);
     setOverviewImage(undefined);
-    setPermitNo('');
-    setTrailerNo('');
-    setVehicleMake('');
     setComment('');
     setReliefVehicleReg('');
     hasShownSentToYardToast.current = false;
     setCompletedSteps([]);
     setCurrentStep('capture');
-    setSelectedDriverId(undefined);
-    setSelectedTransporterId(undefined);
-    setSelectedCargoId(undefined);
-    setSelectedOriginId(undefined);
-    setSelectedDestinationId(undefined);
-    setSelectedVehicleId(undefined);
     toast.success('Session ended. Ready for next vehicle.');
-  }, [resetSession, middleware]);
+  }, [resetSession, middleware, setVehiclePlate, setIsPlateDisabled, setFrontViewImage, setOverviewImage, setComment, setReliefVehicleReg, setCurrentStep, setCompletedSteps]);
 
   // Finish & Print Ticket: print then finish (for compliant vehicles). Calls handleFinishOnly after print.
   const handleFinishAndNew = useCallback(async () => {
+    // Ensure all details are flushed before finishing
+    await handleProceedToDecision();
     await handlePrintTicket();
     handleFinishOnly();
     toast.success('Weighing completed. Ready for next vehicle.');
-  }, [handlePrintTicket, handleFinishOnly]);
+  }, [handleProceedToDecision, handlePrintTicket, handleFinishOnly]);
 
   // Initiate a reweigh - creates new transaction linked to original
   const handleReweigh = useCallback(async () => {
@@ -1421,14 +1314,15 @@ export default function MobileWeighingPage() {
     }
   }, [initiateReweigh, reweighCycleNo]);
 
-  // Proceed to decision step (weights already confirmed via Take Weight flow)
-  const handleProceedToDecision = () => {
-    handleNextStep();
-  };
+
 
   // Validation for step transitions (also disable during transaction creation to prevent double-click)
-  const canProceedFromCapture = vehiclePlate.length >= 5 && !isWeighingLoading;
-  const canProceedFromVehicle = selectedConfig !== '' && allAxlesCaptured;
+  const canProceedFromCapture = useMemo(() => {
+    const isPlateValid = vehiclePlate.length >= 5;
+    const isScaleTestValid = scaleTestRequired ? isScaleTestCompleted : true;
+    return isPlateValid && isScaleTestValid && !isWeighingLoading;
+  }, [vehiclePlate, scaleTestRequired, isScaleTestCompleted, isWeighingLoading]);
+  const canProceedFromVehicle = selectedConfig !== '' && !!complianceResult;
 
   // Derive station display name
   const stationDisplayName = currentStation
@@ -1463,7 +1357,7 @@ export default function MobileWeighingPage() {
           {loadError && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-yellow-600 text-sm">{loadError}</span>
+                <span className="text-yellow-600 text-sm">{loadError?.message || 'Failed to load weighing data'}</span>
               </div>
               <Button
                 variant="outline"
@@ -1490,369 +1384,174 @@ export default function MobileWeighingPage() {
             onStepClick={goToStep}
           />
 
+          {/* Non-blocking saving indicator when vehicle details are syncing */}
+          {isUpdatingDetails && (
+            <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              <span>Saving vehicle details...</span>
+            </div>
+          )}
+
           {/* Step Content */}
           <div className="min-h-[500px]">
-            {/* Step 1: Capture */}
             {currentStep === 'capture' && (
-              <div className="space-y-4">
-                {/* Pending transactions - resume interrupted weighings */}
-                <PendingTransactionCard
-                  transactions={pendingTransactions}
-                  onResume={handleResumeTransaction}
-                />
-
-                {/* Top Row: Scale Test + Scale Health in compact 2-column layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {/* Scale Test Status - Compact */}
-                  <ScaleTestBanner
-                    isScaleTestCompleted={isScaleTestCompleted}
-                    lastTestAt={lastScaleTestAt}
-                    onStartScaleTest={handleStartScaleTest}
-                    compact
-                  />
-
-                  {/* Scale Health Panel - Compact */}
-                  <ScaleHealthPanel
-                    scales={scales}
-                    isConnected={isScalesConnected}
-                    onConnect={handleConnectScales}
-                    onToggleScale={handleToggleScale}
-                    onChangeWeighingType={handleChangeWeighingType}
-                    weighingType={weighingType}
-                    compact
-                    showDetailedCards={false}
-                    middlewareSynced={middlewareConnected}
-                    simulation={isSimulationMode}
-                  />
-                </div>
-
-                {/* Scale A and B Status Cards with Sync Indicator */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {scales.map((scale) => (
-                    <Card key={scale.id} className={`border-2 transition-colors ${scale.status === 'connected' ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50/30'}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            {/* Connection bubble indicator */}
-                            <div className="relative">
-                              <Scale className={`h-5 w-5 ${scale.status === 'connected' ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${scale.status === 'connected' && middlewareConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-                                }`} />
-                            </div>
-                            <span className="font-semibold">{scale.name}</span>
-                            {/* Sync status badge */}
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${scale.status === 'connected' && middlewareConnected
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-500'
-                              }`}>
-                              {scale.status === 'connected' && middlewareConnected ? 'Synced' : 'Offline'}
-                            </span>
-                          </div>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${scale.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                            }`}>
-                            {scale.status.charAt(0).toUpperCase() + scale.status.slice(1)}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <p className="text-gray-500">Weight</p>
-                            <p className="font-mono font-bold">{scale.weight.toLocaleString()} kg</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Battery</p>
-                            <p className={`font-medium ${(scale.battery ?? 0) < 20 ? 'text-red-600' : (scale.battery ?? 0) < 50 ? 'text-yellow-600' : 'text-green-600'}`}>
-                              {scale.battery ?? 0}%
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Temp</p>
-                            <p className="font-medium">{scale.temperature ?? 0}°C</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                {/* Vehicle Image Capture */}
-                <ImageCaptureCard
-                  frontImage={frontViewImage}
-                  overviewImage={overviewImage}
-                  onCaptureFront={() => setFrontViewImage('/images/weighing/truckpass.jpg')}
-                  onCaptureOverview={() => setOverviewImage('/images/weighing/truckcalledin.jpg')}
-                  onClearFront={() => setFrontViewImage(undefined)}
-                  onClearOverview={() => setOverviewImage(undefined)}
-                  showANPRBadge={true}
-                />
-
-                {/* Vehicle Plate Entry Card - Redesigned with balanced layout */}
-                <Card className="border-gray-200 shadow-sm overflow-hidden">
-                  <CardContent className="p-0">
-                    {/* Main Row: Bound Selector | Plate Input | Actions */}
-                    <div className="flex items-stretch">
-                      {/* Bound Selector Section */}
-                      {currentStation?.supportsBidirectional && (
-                        <div className="flex items-center bg-gray-50 border-r border-gray-200 px-3 min-w-[120px]">
-                          <div className="flex flex-col items-center gap-1 w-full">
-                            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Bound</span>
-                            <select
-                              value={currentBound || currentStation?.boundACode || 'A'}
-                              onChange={(e) => handleBoundChange(e.target.value)}
-                              className="w-full px-2 py-1.5 text-sm font-bold bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
-                            >
-                              <option value={currentStation?.boundACode || 'A'}>
-                                A ({currentStation?.boundACode || 'A'})
-                              </option>
-                              <option value={currentStation?.boundBCode || 'B'}>
-                                B ({currentStation?.boundBCode || 'B'})
-                              </option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Plate Input Section - Central and prominent */}
-                      <div className="flex-1 flex items-center justify-center px-4 py-4 bg-white">
-                        <div className="relative w-full max-w-md">
-                          <input
-                            value={vehiclePlate}
-                            onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
-                            disabled={isPlateDisabled}
-                            placeholder="KAA 123A"
-                            className="w-full font-mono text-2xl md:text-3xl uppercase tracking-[0.2em] px-4 py-3 border-2 border-gray-300 rounded-lg disabled:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center font-bold shadow-inner"
-                          />
-                          {isPlateDisabled && vehiclePlate && (
-                            <span className="absolute -top-2 left-3 px-2 py-0.5 text-[10px] font-semibold bg-green-100 text-green-700 rounded-full">
-                              ✓ Locked
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action Buttons Section */}
-                      <div className="flex items-center gap-2 px-3 py-3 bg-gray-50 border-l border-gray-200">
-                        <Button
-                          onClick={handleScanPlate}
-                          size="icon"
-                          className="h-11 w-11 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm"
-                          title="ANPR Scan"
-                        >
-                          <ScanLine className="h-5 w-5" />
-                        </Button>
-                        {isPlateDisabled && (
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={handleEditPlate}
-                            className="h-11 w-11 border-amber-400 text-amber-700 hover:bg-amber-50 rounded-lg"
-                            title="Edit Plate"
-                          >
-                            <Edit3 className="h-5 w-5" />
-                          </Button>
-                        )}
-                        <Button
-                          onClick={handleProceedToVehicle}
-                          disabled={!canProceedFromCapture}
-                          size="lg"
-                          className="h-11 px-6 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next
-                          <ChevronRight className="h-5 w-5 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Validation Footer - Only shows when validation fails */}
-                    {!canProceedFromCapture && (
-                      <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
-                        <p className="text-xs text-amber-700 text-center font-medium">
-                          {!isScaleTestCompleted && '⚠ Complete scale test'}
-                          {!isScaleTestCompleted && vehiclePlate.length < 5 && ' • '}
-                          {vehiclePlate.length < 5 && '⚠ Enter vehicle plate (min 5 chars)'}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+              <WeighingCaptureStep
+                pendingTransactions={pendingTransactions}
+                middlewareConnected={middleware.connected}
+                currentStation={currentStation}
+                currentBound={currentBound}
+                scales={scales}
+                isScalesConnected={isScalesConnected}
+                isScaleTestCompleted={isScaleTestCompleted}
+                lastScaleTestAt={lastScaleTestAt}
+                weighingType="mobile"
+                isSimulationMode={middleware.simulation}
+                handleResumeTransaction={handleResumeTransaction}
+                handleDiscardTransaction={handleDiscardTransaction}
+                handleStartScaleTest={() => setIsScaleTestModalOpen(true)}
+                handleConnectScales={() => middleware.connect()}
+                handleToggleScale={() => { }}
+                handleChangeWeighingType={handleChangeWeighingType}
+                selectedCountyId={selectedCountyId}
+                setSelectedCountyId={setSelectedCountyId}
+                selectedSubcountyId={selectedSubcountyId}
+                setSelectedSubcountyId={setSelectedSubcountyId}
+                selectedRoadId={selectedRoadId}
+                setSelectedRoadId={setSelectedRoadId}
+                frontViewImage={frontViewImage}
+                setFrontViewImage={setFrontViewImage}
+                overviewImage={overviewImage}
+                setOverviewImage={setOverviewImage}
+                handleCaptureFront={handleCaptureFront}
+                handleCaptureOverview={handleCaptureOverview}
+                vehiclePlate={vehiclePlate}
+                setVehiclePlate={setVehiclePlate}
+                isPlateDisabled={isPlateDisabled}
+                handleScanPlate={handleScanPlate}
+                handleEditPlate={() => setIsPlateDisabled(false)}
+                handleProceedToVehicle={handleProceedToVehicle}
+                canProceedFromCapture={vehiclePlate.length >= 5}
+                isCommercial={isCommercial}
+                handleBoundChange={setCurrentBoundState}
+                onEnter={middleware.sendEnter}
+                onMoveForward={middleware.sendMoveForward}
+                onMoveBack={middleware.sendMoveBack}
+                onStop={middleware.sendStop}
+              />
             )}
 
-            {/* Step 2: Vehicle Details + Axle Capture + Compliance */}
             {currentStep === 'vehicle' && (
-              <div className="space-y-4">
-                {/* Top Row: Ticket Info */}
-                <Card className="border-gray-200">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="font-mono font-bold text-lg">{ticketNumber}</span>
-                      <span className="text-gray-400">|</span>
-                      <span className="font-mono text-xl font-bold text-blue-600">{vehiclePlate}</span>
-                    </div>
-                    <Button variant="destructive" size="sm" onClick={handleCancelWeighing}>
-                      CANCEL WEIGHING
-                    </Button>
-                  </CardContent>
-                </Card>
+              <WeighingVehicleStep
+                selectedConfig={selectedConfig}
+                axleConfigurations={axleConfigurations}
+                vehiclePlate={vehiclePlate}
+                ticketNumber={ticketNumber || weighingSession?.ticketNumber || ''}
+                capturedAxles={capturedAxles}
+                currentAxle={currentAxle}
+                onAxleSelect={setCurrentAxle}
+                onConfigChange={(config) => {
+                  setSelectedConfig(config);
+                  setAxleConfig(config);
+                  setLocalCapturedWeights([]);
+                  setLocalCurrentAxle(1);
+                }}
+                groupResults={groupResults}
+                gvwPermissible={gvwPermissible}
+                gvwMeasured={gvwMeasured}
+                gvwOverload={gvwOverload}
+                overallStatus={overallStatus}
+                allAxlesCaptured={allAxlesCaptured}
+                isWeightConfirmed={isWeightConfirmed}
+                onTakeWeight={handleOpenConfirmModal}
+                reweighCycleNo={reweighCycleNo}
+                handlePrevStep={handlePrevStep}
+                handleProceedToDecision={handleProceedToDecision}
+                isProceedDisabled={!allAxlesCaptured || !isWeightConfirmed}
+                isWeighingLoading={isWeighingLoading}
+                handleCancelWeighing={handleCancelWeighing}
+                vehicleDetailsProps={{
+                  vehicles: [],
+                  selectedVehicleId,
+                  onVehicleIdChange: setSelectedVehicleId,
+                  drivers,
+                  selectedDriverId,
+                  onDriverIdChange: setSelectedDriverId,
+                  onAddDriver: () => setIsDriverModalOpen(true),
+                  onRefreshDrivers: refetchDrivers,
+                  transporters,
+                  selectedTransporterId,
+                  onTransporterIdChange: setSelectedTransporterId,
+                  onAddTransporter: () => setIsTransporterModalOpen(true),
+                  onRefreshTransporters: refetchTransporters,
+                  cargoTypes,
+                  selectedCargoId,
+                  onCargoIdChange: setSelectedCargoId,
+                  onAddCargoType: () => setIsCargoTypeModalOpen(true),
+                  onRefreshCargoTypes: refetchCargoTypes,
+                  locations,
+                  selectedOriginId,
+                  onOriginIdChange: setSelectedOriginId,
+                  selectedDestinationId,
+                  onDestinationIdChange: setSelectedDestinationId,
+                  onAddOriginLocation: () => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); },
+                  onAddDestinationLocation: () => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); },
+                  onRefreshLocations: refetchLocations,
+                  acts,
+                  selectedActId,
+                  onActIdChange: setSelectedActId,
+                  permitNo,
+                  onPermitNoChange: setPermitNo,
+                  trailerNo,
+                  onTrailerNoChange: setTrailerNo,
+                  vehicleMake,
+                  onVehicleMakeChange: setVehicleMake,
+                  onAddVehicleMake: () => setIsVehicleMakeModalOpen(true),
+                  onRefreshVehicleMakes: refetchVehicleMakes,
+                  reliefVehicleReg,
+                  onReliefVehicleRegChange: setReliefVehicleReg,
+                  showReliefVehicleReg: reweighCycleNo > 0,
+                  comment,
+                  onCommentChange: setComment,
+                  isCommercial,
+                  showPermitSection: true,
+                }}
+              >
+                <WeightCaptureCard
+                  currentAxle={currentAxle}
+                  totalAxles={totalAxles}
+                  capturedWeights={capturedWeights}
+                  capturedAxles={capturedAxles}
+                  currentWeight={currentAxleWeight}
+                  onCaptureAxle={handleCaptureAxle}
+                  scaleAStatus={middleware.scaleStatus?.scaleA?.status === 'connected' ? 'connected' : 'disconnected'}
+                  scaleBStatus={middleware.scaleStatus?.scaleB?.status === 'connected' ? 'connected' : 'disconnected'}
+                />
+              </WeighingVehicleStep>
+            )}
 
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-12 gap-4">
-                  {/* Left Column: Axle Config + Weight Capture + Compliance */}
-                  <div className="col-span-7 space-y-4">
-                    {/* Axle Configuration Card */}
-                    <AxleConfigurationCard
-                      selectedConfig={selectedConfig}
-                      axleConfigurations={axleConfigurations}
-                      onConfigChange={(config) => {
-                        setSelectedConfig(config);
-                        setAxleConfig(getDefaultAxleConfig(config));
-                        // Reset local weight capture state
-                        setLocalCapturedWeights([]);
-                        setCurrentAxle(1);
-                      }}
-                      vehiclePlate={vehiclePlate}
-                      ticketNumber={ticketNumber}
-                      capturedAxles={capturedAxles}
-                      currentAxle={currentAxle}
-                      onAxleSelect={setCurrentAxle}
-                    />
-
-                    {/* Weight Capture Card */}
-                    <WeightCaptureCard
-                      currentWeight={currentAxleWeight}
-                      currentAxle={currentAxle}
-                      totalAxles={totalAxles}
-                      capturedAxles={capturedAxles}
-                      capturedWeights={capturedWeights}
-                      onCaptureAxle={handleCaptureAxle}
-                      scaleAStatus={scales[0]?.status === 'connected' ? 'connected' : 'disconnected'}
-                      scaleBStatus={scales[1]?.status === 'connected' ? 'connected' : 'disconnected'}
-                    />
-
-                    {/* Compliance Table */}
-                    <ComplianceTable
-                      groupResults={groupResults}
-                      gvwPermissible={gvwPermissible}
-                      gvwMeasured={gvwMeasured}
-                      gvwOverload={gvwOverload}
-                      overallStatus={overallStatus}
-                    />
-                  </div>
-
-                  {/* Right Column: Vehicle Details + Compliance Banner */}
-                  <div className="col-span-5 space-y-4">
-                    {/* Vehicle Details Card */}
-                    <VehicleDetailsCard
-                      vehiclePlate={vehiclePlate}
-                      onVehiclePlateChange={() => { }} // Read-only in step 2
-                      selectedVehicleId={selectedVehicleId}
-                      onVehicleIdChange={setSelectedVehicleId}
-                      selectedConfig={selectedConfig}
-                      onConfigChange={(config) => {
-                        setSelectedConfig(config);
-                        setAxleConfig(getDefaultAxleConfig(config));
-                        setLocalCapturedWeights([]);
-                        setLocalCurrentAxle(1);
-                      }}
-                      axleConfigurations={axleConfigurations}
-                      // Driver linking
-                      selectedDriverId={selectedDriverId}
-                      onDriverIdChange={setSelectedDriverId}
-                      drivers={drivers}
-                      // Transporter linking
-                      selectedTransporterId={selectedTransporterId}
-                      onTransporterIdChange={setSelectedTransporterId}
-                      transporters={transporters}
-                      // Cargo type linking
-                      selectedCargoId={selectedCargoId}
-                      onCargoIdChange={setSelectedCargoId}
-                      cargoTypes={cargoTypes}
-                      // Origin/Destination linking
-                      selectedOriginId={selectedOriginId}
-                      onOriginIdChange={setSelectedOriginId}
-                      selectedDestinationId={selectedDestinationId}
-                      onDestinationIdChange={setSelectedDestinationId}
-                      locations={locations}
-                      selectedActId={effectiveActId}
-                      onActIdChange={setSelectedActId}
-                      acts={acts.map((a) => ({
-                        id: a.id,
-                        name: a.name,
-                        code: a.code,
-                        chargingCurrency: a.chargingCurrency,
-                        isDefault: a.isDefault,
-                      }))}
-                      // Permit section
-                      showExtendedDetails={true}
-                      showPermitSection={true}
-                      permitNo={permitNo}
-                      onPermitNoChange={setPermitNo}
-                      onViewPermit={() => toast.info('Permit viewer coming soon')}
-                      trailerNo={trailerNo}
-                      onTrailerNoChange={setTrailerNo}
-                      vehicleMake={vehicleMake}
-                      onVehicleMakeChange={setVehicleMake}
-                      // Relief vehicle and comment
-                      reliefVehicleReg={reliefVehicleReg}
-                      onReliefVehicleRegChange={setReliefVehicleReg}
-                      comment={comment}
-                      onCommentChange={setComment}
-                      // Modal handlers
-                      onAddDriver={() => setIsDriverModalOpen(true)}
-                      onAddTransporter={() => setIsTransporterModalOpen(true)}
-                      onAddOriginLocation={() => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); }}
-                      onAddDestinationLocation={() => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); }}
-                      onAddVehicleMake={() => setIsVehicleMakeModalOpen(true)}
-                      vehicleMakes={vehicleMakesData}
-                      onRefreshVehicleMakes={() => refetchVehicleMakes()}
-                      onAddCargoType={() => setIsCargoTypeModalOpen(true)}
-                      // Refresh handlers for manual refetch
-                      onRefreshDrivers={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS })}
-                      onRefreshTransporters={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TRANSPORTERS })}
-                      onRefreshCargoTypes={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CARGO_TYPES })}
-                      onRefreshLocations={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORIGINS_DESTINATIONS })}
-                      isReadOnly={false}
-                    />
-
-                    {/* Compliance Banner */}
-                    <ComplianceBanner
-                      status={allAxlesCaptured ? overallStatus : 'PENDING'}
-                      gvwMeasured={gvwMeasured}
-                      gvwOverload={gvwOverload}
-                      reweighCount={reweighCycleNo}
-                    />
-                  </div>
-                </div>
-
-                {/* Navigation */}
-                <div className="flex justify-between pt-4">
-                  <Button variant="outline" onClick={handlePrevStep}>
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Back to Capture
-                  </Button>
-
-                  {/* Two-state flow: Take Weight → Proceed to Decision */}
-                  {allAxlesCaptured && !isWeightConfirmed ? (
-                    <Button
-                      onClick={handleOpenConfirmModal}
-                      disabled={!canProceedFromVehicle || isWeighingLoading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Scale className="mr-2 h-4 w-4" />
-                      Take Weight
-                    </Button>
-                  ) : isWeightConfirmed ? (
-                    <Button onClick={handleProceedToDecision} disabled={isWeighingLoading}>
-                      Proceed to Decision
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button disabled>
-                      Capture All Axles First
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
+            {currentStep === 'decision' && (
+              <WeighingDecisionStep
+                ticketNumber={ticketNumber || weighingSession?.ticketNumber || ''}
+                vehiclePlate={vehiclePlate}
+                overallStatus={overallStatus}
+                gvwMeasured={gvwMeasured}
+                reweighCycleNo={reweighCycleNo}
+                totalFeeUsd={complianceResult?.totalFeeUsd ?? 0}
+                isValid={validationResult.isValid}
+                missingFields={validationResult.missingFields}
+                isSentToYard={complianceResult?.isSentToYard ?? false}
+                canPrint={canPrint}
+                canSendToYard={canSendToYard}
+                canSpecialRelease={canSpecialRelease}
+                canReweigh={false}
+                onFinishOnly={handleFinishOnly}
+                onFinishAndNew={handleFinishAndNew}
+                onSendToYard={handleSendToYard}
+                onSpecialRelease={handleSpecialRelease}
+                onReweigh={handleReweigh}
+                onPrintTicket={handlePrintTicket}
+                isFinishing={isWeighingLoading}
+              />
             )}
 
             {/* Scale Test Modal - Connected to middleware for live weight readings */}
@@ -1867,11 +1566,11 @@ export default function MobileWeighingPage() {
               weighingMode="mobile"
               middlewareConnected={middleware.connected}
               middlewareWeights={middleware.weights ? {
-                currentWeight: middleware.weights.weight || middleware.weights.currentWeight,
+                currentWeight: (middleware.weights as any).weight || (middleware.weights as any).currentWeight,
                 // Individual scale weights - PAW: derived from combined, Haenni: may be direct
-                scaleA: middleware.weights.scaleA,
-                scaleB: middleware.weights.scaleB,
-                scaleWeightMode: middleware.weights.scaleWeightMode,
+                scaleA: (middleware.weights as any).scaleA,
+                scaleB: (middleware.weights as any).scaleB,
+                scaleWeightMode: (middleware.weights as any).scaleWeightMode,
               } : null}
               middlewareScaleStatus={middleware.scaleStatus ? {
                 scaleA: middleware.scaleStatus.scaleA ? {
@@ -1896,6 +1595,7 @@ export default function MobileWeighingPage() {
                 group: g.groupLabel,
                 permissible: g.permissibleKg,
                 tolerance: g.axleCount === 1 ? 5 : 0,
+                operationalTolerance: g.operationalToleranceKg,
                 actual: g.measuredKg,
                 overload: g.overloadKg,
                 result: g.status === 'LEGAL' ? 'Legal' as const : 'Overload' as const,
@@ -1903,6 +1603,7 @@ export default function MobileWeighingPage() {
               gvw={{
                 permissible: gvwPermissible,
                 tolerance: 0,
+                operationalTolerance: complianceResult?.operationalToleranceKg,
                 actual: gvwMeasured,
                 overload: gvwOverload,
                 result: gvwOverload > 0 ? 'Overload' : 'Legal',
@@ -1946,7 +1647,19 @@ export default function MobileWeighingPage() {
               open={isVehicleMakeModalOpen}
               onOpenChange={setIsVehicleMakeModalOpen}
               mode="create"
-              onSave={handleSaveVehicleMake}
+              onSave={async (data) => {
+                await handleSaveVehicleMake(data);
+                if (selectedVehicleId && data.name) {
+                  const config = axleConfigurations.find((c: any) => c.axleCode === selectedConfig);
+                  updateVehicleMutation.mutate({
+                    id: selectedVehicleId,
+                    payload: {
+                      makeModel: data.name,
+                      ...(config?.id && { axleConfigurationId: config.id }),
+                    },
+                  });
+                }
+              }}
               isSaving={isSavingEntity}
             />
 
@@ -1958,59 +1671,6 @@ export default function MobileWeighingPage() {
               isSaving={isSavingEntity}
             />
 
-            {/* Step 3: Decision */}
-            {currentStep === 'decision' && (
-              <div className="space-y-4">
-                {/* Vehicle Summary */}
-                <Card className="border border-gray-200 rounded-xl">
-                  <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-500">Vehicle:</span>
-                      <span className="font-mono font-bold text-lg">{vehiclePlate}</span>
-                      <span className="text-sm text-gray-400">|</span>
-                      <span className="text-sm text-gray-500">GVW:</span>
-                      <span className="font-mono font-bold">
-                        {gvwMeasured.toLocaleString()} kg
-                      </span>
-                    </div>
-                    {reweighCycleNo > 0 && (
-                      <span className="text-xs bg-gray-800 text-white px-2 py-1 rounded">
-                        Re-weigh: {reweighCycleNo}
-                      </span>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Decision Panel - 3 clear options */}
-                <DecisionPanel
-                  overallStatus={overallStatus}
-                  totalFeeUsd={complianceResult?.totalFeeUsd ?? 0}
-                  demeritPoints={0}
-                  reweighCycleNo={reweighCycleNo}
-                  requiredFieldsValid={validationResult.isValid}
-                  missingFields={validationResult.missingFields}
-                  onFinishExit={handleFinishOnly}
-                  onFinishAndPrint={handleFinishAndNew}
-                  onSendToYard={handleSendToYard}
-                  onSpecialRelease={handleSpecialRelease}
-                  onReweigh={handleReweigh}
-                  onPrintTicket={handlePrintTicket}
-                  canPrint={canPrint}
-                  canSendToYard={canSendToYard}
-                  canSpecialRelease={canSpecialRelease}
-                  canReweigh={reweighCycleNo < 8}
-                  isSentToYard={complianceResult?.isSentToYard ?? false}
-                />
-
-                {/* Navigation */}
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={handlePrevStep}>
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Back to Vehicle
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </ProtectedRoute>
