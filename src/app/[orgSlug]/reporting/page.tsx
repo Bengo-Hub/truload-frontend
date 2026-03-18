@@ -92,10 +92,10 @@ function ReportingContent() {
   } = useDashboardStatistics(filters);
 
   // Chart data for analytics charts
-  const { data: complianceTrend } = useComplianceTrend(filters);
-  const { data: revenueByStation } = useRevenueByStation(filters);
-  const { data: monthlyRevenue } = useMonthlyRevenueData(filters);
-  const { data: caseTrend } = useCaseTrend(filters);
+  const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(filters);
+  const { data: revenueByStation, isLoading: loadingRevenue } = useRevenueByStation(filters);
+  const { data: monthlyRevenue, isLoading: loadingMonthly } = useMonthlyRevenueData(filters);
+  const { data: caseTrend, isLoading: loadingCaseTrend } = useCaseTrend(filters);
 
   const getStatValue = (stats: unknown, key: string, defaultValue = 0): number => {
     if (stats && typeof stats === 'object' && key in stats) {
@@ -166,13 +166,13 @@ function ReportingContent() {
             />
             <StatCard
               title="Total Cases"
-              value={formatNumber(getStatValue(caseStats, 'total'))}
+              value={formatNumber(getStatValue(caseStats, 'totalCases'))}
               icon={FileText}
               color="bg-amber-500"
             />
             <StatCard
               title="Prosecutions"
-              value={formatNumber(getStatValue(prosecutionStats, 'total'))}
+              value={formatNumber(getStatValue(prosecutionStats, 'totalCases'))}
               icon={Gavel}
               color="bg-purple-500"
             />
@@ -238,7 +238,7 @@ function ReportingContent() {
                   ]}
                   defaultChartType="line"
                   allowedChartTypes={['line', 'bar']}
-                  isLoading={isLoading}
+                  isLoading={loadingCompliance}
                 />
                 <ChartWrapper
                   title="Revenue by Station"
@@ -248,7 +248,7 @@ function ReportingContent() {
                   defaultChartType="bar"
                   allowedChartTypes={['bar', 'pie']}
                   valueFormatter={formatKES}
-                  isLoading={isLoading}
+                  isLoading={loadingRevenue}
                 />
               </div>
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -260,7 +260,7 @@ function ReportingContent() {
                   defaultChartType="line"
                   allowedChartTypes={['line', 'bar']}
                   valueFormatter={formatKES}
-                  isLoading={isLoading}
+                  isLoading={loadingMonthly}
                 />
                 <ChartWrapper
                   title="Case Trend"
@@ -272,7 +272,7 @@ function ReportingContent() {
                   ]}
                   defaultChartType="line"
                   allowedChartTypes={['line', 'bar']}
-                  isLoading={isLoading}
+                  isLoading={loadingCaseTrend}
                 />
               </div>
             </CardContent>

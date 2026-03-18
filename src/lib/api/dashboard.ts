@@ -435,22 +435,16 @@ export async function getInvoiceAging(filters?: DashboardFilterParams) {
  * Get user statistics (active users count)
  */
 export async function getUserStatistics(): Promise<UserStatistics> {
-  const response = await apiClient.get<{ totalCount: number; items: { id: string }[] }>(
-    '/user-management/users',
-    { params: { pageSize: 1, isActive: true } }
-  );
-  const activeResponse = await apiClient.get<{ totalCount: number }>(
-    '/user-management/users',
-    { params: { pageSize: 1, isActive: true } }
-  );
-  const inactiveResponse = await apiClient.get<{ totalCount: number }>(
-    '/user-management/users',
-    { params: { pageSize: 1, isActive: false } }
-  );
+  const [totalResponse, inactiveResponse] = await Promise.all([
+    apiClient.get<{ totalCount: number }>('/user-management/users', { params: { pageSize: 1 } }),
+    apiClient.get<{ totalCount: number }>('/user-management/users', { params: { pageSize: 1, isActive: false } }),
+  ]);
+  const totalUsers = totalResponse.data.totalCount;
+  const inactiveUsers = inactiveResponse.data.totalCount;
   return {
-    totalUsers: response.data.totalCount,
-    activeUsers: activeResponse.data.totalCount,
-    inactiveUsers: inactiveResponse.data.totalCount,
+    totalUsers,
+    activeUsers: totalUsers - inactiveUsers,
+    inactiveUsers,
   };
 }
 
