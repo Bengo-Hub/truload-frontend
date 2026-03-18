@@ -98,6 +98,20 @@ export function useRestoreBackup() {
 }
 
 /**
+ * Update backup settings
+ */
+export function useUpdateBackupSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: backupApi.updateBackupSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BACKUP_QUERY_KEYS.STATUS });
+    },
+  });
+}
+
+/**
  * Download a backup file
  */
 export function useDownloadBackup() {

@@ -1,12 +1,12 @@
 "use client";
 
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { ScaleStatus } from '@/types/weighing';
-import { Battery, Signal, Thermometer, Scale, Clock, AlertCircle } from 'lucide-react';
+import { AlertCircle, Battery, Clock, RefreshCw, Scale, Signal, Thermometer } from 'lucide-react';
+import Image from 'next/image';
 
 function getScaleStatusImage(isConnected: boolean, connectedCount: number, totalCount: number) {
   if (!isConnected || connectedCount === 0) return '/images/weighing/mobile_scaleoff.png';
@@ -57,10 +57,16 @@ interface ScaleHealthPanelProps {
   showDetailedCards?: boolean;
   /** Ultra-compact horizontal status bar showing make, sync, count, battery, temp, signal */
   ultraCompact?: boolean;
+  /** When true, render only the connection status card (no detailed scale cards). Used for 2x2 layout. */
+  showOnlyConnectionCard?: boolean;
   /** Middleware sync status - shows sync bubble indicator */
   middlewareSynced?: boolean;
   /** Simulation mode active - shows "SIMULATED" badge instead of make/model */
   simulation?: boolean;
+  onEnter?: () => void;
+  onMoveForward?: () => void;
+  onMoveBack?: () => void;
+  onStop?: () => void;
 }
 
 /**
@@ -81,7 +87,7 @@ interface ScaleHealthPanelProps {
 export function ScaleHealthPanel({
   scales,
   isConnected,
-  _onConnect,
+  onConnect,
   onToggleScale,
   onChangeWeighingType,
   weighingType = 'mobile',
@@ -91,6 +97,7 @@ export function ScaleHealthPanel({
   compact = false,
   showDetailedCards,
   ultraCompact = false,
+  showOnlyConnectionCard = false,
   middlewareSynced = true,
   simulation = false,
 }: ScaleHealthPanelProps) {
@@ -140,7 +147,7 @@ export function ScaleHealthPanel({
         className
       )}>
         <CardContent className="py-2.5 px-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
             {/* Left: Connection status + Make/Model */}
             <div className="flex items-center gap-3">
               {/* Sync status bubble */}
@@ -187,7 +194,7 @@ export function ScaleHealthPanel({
             </div>
 
             {/* Center: Indicator/Scale count */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+            <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full w-fit">
               <Scale className="h-3.5 w-3.5 text-gray-600" />
               <span className="text-xs font-medium text-gray-700">
                 {connectedCount}/{totalCount} {isIndicatorMode ? 'indicator' : 'scale'}{totalCount !== 1 ? 's' : ''} active
@@ -195,7 +202,7 @@ export function ScaleHealthPanel({
             </div>
 
             {/* Right: Status info - different for indicators vs scales */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center flex-wrap gap-3 md:gap-4">
               {isIndicatorMode ? (
                 // Indicator mode: show connection quality and last reading
                 <>
@@ -256,76 +263,107 @@ export function ScaleHealthPanel({
     );
   }
 
-  return (
-    <div className={cn('space-y-3', className)}>
-      {/* Compact Connection Status Card */}
-      <Card className={cn(
-        'shadow-sm transition-colors',
-        isConnected ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'
-      )}>
-        <CardContent className={cn('flex items-center justify-between', compact ? 'p-3' : 'p-4')}>
-          <div className="flex items-center gap-3">
-            {/* Status Icon */}
-            <div className={cn(
-              'flex items-center justify-center rounded-lg',
-              compact ? 'w-10 h-10' : 'w-12 h-12',
-              isConnected ? 'bg-green-100' : 'bg-red-100'
-            )}>
+  const connectionCard = (
+    <Card className={cn(
+      'shadow-md transition-all duration-300 border overflow-hidden group',
+      isConnected 
+        ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/50 via-white to-white' 
+        : 'border-red-200 bg-gradient-to-br from-red-50/50 via-white to-white'
+    )}>
+      <CardContent className={cn('relative flex flex-col sm:flex-row sm:items-center justify-between gap-4', compact ? 'p-3' : 'p-4')}>
+        {/* Decorative background element */}
+        <div className="absolute -right-4 -top-4 opacity-[0.03] rotate-12 transition-transform group-hover:scale-110 duration-700">
+          <Signal size={100} />
+        </div>
+
+        <div className="flex items-center gap-4 w-full sm:w-auto relative z-10">
+          {/* Status Icon with animation */}
+          <div className={cn(
+            'flex items-center justify-center rounded-xl shadow-sm ring-4 transition-all duration-300',
+            compact ? 'w-10 h-10' : 'w-12 h-12',
+            isConnected 
+              ? 'bg-emerald-100 ring-emerald-50 group-hover:ring-emerald-100' 
+              : 'bg-red-100 ring-red-50 group-hover:ring-red-100'
+          )}>
+            <div className={cn(isConnected && "animate-pulse")}>
               <Image
                 src={getScaleStatusImage(isConnected, connectedCount, totalCount)}
                 alt={isConnected ? 'Connected' : 'Disconnected'}
                 width={compact ? 24 : 30}
                 height={compact ? 24 : 30}
+                className="object-contain"
               />
-            </div>
-
-            {/* Status Text */}
-            <div>
-              <div className="flex items-center gap-2">
-                <p className={cn(
-                  'font-semibold text-gray-800',
-                  compact ? 'text-sm' : 'text-base'
-                )}>
-                  {weighingType === 'mobile' ? 'Mobile Weighing' : 'Multideck Weighing'}
-                </p>
-                {/* Sync bubble */}
-                <span className={cn(
-                  'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium',
-                  middlewareSynced && isConnected
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-600'
-                )}>
-                  <span className={cn(
-                    'w-1.5 h-1.5 rounded-full',
-                    middlewareSynced && isConnected ? 'bg-green-500' : 'bg-red-500'
-                  )} />
-                  {middlewareSynced && isConnected ? 'Synced' : 'Offline'}
-                </span>
-              </div>
-              <p className={cn(isConnected ? 'text-gray-500' : 'text-red-500', compact ? 'text-xs' : 'text-sm')}>
-                {isConnected
-                  ? `${connectedCount}/${totalCount} ${devicesLabel.toLowerCase()} active`
-                  : 'Not connected'}
-              </p>
             </div>
           </div>
 
-          {/* Action Button */}
-          {onChangeWeighingType && (
-            <Button
-              onClick={onChangeWeighingType}
-              size={compact ? 'sm' : 'default'}
-              variant="outline"
-              className={cn(
-                'border-gray-300 text-gray-600 hover:bg-gray-100',
-                compact ? 'text-xs' : 'text-sm'
+          {/* Status Text & Indicators */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className={cn(
+                'font-bold text-gray-900 tracking-tight',
+                compact ? 'text-sm' : 'text-base'
+              )}>
+                {weighingType === 'mobile' ? 'Mobile System' : 'Multideck System'}
+              </p>
+              {/* Sync badge */}
+              <span className={cn(
+                'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm',
+                middlewareSynced && isConnected
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-red-500 text-white'
+              )}>
+                <span className={cn(
+                  'w-1.5 h-1.5 rounded-full bg-white',
+                  middlewareSynced && isConnected && 'animate-pulse'
+                )} />
+                {middlewareSynced && isConnected ? 'Synced' : 'Offline'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className={cn(
+                'font-medium truncate',
+                isConnected ? 'text-gray-500' : 'text-red-500', 
+                compact ? 'text-[10px]' : 'text-xs'
+              )}>
+                {isConnected
+                  ? `${connectedCount}/${totalCount} ${devicesLabel.toLowerCase()} online`
+                  : 'Connection required to proceed'}
+              </p>
+              {isConnected && (
+                <div className="flex -space-x-1 outline-none">
+                  {Array.from({ length: Math.min(connectedCount, 4) }).map((_, i) => (
+                    <div key={i} className="w-2 h-2 rounded-full border border-white bg-emerald-400 shadow-sm" />
+                  ))}
+                </div>
               )}
-            >
-              Switch to {weighingType === 'mobile' ? 'Multideck' : 'Mobile'}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        {onChangeWeighingType && (
+          <Button
+            onClick={onChangeWeighingType}
+            size={compact ? 'sm' : 'default'}
+            variant="outline"
+            className={cn(
+              'relative z-10 font-bold transition-all border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 w-full sm:w-auto shadow-sm active:scale-95',
+              compact ? 'text-[11px] h-8 px-3' : 'text-sm h-10 px-4'
+            )}
+          >
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+            Switch Mode
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  if (showOnlyConnectionCard) return <>{connectionCard}</>;
+
+  return (
+    <div className={cn('space-y-3', className)}>
+      {connectionCard}
 
       {/* Detailed Scale Cards (optional) */}
       {shouldShowDetailedCards && (
@@ -344,13 +382,13 @@ export function ScaleHealthPanel({
   );
 }
 
-interface ScaleCardProps {
+export interface ScaleCardProps {
   scale: ScaleInfo;
   onToggle: (active: boolean) => void;
   compact?: boolean;
 }
 
-function ScaleCard({ scale, onToggle, compact = false }: ScaleCardProps) {
+export function ScaleCard({ scale, onToggle, compact = false }: ScaleCardProps) {
   const batteryPercent = scale.battery ?? 0;
   const batteryColor = batteryPercent > 50
     ? 'bg-green-500'
@@ -393,8 +431,8 @@ function ScaleCard({ scale, onToggle, compact = false }: ScaleCardProps) {
           ? 'border-green-200 bg-green-50/30'
           : 'border-red-200 bg-red-50/30'
       )}>
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between">
+        <CardContent className="py-2.5 px-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-center gap-2">
               <Scale className={cn(
                 'h-4 w-4',
@@ -409,9 +447,18 @@ function ScaleCard({ scale, onToggle, compact = false }: ScaleCardProps) {
                 {scale.status.charAt(0).toUpperCase() + scale.status.slice(1)}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* Weight reading */}
+              {scale.weight !== undefined && (
+                <div
+                  className="text-sm font-bold tracking-wider bg-gray-900 px-2 py-0.5 rounded border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.1)]"
+                  style={{ fontFamily: 'var(--font-orbitron), monospace', color: '#f59e0b' }}
+                >
+                  {scale.weight.toLocaleString()} kg
+                </div>
+              )}
               {/* Battery mini indicator */}
-              <div className="flex items-center gap-1 text-xs text-gray-500">
+              <div className="flex items-center gap-1 text-[10px] text-gray-500">
                 <Battery className="h-3 w-3" />
                 <span>{batteryPercent}%</span>
               </div>

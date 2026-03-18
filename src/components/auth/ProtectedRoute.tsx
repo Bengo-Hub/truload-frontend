@@ -37,9 +37,14 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/auth/login');
+      // If we are on a tenant route, redirect to that tenant's login
+      if (orgSlug) {
+        router.push(`/${orgSlug}/auth/login`);
+      } else {
+        router.push('/kura/auth/login');
+      }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, orgSlug, router]);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {

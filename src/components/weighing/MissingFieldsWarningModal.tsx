@@ -14,6 +14,14 @@ interface MissingFieldsWarningModalProps {
   isOpen: boolean;
   onClose: () => void;
   missingFields: string[];
+  /** Optional title (default: Missing Required Fields) */
+  title?: string;
+  /** Optional intro text above the list */
+  description?: string;
+  /** Primary button label */
+  primaryActionLabel?: string;
+  /** Called before onClose when user confirms (e.g. navigate to vehicle step) */
+  onPrimaryAction?: () => void;
 }
 
 /**
@@ -26,7 +34,16 @@ export function MissingFieldsWarningModal({
   isOpen,
   onClose,
   missingFields,
+  title = 'Missing Required Fields',
+  description = 'Please fill in the following fields before proceeding:',
+  primaryActionLabel = 'Go Back & Fill Details',
+  onPrimaryAction,
 }: MissingFieldsWarningModalProps) {
+  const handlePrimary = () => {
+    onPrimaryAction?.();
+    onClose();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[400px]">
@@ -37,13 +54,13 @@ export function MissingFieldsWarningModal({
             </div>
           </div>
           <DialogTitle className="text-center text-lg">
-            Missing Required Fields
+            {title}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3 py-2">
           <p className="text-sm text-gray-600 text-center">
-            Please fill in the following fields before proceeding:
+            {description}
           </p>
           <ul className="space-y-1">
             {missingFields.map((field) => (
@@ -59,8 +76,8 @@ export function MissingFieldsWarningModal({
         </div>
 
         <DialogFooter className="flex-shrink-0">
-          <Button onClick={onClose} className="w-full">
-            Go Back & Fill Details
+          <Button onClick={handlePrimary} className="w-full">
+            {primaryActionLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

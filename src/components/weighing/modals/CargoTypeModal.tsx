@@ -134,6 +134,24 @@ export function CargoTypeModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 space-y-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1">
+          {/* Name */}
+          <div className="space-y-2">
+            <Label htmlFor="cargo-name">Name *</Label>
+            <Input
+              id="cargo-name"
+              value={name}
+              onChange={(e) => {
+                const newName = e.target.value;
+                setName(newName);
+                if (mode === 'create' && newName.trim()) {
+                  setCode(newName.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 15));
+                }
+              }}
+              placeholder="e.g., Cement Bags, Petroleum Fuel"
+              disabled={isSaving || isViewMode}
+            />
+          </div>
+
           {/* Code */}
           <div className="space-y-2">
             <Label htmlFor="cargo-code">Code *</Label>
@@ -141,25 +159,13 @@ export function CargoTypeModal({
               id="cargo-code"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g., CEMENT, FUEL, LIVESTOCK"
-              disabled={isSaving || mode === 'edit' || isViewMode}
-              className="uppercase"
+              placeholder="AUTO-GENERATED"
+              disabled={true}
+              className="uppercase bg-gray-50"
             />
             <p className="text-xs text-gray-500">
-              Unique identifier for this cargo type
+              Unique identifier for this cargo type (Auto-generated from name)
             </p>
-          </div>
-
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="cargo-name">Name *</Label>
-            <Input
-              id="cargo-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Cement Bags, Petroleum Fuel"
-              disabled={isSaving || isViewMode}
-            />
           </div>
 
           {/* Category */}

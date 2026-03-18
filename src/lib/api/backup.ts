@@ -48,11 +48,20 @@ export interface BackupSystemStatusDto {
   isEnabled: boolean;
   scheduleCron: string;
   storagePath: string;
+  backupPgDumpPath: string;
   retentionDays: number;
   lastBackupAt: string | null;
   nextScheduledBackup: string | null;
   totalBackupsCount: number;
   totalStorageUsedBytes: number;
+}
+
+export interface UpdateBackupSettingsRequest {
+  isEnabled: boolean;
+  scheduleCron: string;
+  storagePath: string;
+  backupPgDumpPath?: string;
+  retentionDays: number;
 }
 
 // ============================================================================
@@ -117,6 +126,14 @@ export async function restoreBackup(data: RestoreBackupRequest) {
   return response.data;
 }
 
+/**
+ * Update backup settings
+ */
+export async function updateBackupSettings(data: UpdateBackupSettingsRequest) {
+  const response = await apiClient.put('/system/backups/settings', data);
+  return response.data;
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -144,4 +161,5 @@ export const backupApi = {
   delete: deleteBackup,
   validate: validateBackup,
   restore: restoreBackup,
+  updateSettings: updateBackupSettings,
 };

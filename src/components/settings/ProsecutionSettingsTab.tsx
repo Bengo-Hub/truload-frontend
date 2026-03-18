@@ -8,6 +8,10 @@ import { toast } from 'sonner';
 import { COURT_HEARING_QUERY_KEYS, useCourts } from '@/hooks/queries/useCourtHearingQueries';
 import { GEOGRAPHIC_QUERY_KEYS, useCounties, useSubcounties } from '@/hooks/queries/useGeographicQueries';
 import {
+  useProsecutionDefaults,
+  useUpdateProsecutionDefaults,
+} from '@/hooks/queries/useProsecutionQueries';
+import {
   useSettingsByCategory,
   useUpdateSettingsBatch,
 } from '@/hooks/queries/useSettingsQueries';
@@ -41,12 +45,6 @@ import { AddRoadModal } from '@/components/settings/prosecution/AddRoadModal';
 import { AddSubcountyModal } from '@/components/settings/prosecution/AddSubcountyModal';
 import { Info, Loader2, MapPin, Save, Settings2 } from 'lucide-react';
 
-const KEY_DEFAULT_COURT = 'prosecution.default_court_id';
-const KEY_DEFAULT_COMPLAINANT = 'prosecution.default_complainant_officer_id';
-const KEY_DEFAULT_COUNTY = 'prosecution.default_county_id';
-const KEY_DEFAULT_SUBCOUNTY = 'prosecution.default_subcounty_id';
-const KEY_DEFAULT_ROAD = 'prosecution.default_road_id';
-
 /** Role names that are considered case/prosecution related for complainant filter */
 const PROSECUTION_ROLE_KEYWORDS = ['prosecution', 'case', 'court', 'officer', 'inspector'];
 
@@ -58,8 +56,9 @@ function isProsecutionRelatedRole(roleName: string): boolean {
 export function ProsecutionSettingsTab() {
   const orgSlug = useOrgSlug();
   const queryClient = useQueryClient();
-  const { data: settings, isLoading } = useSettingsByCategory('Prosecution');
-  const updateBatch = useUpdateSettingsBatch();
+  const { data: defaults, isLoading: defaultsLoading } = useProsecutionDefaults();
+  const updateDefaults = useUpdateProsecutionDefaults();
+  
   const [defaultCourtId, setDefaultCourtId] = useState<string>('');
   const [defaultComplainantId, setDefaultComplainantId] = useState<string>('');
   const [defaultCountyId, setDefaultCountyId] = useState<string>('');
@@ -96,25 +95,23 @@ export function ProsecutionSettingsTab() {
   const loadingLookups = countiesLoading || courtsLoading || usersLoading || subcountiesLoading || roadsLoading;
 
   useEffect(() => {
-    if (!settings?.length) return;
-    const get = (key: string) => settings.find((s: ApplicationSettingDto) => s.settingKey === key)?.settingValue ?? '';
-    setDefaultCourtId(get(KEY_DEFAULT_COURT));
-    setDefaultComplainantId(get(KEY_DEFAULT_COMPLAINANT));
-    setDefaultCountyId(get(KEY_DEFAULT_COUNTY));
-    setDefaultSubcountyId(get(KEY_DEFAULT_SUBCOUNTY));
-    setDefaultRoadId(get(KEY_DEFAULT_ROAD));
-  }, [settings]);
+    if (!defaults) return;
+    setDefaultCourtId(defaults.defaultCourtId ?? '');
+    setDefaultComplainantId(defaults.defaultComplainantOfficerId ?? '');
+    setDefaultCountyId(defaults.defaultCountyId ?? '');
+    setDefaultSubcountyId(defaults.defaultSubcountyId ?? '');
+    setDefaultRoadId(defaults.defaultRoadId ?? '');
+  }, [defaults]);
 
   const handleSave = useCallback(async () => {
-    const updates: UpdateSettingsBatchRequest['settings'] = [
-      { settingKey: KEY_DEFAULT_COURT, settingValue: defaultCourtId },
-      { settingKey: KEY_DEFAULT_COMPLAINANT, settingValue: defaultComplainantId },
-      { settingKey: KEY_DEFAULT_COUNTY, settingValue: defaultCountyId },
-      { settingKey: KEY_DEFAULT_SUBCOUNTY, settingValue: defaultSubcountyId },
-      { settingKey: KEY_DEFAULT_ROAD, settingValue: defaultRoadId },
-    ];
     try {
-      await updateBatch.mutateAsync({ settings: updates });
+      await updateDefaults.mutateAsync({
+        defaultCourtId: defaultCourtId || undefined,
+        defaultComplainantOfficerId: defaultComplainantId || undefined,
+        defaultCountyId: defaultCountyId || undefined,
+        defaultSubcountyId: defaultSubcountyId || undefined,
+        defaultRoadId: defaultRoadId || undefined,
+      });
       toast.success('Prosecution defaults saved');
       setHasChanges(false);
     } catch {
@@ -126,26 +123,30 @@ export function ProsecutionSettingsTab() {
     defaultCountyId,
     defaultSubcountyId,
     defaultRoadId,
-    updateBatch,
+    updateDefaults,
   ]);
 
   useEffect(() => {
-    if (!settings?.length) return;
-    const get = (key: string) => settings.find((s: ApplicationSettingDto) => s.settingKey === key)?.settingValue ?? '';
+    if (!defaults) return;
     const changed =
-      (get(KEY_DEFAULT_COURT) ?? '') !== defaultCourtId ||
-      (get(KEY_DEFAULT_COMPLAINANT) ?? '') !== defaultComplainantId ||
-      (get(KEY_DEFAULT_COUNTY) ?? '') !== defaultCountyId ||
-      (get(KEY_DEFAULT_SUBCOUNTY) ?? '') !== defaultSubcountyId ||
-      (get(KEY_DEFAULT_ROAD) ?? '') !== defaultRoadId;
+      (defaults.defaultCourtId ?? '') !== (defaultCourtId || '') ||
+      (defaults.defaultComplainantOfficerId ?? '') !== (defaultComplainantId || '') ||
+      (defaults.defaultCountyId ?? '') !== (defaultCountyId || '') ||
+      (defaults.defaultSubcountyId ?? '') !== (defaultSubcountyId || '') ||
+      (defaults.defaultRoadId ?? '') !== (defaultRoadId || '');
     setHasChanges(changed);
-  }, [settings, defaultCourtId, defaultComplainantId, defaultCountyId, defaultSubcountyId, defaultRoadId]);
+  }, [defaults, defaultCourtId, defaultComplainantId, defaultCountyId, defaultSubcountyId, defaultRoadId]);
 
   const complainantUsers = users.filter((u) =>
     (u.roles ?? []).some((r) => isProsecutionRelatedRole(r))
   );
 
-  if (isLoading || loadingLookups) {
+  const filteredCourts = useMemo(() => {
+    if (!defaultCountyId || courts.length === 0) return courts;
+    return courts.filter((c) => c.countyId === defaultCountyId);
+  }, [courts, defaultCountyId]);
+
+  if (defaultsLoading || loadingLookups) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-20 w-full" />
@@ -280,7 +281,7 @@ export function ProsecutionSettingsTab() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {courts.map((c) => (
+                    {filteredCourts.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
                         {c.code ? ` (${c.code})` : ''}
@@ -326,8 +327,8 @@ export function ProsecutionSettingsTab() {
             </div>
 
             <div className="pt-2">
-              <Button onClick={handleSave} disabled={!hasChanges || updateBatch.isPending}>
-                {updateBatch.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              <Button onClick={handleSave} disabled={!hasChanges || updateDefaults.isPending}>
+                {updateDefaults.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Save changes
               </Button>
             </div>

@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModuleReportSelector } from '@/components/reporting/ModuleReportSelector';
 import { SupersetDashboard } from '@/components/reporting/SupersetDashboard';
 import { NaturalLanguageQuery } from '@/components/reporting/NaturalLanguageQuery';
+import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   useDashboardStatistics,
   useComplianceTrend,
@@ -17,6 +20,7 @@ import {
   useMonthlyRevenueData,
   useCaseTrend,
 } from '@/hooks/queries';
+import { getIsHqUser, getStationId } from '@/lib/auth/token';
 import {
   Brain,
   FileText,
@@ -26,8 +30,23 @@ import {
   TrendingUp,
   Truck,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
+
+function getDefaultReportDateRange() {
+  const today = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+  return {
+    dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
+    dateTo: today.toISOString().split('T')[0],
+  };
+}
+
+function getDefaultReportStationId(): string {
+  if (typeof window === 'undefined') return 'all';
+  return getIsHqUser() ? 'all' : (getStationId() || 'all');
+}
 
 const formatNumber = (value: number) => value.toLocaleString();
 
@@ -46,7 +65,22 @@ function ReportingContent() {
   const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const [activeTab, setActiveTab] = useState('general');
 
-  const filters = {};
+  const defaultRange = useMemo(() => getDefaultReportDateRange(), []);
+  const defaultStation = useMemo(() => getDefaultReportStationId(), []);
+  const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom);
+  const [dateTo, setDateTo] = useState(defaultRange.dateTo);
+  const [stationId, setStationId] = useState(defaultStation);
+
+  const filters = useMemo(
+    () => ({
+      dateFrom,
+      dateTo,
+      stationId,
+      weighingType: 'all',
+      controlStatus: 'all',
+    }),
+    [dateFrom, dateTo, stationId]
+  );
 
   const {
     caseStats,
@@ -72,6 +106,39 @@ function ReportingContent() {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
+      {/* Filters for key metrics and charts (date range + station) */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="report-dateFrom">From Date</Label>
+              <Input
+                id="report-dateFrom"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="report-dateTo">To Date</Label>
+              <Input
+                id="report-dateTo"
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <StationSelectFilter
+                label="Station"
+                value={stationId === 'all' ? undefined : stationId}
+                onValueChange={(v) => setStationId(v ?? 'all')}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Key Metrics Summary */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {isLoading ? (
@@ -117,7 +184,7 @@ function ReportingContent() {
             />
             <StatCard
               title="Total Fines (KES)"
-              value={formatKES(getStatValue(prosecutionStats, 'totalFinesKes'))}
+              value={formatKES(getStatValue(prosecutionStats, 'totalFeesKes'))}
               icon={TrendingUp}
               color="bg-emerald-600"
             />

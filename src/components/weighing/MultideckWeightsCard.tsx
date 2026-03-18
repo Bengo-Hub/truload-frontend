@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { DeckWeight } from '@/types/weighing';
@@ -10,6 +11,8 @@ interface MultideckWeightsCardProps {
   totalGVW: number;
   vehicleOnDeck?: boolean;
   actualKg?: number;
+  onCapture?: () => void;
+  isCaptured?: boolean;
   className?: string;
 }
 
@@ -28,6 +31,8 @@ export function MultideckWeightsCard({
   totalGVW,
   vehicleOnDeck = false,
   actualKg,
+  onCapture,
+  isCaptured = false,
   className,
 }: MultideckWeightsCardProps) {
   return (
@@ -100,6 +105,31 @@ export function MultideckWeightsCard({
               </div>
             </div>
           </div>
+
+          {/* Action Row */}
+          {onCapture && (
+            <div className="mt-4 flex justify-end">
+              <Button
+                onClick={onCapture}
+                disabled={isCaptured || !vehicleOnDeck}
+                className={cn(
+                  "px-8 py-6 font-bold text-lg rounded-xl shadow-lg transition-all",
+                  isCaptured
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-yellow-500 hover:bg-yellow-600 text-black"
+                )}
+              >
+                {isCaptured ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                    WEIGHTS CAPTURED
+                  </span>
+                ) : (
+                  "CAPTURE WEIGHTS"
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

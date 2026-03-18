@@ -1,22 +1,25 @@
 "use client";
 
+import { PdfPreviewModal } from '@/components/common/PdfPreviewModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePermitByNo } from '@/hooks/queries/useWeighingQueries';
 import {
-  AxleConfiguration,
-} from '@/types/weighing';
-import {
-  CargoType,
-  Driver,
-  OriginDestination,
-  Transporter,
-  Vehicle,
+    CargoType,
+    Driver,
+    OriginDestination,
+    Transporter,
+    Vehicle,
 } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { Eye, Locate, MapPin, Package, Pencil, Plus, RefreshCw, Scan, Truck, User, Building2, FileText, Car, BookOpen } from 'lucide-react';
+import {
+    AxleConfiguration,
+} from '@/types/weighing';
+import { AlertCircle, BookOpen, Building2, Car, CheckCircle2, Eye, FileText, Loader2, Locate, MapPin, Package, Pencil, Plus, RefreshCw, Scan, Truck, User } from 'lucide-react';
+import * as React from 'react';
 
 // Vehicle makes list
 const VEHICLE_MAKES = [
@@ -37,6 +40,7 @@ interface SelectFieldWithCrudProps {
   onView?: () => void;
   onRefresh?: () => void;
   required?: boolean;
+  highlightError?: boolean;
 }
 
 /**
@@ -55,9 +59,10 @@ function SelectFieldWithCrud({
   onView,
   onRefresh,
   required = false,
+  highlightError = false,
 }: SelectFieldWithCrudProps) {
   return (
-    <div className="space-y-2">
+    <div className={cn('space-y-2', highlightError && 'rounded-lg p-2 ring-2 ring-red-500 bg-red-50/40')}>
       <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
         {icon}
         {label}
@@ -233,9 +238,17 @@ interface VehicleDetailsCardProps {
   onScanANPR?: () => void;
   showExtendedDetails?: boolean;
   showPermitSection?: boolean;
+  /** When true, show Relief Vehicle Reg (for reweigh transactions only). */
+  showReliefVehicleReg?: boolean;
+  showPlateInput?: boolean; // Added
   isReadOnly?: boolean;
+  isCommercial?: boolean;
   className?: string;
   compact?: boolean;
+  /** When true, card fills available height and CardContent scrolls internally. */
+  fillHeightAndScroll?: boolean;
+  /** Labels from validateRequiredFields (Driver, Transporter, Origin, Destination, Cargo) to highlight */
+  highlightMissingFieldLabels?: string[];
 }
 
 /**
@@ -324,10 +337,22 @@ export function VehicleDetailsCard({
   onScanANPR,
   showExtendedDetails = true,
   showPermitSection = false,
+  showReliefVehicleReg = false,
+  showPlateInput = false, // Changed default to false to hide redundant field
   isReadOnly = false,
+  isCommercial = false,
   className,
-  _compact = false,
+  compact = false,
+  /** When true, card fills available height and content scrolls internally (e.g. vehicle step layout). */
+  fillHeightAndScroll = false,
+  highlightMissingFieldLabels = [],
 }: VehicleDetailsCardProps) {
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+  const hl = (label: string) => highlightMissingFieldLabels.includes(label);
+
+  // Live Permit Lookup
+  const { data: foundPermit, isLoading: isPermitLoading } = usePermitByNo(permitNo);
+
   // Default axle configs if not provided (matching backend AxleConfigurationResponseDto)
   const configs = axleConfigurations.length > 0
     ? axleConfigurations
@@ -343,40 +368,81 @@ export function VehicleDetailsCard({
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
 
   return (
-    <Card className={cn('border border-gray-200 rounded-xl', className)}>
-      <CardHeader className="pb-3 pt-5 px-6">
+    <Card className={cn('border border-gray-200 rounded-xl', className, fillHeightAndScroll && 'flex flex-col h-full min-h-0')}>
+      <CardHeader className="pb-3 pt-5 px-6 shrink-0">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
           <Truck className="h-5 w-5 text-gray-500" />
-          Vehicle Details
+          {isCommercial ? 'Weighing Details' : 'Vehicle Details'}
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-6 pb-6 space-y-4">
-        {/* Registration Number Section */}
-        <div className="space-y-2">
-          <Label htmlFor="vehiclePlate" className="text-sm font-medium text-gray-700">
-            Registration Number <span className="text-red-500">*</span>
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="vehiclePlate"
-              placeholder="KAA 123A"
-              value={vehiclePlate}
-              onChange={(e) => onVehiclePlateChange(e.target.value.toUpperCase())}
-              className="font-mono text-lg uppercase tracking-wider flex-1"
+      <CardContent className={cn('px-6 pb-6 space-y-4', fillHeightAndScroll && 'flex-1 min-h-0 overflow-y-auto')}>
+        {/* Pdf Preview Modal */}
+        <PdfPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          title={`Permit: ${foundPermit?.permitNo}`}
+          pdfUrl={foundPermit?.id ? `/api/Permits/${foundPermit.id}/pdf` : undefined}
+          downloadFileName={`Permit_${foundPermit?.permitNo}.pdf`}
+        />
+
+        {/* Act selection moved to top for visibility */}
+        {!isCommercial && acts.length > 0 && onActIdChange && (
+          <div className="space-y-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+            <Label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-blue-600" />
+              Compliance Act / Legal Framework
+            </Label>
+            <Select
+              value={selectedActId || acts.find(a => a.isDefault)?.id || acts[0]?.id || ''}
+              onValueChange={onActIdChange}
               disabled={isReadOnly}
-            />
-            {onScanANPR && !isReadOnly && (
-              <Button variant="outline" size="icon" onClick={onScanANPR} title="Scan with ANPR">
-                <Scan className="h-4 w-4" />
-              </Button>
-            )}
-            {onAddVehicle && !isReadOnly && (
-              <Button variant="outline" size="icon" onClick={onAddVehicle} title="Add new vehicle">
-                <Plus className="h-4 w-4" />
-              </Button>
-            )}
+            >
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="Default: Traffic Act" />
+              </SelectTrigger>
+              <SelectContent>
+                {acts.map((act) => (
+                  <SelectItem key={act.id} value={act.id}>
+                    <span>
+                      <span className="font-medium">{act.name}</span>
+                      <span className="text-gray-500 ml-2 text-xs">({act.chargingCurrency})</span>
+                      {act.isDefault && <span className="ml-1 text-xs text-primary font-bold">DEFAULT</span>}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
+        )}
+
+        {/* Registration Number Section */}
+        {showPlateInput && (
+          <div className="space-y-2">
+            <Label htmlFor="vehiclePlate" className="text-sm font-medium text-gray-700">
+              Registration Number <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="vehiclePlate"
+                placeholder="KAA 123A"
+                value={vehiclePlate}
+                onChange={(e) => onVehiclePlateChange(e.target.value.toUpperCase())}
+                className="font-mono text-lg uppercase tracking-wider flex-1"
+                disabled={isReadOnly}
+              />
+              {onScanANPR && !isReadOnly && (
+                <Button variant="outline" size="icon" onClick={onScanANPR} title="Scan with ANPR">
+                  <Scan className="h-4 w-4" />
+                </Button>
+              )}
+              {onAddVehicle && !isReadOnly && (
+                <Button variant="outline" size="icon" onClick={onAddVehicle} title="Add new vehicle">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Vehicle Selection (if vehicles are provided) */}
         {vehicles.length > 0 && onVehicleIdChange && (
@@ -424,29 +490,58 @@ export function VehicleDetailsCard({
         )}
 
         {/* Permit Section */}
-        {showPermitSection && onPermitNoChange && (
+        {showPermitSection && onPermitNoChange && !isCommercial && (
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-red-600 flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Permit No:
+            <Label className="text-sm font-medium text-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Permit No:
+              </div>
+              {permitNo && permitNo.length >= 3 && (
+                <div className="flex items-center gap-1">
+                  {isPermitLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                  ) : foundPermit ? (
+                    <span className="text-[10px] text-green-600 font-bold flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                      <CheckCircle2 className="h-2.5 w-2.5" />
+                      VALID PERMIT
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-red-500 font-medium flex items-center gap-0.5 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
+                      <AlertCircle className="h-2.5 w-2.5" />
+                      NOT FOUND
+                    </span>
+                  )}
+                </div>
+              )}
             </Label>
             <div className="flex gap-2">
-              <Input
-                value={permitNo || ''}
-                onChange={(e) => onPermitNoChange(e.target.value)}
-                placeholder="-"
-                className="flex-1"
-                disabled={isReadOnly}
-              />
-              {onViewPermit && (
-                <Button
-                  variant="secondary"
-                  onClick={onViewPermit}
-                  className="font-semibold"
-                >
-                  VIEW PERMIT
-                </Button>
-              )}
+              <div className="relative flex-1">
+                <Input
+                  value={permitNo || ''}
+                  onChange={(e) => onPermitNoChange(e.target.value)}
+                  placeholder="Enter permit number..."
+                  className={cn(
+                    "flex-1 pr-8 uppercase font-medium",
+                    foundPermit && "border-green-300 bg-green-50/30 text-green-900"
+                  )}
+                  disabled={isReadOnly}
+                />
+                {foundPermit && (
+                  <CheckCircle2 className="h-4 w-4 text-green-500 absolute right-2 top-1/2 -translate-y-1/2" />
+                )}
+              </div>
+              <Button
+                variant={foundPermit ? "default" : "secondary"}
+                onClick={() => foundPermit ? setIsPreviewOpen(true) : onViewPermit?.()}
+                disabled={!foundPermit && !onViewPermit}
+                className={cn(
+                  "font-bold transition-all",
+                  foundPermit && "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100 px-6"
+                )}
+              >
+                {foundPermit ? 'VIEW PERMIT' : 'LOOKUP'}
+              </Button>
             </div>
           </div>
         )}
@@ -529,19 +624,21 @@ export function VehicleDetailsCard({
         })()}
 
         {/* Axle Configuration */}
-        <SelectFieldWithCrud
-          label="Axle Configuration"
-          value={selectedConfig}
-          onChange={onConfigChange}
-          options={configs.map(c => ({
-            id: c.axleCode,
-            label: c.axleCode,
-            sublabel: c.description || c.axleName,
-          }))}
-          placeholder="Select configuration"
-          isReadOnly={isReadOnly}
-          required
-        />
+        {!isCommercial && (
+          <SelectFieldWithCrud
+            label="Axle Configuration"
+            value={selectedConfig}
+            onChange={onConfigChange}
+            options={configs.map(c => ({
+              id: c.axleCode,
+              label: c.axleCode,
+              sublabel: c.description || c.axleName,
+            }))}
+            placeholder="Select configuration"
+            isReadOnly={isReadOnly}
+            required
+          />
+        )}
 
         {showExtendedDetails && (
           <div className="pt-4 border-t border-gray-100 space-y-4">
@@ -563,6 +660,7 @@ export function VehicleDetailsCard({
                 onRefresh={onRefreshDrivers}
                 onEdit={selectedDriverId ? onEditDriver : undefined}
                 onView={selectedDriverId ? onViewDriver : undefined}
+                highlightError={hl('Driver')}
               />
             )}
 
@@ -584,6 +682,7 @@ export function VehicleDetailsCard({
                 onRefresh={onRefreshTransporters}
                 onEdit={selectedTransporterId ? onEditTransporter : undefined}
                 onView={selectedTransporterId ? onViewTransporter : undefined}
+                highlightError={hl('Transporter')}
               />
             )}
 
@@ -605,12 +704,13 @@ export function VehicleDetailsCard({
                 onRefresh={onRefreshCargoTypes}
                 onEdit={selectedCargoId ? onEditCargoType : undefined}
                 onView={selectedCargoId ? onViewCargoType : undefined}
+                highlightError={hl('Cargo')}
               />
             )}
 
             {/* Origin */}
             {onOriginIdChange && (
-              <div className="space-y-2">
+              <div className={cn('space-y-2', hl('Origin') && 'rounded-lg p-2 ring-2 ring-red-500 bg-red-50/40')}>
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium text-gray-700">Origin</Label>
                   {onRequestGeolocation && !isReadOnly && (
@@ -663,6 +763,7 @@ export function VehicleDetailsCard({
                   onRefresh={onRefreshLocations}
                   onEdit={selectedOriginId ? onEditOrigin : undefined}
                   onView={selectedOriginId ? onViewOrigin : undefined}
+                  highlightError={false}
                 />
               </div>
             )}
@@ -685,41 +786,14 @@ export function VehicleDetailsCard({
                 onRefresh={onRefreshLocations}
                 onEdit={selectedDestinationId ? onEditDestination : undefined}
                 onView={selectedDestinationId ? onViewDestination : undefined}
+                highlightError={hl('Destination')}
               />
             )}
 
-            {/* Act (legal framework for compliance and fees; default: Traffic Act) */}
-            {acts.length > 0 && onActIdChange && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-gray-400" />
-                  Act
-                </Label>
-                <Select
-                  value={selectedActId || acts.find(a => a.isDefault)?.id || acts[0]?.id || ''}
-                  onValueChange={onActIdChange}
-                  disabled={isReadOnly}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Default: Traffic Act" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {acts.map((act) => (
-                      <SelectItem key={act.id} value={act.id}>
-                        <span>
-                          <span className="font-medium">{act.name}</span>
-                          <span className="text-gray-500 ml-2 text-xs">({act.chargingCurrency})</span>
-                          {act.isDefault && <span className="ml-1 text-xs text-primary">Default</span>}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* Act selection (REMOVED FROM HERE - MOVED TO TOP) */}
 
-            {/* Relief Vehicle Reg */}
-            {onReliefVehicleRegChange && (
+            {/* Relief Vehicle Reg — only for reweigh transactions */}
+            {showReliefVehicleReg && onReliefVehicleRegChange && (
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-700">Relief Vehicle Reg:</Label>
                 <Select value={reliefVehicleReg || ''} onValueChange={onReliefVehicleRegChange} disabled={isReadOnly}>

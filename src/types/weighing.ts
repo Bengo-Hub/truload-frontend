@@ -43,6 +43,7 @@ export interface AxleGroupResult {
   overloadKg: number;
   pavementDamageFactor: number;
   status: ComplianceStatus;
+  operationalToleranceKg?: number;
   axles: AxleWeight[];
 }
 
@@ -55,6 +56,7 @@ export interface ComplianceResult {
   demeritPoints: number;
   overallStatus: ComplianceStatus;
   isCompliant: boolean;
+  operationalToleranceKg?: number;
 }
 
 // ============================================================================
@@ -516,4 +518,59 @@ export interface CreateVehicleModelRequest {
 
 export interface UpdateVehicleModelRequest extends Partial<CreateVehicleModelRequest> {
   isActive?: boolean;
+}
+// ============================================================================
+// Permit Types (Backend Model: Models/Weighing/Permit.cs)
+// ============================================================================
+
+export type PermitStatus = 'active' | 'expired' | 'revoked';
+
+export interface PermitType {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  axleExtensionKg: number;
+  gvwExtensionKg: number;
+  validityDays?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Permit {
+  id: string;
+  permitNo: string;
+  vehicleId: string;
+  vehicleRegNo: string;
+  permitTypeId: string;
+  permitTypeName: string;
+  axleExtensionKg?: number;
+  gvwExtensionKg?: number;
+  validFrom: string;
+  validTo: string;
+  issuingAuthority: string;
+  status: PermitStatus;
+  documentUrl?: string;
+  createdAt: string;
+}
+
+export interface CreatePermitRequest {
+  permitNo: string;
+  vehicleId: string;
+  permitTypeId: string;
+  axleExtensionKg?: number;
+  gvwExtensionKg?: number;
+  validFrom: string;
+  validTo: string;
+  issuingAuthority?: string;
+  documentUrl?: string;
+  status: PermitStatus;
+}
+
+export interface UpdatePermitRequest extends Partial<CreatePermitRequest> {}
+
+export interface ExtendPermitRequest {
+  newValidTo: string;
+  comment?: string;
 }

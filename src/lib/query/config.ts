@@ -78,6 +78,10 @@ export const QUERY_KEYS = {
   SCALE_TESTS: ['scale-tests'] as const,
   WORK_SHIFTS: ['work-shifts'] as const,
 
+  // Permits (Dynamic)
+  PERMITS: ['permits'] as const,
+  PERMIT_TYPES: ['permit-types'] as const,
+
   // Financial
   EXCHANGE_RATES: ['exchange-rates'] as const,
 
@@ -181,4 +185,9 @@ export const queryKeys = {
   // Origins/Destinations
   originsDestinationsByStation: (stationId?: string) =>
     createQueryKey(QUERY_KEYS.ORIGINS_DESTINATIONS, 'station', stationId ?? 'all'),
+
+  // Permits
+  permit: (id: string) => createQueryKey(QUERY_KEYS.PERMITS, id),
+  permitByNo: (permitNo: string) => createQueryKey(QUERY_KEYS.PERMITS, 'no', permitNo),
+  permitsByVehicle: (vehicleId: string) => createQueryKey(QUERY_KEYS.PERMITS, 'vehicle', vehicleId),
 } as const;

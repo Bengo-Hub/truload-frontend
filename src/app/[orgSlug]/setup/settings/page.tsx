@@ -10,7 +10,7 @@ import {
   useIntegrations,
   useUpsertIntegration,
 } from '@/hooks/queries/useIntegrationQueries';
-import { useHasPermission } from '@/hooks/useAuth';
+import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import type { UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 import { reconcilePayments, testIntegrationConnectivity } from '@/lib/api/integration';
 import { notificationApi } from '@/lib/api/notification';
@@ -52,9 +52,17 @@ import {
   Save,
   Settings2,
   Trash2,
+  Activity,
+  Cpu,
+  Download,
+  ExternalLink,
+  Search,
+  Scale,
+  Info
 } from 'lucide-react';
 
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
+import { WeighingSettingsTab } from '@/components/settings/WeighingSettingsTab';
 
 // ============================================================================
 // Provider Definitions
@@ -137,7 +145,9 @@ export default function IntegrationSettingsPage() {
 // ============================================================================
 
 function IntegrationSettingsContent() {
+  const { user } = useAuth();
   const canEdit = useHasPermission(['config.read', 'config.update'], 'any');
+  const isOperator = user?.email === 'user@truconnect.com';
 
   return (
     <div className="space-y-6">
@@ -155,37 +165,59 @@ function IntegrationSettingsContent() {
       </header>
 
       {/* Tabs */}
-      <Tabs defaultValue="payment-gateways" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 max-w-4xl">
-          <TabsTrigger value="payment-gateways" className="gap-1.5">
-            <CreditCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Payments</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-1.5">
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Notifications</span>
-          </TabsTrigger>
-          <TabsTrigger value="api-settings" className="gap-1.5">
-            <Settings2 className="h-4 w-4" />
-            <span className="hidden sm:inline">APIs</span>
-          </TabsTrigger>
-          <TabsTrigger value="exchange-rates" className="gap-1.5">
-            <DollarSign className="h-4 w-4" />
-            <span className="hidden sm:inline">Rates</span>
+      <Tabs defaultValue={isOperator ? "middleware" : "payment-gateways"} className="space-y-4">
+        <TabsList className={`grid w-full ${isOperator ? 'grid-cols-1 max-w-xs' : 'grid-cols-6 max-w-5xl'}`}>
+          {!isOperator && (
+            <>
+              <TabsTrigger value="payment-gateways" className="gap-1.5">
+                <CreditCard className="h-4 w-4" />
+                <span className="hidden sm:inline">Payments</span>
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="gap-1.5">
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:inline">Notifications</span>
+              </TabsTrigger>
+              <TabsTrigger value="api-settings" className="gap-1.5">
+                <Settings2 className="h-4 w-4" />
+                <span className="hidden sm:inline">APIs</span>
+              </TabsTrigger>
+              <TabsTrigger value="exchange-rates" className="gap-1.5">
+                <DollarSign className="h-4 w-4" />
+                <span className="hidden sm:inline">Rates</span>
+              </TabsTrigger>
+              <TabsTrigger value="weighing" className="gap-1.5">
+                <Scale className="h-4 w-4" />
+                <span className="hidden sm:inline">Weighing</span>
+              </TabsTrigger>
+            </>
+          )}
+          <TabsTrigger value="middleware" className="gap-1.5">
+            <Cpu className="h-4 w-4" />
+            <span className="hidden sm:inline">Middleware</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="payment-gateways">
-          <PaymentGatewaysTab canEdit={canEdit} />
-        </TabsContent>
-        <TabsContent value="notifications">
-          <NotificationsTab canEdit={canEdit} />
-        </TabsContent>
-        <TabsContent value="api-settings">
-          <ApiSettingsTab canEdit={canEdit} />
-        </TabsContent>
-        <TabsContent value="exchange-rates">
-          <ExchangeRateSettings />
+        {!isOperator && (
+          <>
+            <TabsContent value="payment-gateways">
+              <PaymentGatewaysTab canEdit={canEdit} />
+            </TabsContent>
+            <TabsContent value="notifications">
+              <NotificationsTab canEdit={canEdit} />
+            </TabsContent>
+            <TabsContent value="api-settings">
+              <ApiSettingsTab canEdit={canEdit} />
+            </TabsContent>
+            <TabsContent value="exchange-rates">
+              <ExchangeRateSettings />
+            </TabsContent>
+            <TabsContent value="weighing">
+              <WeighingSettingsTab />
+            </TabsContent>
+          </>
+        )}
+        <TabsContent value="middleware">
+          <MiddlewareTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -755,6 +787,94 @@ function ApiSettingsTab({ canEdit }: { canEdit: boolean }) {
             <strong>Payment Gateways</strong> tab which provides encrypted storage.
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Middleware Tab
+// ============================================================================
+
+function MiddlewareTab() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary/10 rounded-xl text-primary">
+              <Cpu className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">TruConnect Middleware</h3>
+              <p className="text-xs text-muted-foreground">Required for hardware connectivity</p>
+            </div>
+          </div>
+
+          <p className="text-sm text-gray-600 leading-relaxed">
+            TruConnect is a lightweight bridge that allows this browser application to communicate with your weighing scales, printers, and traffic lights. It must be installed and running on the computer connected to your hardware.
+          </p>
+
+          <div className="space-y-3 pt-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">Installation Steps</h4>
+            <ul className="space-y-2">
+              <li className="flex gap-3 text-sm">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
+                <span>Download the latest version of TruConnect for Windows.</span>
+              </li>
+              <li className="flex gap-3 text-sm">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
+                <span>Run the installer and follow the on-screen instructions.</span>
+              </li>
+              <li className="flex gap-3 text-sm">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
+                <span>Once running, you should see a green icon in the system tray.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row gap-3">
+            <Button asChild className="gap-2 flex-1">
+              <a href="https://github.com/titusowuor30/TruConnect/releases/latest" target="_blank" rel="noopener noreferrer">
+                <Download className="h-4 w-4" />
+                Download TruConnect
+              </a>
+            </Button>
+            <Button variant="outline" asChild className="gap-2 flex-1">
+              <a href="https://github.com/titusowuor30/TruConnect" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                View Repository
+              </a>
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-gray-50/50 border-dashed space-y-4">
+          <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <Info className="h-4 w-4 text-blue-600" />
+            Connectivity Troubleshooting
+          </h4>
+          <div className="space-y-3">
+            <div className="p-3 bg-white rounded-lg border shadow-sm">
+              <p className="text-xs font-medium text-gray-900">Check Connection Status</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Visit the Weighing screen. If the scales show &quot;OFFLINE&quot; or &quot;DISCONNECTED&quot;, ensure the middleware is running and the hardware cables are secure.
+              </p>
+            </div>
+            <div className="p-3 bg-white rounded-lg border shadow-sm">
+              <p className="text-xs font-medium text-gray-900">Firewall & Antivirus</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Ensure port 3030 (WebSocket) and 3031 (API) are allowed through your local firewall.
+              </p>
+            </div>
+            <div className="p-3 bg-white rounded-lg border shadow-sm">
+              <p className="text-xs font-medium text-gray-900">Auto-Updates</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                TruConnect checks for updates automatically on startup. Restart the application to apply pending updates.
+              </p>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

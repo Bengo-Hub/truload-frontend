@@ -12,7 +12,7 @@ import {
 import { QUERY_KEYS } from '@/lib/query/config';
 import { ComplianceStatus } from '@/types/weighing';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     useAxleConfigurations,
     useCreateWeighingTransaction,
@@ -59,6 +59,8 @@ export interface UseWeighingReturn {
   transaction: WeighingTransaction | null;
   isInitialized: boolean;
   isLoading: boolean;
+  /** True while vehicle/details update request is in flight (for non-blocking "Saving..." UI). */
+  isUpdatingDetails: boolean;
   error: Error | null;
 
   // Station & config data
@@ -83,12 +85,15 @@ export interface UseWeighingReturn {
   isWeightConfirmed: boolean;
 
   // Actions
-  initializeTransaction: (vehiclePlate: string, axleConfigCode?: string) => Promise<WeighingTransaction | null>;
+  initializeTransaction: (vehiclePlate: string, axleConfigCode?: string, details?: Partial<CreateWeighingRequest>) => Promise<WeighingTransaction | null>;
   captureAxleWeight: (axleNumber: number, weightKg: number, axleConfigId?: string) => Promise<boolean>;
   submitWeights: () => Promise<WeighingResult | null>;
   confirmWeight: () => Promise<WeighingResult | null>;
   initiateReweigh: () => Promise<WeighingTransaction | null>;
-  updateVehicleDetails: (details: Partial<UpdateWeighingRequest>) => Promise<boolean>;
+  updateVehicleDetails: (
+    details: Partial<UpdateWeighingRequest>,
+    opts?: { force?: boolean }
+  ) => Promise<boolean>;
   setVehiclePlate: (plate: string) => void;
   setAxleConfig: (configCode: string) => void;
   setCurrentAxle: (axle: number) => void;
@@ -144,8 +149,9 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
 
   // Derived state
   const isInitialized = session !== null && transaction !== null;
-  const isLoading = isLoadingStation || isLoadingConfigs ||
-    createTransactionMutation.isPending || updateTransactionMutation.isPending;
+  // Blocking load: station, config, or create transaction only (not vehicle-detail updates)
+  const isLoading = isLoadingStation || isLoadingConfigs || createTransactionMutation.isPending;
+  const isUpdatingDetails = updateTransactionMutation.isPending;
 
   // Get total axles from configuration
   const totalAxles = useMemo(() => {
@@ -224,8 +230,9 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
   // Initialize a new weighing transaction
   // Sends a single POST request with vehicleRegNo - backend generates ticket number via DocumentNumberService
   const initializeTransaction = useCallback(async (
-    vehiclePlate: string,
-    axleConfigCode: string = '6C'
+    vehicleRegNo: string,
+    axleConfigCode: string = '6C',
+    details?: Partial<CreateWeighingRequest>
   ): Promise<WeighingTransaction | null> => {
     if (!station?.id) {
       setError(new Error('No station assigned. Cannot initialize transaction.'));
@@ -241,7 +248,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     try {
       setError(null);
 
-      const normalizedPlate = vehiclePlate.toUpperCase().trim();
+      const normalizedPlate = vehicleRegNo.toUpperCase().trim();
 
       // Backend generates ticket number via DocumentNumberService
       const request: CreateWeighingRequest = {
@@ -249,6 +256,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
         vehicleRegNo: normalizedPlate,
         weighingType: weighingMode,
         bound: bound,
+        ...details,
       };
 
       const newTransaction = await createTransactionMutation.mutateAsync(request);
@@ -258,8 +266,8 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
         ticketNumber: newTransaction.ticketNumber,
         vehiclePlate: normalizedPlate,
         vehicleId: newTransaction.vehicleId || null,
-        driverId: null,
-        transporterId: null,
+        driverId: newTransaction.driverId ?? null,
+        transporterId: newTransaction.transporterId ?? null,
         axleConfigCode,
         capturedAxles: [],
         weighingMode,
@@ -360,17 +368,59 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     }
   }, [session, capturedAxles, queryClient]);
 
+  // Throttle and backoff to avoid rate limiting (429) from repeated PUTs
+  const lastPutTimeRef = useRef<number>(0);
+  const backoffUntilRef = useRef<number>(0);
+  const lastSyncedPayloadRef = useRef<string>('');
+  const MIN_PUT_INTERVAL_MS = 3000;
+  const BACKOFF_AFTER_FAILURE_MS = 15000;
+
+  // Reset sync state when transaction changes (e.g. new or restored session)
+  useEffect(() => {
+    lastSyncedPayloadRef.current = '';
+  }, [session?.transactionId]);
+
+  // Stable stringify for payload dedupe (avoid PUT when nothing changed)
+  const payloadFingerprint = useCallback((details: Partial<UpdateWeighingRequest>) => {
+    const keys = Object.keys(details).sort();
+    const sorted: Record<string, unknown> = {};
+    for (const k of keys) sorted[k] = (details as Record<string, unknown>)[k];
+    return JSON.stringify(sorted);
+  }, []);
+
   // Update vehicle/driver/transporter details
   const updateVehicleDetails = useCallback(async (
-    details: Partial<UpdateWeighingRequest>
+    details: Partial<UpdateWeighingRequest>,
+    opts?: { force?: boolean }
   ): Promise<boolean> => {
     if (!session?.transactionId) {
       setError(new Error('No active transaction'));
       return false;
     }
 
+    const force = opts?.force === true;
+    const fingerprint = payloadFingerprint(details);
+
+    if (!force) {
+      if (fingerprint === lastSyncedPayloadRef.current) {
+        return true;
+      }
+      const now = Date.now();
+      if (now < backoffUntilRef.current) {
+        return false;
+      }
+      if (now - lastPutTimeRef.current < MIN_PUT_INTERVAL_MS) {
+        return true;
+      }
+    } else {
+      // If forced, reset backoff to allow immediate retry if it had previously failed
+      backoffUntilRef.current = 0;
+    }
+
     try {
       setError(null);
+      lastPutTimeRef.current = Date.now();
+      lastSyncedPayloadRef.current = fingerprint;
 
       await updateTransactionMutation.mutateAsync({
         id: session.transactionId,
@@ -386,12 +436,19 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
 
       return true;
     } catch (e) {
+      lastSyncedPayloadRef.current = '';
+      const err = e as { response?: { status?: number } };
+      const isRateLimited = err?.response?.status === 429;
+      backoffUntilRef.current = Date.now() + BACKOFF_AFTER_FAILURE_MS;
       const error = e instanceof Error ? e : new Error('Failed to update transaction');
       setError(error);
       console.error('Failed to update vehicle details:', e);
+      if (isRateLimited) {
+        console.warn('Rate limited; backing off before next update.');
+      }
       return false;
     }
-  }, [session, updateTransactionMutation]);
+  }, [session?.transactionId, updateTransactionMutation, payloadFingerprint]);
 
   // Confirm weight: submit weights to backend and mark as confirmed
   const confirmWeight = useCallback(async (): Promise<WeighingResult | null> => {
@@ -502,6 +559,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     transaction,
     isInitialized,
     isLoading,
+    isUpdatingDetails,
     error,
 
     // Station & config data

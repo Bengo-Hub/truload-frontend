@@ -1,39 +1,44 @@
 // Shared UI Components (from landing page)
-export { StatusBadge, ComplianceBadge, WeighingTypeBadge } from './StatusBadge';
-export type { WeighingStatus, VehicleStatus, TagStatus, ComplianceStatus as StatusBadgeComplianceStatus } from './StatusBadge';
-export { SummaryCard } from './SummaryCard';
 export { SearchInput } from './SearchInput';
+export { ComplianceBadge, StatusBadge, WeighingTypeBadge } from './StatusBadge';
+export type { ComplianceStatus as StatusBadgeComplianceStatus, TagStatus, VehicleStatus, WeighingStatus } from './StatusBadge';
+export { SummaryCard } from './SummaryCard';
 
 // Weighing Workflow Components
-export { WeighingStepper } from './WeighingStepper';
 export { ComplianceGrid } from './ComplianceGrid';
 export { DecisionPanel } from './DecisionPanel';
+export {
+    AxleProgress, MobileWeightDisplay,
+    MultideckWeightDisplay
+} from './DigitalWeightDisplay';
 export { VehicleDetailsCard } from './VehicleDetailsCard';
 export { WeighingPageHeader } from './WeighingPageHeader';
-export {
-  MobileWeightDisplay,
-  MultideckWeightDisplay,
-  AxleProgress,
-} from './DigitalWeightDisplay';
+export { WeighingStepper } from './WeighingStepper';
 
 // Step 1: Capture Components
-export { CaptureScreen } from './CaptureScreen';
-export { VehiclePlaceholderImage } from './VehiclePlaceholderImage';
 export { AxleGroupVisual, getDefaultAxleConfig } from './AxleGroupVisual';
+export { CaptureScreen } from './CaptureScreen';
+export { LocationConfigCard } from './LocationConfigCard';
+export { MiddlewarePrompt } from './MiddlewarePrompt';
+export { VehiclePlaceholderImage } from './VehiclePlaceholderImage';
 
 // Step 2: Axle Configuration & Weight Capture Components
 export { AxleConfigurationCard } from './AxleConfigurationCard';
+export { CompactMultideckWeights, MultideckWeightsCard } from './MultideckWeightsCard';
 export { WeightCaptureCard } from './WeightCaptureCard';
-export { MultideckWeightsCard, CompactMultideckWeights } from './MultideckWeightsCard';
 
 // Compliance Components
+export { AllowableExcessBanner, CompactComplianceBadge, ComplianceBanner } from './ComplianceBanner';
 export { ComplianceTable } from './ComplianceTable';
-export { ComplianceBanner, CompactComplianceBadge, AllowableExcessBanner } from './ComplianceBanner';
 
 // Scale & Weight Components
-export { ScaleHealthPanel } from './ScaleHealthPanel';
-export type { ScaleInfo } from './ScaleHealthPanel';
-export { ScaleTestBanner } from './ScaleTestBanner';
+export { ScaleCard, ScaleHealthPanel } from './ScaleHealthPanel';
+export type { ScaleCardProps, ScaleInfo } from './ScaleHealthPanel';
+export {
+  ScaleTestBanner,
+  SCALE_TEST_SUCCESS_DESCRIPTION,
+  SCALE_TEST_SUCCESS_MESSAGE,
+} from './ScaleTestBanner';
 export { ScaleTestHistoryTab } from './ScaleTestHistoryTab';
 export { WeightConfirmationModal } from './WeightConfirmationModal';
 
@@ -41,11 +46,17 @@ export { WeightConfirmationModal } from './WeightConfirmationModal';
 export { ImageCaptureCard } from './ImageCaptureCard';
 
 // Modals (Entity CRUD)
-export { VehicleMakeModal } from './modals/VehicleMakeModal';
-export { VehicleModelModal } from './modals/VehicleModelModal';
-export { TransporterModal } from './modals/TransporterModal';
-export { OriginDestinationModal } from './modals/OriginDestinationModal';
-export { DriverModal } from './modals/DriverModal';
 export { CargoTypeModal } from './modals/CargoTypeModal';
+export { DriverModal } from './modals/DriverModal';
 export { EntityModal } from './modals/EntityModal';
 export type { ModalMode } from './modals/EntityModal';
+export { OriginDestinationModal } from './modals/OriginDestinationModal';
+export { TransporterModal } from './modals/TransporterModal';
+export { VehicleMakeModal } from './modals/VehicleMakeModal';
+export { VehicleModelModal } from './modals/VehicleModelModal';
+
+// Shared Step Components
+export { WeighingCaptureStep } from './steps/WeighingCaptureStep';
+export { WeighingDecisionStep } from './steps/WeighingDecisionStep';
+export { WeighingVehicleStep } from './steps/WeighingVehicleStep';
+

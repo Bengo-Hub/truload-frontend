@@ -1,5 +1,6 @@
 "use client";
 
+import { ScaleStatus as SharedScaleStatus } from '@/types/weighing';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
@@ -115,7 +116,7 @@ export interface WeightData {
 }
 
 export interface ScaleInfo {
-  status: 'connected' | 'disconnected' | 'error' | 'unstable';
+  status: SharedScaleStatus;
   weight: number;
   temp?: number;
   battery?: number;
@@ -211,9 +212,13 @@ export interface UseMiddlewareReturn extends MiddlewareState {
   resetSession: () => void;
   switchBound: (bound: 'A' | 'B') => void;
   requestStatus: () => void;
-  // New methods for hybrid connection
   forceLocalConnection: () => void;
   forceBackendConnection: () => void;
+  // Traffic control
+  sendEnter: () => void;
+  sendMoveForward: () => void;
+  sendMoveBack: () => void;
+  sendStop: () => void;
 }
 
 // Default URLs
@@ -226,8 +231,8 @@ const DEFAULT_POLLING_INTERVAL = 500;
 const isDevelopment = () => {
   if (typeof window !== 'undefined') {
     return process.env.NODE_ENV === 'development' ||
-           window.location.hostname === 'localhost' ||
-           window.location.hostname === '127.0.0.1';
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
   }
   return process.env.NODE_ENV === 'development';
 };
@@ -287,6 +292,9 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     bound: string;
     mode: string;
   } | null>(null);
+
+  // When polling, try WebSocket once on first successful poll so client can switch immediately
+  const upgradeAttemptedFromPollingRef = useRef(false);
 
   // Refs to break circular dependencies
   const connectRef = useRef<() => void>(null!);
@@ -354,8 +362,8 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         const weightData = message.data as WeightData;
 
         // Extract scale status from enhanced weight events (if available)
-        if (weightData.connection || weightData.scaleInfo || weightData.indicatorInfo || 
-            weightData.scaleAStatus || weightData.scaleBStatus) {
+        if (weightData.connection || weightData.scaleInfo || weightData.indicatorInfo ||
+          weightData.scaleAStatus || weightData.scaleBStatus) {
           const scaleStatus: ScaleStatus = {
             mode: weightData.mode,
             connected: weightData.connection?.connected ?? true,
@@ -367,7 +375,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           // Now using enhanced scaleAStatus/scaleBStatus from middleware
           if (weightData.mode === 'mobile') {
             const currentWeight = weightData.weight || weightData.currentWeight || 0;
-            
+
             // Scale A status
             if (weightData.scaleAStatus) {
               scaleStatus.scaleA = {
@@ -605,7 +613,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       try {
         if (isDev) console.log(`[useMiddleware] Connecting to ${connectionMode}: ${url}`);
         const ws = new WebSocket(url);
-        
+
         // Use a shorter timeout for initial connection attempt (2 seconds)
         // This gives WebSocket priority but doesn't block fallback too long
         const timeoutId = setTimeout(() => {
@@ -714,7 +722,48 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   const startPolling = useCallback(() => {
     if (pollingTimer.current) return;
 
+    upgradeAttemptedFromPollingRef.current = false;
     if (isDev) console.log(`[useMiddleware] Starting API polling: ${localApiUrl}`);
+
+    const tryWebSocketUpgrade = (wsUrl: string) => {
+      if (!pollingTimer.current || wsRef.current) return;
+      const ws = new WebSocket(wsUrl);
+      const timeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) ws.close();
+      }, 2000);
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        if (!pollingTimer.current) return;
+        if (isDev) console.log('[useMiddleware] WebSocket connected (upgrade from polling), stopping API polling');
+        const timer = pollingTimer.current as NodeJS.Timeout & { wsRetry?: NodeJS.Timeout };
+        if (timer.wsRetry) clearInterval(timer.wsRetry);
+        clearInterval(pollingTimer.current);
+        pollingTimer.current = null;
+        currentUrlRef.current = localWsUrl;
+        wsRef.current = ws;
+        connectionAttemptsRef.current = 0;
+        setState(s => ({ ...s, connected: true, connectionMode: 'local_ws', isLocalFallback: true, error: null }));
+        onConnectionModeChange?.('local_ws', localWsUrl);
+        ws.send(JSON.stringify({ event: 'register', data: { stationCode, bound, mode, clientName, clientType } }));
+        lastRegisteredRef.current = { stationCode, bound, mode };
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            handleMessage(message);
+          } catch (e) {
+            console.error('[useMiddleware] Failed to parse message:', e);
+          }
+        };
+        ws.onclose = () => {
+          if (currentUrlRef.current === localWsUrl) {
+            setState(s => ({ ...s, connected: false, registered: false, connectionMode: 'disconnected' }));
+            if (shouldReconnect.current) scheduleReconnectRef.current?.();
+          }
+        };
+      };
+      ws.onerror = () => { clearTimeout(timeout); };
+      ws.onclose = () => { clearTimeout(timeout); };
+    };
 
     const poll = async () => {
       try {
@@ -740,6 +789,19 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
             }));
             onConnectionModeChange?.('local_api', localApiUrl);
           }
+
+          // Immediate upgrade: middleware acknowledged client (websocketAvailable); try WebSocket once so client can switch without waiting
+          const apiData = data as { websocketAvailable?: boolean; websocketUrl?: string };
+          if (
+            !upgradeAttemptedFromPollingRef.current &&
+            !wsRef.current &&
+            apiData?.websocketAvailable !== false
+          ) {
+            upgradeAttemptedFromPollingRef.current = true;
+            const wsUrl = apiData?.websocketUrl || localWsUrl;
+            if (isDev) console.log('[useMiddleware] Attempting immediate WebSocket upgrade (middleware acknowledged)...');
+            tryWebSocketUpgrade(wsUrl);
+          }
         }
       } catch {
         if (!pollingTimer.current) return;
@@ -754,21 +816,20 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     // Schedule recurring polls
     pollingTimer.current = setInterval(poll, pollingInterval);
-    
-    // Background WebSocket retry: periodically try to upgrade from polling to WebSocket
-    // This runs every 10 seconds while polling is active
+
+    // Background WebSocket retry: try to upgrade from polling every 2.5s if immediate upgrade did not succeed
     const wsRetryInterval = setInterval(async () => {
       if (pollingTimer.current && !wsRef.current) {
         if (isDev) console.log('[useMiddleware] Background retry: attempting WebSocket upgrade from polling...');
         // Try WebSocket silently - if it connects, it will stop polling automatically
         const ws = new WebSocket(localWsUrl);
-        
+
         const retryTimeout = setTimeout(() => {
           if (ws.readyState !== WebSocket.OPEN) {
             ws.close();
           }
         }, 2000);
-        
+
         ws.onopen = () => {
           clearTimeout(retryTimeout);
           if (isDev) console.log('[useMiddleware] Background WebSocket connected! Upgrading from polling...');
@@ -778,12 +839,12 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
             pollingTimer.current = null;
           }
           clearInterval(wsRetryInterval);
-          
+
           // Set up this WebSocket as primary
           currentUrlRef.current = localWsUrl;
           wsRef.current = ws;
           connectionAttemptsRef.current = 0;
-          
+
           setState(s => ({
             ...s,
             connected: true,
@@ -791,16 +852,16 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
             isLocalFallback: true,
             error: null,
           }));
-          
+
           onConnectionModeChange?.('local_ws', localWsUrl);
-          
+
           // Register
           ws.send(JSON.stringify({
             event: 'register',
             data: { stationCode, bound, mode, clientName, clientType },
           }));
           lastRegisteredRef.current = { stationCode, bound, mode };
-          
+
           // Set up message handler
           ws.onmessage = (event) => {
             try {
@@ -810,7 +871,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
               console.error('[useMiddleware] Failed to parse message:', e);
             }
           };
-          
+
           ws.onclose = () => {
             if (currentUrlRef.current === localWsUrl) {
               setState(s => ({
@@ -825,12 +886,12 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
             }
           };
         };
-        
+
         ws.onerror = () => {
           clearTimeout(retryTimeout);
           // Silent failure - we're still polling
         };
-        
+
         ws.onclose = () => {
           clearTimeout(retryTimeout);
           // Silent failure - we're still polling
@@ -839,8 +900,8 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         // Polling stopped (maybe WS connected), clear this interval
         clearInterval(wsRetryInterval);
       }
-    }, 10000); // Try every 10 seconds
-    
+    }, 2500); // Try every 2.5s if immediate upgrade from first poll did not succeed
+
     // Store the retry interval reference for cleanup
     // We'll clear it when stopPolling is called
     (pollingTimer.current as NodeJS.Timeout & { wsRetry?: NodeJS.Timeout }).wsRetry = wsRetryInterval;
@@ -1022,25 +1083,60 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     sendMessage('plate', { plateNumber, ...data });
   }, [sendMessage]);
 
+  // Base URL for API polling mode (strip /weights from localApiUrl)
+  const localApiBase = localApiUrl.replace(/\/weights\/?$/, '');
+
   const captureAxle = useCallback((axleNumber: number, weight: number, axleConfigurationId?: string) => {
-    sendMessage('axle-captured', { axleNumber, weight, axleConfigurationId });
-  }, [sendMessage]);
+    if (state.connectionMode === 'local_api') {
+      fetch(`${localApiBase}/axle-captured`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ axleNumber, weight, axleConfigurationId }),
+      }).catch((err) => console.warn('[useMiddleware] API axle-captured failed', err));
+    } else {
+      sendMessage('axle-captured', { axleNumber, weight, axleConfigurationId });
+    }
+  }, [sendMessage, state.connectionMode, localApiBase]);
 
   const completeVehicle = useCallback((data: VehicleCompleteData) => {
-    sendMessage('vehicle-complete', { ...data });
-  }, [sendMessage]);
+    if (state.connectionMode === 'local_api') {
+      fetch(`${localApiBase}/vehicle-complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).catch((err) => console.warn('[useMiddleware] API vehicle-complete failed', err));
+    } else {
+      sendMessage('vehicle-complete', { ...data });
+    }
+  }, [sendMessage, state.connectionMode, localApiBase]);
 
   const queryWeight = useCallback((type: 'current' | 'next-axle' = 'current') => {
     sendMessage('query-weight', { type });
   }, [sendMessage]);
 
   const syncTransaction = useCallback((data: TransactionSyncData) => {
-    sendMessage('transaction-sync', { ...data });
-  }, [sendMessage]);
+    if (state.connectionMode === 'local_api') {
+      fetch(`${localApiBase}/transaction-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).catch((err) => console.warn('[useMiddleware] API transaction-sync failed', err));
+    } else {
+      sendMessage('transaction-sync', { ...data });
+    }
+  }, [sendMessage, state.connectionMode, localApiBase]);
 
   const resetSession = useCallback(() => {
-    sendMessage('reset-session', {});
-  }, [sendMessage]);
+    if (state.connectionMode === 'local_api') {
+      fetch(`${localApiBase}/reset-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }).catch((err) => console.warn('[useMiddleware] API reset-session failed', err));
+    } else {
+      sendMessage('reset-session', {});
+    }
+  }, [sendMessage, state.connectionMode, localApiBase]);
 
   const switchBound = useCallback((newBound: 'A' | 'B') => {
     sendMessage('bound-switch', { bound: newBound });
@@ -1072,18 +1168,15 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     if (!state.connected || state.connectionMode === 'local_api') {
       return;
     }
-
     const lastReg = lastRegisteredRef.current;
-
     // Only re-register if stationCode, bound, or mode actually changed
     // Skip if this is the same as what we registered with on connect
     if (lastReg &&
-        lastReg.stationCode === stationCode &&
-        lastReg.bound === bound &&
-        lastReg.mode === mode) {
+      lastReg.stationCode === stationCode &&
+      lastReg.bound === bound &&
+      lastReg.mode === mode) {
       return; // No change, skip re-registration
     }
-
     // Values changed - send updated registration
     if (isDev) console.log(`[useMiddleware] Re-registering with updated values: ${stationCode}, bound=${bound}, mode=${mode}`);
     sendMessage('register', { stationCode, bound, mode, clientName, clientType });
@@ -1104,7 +1197,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     requestStatus,
     forceLocalConnection,
     forceBackendConnection,
+    sendEnter: () => sendMessage('enter', {}),
+    sendMoveForward: () => sendMessage('move-forward', {}),
+    sendMoveBack: () => sendMessage('move-back', {}),
+    sendStop: () => sendMessage('stop', {}),
   };
 }
-
 export default useMiddleware;

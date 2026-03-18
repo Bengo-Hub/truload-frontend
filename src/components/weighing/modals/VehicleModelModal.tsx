@@ -96,23 +96,6 @@ export function VehicleModelModal({
     >
       <form className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Code */}
-          <div className="space-y-2">
-            <Label htmlFor="code" className="text-sm font-medium">
-              Model Code <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="code"
-              placeholder="e.g., HILUX, ACTROS, FH16"
-              {...register('code', { required: 'Code is required' })}
-              disabled={isViewMode}
-              className="font-mono uppercase"
-            />
-            {errors.code && (
-              <p className="text-xs text-red-500">{errors.code.message}</p>
-            )}
-          </div>
-
           {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
@@ -121,11 +104,37 @@ export function VehicleModelModal({
             <Input
               id="name"
               placeholder="e.g., Hilux Double Cab, Actros 2643"
-              {...register('name', { required: 'Name is required' })}
+              {...register('name', { 
+                required: 'Name is required',
+                onChange: (e) => {
+                  if (mode === 'create') {
+                    const val = e.target.value;
+                    const generated = val.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
+                    setValue('code', generated);
+                  }
+                }
+              })}
               disabled={isViewMode}
             />
             {errors.name && (
               <p className="text-xs text-red-500">{errors.name.message}</p>
+            )}
+          </div>
+
+          {/* Code */}
+          <div className="space-y-2">
+            <Label htmlFor="code" className="text-sm font-medium">
+              Model Code <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="code"
+              placeholder="AUTO-GENERATED"
+              {...register('code', { required: 'Code is required' })}
+              disabled={true}
+              className="font-mono uppercase bg-gray-50"
+            />
+            {errors.code && (
+              <p className="text-xs text-red-500">{errors.code.message}</p>
             )}
           </div>
 
