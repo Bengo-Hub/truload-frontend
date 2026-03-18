@@ -14,6 +14,13 @@ import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   useDashboardStatistics,
   useComplianceTrend,
   useRevenueByStation,
@@ -70,16 +77,26 @@ function ReportingContent() {
   const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom);
   const [dateTo, setDateTo] = useState(defaultRange.dateTo);
   const [stationId, setStationId] = useState(defaultStation);
+  const [weighingType, setWeighingType] = useState('all');
+  const [controlStatus, setControlStatus] = useState('all');
+
+  const handleReset = useCallback(() => {
+    setDateFrom(defaultRange.dateFrom);
+    setDateTo(defaultRange.dateTo);
+    setStationId(defaultStation);
+    setWeighingType('all');
+    setControlStatus('all');
+  }, [defaultRange, defaultStation]);
 
   const filters = useMemo(
     () => ({
       dateFrom,
       dateTo,
       stationId,
-      weighingType: 'all',
-      controlStatus: 'all',
+      weighingType,
+      controlStatus,
     }),
-    [dateFrom, dateTo, stationId]
+    [dateFrom, dateTo, stationId, weighingType, controlStatus]
   );
 
   const {
@@ -109,9 +126,9 @@ function ReportingContent() {
       {/* Filters for key metrics and charts (date range + station) */}
       <Card>
         <CardContent className="pt-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="report-dateFrom">From Date</Label>
+              <Label htmlFor="report-dateFrom">Date From</Label>
               <Input
                 id="report-dateFrom"
                 type="date"
@@ -120,7 +137,7 @@ function ReportingContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="report-dateTo">To Date</Label>
+              <Label htmlFor="report-dateTo">Date To</Label>
               <Input
                 id="report-dateTo"
                 type="date"
@@ -134,6 +151,40 @@ function ReportingContent() {
                 value={stationId === 'all' ? undefined : stationId}
                 onValueChange={(v) => setStationId(v ?? 'all')}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Weighing Type</Label>
+              <Select value={weighingType} onValueChange={setWeighingType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="multideck">Multideck</SelectItem>
+                  <SelectItem value="mobile">Mobile</SelectItem>
+                  <SelectItem value="static">Static</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={controlStatus} onValueChange={setControlStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="LEGAL">Legal</SelectItem>
+                  <SelectItem value="WARNING">Warning</SelectItem>
+                  <SelectItem value="OVERLOAD">Overloaded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button variant="outline" className="w-full" onClick={handleReset}>
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
             </div>
           </div>
         </CardContent>

@@ -16,6 +16,8 @@ interface ProtectedRouteProps {
   requiredPermissions?: string[];
   matchAllRoles?: boolean;
   matchAllPermissions?: boolean;
+  /** Module key required for this page. Checked against user.enabledModules (if set). Superusers bypass. */
+  moduleKey?: string;
 }
 
 export function ProtectedRoute({
@@ -24,20 +26,27 @@ export function ProtectedRoute({
   requiredPermissions,
   matchAllRoles = false,
   matchAllPermissions = false,
+  moduleKey,
 }: ProtectedRouteProps) {
   const router = useRouter();
   const orgSlug = useOrgSlug();
   const { isAuthenticated, isLoading, user } = useAuth();
-  // orgSlug used for unauthorized redirect (tenant routes)
   const hasRequiredRole = useHasRole(requiredRoles ?? [], matchAllRoles ? 'all' : 'any');
   const hasRequiredPermission = useHasPermission(
     requiredPermissions ?? [],
     matchAllPermissions ? 'all' : 'any'
   );
 
+  // Module access: if the user has an enabledModules list and this page has a moduleKey,
+  // verify the module is enabled. Superusers bypass module restrictions.
+  const hasModuleAccess =
+    !moduleKey ||
+    user?.isSuperUser ||
+    !user?.enabledModules?.length ||
+    user.enabledModules.includes(moduleKey);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      // If we are on a tenant route, redirect to that tenant's login
       if (orgSlug) {
         router.push(`/${orgSlug}/auth/login`);
       } else {
@@ -51,13 +60,14 @@ export function ProtectedRoute({
       const rolesSatisfied = !requiredRoles?.length || hasRequiredRole;
       const permissionsSatisfied = !requiredPermissions?.length || hasRequiredPermission;
 
-      if (!rolesSatisfied || !permissionsSatisfied) {
+      if (!rolesSatisfied || !permissionsSatisfied || !hasModuleAccess) {
         router.push(`/${orgSlug}/unauthorized`);
       }
     }
   }, [
     hasRequiredPermission,
     hasRequiredRole,
+    hasModuleAccess,
     isAuthenticated,
     isLoading,
     orgSlug,
@@ -82,10 +92,10 @@ export function ProtectedRoute({
     return null;
   }
 
-  // Do not render children when user lacks required role/permission (avoids flash before redirect)
+  // Do not render children when access is denied (avoids flash before redirect)
   const rolesSatisfied = !requiredRoles?.length || hasRequiredRole;
   const permissionsSatisfied = !requiredPermissions?.length || hasRequiredPermission;
-  if (!rolesSatisfied || !permissionsSatisfied) {
+  if (!rolesSatisfied || !permissionsSatisfied || !hasModuleAccess) {
     return null;
   }
 
