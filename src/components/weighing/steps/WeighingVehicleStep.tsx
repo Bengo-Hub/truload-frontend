@@ -48,6 +48,8 @@ interface WeighingVehicleStepProps {
   isProceedDisabled: boolean;
   isWeighingLoading: boolean;
   proceedButtonText?: string;
+  /** Commercial weighing mode — shows simplified weight summary, hides enforcement compliance */
+  isCommercial?: boolean;
 }
 
 export function WeighingVehicleStep({
@@ -76,6 +78,7 @@ export function WeighingVehicleStep({
   isProceedDisabled,
   isWeighingLoading,
   proceedButtonText = 'Proceed to Decision',
+  isCommercial = false,
 }: WeighingVehicleStepProps) {
   return (
     <div className="space-y-4">
@@ -116,6 +119,7 @@ export function WeighingVehicleStep({
             gvwMeasured={gvwMeasured}
             gvwOverload={gvwOverload}
             overallStatus={overallStatus}
+            isCommercial={isCommercial}
           />
         </div>
 

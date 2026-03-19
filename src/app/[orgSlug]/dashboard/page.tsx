@@ -45,7 +45,7 @@ import {
   useVehicleDistributionData,
   useYardProcessingTrend,
 } from '@/hooks/queries';
-import { useHasPermission } from '@/hooks/useAuth';
+import { useHasPermission, useUser } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { DashboardFilterParams } from '@/lib/api/dashboard';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
@@ -131,13 +131,14 @@ function getStatValue(stats: unknown, key: string, defaultValue = 0): number {
 
 interface TabProps {
   filters?: DashboardFilterParams;
+  isCommercial?: boolean;
 }
 
 // ============================================================================
 // Overview Tab - Fetches summary stats + key charts
 // ============================================================================
 
-function OverviewTab({ filters }: TabProps) {
+function OverviewTab({ filters, isCommercial }: TabProps) {
   const { formatAmount } = useCurrency();
   const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const { data: weighingStats, isLoading: loadingWeighing } = useDashboardWeighingStats(filters);
@@ -168,12 +169,26 @@ function OverviewTab({ filters }: TabProps) {
             <PermissionGate permissions="weighing.read">
               <StatCard title="Total Fees (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
             </PermissionGate>
-            <PermissionGate permissions="case.read">
-              <StatCard title="Open Cases" value={formatNumber(getStatValue(caseStats, 'openCases'))} icon={FileText} color="bg-amber-500" />
-            </PermissionGate>
-            <PermissionGate permissions="yard.read">
-              <StatCard title="Vehicles in Yard" value={formatNumber(getStatValue(yardStats, 'totalPending'))} icon={Truck} color="bg-orange-500" />
-            </PermissionGate>
+            {!isCommercial && (
+              <PermissionGate permissions="case.read">
+                <StatCard title="Open Cases" value={formatNumber(getStatValue(caseStats, 'openCases'))} icon={FileText} color="bg-amber-500" />
+              </PermissionGate>
+            )}
+            {!isCommercial && (
+              <PermissionGate permissions="yard.read">
+                <StatCard title="Vehicles in Yard" value={formatNumber(getStatValue(yardStats, 'totalPending'))} icon={Truck} color="bg-orange-500" />
+              </PermissionGate>
+            )}
+            {isCommercial && (
+              <PermissionGate permissions="weighing.read">
+                <StatCard title="Transporters Served" value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Truck} color="bg-amber-500" />
+              </PermissionGate>
+            )}
+            {isCommercial && (
+              <PermissionGate permissions="invoice.read">
+                <StatCard title="Revenue Today (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-orange-500" />
+              </PermissionGate>
+            )}
             <PermissionGate permissions="user.read">
               <StatCard title="Active Users" value={formatNumber(userStats?.activeUsers ?? 0)} icon={Users} color="bg-purple-500" />
             </PermissionGate>
@@ -489,6 +504,8 @@ function DashboardContent() {
   const queryClient = useQueryClient();
   const fetchingCount = useIsFetching({ queryKey: DASHBOARD_QUERY_KEYS.all });
   const isRefreshing = fetchingCount > 0;
+  const { user: currentUser } = useUser();
+  const isCommercial = currentUser?.tenantType === 'CommercialWeighing' || currentUser?.isCommercialTenant;
 
   // Permission checks
   const canViewWeighing = useHasPermission('weighing.read');
@@ -500,17 +517,17 @@ function DashboardContent() {
   const canViewReceipts = useHasPermission('receipt.read');
   const canViewFinancial = canViewInvoices || canViewReceipts;
 
-  // Available tabs based on permissions
+  // Available tabs based on permissions — enforcement-only tabs hidden for commercial tenants
   const availableTabs = useMemo(() => {
     const tabs = [{ value: 'overview', label: 'Overview', icon: LayoutDashboard }];
     if (canViewWeighing) tabs.push({ value: 'weighing', label: 'Weighing', icon: Scale });
-    if (canViewCases) tabs.push({ value: 'cases', label: 'Cases', icon: FileText });
-    if (canViewYard) tabs.push({ value: 'yard', label: 'Yard', icon: Truck });
-    if (canViewTags) tabs.push({ value: 'tags', label: 'Tags', icon: Tag });
-    if (canViewProsecution) tabs.push({ value: 'prosecution', label: 'Prosecution', icon: Gavel });
+    if (!isCommercial && canViewCases) tabs.push({ value: 'cases', label: 'Cases', icon: FileText });
+    if (!isCommercial && canViewYard) tabs.push({ value: 'yard', label: 'Yard', icon: Truck });
+    if (!isCommercial && canViewTags) tabs.push({ value: 'tags', label: 'Tags', icon: Tag });
+    if (!isCommercial && canViewProsecution) tabs.push({ value: 'prosecution', label: 'Prosecution', icon: Gavel });
     if (canViewFinancial) tabs.push({ value: 'financial', label: 'Financial', icon: Banknote });
     return tabs;
-  }, [canViewWeighing, canViewCases, canViewYard, canViewTags, canViewProsecution, canViewFinancial]);
+  }, [isCommercial, canViewWeighing, canViewCases, canViewYard, canViewTags, canViewProsecution, canViewFinancial]);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.all });
@@ -542,7 +559,7 @@ function DashboardContent() {
         </TabsList>
 
         <TabsContent value="overview">
-          {activeTab === 'overview' && <OverviewTab filters={filters} />}
+          {activeTab === 'overview' && <OverviewTab filters={filters} isCommercial={isCommercial} />}
         </TabsContent>
 
         {canViewWeighing && (

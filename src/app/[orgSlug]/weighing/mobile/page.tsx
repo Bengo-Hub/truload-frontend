@@ -1299,6 +1299,15 @@ export default function MobileWeighingPage() {
     toast.success('Weighing completed. Ready for next vehicle.');
   }, [handleProceedToDecision, handlePrintTicket, handleFinishOnly]);
 
+  // Collect payment for commercial weighing - navigate to invoices for this transaction
+  const handleCollectPayment = useCallback(() => {
+    if (!weighingSession?.transactionId) {
+      toast.error('No active transaction');
+      return;
+    }
+    router.push(`/${orgSlug}/financial/invoices?transactionId=${weighingSession.transactionId}`);
+  }, [weighingSession, router, orgSlug]);
+
   // Initiate a reweigh - creates new transaction linked to original
   const handleReweigh = useCallback(async () => {
     const newTransaction = await initiateReweigh();
@@ -1455,6 +1464,7 @@ export default function MobileWeighingPage() {
                   setLocalCapturedWeights([]);
                   setLocalCurrentAxle(1);
                 }}
+                isCommercial={isCommercial}
                 groupResults={groupResults}
                 gvwPermissible={gvwPermissible}
                 gvwMeasured={gvwMeasured}
@@ -1550,7 +1560,9 @@ export default function MobileWeighingPage() {
                 onSpecialRelease={handleSpecialRelease}
                 onReweigh={handleReweigh}
                 onPrintTicket={handlePrintTicket}
+                onCollectPayment={isCommercial ? handleCollectPayment : undefined}
                 isFinishing={isWeighingLoading}
+                isCommercial={isCommercial}
               />
             )}
 
