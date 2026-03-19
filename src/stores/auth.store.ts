@@ -42,6 +42,8 @@ interface AuthState {
   fetchUser: () => Promise<void>;
   clearError: () => void;
   checkAuth: () => void;
+  /** Directly set the user (used after SSO select-station completes). */
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -180,6 +182,8 @@ export const useAuthStore = create<AuthState>()(
        * Clear error message.
        */
       clearError: () => set({ error: null }),
+
+      setUser: (user: User) => set({ user, isAuthenticated: true, error: null }),
 
       /**
        * Check authentication status on app load.

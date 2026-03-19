@@ -16,6 +16,8 @@ interface ComplianceTableProps {
   hierarchical?: boolean;
   /** Compact mode for smaller spaces */
   compact?: boolean;
+  /** Commercial weighing mode — shows simplified GVW summary only, no enforcement details */
+  isCommercial?: boolean;
   className?: string;
 }
 
@@ -45,6 +47,7 @@ export function ComplianceTable({
   overallStatus,
   hierarchical = true,
   compact = false,
+  isCommercial = false,
   className,
 }: ComplianceTableProps) {
   // Track expanded groups in hierarchical mode
@@ -128,6 +131,42 @@ export function ComplianceTable({
   // Calculate GVW PDF
   const gvwPdf = calculatePDF(gvwMeasured, gvwPermissible);
   const gvwStatusConfig = getStatusConfig(overallStatus);
+
+  // Commercial mode: simplified GVW summary — no per-axle compliance, no PDF, no enforcement labels
+  if (isCommercial) {
+    return (
+      <Card className={cn('border-gray-200 shadow-sm overflow-hidden', className)}>
+        <CardHeader className={cn('bg-gradient-to-r from-blue-800 to-blue-700 text-white', compact ? 'py-2 px-3' : 'py-3 px-4')}>
+          <CardTitle className="flex items-center gap-2">
+            <Scale className={cn('text-blue-300', compact ? 'h-4 w-4' : 'h-5 w-5')} />
+            <span className={cn('font-semibold', compact ? 'text-sm' : 'text-base')}>
+              Weight Summary
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Permissible GVW</span>
+              <span className="font-mono font-bold text-lg text-slate-800">
+                {gvwPermissible > 0 ? `${gvwPermissible.toLocaleString()} kg` : '—'}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Measured GVW</span>
+              <span className="font-mono font-bold text-lg text-slate-800">
+                {gvwMeasured > 0 ? `${gvwMeasured.toLocaleString()} kg` : '—'}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Axle Groups</span>
+              <span className="font-mono font-bold text-lg text-slate-800">{groupResults.length}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={cn('border-gray-200 shadow-sm overflow-hidden', className)}>

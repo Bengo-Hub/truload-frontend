@@ -7,10 +7,13 @@
  * Org logo and brand colors from API with fallback.
  */
 
+import { selectStation } from '@/lib/auth/api';
 import { getMediaUrl } from '@/lib/api/media';
 import type { PublicOrganization, PublicStation } from '@/lib/api/public';
 import { fetchPublicOrganizations, fetchPublicStationsByOrg } from '@/lib/api/public';
 import { getLastLoginStation, setLastLoginStation } from '@/lib/auth/lastLoginStation';
+import { clearSsoExchangeToken, getSsoExchangeToken, getSsoReturnTo } from '@/lib/auth/sso';
+import { useAuthStore } from '@/stores/auth.store';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -68,8 +71,30 @@ export default function TenantAuthStationSelectPage() {
     loadOrgAndStations();
   }, [loadOrgAndStations]);
 
-  const goToLogin = (stationCode: string) => {
+  const setUser = useAuthStore((s) => s.setUser);
+
+  const goToLogin = async (stationCode: string) => {
     setLastLoginStation(orgSlug, stationCode);
+
+    // SSO path: exchange token is in sessionStorage — call select-station directly
+    const ssoExchangeToken = getSsoExchangeToken();
+    if (ssoExchangeToken) {
+      try {
+        const response = await selectStation(stationCode, { ssoExchangeToken });
+        clearSsoExchangeToken();
+        if (response.user) {
+          setUser(response.user);
+        }
+        const returnTo = getSsoReturnTo() ?? `/${orgSlug}/dashboard`;
+        router.replace(returnTo);
+        return;
+      } catch (err) {
+        // Fall through to local login if SSO exchange fails
+        clearSsoExchangeToken();
+      }
+    }
+
+    // Local login path
     router.push(`/${orgSlug}/auth/login?station=${encodeURIComponent(stationCode)}`);
   };
 

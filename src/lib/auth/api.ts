@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from '@/lib/api/client';
-import type { LoginRequest, LoginResponse, RefreshTokenResponse, User } from '../../types/auth/types';
+import type { LoginRequest, LoginResponse, RefreshTokenResponse, TenantInfo, User } from '../../types/auth/types';
 import { clearTokens, setTenantContext, setTokens } from './token';
 
 /**
@@ -167,4 +167,65 @@ export async function changeExpiredPassword(changePasswordToken: string, newPass
     changePasswordToken,
     newPassword,
   });
+}
+
+// ── Commercial Tenant / SSO Endpoints ────────────────────────────────────────
+
+/**
+ * Returns public tenant info for a given org slug.
+ * No auth required. Used by login page to detect SSO vs local login.
+ */
+export async function getTenantInfo(orgCode: string): Promise<TenantInfo | null> {
+  try {
+    const { data } = await apiClient.get<TenantInfo>(`/auth/tenant-info?code=${encodeURIComponent(orgCode)}`);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Exchanges an SSO access token (from auth-api PKCE flow) for a truload SSO exchange token.
+ * Returns { requiresStationSelection: true, ssoExchangeToken } on success.
+ */
+export async function ssoExchange(accessToken: string): Promise<{ requiresStationSelection: boolean; ssoExchangeToken: string }> {
+  const { data } = await apiClient.post<{ requiresStationSelection: boolean; ssoExchangeToken: string }>(
+    '/auth/sso-exchange',
+    { accessToken }
+  );
+  return data;
+}
+
+/**
+ * Selects a station and issues a full truload JWT session.
+ * For SSO path: provide ssoExchangeToken.
+ * For local path (station switch): provide the current accessToken.
+ */
+export async function selectStation(
+  stationCode: string,
+  options: { ssoExchangeToken?: string; accessToken?: string }
+): Promise<LoginResponse> {
+  const { data } = await apiClient.post<LoginResponse>('/auth/select-station', {
+    stationCode,
+    ssoExchangeToken: options.ssoExchangeToken,
+    accessToken: options.accessToken,
+  });
+
+  if (data.accessToken && data.refreshToken && data.expiresIn) {
+    setTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      expiresIn: data.expiresIn,
+    });
+  }
+
+  if (data.user) {
+    setTenantContext({
+      organizationId: data.user.organizationId,
+      stationId: data.user.stationId,
+      isHqUser: !!data.user.isHqUser,
+    });
+  }
+
+  return data;
 }

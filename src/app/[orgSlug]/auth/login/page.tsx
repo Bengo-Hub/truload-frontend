@@ -7,10 +7,20 @@
 
 import { LoginForm } from '@/components/forms/auth/LoginForm';
 import { LoginPageLayout } from '@/components/layout/LoginPageLayout';
+import { getTenantInfo } from '@/lib/auth/api';
+import {
+  buildAuthorizeUrl,
+  generateCodeChallenge,
+  generateCodeVerifier,
+  generateState,
+  storePkceVerifier,
+  storeSsoReturnTo,
+  storeSsoState,
+} from '@/lib/auth/sso';
 import type { PublicOrganization } from '@/lib/api/public';
 import { fetchOrganizationByCode } from '@/lib/api/public';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 function formatOrgDisplay(slug: string): string {
@@ -20,16 +30,57 @@ function formatOrgDisplay(slug: string): string {
 function TenantAuthLoginContent() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : '';
   const stationCode = searchParams?.get('station') ?? 'Truload';
   const [org, setOrg] = useState<PublicOrganization | null>(null);
+  const [ssoChecking, setSsoChecking] = useState(true);
 
   useEffect(() => {
-    if (!orgSlug) return;
-    fetchOrganizationByCode(orgSlug)
-      .then((o) => setOrg(o ?? null))
-      .catch(() => setOrg(null));
-  }, [orgSlug]);
+    if (!orgSlug) {
+      setSsoChecking(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function checkTenantAndMaybeRedirectToSSO() {
+      try {
+        const [orgData, tenantInfo] = await Promise.all([
+          fetchOrganizationByCode(orgSlug).catch(() => null),
+          getTenantInfo(orgSlug),
+        ]);
+
+        if (cancelled) return;
+        if (orgData) setOrg(orgData);
+
+        if (tenantInfo?.tenantType === 'CommercialWeighing') {
+          // Commercial tenant — redirect to SSO
+          const verifier = generateCodeVerifier();
+          const challenge = await generateCodeChallenge(verifier);
+          const state = generateState();
+          const callbackUrl = `${window.location.origin}/${orgSlug}/auth/callback`;
+
+          storePkceVerifier(verifier);
+          storeSsoState(state);
+          storeSsoReturnTo(`/${orgSlug}/dashboard`);
+
+          const authorizeUrl = buildAuthorizeUrl(orgSlug, challenge, state, callbackUrl);
+          window.location.href = authorizeUrl;
+          return; // navigation in progress
+        }
+      } catch {
+        // Ignore errors — fall through to show local login form
+      } finally {
+        if (!cancelled) setSsoChecking(false);
+      }
+    }
+
+    checkTenantAndMaybeRedirectToSSO();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgSlug, router]);
 
   const primaryColor = org?.primaryColor || '#0a9f3d';
   const orgDisplayName = org?.name ?? (orgSlug ? formatOrgDisplay(orgSlug) : 'Truload');
@@ -39,6 +90,17 @@ function TenantAuthLoginContent() {
       {stationCode && ` · ${stationCode}`}
     </p>
   ) : null;
+
+  // Show spinner while checking tenant type (SSO redirect may be in progress)
+  if (ssoChecking) {
+    return (
+      <LoginPageLayout org={org} primaryColor={primaryColor}>
+        <div className="flex items-center justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        </div>
+      </LoginPageLayout>
+    );
+  }
 
   return (
     <LoginPageLayout org={org} subtitle={subtitle} primaryColor={primaryColor}>

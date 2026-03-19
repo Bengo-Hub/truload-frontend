@@ -17,13 +17,13 @@ interface WeighingDecisionStepProps {
   isValid: boolean;
   missingFields: string[];
   isSentToYard?: boolean;
-  
+
   // Permissions
   canPrint?: boolean;
   canSendToYard?: boolean;
   canSpecialRelease?: boolean;
   canReweigh?: boolean;
-  
+
   // Handlers
   onFinishOnly: () => void;
   onFinishAndNew: () => void;
@@ -31,10 +31,15 @@ interface WeighingDecisionStepProps {
   onSpecialRelease: () => void;
   onReweigh: () => void;
   onPrintTicket: () => void;
-  
+  onCollectPayment?: () => void;
+
   // Loading states
   isFinishing?: boolean;
   isSendingToYard?: boolean;
+
+  // Commercial mode
+  isCommercial?: boolean;
+  commercialWeighingFeeKes?: number;
 
   // Navigation
   onBack?: () => void;
@@ -60,8 +65,11 @@ export function WeighingDecisionStep({
   onSpecialRelease,
   onReweigh,
   onPrintTicket,
+  onCollectPayment,
   isFinishing,
   isSendingToYard,
+  isCommercial = false,
+  commercialWeighingFeeKes,
   onBack,
 }: WeighingDecisionStepProps) {
   return (
@@ -92,7 +100,7 @@ export function WeighingDecisionStep({
         </CardContent>
       </Card>
 
-      {/* Decision Panel - 3 clear options */}
+      {/* Decision Panel */}
       <DecisionPanel
         overallStatus={overallStatus}
         totalFeeUsd={totalFeeUsd}
@@ -106,6 +114,7 @@ export function WeighingDecisionStep({
         onSpecialRelease={onSpecialRelease}
         onReweigh={onReweigh}
         onPrintTicket={onPrintTicket}
+        onCollectPayment={onCollectPayment}
         canPrint={canPrint}
         canSendToYard={canSendToYard}
         canSpecialRelease={canSpecialRelease}
@@ -113,6 +122,8 @@ export function WeighingDecisionStep({
         isSentToYard={isSentToYard}
         isFinishing={isFinishing}
         isSendingToYard={isSendingToYard}
+        isCommercial={isCommercial}
+        commercialWeighingFeeKes={commercialWeighingFeeKes}
       />
 
       {onBack && (
