@@ -38,6 +38,12 @@
 
 @layer base {
   :root {
+    /* Brand color CSS variables (set dynamically by BrandProvider, fallback to CodeVertex/TruLoad) */
+    --brand-primary: #5B1C4D;
+    --brand-secondary: #ea8022;
+    --brand-primary-hsl: 313 53% 23%;
+    --brand-secondary-hsl: 27 83% 53%;
+
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;

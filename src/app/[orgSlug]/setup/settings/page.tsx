@@ -147,7 +147,12 @@ export default function IntegrationSettingsPage() {
 function IntegrationSettingsContent() {
   const { user } = useAuth();
   const canEdit = useHasPermission(['config.read', 'config.update'], 'any');
-  const isOperator = user?.email === 'user@truconnect.com';
+  const isPlatformOwner = user?.isSuperUser === true;
+
+  // Tenant users see only: Exchange Rates, Weighing, Middleware
+  // Platform owners see all tabs: Payment Gateways, Notifications, APIs, Exchange Rates, Weighing, Middleware
+  const defaultTab = isPlatformOwner ? 'payment-gateways' : 'exchange-rates';
+  const tabCount = isPlatformOwner ? 6 : 3;
 
   return (
     <div className="space-y-6">
@@ -165,9 +170,9 @@ function IntegrationSettingsContent() {
       </header>
 
       {/* Tabs */}
-      <Tabs defaultValue={isOperator ? "middleware" : "payment-gateways"} className="space-y-4">
-        <TabsList className={`grid w-full ${isOperator ? 'grid-cols-1 max-w-xs' : 'grid-cols-6 max-w-5xl'}`}>
-          {!isOperator && (
+      <Tabs defaultValue={defaultTab} className="space-y-4">
+        <TabsList className={`grid w-full grid-cols-${tabCount} max-w-5xl`}>
+          {isPlatformOwner && (
             <>
               <TabsTrigger value="payment-gateways" className="gap-1.5">
                 <CreditCard className="h-4 w-4" />
@@ -181,23 +186,23 @@ function IntegrationSettingsContent() {
                 <Settings2 className="h-4 w-4" />
                 <span className="hidden sm:inline">APIs</span>
               </TabsTrigger>
-              <TabsTrigger value="exchange-rates" className="gap-1.5">
-                <DollarSign className="h-4 w-4" />
-                <span className="hidden sm:inline">Rates</span>
-              </TabsTrigger>
-              <TabsTrigger value="weighing" className="gap-1.5">
-                <Scale className="h-4 w-4" />
-                <span className="hidden sm:inline">Weighing</span>
-              </TabsTrigger>
             </>
           )}
+          <TabsTrigger value="exchange-rates" className="gap-1.5">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Rates</span>
+          </TabsTrigger>
+          <TabsTrigger value="weighing" className="gap-1.5">
+            <Scale className="h-4 w-4" />
+            <span className="hidden sm:inline">Weighing</span>
+          </TabsTrigger>
           <TabsTrigger value="middleware" className="gap-1.5">
             <Cpu className="h-4 w-4" />
             <span className="hidden sm:inline">Middleware</span>
           </TabsTrigger>
         </TabsList>
 
-        {!isOperator && (
+        {isPlatformOwner && (
           <>
             <TabsContent value="payment-gateways">
               <PaymentGatewaysTab canEdit={canEdit} />
@@ -208,14 +213,14 @@ function IntegrationSettingsContent() {
             <TabsContent value="api-settings">
               <ApiSettingsTab canEdit={canEdit} />
             </TabsContent>
-            <TabsContent value="exchange-rates">
-              <ExchangeRateSettings />
-            </TabsContent>
-            <TabsContent value="weighing">
-              <WeighingSettingsTab />
-            </TabsContent>
           </>
         )}
+        <TabsContent value="exchange-rates">
+          <ExchangeRateSettings />
+        </TabsContent>
+        <TabsContent value="weighing">
+          <WeighingSettingsTab />
+        </TabsContent>
         <TabsContent value="middleware">
           <MiddlewareTab />
         </TabsContent>

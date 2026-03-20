@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { useReportCatalog, useDownloadReport } from '@/hooks/queries/useReportQueries';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { ReportPreviewDialog } from './ReportPreviewDialog';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 
 const MODULE_ICONS: Record<string, LucideIcon> = {
   weighing: Scale,
@@ -74,16 +75,41 @@ export function ModuleReportSelector() {
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewFileName, setPreviewFileName] = useState('');
 
+  const { isEnforcement, hasModule, showFinancial } = useModuleAccess();
+
   const { data: catalog, isLoading: catalogLoading } = useReportCatalog(
     selectedModule === 'all' ? undefined : selectedModule
   );
   const downloadMutation = useDownloadReport();
 
-  const allReports = catalog?.modules?.flatMap((m) =>
-    m.reports.map((r) => ({ ...r, moduleDisplayName: m.displayName }))
-  ) ?? [];
+  // Map report module keys to tenant module checks (defense in depth - backend also filters)
+  const isReportModuleAllowed = (reportModule: string): boolean => {
+    switch (reportModule) {
+      case 'weighing':
+        return hasModule('weighing');
+      case 'prosecution':
+        return hasModule('prosecution');
+      case 'cases':
+        return hasModule('cases') || hasModule('case_management');
+      case 'financial':
+        return showFinancial;
+      case 'yard':
+        return isEnforcement;
+      case 'security':
+        // Security reports are always available (no specific tenant module restriction)
+        return true;
+      default:
+        return true;
+    }
+  };
 
-  const moduleList = catalog?.modules ?? [];
+  const allReports = catalog?.modules
+    ?.filter((m) => isReportModuleAllowed(m.module))
+    .flatMap((m) =>
+      m.reports.map((r) => ({ ...r, moduleDisplayName: m.displayName }))
+    ) ?? [];
+
+  const moduleList = catalog?.modules?.filter((m) => isReportModuleAllowed(m.module)) ?? [];
 
   const handleGenerate = async (
     module: string,

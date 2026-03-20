@@ -101,6 +101,8 @@ function AxleConfigurationsContent() {
 	// Search and filter
 	const [searchQuery, setSearchQuery] = useState('');
 	const [frameworkFilter, setFrameworkFilter] = useState<string>('all');
+	const [axleCountFilter, setAxleCountFilter] = useState<string>('all');
+	const [typeFilter, setTypeFilter] = useState<string>('all'); // all, standard, derived
 
 	const { data: configs = [], isLoading } = useQuery({
 		queryKey: ['axleConfigurations'],
@@ -117,9 +119,13 @@ function AxleConfigurationsContent() {
 				cfg.axleCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				cfg.axleName.toLowerCase().includes(searchQuery.toLowerCase());
 			const matchesFramework = frameworkFilter === 'all' || cfg.legalFramework === frameworkFilter;
-			return matchesSearch && matchesFramework;
+			const matchesAxleCount = axleCountFilter === 'all' || cfg.axleNumber === parseInt(axleCountFilter);
+			const matchesType = typeFilter === 'all' ||
+				(typeFilter === 'standard' && cfg.isStandard) ||
+				(typeFilter === 'derived' && !cfg.isStandard);
+			return matchesSearch && matchesFramework && matchesAxleCount && matchesType;
 		});
-	}, [configs, searchQuery, frameworkFilter]);
+	}, [configs, searchQuery, frameworkFilter, axleCountFilter, typeFilter]);
 
 	// Paginated configurations
 	const paginatedConfigs = useMemo(() => {
@@ -465,13 +471,38 @@ function AxleConfigurationsContent() {
 								)}
 							</div>
 							<Select value={frameworkFilter} onValueChange={setFrameworkFilter}>
-								<SelectTrigger className="w-full sm:w-44">
+								<SelectTrigger className="w-full sm:w-40">
 									<SelectValue placeholder="Framework" />
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="all">All Frameworks</SelectItem>
 									<SelectItem value="EAC">EAC Act</SelectItem>
 									<SelectItem value="TrafficAct">Traffic Act</SelectItem>
+									<SelectItem value="BOTH">Both Acts</SelectItem>
+								</SelectContent>
+							</Select>
+							<Select value={axleCountFilter} onValueChange={setAxleCountFilter}>
+								<SelectTrigger className="w-full sm:w-32">
+									<SelectValue placeholder="Axles" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Axles</SelectItem>
+									<SelectItem value="2">2-Axle</SelectItem>
+									<SelectItem value="3">3-Axle</SelectItem>
+									<SelectItem value="4">4-Axle</SelectItem>
+									<SelectItem value="5">5-Axle</SelectItem>
+									<SelectItem value="6">6-Axle</SelectItem>
+									<SelectItem value="7">7-Axle</SelectItem>
+								</SelectContent>
+							</Select>
+							<Select value={typeFilter} onValueChange={setTypeFilter}>
+								<SelectTrigger className="w-full sm:w-32">
+									<SelectValue placeholder="Type" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Types</SelectItem>
+									<SelectItem value="standard">Standard</SelectItem>
+									<SelectItem value="derived">Derived</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -604,9 +635,9 @@ function AxleConfigurationsContent() {
 											</TableCell>
 											<TableCell className="text-center">
 												{cfg.isStandard ? (
-													<CheckCircle2 className="h-5 w-5 text-green-600 mx-auto" />
+													<Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">Standard</Badge>
 												) : (
-													<span className="text-muted-foreground">-</span>
+													<Badge variant="outline" className="text-[10px]">Derived</Badge>
 												)}
 											</TableCell>
 											<TableCell className="text-right">
@@ -725,32 +756,55 @@ function AxleConfigurationsContent() {
 									))}
 								</div>
 							) : (
+								<>
+								{/* Help text for weight reference setup */}
+								<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700 space-y-1">
+									<p className="font-medium">How to set up axle weight references:</p>
+									<ul className="list-disc list-inside space-y-0.5 text-blue-600">
+										<li><strong>Pos</strong> = Axle position (1 = front/steering, last = rear)</li>
+										<li><strong>Permissible Weight</strong> = Legal max weight per EAC/Traffic Act for this axle type</li>
+										<li><strong>Deck Group</strong>: A = Front/Steering, B = Trailer coupling, C = Mid-section, D = Rear</li>
+										<li><strong>Axle Group</strong>: S1 = Single (max 8t), SA4 = Single heavy (10t), TAG8 = Tandem 2-axle (9t ea), TAG12 = Tandem 12-wheel (8t ea), QAG16 = Quad 4-axle (8t ea)</li>
+										<li><strong>Tyre</strong>: S = Single tyre (7.5t), D = Dual/twin tyres (10t), W = Wide single super tyre (8t)</li>
+									</ul>
+									<p className="text-blue-500 italic">GVW is auto-calculated as the sum of all axle weights below.</p>
+								</div>
+
 								<div className="border rounded-lg overflow-hidden">
 									<Table>
 										<TableHeader>
 											<TableRow className="bg-muted/30">
-												<TableHead className="w-[60px] text-center">Pos</TableHead>
-												<TableHead className="w-[130px]">Weight (kg)</TableHead>
-												<TableHead className="w-[90px]">Grouping</TableHead>
-												<TableHead>Axle Group</TableHead>
-												<TableHead>Tyre Type</TableHead>
+												<TableHead className="w-[50px] text-center">Pos</TableHead>
+												<TableHead className="w-[140px]">Permissible Weight (kg)</TableHead>
+												<TableHead className="w-[110px]">Deck Group</TableHead>
+												<TableHead>Axle Group (classification)</TableHead>
+												<TableHead>Tyre Configuration</TableHead>
 											</TableRow>
 										</TableHeader>
 										<TableBody>
-											{weightRefRows.map((row, idx) => (
+											{weightRefRows.map((row, idx) => {
+												const selectedGroup = lookupData?.axleGroups.find(g => g.id === row.axleGroupId);
+												const selectedTyre = lookupData?.tyreTypes.find(t => t.id === row.tyreTypeId);
+												return (
 												<TableRow key={row.axlePosition}>
-													<TableCell className="text-center font-mono font-medium">
+													<TableCell className="text-center font-mono font-bold text-lg">
 														{row.axlePosition}
 													</TableCell>
 													<TableCell>
 														<Input
 															type="number"
 															min={0}
+															max={12000}
 															value={row.axleLegalWeightKg || ''}
 															onChange={(e) => updateWeightRefRow(idx, 'axleLegalWeightKg', parseInt(e.target.value) || 0)}
-															placeholder="e.g., 6000"
+															placeholder="6000-10000"
 															className="h-8 font-mono"
 														/>
+														{selectedGroup && (
+															<p className="text-[10px] text-muted-foreground mt-0.5">
+																Typical: {selectedGroup.typicalWeightKg?.toLocaleString() || '?'} kg
+															</p>
+														)}
 													</TableCell>
 													<TableCell>
 														<Select
@@ -761,10 +815,10 @@ function AxleConfigurationsContent() {
 																<SelectValue />
 															</SelectTrigger>
 															<SelectContent>
-																<SelectItem value="A">A</SelectItem>
-																<SelectItem value="B">B</SelectItem>
-																<SelectItem value="C">C</SelectItem>
-																<SelectItem value="D">D</SelectItem>
+																<SelectItem value="A">A — Front/Steering</SelectItem>
+																<SelectItem value="B">B — Trailer coupling</SelectItem>
+																<SelectItem value="C">C — Mid-section</SelectItem>
+																<SelectItem value="D">D — Rear</SelectItem>
 															</SelectContent>
 														</Select>
 													</TableCell>
@@ -774,13 +828,16 @@ function AxleConfigurationsContent() {
 															onValueChange={(v) => updateWeightRefRow(idx, 'axleGroupId', v === 'none' ? '' : v)}
 														>
 															<SelectTrigger className="h-8">
-																<SelectValue placeholder="Select group" />
+																<SelectValue placeholder="Select..." />
 															</SelectTrigger>
 															<SelectContent>
-																<SelectItem value="none">Select group...</SelectItem>
+																<SelectItem value="none">— Select axle group —</SelectItem>
 																{lookupData?.axleGroups.map(g => (
 																	<SelectItem key={g.id} value={g.id}>
-																		<span className="font-mono">{g.code}</span> - {g.name}
+																		<span className="font-mono font-bold">{g.code}</span>
+																		<span className="text-muted-foreground ml-1">
+																			{g.name} ({g.axleCountInGroup} axle{g.axleCountInGroup > 1 ? 's' : ''}, ~{g.typicalWeightKg?.toLocaleString()}kg)
+																		</span>
 																	</SelectItem>
 																))}
 															</SelectContent>
@@ -792,23 +849,43 @@ function AxleConfigurationsContent() {
 															onValueChange={(v) => updateWeightRefRow(idx, 'tyreTypeId', v === 'none' ? undefined : v)}
 														>
 															<SelectTrigger className="h-8">
-																<SelectValue placeholder="Optional" />
+																<SelectValue placeholder="Select tyre..." />
 															</SelectTrigger>
 															<SelectContent>
-																<SelectItem value="none">No selection</SelectItem>
+																<SelectItem value="none">— No tyre type —</SelectItem>
 																{lookupData?.tyreTypes.map(t => (
 																	<SelectItem key={t.id} value={t.id}>
-																		<span className="font-mono">{t.code}</span> - {t.name}
+																		<span className="font-mono font-bold">{t.code}</span>
+																		<span className="text-muted-foreground ml-1">
+																			{t.name} (max {t.typicalMaxWeightKg?.toLocaleString()}kg)
+																		</span>
 																	</SelectItem>
 																))}
 															</SelectContent>
 														</Select>
+														{selectedTyre && (
+															<p className="text-[10px] text-muted-foreground mt-0.5">
+																{selectedTyre.description}
+															</p>
+														)}
 													</TableCell>
 												</TableRow>
-											))}
+												);
+											})}
 										</TableBody>
 									</Table>
 								</div>
+
+								{/* GVW summary */}
+								<div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2">
+									<span className="text-sm font-medium text-muted-foreground">
+										Calculated GVW (sum of all axle weights)
+									</span>
+									<span className="text-lg font-bold font-mono">
+										{weightRefRows.reduce((sum, r) => sum + (r.axleLegalWeightKg || 0), 0).toLocaleString()} kg
+									</span>
+								</div>
+								</>
 							)}
 						</div>
 

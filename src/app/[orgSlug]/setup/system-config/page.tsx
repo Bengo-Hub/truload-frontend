@@ -4,7 +4,6 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { BrandSettingsTab } from '@/components/settings/BrandSettingsTab';
 import { DocumentConventionsTab } from '@/components/settings/DocumentConventionsTab';
 import { DocumentSequencesTab } from '@/components/settings/DocumentSequencesTab';
-import { ModuleAccessTab } from '@/components/settings/ModuleAccessTab';
 import { ProsecutionSettingsTab } from '@/components/settings/ProsecutionSettingsTab';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,14 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    useReloadRateLimits,
     useRestoreCategoryDefaults,
     useSettingsByCategory,
     useUpdateSettingsBatch,
 } from '@/hooks/queries/useSettingsQueries';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import type { ApplicationSettingDto, UpdateSettingsBatchRequest } from '@/lib/api/settings';
-import { Bell, Calculator, Clock, FileText, Gauge, Gavel, Info, Loader2, Lock, RotateCcw, Save, SlidersHorizontal, Zap } from 'lucide-react';
+import { Bell, Calculator, FileText, Gavel, Info, Loader2, RotateCcw, Save, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -31,14 +29,12 @@ import { toast } from 'sonner';
 interface CategoryTabProps {
   category: string;
   description: string;
-  showReloadRateLimits?: boolean;
 }
 
-function CategorySettingsTab({ category, description, showReloadRateLimits = false }: CategoryTabProps) {
+function CategorySettingsTab({ category, description }: CategoryTabProps) {
   const { data: settings, isLoading, refetch } = useSettingsByCategory(category);
   const updateBatch = useUpdateSettingsBatch();
   const restoreDefaults = useRestoreCategoryDefaults();
-  const reloadRateLimits = useReloadRateLimits();
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -79,16 +75,6 @@ function CategorySettingsTab({ category, description, showReloadRateLimits = fal
       toast.success(`${changedSettings.length} setting(s) updated`);
       setHasChanges(false);
       refetch();
-
-      // Auto-reload rate limits if this is the Rate Limiting tab
-      if (showReloadRateLimits) {
-        try {
-          await reloadRateLimits.mutateAsync();
-          toast.success('Rate limits applied to runtime');
-        } catch {
-          toast.warning('Settings saved but rate limits need manual reload');
-        }
-      }
     } catch {
       toast.error('Failed to save settings');
     }
@@ -198,16 +184,15 @@ export default function SystemConfigPage() {
   const canEdit = useHasPermission(['config.read', 'config.update'], 'any');
   const canEditBranding = useHasPermission(['config.update'], 'any');
   const canReadConfig = useHasPermission(['config.read'], 'any');
-  const isSuperUser = user?.isSuperUser === true;
-  const isOperator = user?.email === 'user@truconnect.com';
+  const isPlatformOwner = user?.isSuperUser === true;
 
   return (
-    <ProtectedRoute requiredPermissions={['system.security_policy', 'config.read']}>
+    <ProtectedRoute requiredPermissions={['config.read']}>
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold text-gray-900">System Configuration</h2>
           <p className="text-sm text-gray-500">
-            Manage rate limits, business logic parameters, document numbering, cache durations, and integration timeouts
+            Manage business logic parameters, document numbering, and tenant settings
           </p>
         </div>
 
@@ -223,78 +208,34 @@ export default function SystemConfigPage() {
           </Card>
         )}
 
-        {!isSuperUser && !isOperator && (
-          <Card className="p-6 border-amber-200 bg-amber-50">
-            <div className="flex items-center gap-3 text-amber-800">
-              <Lock className="h-6 w-6 shrink-0" />
-              <div>
-                <p className="font-medium">Superuser only</p>
-                <p className="text-sm">This page is restricted to Superuser role. Settings API requires Superuser access.</p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {(isSuperUser || isOperator) && (
-        <Tabs defaultValue={isOperator ? "weighing" : "rate-limiting"} className="w-full">
-          <TabsList className={`grid w-full ${isOperator ? 'grid-cols-1 max-w-xs' : 'grid-cols-3 lg:grid-cols-8'}`}>
-            {!isOperator && (
-              <TabsTrigger value="rate-limiting" className="flex items-center gap-2">
-                <Gauge className="h-4 w-4" />
-                <span className="hidden sm:inline">Rate Limiting</span>
-                <span className="sm:hidden">Limits</span>
-              </TabsTrigger>
-            )}
+        {canReadConfig && (
+        <Tabs defaultValue="weighing" className="w-full">
+          <TabsList className={`grid w-full ${isPlatformOwner ? 'grid-cols-2 lg:grid-cols-5' : 'grid-cols-1 max-w-xs'}`}>
             <TabsTrigger value="weighing" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
-              <span className="hidden sm:inline">Weighing</span>
-              <span className="sm:hidden">Weighing</span>
+              Weighing
             </TabsTrigger>
-            {!isOperator && (
+            {isPlatformOwner && (
               <>
                 <TabsTrigger value="financial" className="flex items-center gap-2">
                   <Zap className="h-4 w-4" />
-                  <span className="hidden sm:inline">Financial</span>
-                  <span className="sm:hidden">Financial</span>
+                  Financial
                 </TabsTrigger>
                 <TabsTrigger value="documents" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Documents</span>
-                  <span className="sm:hidden">Docs</span>
+                  Documents
                 </TabsTrigger>
                 <TabsTrigger value="prosecution" className="flex items-center gap-2">
                   <Gavel className="h-4 w-4" />
-                  <span className="hidden sm:inline">Prosecution</span>
-                  <span className="sm:hidden">Court</span>
+                  Prosecution
                 </TabsTrigger>
                 <TabsTrigger value="notifications" className="flex items-center gap-2">
                   <Bell className="h-4 w-4" />
-                  <span className="hidden sm:inline">Notifications</span>
-                  <span className="sm:hidden">Notifs</span>
-                </TabsTrigger>
-                <TabsTrigger value="cache" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span className="hidden sm:inline">Cache & Timeouts</span>
-                  <span className="sm:hidden">Cache</span>
-                </TabsTrigger>
-                <TabsTrigger value="modules" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  <span className="hidden sm:inline">Module access</span>
-                  <span className="sm:hidden">Modules</span>
+                  Notifications
                 </TabsTrigger>
               </>
             )}
           </TabsList>
-
-          {!isOperator && (
-            <TabsContent value="rate-limiting" className="mt-4">
-              <CategorySettingsTab
-                category="Rate Limiting"
-                description="Configure request rate limits per endpoint policy. Changes are applied immediately to the runtime rate limiter after saving."
-                showReloadRateLimits
-              />
-            </TabsContent>
-          )}
 
           <TabsContent value="weighing" className="mt-4">
             <CategorySettingsTab
@@ -303,7 +244,7 @@ export default function SystemConfigPage() {
             />
           </TabsContent>
 
-          {!isOperator && (
+          {isPlatformOwner && (
             <>
               <TabsContent value="financial" className="mt-4">
                 <CategorySettingsTab
@@ -336,23 +277,6 @@ export default function SystemConfigPage() {
                   category="Notifications"
                   description="Configure notification channels (email, SMS, push) and the centralized notifications service connection."
                 />
-              </TabsContent>
-
-              <TabsContent value="cache" className="mt-4">
-                <div className="space-y-6">
-                  <CategorySettingsTab
-                    category="Cache"
-                    description="Configure cache time-to-live durations for various data sources. Changes take effect after the current cache expires."
-                  />
-                  <CategorySettingsTab
-                    category="Integrations"
-                    description="Configure HTTP request timeouts for external service integrations (eCitizen, KeNHA, NTSA, Ollama)."
-                  />
-                </div>
-              </TabsContent>
-
-              <TabsContent value="modules" className="mt-4">
-                <ModuleAccessTab />
               </TabsContent>
             </>
           )}

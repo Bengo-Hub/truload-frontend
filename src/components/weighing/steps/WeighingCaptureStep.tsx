@@ -227,17 +227,19 @@ export function WeighingCaptureStep({
       {/* Custom Content: Multideck = MULTIDECK weight card only; Mobile = weight display */}
       {children}
 
-      {/* Location Configurations */}
-      <LocationConfigCard
-        stationId={stationId}
-        currentStation={currentStation}
-        selectedCountyId={selectedCountyId}
-        setSelectedCountyId={setSelectedCountyId}
-        selectedSubcountyId={selectedSubcountyId}
-        setSelectedSubcountyId={setSelectedSubcountyId}
-        selectedRoadId={selectedRoadId}
-        setSelectedRoadId={setSelectedRoadId}
-      />
+      {/* Location Configurations (enforcement only) */}
+      {!isCommercial && (
+        <LocationConfigCard
+          stationId={stationId}
+          currentStation={currentStation}
+          selectedCountyId={selectedCountyId}
+          setSelectedCountyId={setSelectedCountyId}
+          selectedSubcountyId={selectedSubcountyId}
+          setSelectedSubcountyId={setSelectedSubcountyId}
+          selectedRoadId={selectedRoadId}
+          setSelectedRoadId={setSelectedRoadId}
+        />
+      )}
 
       {/* Vehicle Image Capture */}
       <ImageCaptureCard

@@ -18,8 +18,9 @@ export function PWARegister() {
       );
     };
 
-    // Register service worker only if not already running as PWA
-    if ('serviceWorker' in navigator && !isRunningAsPWA()) {
+    // Register service worker only in production (dev has stale cache issues)
+    const isProduction = process.env.NODE_ENV === 'production';
+    if ('serviceWorker' in navigator && isProduction && !isRunningAsPWA()) {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
@@ -38,6 +39,13 @@ export function PWARegister() {
         .catch((error) => {
           console.warn('PWA Service Worker registration failed:', error);
         });
+    }
+
+    // In development, unregister any stale service workers to avoid cache issues
+    if (!isProduction && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((reg) => reg.unregister());
+      });
     }
 
     // Handle app installed event

@@ -55,6 +55,7 @@ const DASHBOARD_OPTIONS = {
   refetchOnWindowFocus: false,
   refetchOnMount: true as const,
   retry: 1,
+  throwOnError: false, // Never crash the tree — handle errors in UI gracefully
 };
 
 // ============================================================================
@@ -66,6 +67,7 @@ export function useDashboardCaseStats(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.caseStats(filters),
     queryFn: () => dashboardApi.getCaseStatistics(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -74,6 +76,7 @@ export function useDashboardHearingStats(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.hearingStats(filters),
     queryFn: () => dashboardApi.getHearingStatistics(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -82,6 +85,7 @@ export function useDashboardProsecutionStats(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.prosecutionStats(filters),
     queryFn: () => dashboardApi.getProsecutionStatistics(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -106,6 +110,7 @@ export function useDashboardYardStats(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.yardStats(filters),
     queryFn: () => dashboardApi.getYardStatistics(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -114,6 +119,7 @@ export function useDashboardTagStats(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.tagStats(filters),
     queryFn: () => dashboardApi.getVehicleTagStatistics(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -134,6 +140,7 @@ export function useComplianceTrend(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.complianceTrend(filters),
     queryFn: () => dashboardApi.getComplianceTrend(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -142,6 +149,7 @@ export function useOverloadDistribution(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.overloadDistribution(filters),
     queryFn: () => dashboardApi.getOverloadDistribution(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -166,6 +174,7 @@ export function useCaseDisposition(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.caseDisposition(filters),
     queryFn: () => dashboardApi.getCaseDisposition(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -174,6 +183,7 @@ export function useCaseTrend(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.caseTrend(filters),
     queryFn: () => dashboardApi.getCaseTrend(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -190,6 +200,7 @@ export function useTopOffenders(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.topOffenders(filters),
     queryFn: () => dashboardApi.getTopOffenders(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -198,6 +209,7 @@ export function useStationPerformance(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.stationPerformance(filters),
     queryFn: () => dashboardApi.getStationPerformance(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -206,6 +218,7 @@ export function useYardProcessingTrend(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.yardProcessingTrend(filters),
     queryFn: () => dashboardApi.getYardProcessingTrend(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -214,6 +227,7 @@ export function useDashboardHearingOutcomes(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.hearingOutcomes(filters),
     queryFn: () => dashboardApi.getHearingOutcomes(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -222,6 +236,7 @@ export function useAxleViolations(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.axleViolations(filters),
     queryFn: () => dashboardApi.getAxleViolations(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -275,6 +290,7 @@ export function useTagTrend(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.tagTrend(filters),
     queryFn: () => dashboardApi.getTagTrend(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -283,6 +299,7 @@ export function useTagsByCategory(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.tagsByCategory(filters),
     queryFn: () => dashboardApi.getTagsByCategory(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -291,6 +308,7 @@ export function useProsecutionTrend(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.prosecutionTrend(filters),
     queryFn: () => dashboardApi.getProsecutionTrend(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 
@@ -299,6 +317,7 @@ export function useProsecutionByStatus(filters?: DashboardFilterParams) {
     queryKey: DASHBOARD_QUERY_KEYS.prosecutionByStatus(filters),
     queryFn: () => dashboardApi.getProsecutionByStatus(filters),
     ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
   });
 }
 

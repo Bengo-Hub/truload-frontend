@@ -36,7 +36,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
 
-import kuraWeighLogo from '@/../public/images/logos/kuraweigh-logo.png';
+import { useBrand } from '@/contexts/BrandContext';
+import { getMediaUrl } from '@/lib/api/media';
 
 interface MenuItem {
   href: string;
@@ -81,12 +82,10 @@ const menuSections: MenuSection[] = [
   {
     title: 'Setup',
     items: [
-      { href: '/setup/security', label: 'Security', icon: Shield, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
       { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.read'], moduleKey: 'setup_axle' },
       { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read'], moduleKey: 'setup_weighing_metadata' },
       { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
-      { href: '/setup/settings', label: 'Integrations', icon: Settings, permissions: ['config.read'], moduleKey: 'setup_settings' },
-      { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['system.security_policy', 'config.read'], moduleKey: 'setup_system_config' },
+      { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['config.read'], moduleKey: 'setup_system_config' },
     ],
   },
 ];
@@ -101,6 +100,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
   const router = useRouter();
   const orgSlug = useOrgSlug();
   const { logout, user } = useAuthStore();
+  const brand = useBrand();
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -154,14 +154,18 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
 
   const sidebarContent = (
     <>
-      {/* Logo */}
+      {/* Logo - uses tenant brand logo with TruLoad fallback */}
       <div className="border-b border-gray-200 px-6 py-5 flex items-center justify-between">
         <Image
-          src={kuraWeighLogo}
-          alt="KURAWeigh logo"
+          src={brand.logoUrl.startsWith('/media') ? getMediaUrl(brand.logoUrl) : brand.logoUrl}
+          alt={brand.orgName}
           width={200}
           height={64}
           className="h-12 w-auto object-contain"
+          unoptimized={brand.logoUrl.startsWith('http') || brand.logoUrl.startsWith('/media')}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = '/truload-logo.svg';
+          }}
         />
         {/* Close button - only visible on mobile */}
         {onMobileClose && (

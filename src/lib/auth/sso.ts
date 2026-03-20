@@ -38,9 +38,13 @@ export function generateState(): string {
     .join('');
 }
 
-/** Builds the auth-api PKCE authorize URL for an org slug. */
+/**
+ * Builds the auth-api PKCE authorize URL.
+ * @param ssoTenantSlug - The SSO tenant slug from auth-api (e.g. "truload"), NOT the TruLoad org code.
+ *   This must match a tenant slug registered in auth-api. Use TenantInfo.ssoTenantSlug.
+ */
 export function buildAuthorizeUrl(
-  orgSlug: string,
+  ssoTenantSlug: string,
   codeChallenge: string,
   state: string,
   redirectUri: string
@@ -56,10 +60,11 @@ export function buildAuthorizeUrl(
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
-    tenant: orgSlug,
+    tenant: ssoTenantSlug,
   });
 
-  return `${authApiBase}/authorize?${params.toString()}`;
+  // Per SSO integration guide: correct path is /api/v1/authorize
+  return `${authApiBase}/api/v1/authorize?${params.toString()}`;
 }
 
 /** Exchanges an authorization code for an SSO access token via the auth-api token endpoint. */

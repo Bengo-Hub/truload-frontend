@@ -16,6 +16,18 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Domain-based default org slug redirect for bare root path
+  if (pathname === '/') {
+    const host = request.headers.get('host') || '';
+    let defaultOrgSlug = 'truload-demo'; // Default for platform owner domain (codevertexitsolutions.com)
+
+    if (host.includes('masterspace.co.ke')) {
+      defaultOrgSlug = 'kura'; // Masterspace tenant
+    }
+
+    return NextResponse.redirect(new URL(`/${defaultOrgSlug}/auth/login`, request.url));
+  }
+
   // Allow public auth paths at root: /auth/login, /auth/forgot-password, etc.
   if (publicPathSuffixes.some((s) => pathname === s || pathname.startsWith(s + '/'))) {
     return NextResponse.next();

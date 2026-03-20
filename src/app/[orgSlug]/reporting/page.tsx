@@ -1,27 +1,14 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { ChartWrapper, StatCard } from '@/components/charts';
+import { ChartWrapper } from '@/components/charts';
 import { AppShell } from '@/components/layout/AppShell';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModuleReportSelector } from '@/components/reporting/ModuleReportSelector';
 import { SupersetDashboard } from '@/components/reporting/SupersetDashboard';
 import { NaturalLanguageQuery } from '@/components/reporting/NaturalLanguageQuery';
-import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  useDashboardStatistics,
   useComplianceTrend,
   useRevenueByStation,
   useMonthlyRevenueData,
@@ -31,14 +18,10 @@ import { getIsHqUser, getStationId } from '@/lib/auth/token';
 import {
   Brain,
   FileText,
-  Gavel,
-  RefreshCcw,
-  Scale,
-  TrendingUp,
-  Truck,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 
 function getDefaultReportDateRange() {
   const today = new Date();
@@ -55,8 +38,6 @@ function getDefaultReportStationId(): string {
   return getIsHqUser() ? 'all' : (getStationId() || 'all');
 }
 
-const formatNumber = (value: number) => value.toLocaleString();
-
 export default function ReportingPage() {
   return (
     <AppShell title="Reports & Analytics" subtitle="Data insights and report generation">
@@ -71,42 +52,21 @@ function ReportingContent() {
   const { formatAmount } = useCurrency();
   const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const [activeTab, setActiveTab] = useState('general');
+  const { isEnforcement } = useModuleAccess();
 
   const defaultRange = useMemo(() => getDefaultReportDateRange(), []);
   const defaultStation = useMemo(() => getDefaultReportStationId(), []);
-  const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom);
-  const [dateTo, setDateTo] = useState(defaultRange.dateTo);
-  const [stationId, setStationId] = useState(defaultStation);
-  const [weighingType, setWeighingType] = useState('all');
-  const [controlStatus, setControlStatus] = useState('all');
-
-  const handleReset = useCallback(() => {
-    setDateFrom(defaultRange.dateFrom);
-    setDateTo(defaultRange.dateTo);
-    setStationId(defaultStation);
-    setWeighingType('all');
-    setControlStatus('all');
-  }, [defaultRange, defaultStation]);
 
   const filters = useMemo(
     () => ({
-      dateFrom,
-      dateTo,
-      stationId,
-      weighingType,
-      controlStatus,
+      dateFrom: defaultRange.dateFrom,
+      dateTo: defaultRange.dateTo,
+      stationId: defaultStation,
+      weighingType: 'all',
+      controlStatus: 'all',
     }),
-    [dateFrom, dateTo, stationId, weighingType, controlStatus]
+    [defaultRange, defaultStation]
   );
-
-  const {
-    caseStats,
-    yardStats,
-    prosecutionStats,
-    weighingStats,
-    isLoading,
-    refetch,
-  } = useDashboardStatistics(filters);
 
   // Chart data for analytics charts
   const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(filters);
@@ -114,135 +74,8 @@ function ReportingContent() {
   const { data: monthlyRevenue, isLoading: loadingMonthly } = useMonthlyRevenueData(filters);
   const { data: caseTrend, isLoading: loadingCaseTrend } = useCaseTrend(filters);
 
-  const getStatValue = (stats: unknown, key: string, defaultValue = 0): number => {
-    if (stats && typeof stats === 'object' && key in stats) {
-      return Number((stats as Record<string, unknown>)[key]) || defaultValue;
-    }
-    return defaultValue;
-  };
-
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
-      {/* Filters for key metrics and charts (date range + station) */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="report-dateFrom">Date From</Label>
-              <Input
-                id="report-dateFrom"
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="report-dateTo">Date To</Label>
-              <Input
-                id="report-dateTo"
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <StationSelectFilter
-                label="Station"
-                value={stationId === 'all' ? undefined : stationId}
-                onValueChange={(v) => setStationId(v ?? 'all')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Weighing Type</Label>
-              <Select value={weighingType} onValueChange={setWeighingType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="multideck">Multideck</SelectItem>
-                  <SelectItem value="mobile">Mobile</SelectItem>
-                  <SelectItem value="static">Static</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={controlStatus} onValueChange={setControlStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="LEGAL">Legal</SelectItem>
-                  <SelectItem value="WARNING">Warning</SelectItem>
-                  <SelectItem value="OVERLOAD">Overloaded</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button variant="outline" className="w-full" onClick={handleReset}>
-                <RefreshCcw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Key Metrics Summary */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="pt-4">
-                <Skeleton className="h-4 w-20 mb-2" />
-                <Skeleton className="h-8 w-16" />
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <>
-            <StatCard
-              title="Total Weighings"
-              value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))}
-              icon={Scale}
-              color="bg-blue-500"
-            />
-            <StatCard
-              title="Compliance Rate"
-              value={`${getStatValue(weighingStats, 'complianceRate')}%`}
-              icon={TrendingUp}
-              color="bg-green-500"
-            />
-            <StatCard
-              title="Total Cases"
-              value={formatNumber(getStatValue(caseStats, 'totalCases'))}
-              icon={FileText}
-              color="bg-amber-500"
-            />
-            <StatCard
-              title="Prosecutions"
-              value={formatNumber(getStatValue(prosecutionStats, 'totalCases'))}
-              icon={Gavel}
-              color="bg-purple-500"
-            />
-            <StatCard
-              title="Vehicles in Yard"
-              value={formatNumber(getStatValue(yardStats, 'totalPending'))}
-              icon={Truck}
-              color="bg-orange-500"
-            />
-            <StatCard
-              title="Total Fines (KES)"
-              value={formatKES(getStatValue(prosecutionStats, 'totalFeesKes'))}
-              icon={TrendingUp}
-              color="bg-emerald-600"
-            />
-          </>
-        )}
-      </div>
-
       {/* Two-Tab Layout */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
@@ -266,15 +99,9 @@ function ReportingContent() {
           {/* Charts Section */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">Analytics Charts</CardTitle>
-                  <CardDescription>Visual data insights across all modules</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-                  <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+              <div>
+                <CardTitle className="text-lg">Analytics Charts</CardTitle>
+                <CardDescription>Visual data insights across all modules</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -291,41 +118,45 @@ function ReportingContent() {
                   allowedChartTypes={['line', 'bar']}
                   isLoading={loadingCompliance}
                 />
-                <ChartWrapper
-                  title="Revenue by Station"
-                  subtitle="Fee collection performance"
-                  data={revenueByStation ?? []}
-                  series={[{ dataKey: 'revenue', name: 'Revenue (KES)', color: '#3b82f6' }]}
-                  defaultChartType="bar"
-                  allowedChartTypes={['bar', 'pie']}
-                  valueFormatter={formatKES}
-                  isLoading={loadingRevenue}
-                />
+                {isEnforcement && (
+                  <ChartWrapper
+                    title="Revenue by Station"
+                    subtitle="Fee collection performance"
+                    data={revenueByStation ?? []}
+                    series={[{ dataKey: 'revenue', name: 'Revenue (KES)', color: '#3b82f6' }]}
+                    defaultChartType="bar"
+                    allowedChartTypes={['bar', 'pie']}
+                    valueFormatter={formatKES}
+                    isLoading={loadingRevenue}
+                  />
+                )}
               </div>
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <ChartWrapper
-                  title="Monthly Revenue Trend"
-                  subtitle="Fee collection over time (KES)"
-                  data={monthlyRevenue ?? []}
-                  series={[{ dataKey: 'revenue', name: 'Revenue', color: '#10b981' }]}
-                  defaultChartType="line"
-                  allowedChartTypes={['line', 'bar']}
-                  valueFormatter={formatKES}
-                  isLoading={loadingMonthly}
-                />
-                <ChartWrapper
-                  title="Case Trend"
-                  subtitle="New vs closed cases over time"
-                  data={caseTrend ?? []}
-                  series={[
-                    { dataKey: 'opened', name: 'Opened', color: '#f59e0b' },
-                    { dataKey: 'closed', name: 'Closed', color: '#10b981' },
-                  ]}
-                  defaultChartType="line"
-                  allowedChartTypes={['line', 'bar']}
-                  isLoading={loadingCaseTrend}
-                />
-              </div>
+              {isEnforcement && (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <ChartWrapper
+                    title="Monthly Revenue Trend"
+                    subtitle="Fee collection over time (KES)"
+                    data={monthlyRevenue ?? []}
+                    series={[{ dataKey: 'revenue', name: 'Revenue', color: '#10b981' }]}
+                    defaultChartType="line"
+                    allowedChartTypes={['line', 'bar']}
+                    valueFormatter={formatKES}
+                    isLoading={loadingMonthly}
+                  />
+                  <ChartWrapper
+                    title="Case Trend"
+                    subtitle="New vs closed cases over time"
+                    data={caseTrend ?? []}
+                    series={[
+                      { dataKey: 'opened', name: 'Opened', color: '#f59e0b' },
+                      { dataKey: 'closed', name: 'Closed', color: '#10b981' },
+                    ]}
+                    defaultChartType="line"
+                    allowedChartTypes={['line', 'bar']}
+                    isLoading={loadingCaseTrend}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

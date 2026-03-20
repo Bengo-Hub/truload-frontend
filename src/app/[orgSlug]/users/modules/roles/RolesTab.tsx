@@ -1019,6 +1019,7 @@ function RoleCard({
               permission="system.manage_roles"
               icon={Edit3}
               label="Edit role"
+              size="icon"
               onClick={() => onEdit(role)}
               className="h-8 w-8 text-muted-foreground hover:text-primary"
             />
@@ -1026,6 +1027,7 @@ function RoleCard({
               permission="user.manage_permissions"
               icon={Key}
               label="Manage permissions"
+              size="icon"
               onClick={() => onManagePermissions(role)}
               className="h-8 w-8 text-muted-foreground hover:text-violet-600"
             />
@@ -1033,6 +1035,7 @@ function RoleCard({
               permission="system.manage_roles"
               icon={Trash2}
               label="Delete role"
+              size="icon"
               destructive
               onClick={() => onDelete(role)}
               className="h-8 w-8 text-muted-foreground hover:text-destructive"

@@ -6,7 +6,7 @@
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 
-const DEFAULT_ORG_SLUG = 'kura';
+const DEFAULT_ORG_SLUG = 'truload-demo';
 
 export function useOrgSlug(): string {
   const params = useParams();

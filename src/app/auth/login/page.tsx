@@ -12,28 +12,29 @@ import { fetchOrganizationByCode } from '@/lib/api/public';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
-const DEFAULT_ORG_CODE = 'kura';
-
 function AuthLoginContent() {
   const searchParams = useSearchParams();
-  const orgCode = searchParams?.get('org') ?? DEFAULT_ORG_CODE;
+  const orgCode = searchParams?.get('org') ?? '';
   const [org, setOrg] = useState<PublicOrganization | null>(null);
 
+  // Only fetch org branding if ?org= is provided, otherwise use TruLoad defaults
   useEffect(() => {
-    fetchOrganizationByCode(orgCode)
-      .then((o) => setOrg(o ?? null))
-      .catch(() => setOrg(null));
+    if (orgCode) {
+      fetchOrganizationByCode(orgCode)
+        .then((o) => setOrg(o ?? null))
+        .catch(() => setOrg(null));
+    }
   }, [orgCode]);
 
-  const primaryColor = org?.primaryColor || '#0a9f3d';
+  const primaryColor = org?.primaryColor || '#5B1C4D';
 
   return (
     <LoginPageLayout
       org={org}
-      subtitle={org ? <p className="text-sm font-medium text-gray-600">Sign in to {org.name}</p> : undefined}
+      subtitle={org ? <p className="text-sm font-medium text-gray-600">Sign in to {org.name}</p> : <p className="text-sm font-medium text-gray-600">Platform sign in</p>}
       primaryColor={primaryColor}
     >
-      <LoginForm mode="platform" orgSlugOverride={orgCode.toLowerCase()} primaryColor={primaryColor} />
+      <LoginForm mode="platform" orgSlugOverride={orgCode?.toLowerCase() || undefined} primaryColor={primaryColor} />
       <p className="mt-4 text-center text-xs text-gray-500">
         Use your organisation credentials. Contact your administrator if you need access.
       </p>
@@ -44,7 +45,7 @@ function AuthLoginContent() {
 export default function AuthLoginPage() {
   return (
     <Suspense fallback={
-      <LoginPageLayout org={null} primaryColor="#0a9f3d">
+      <LoginPageLayout org={null} primaryColor="#5B1C4D">
         <div className="animate-pulse rounded-md bg-muted h-10 w-full max-w-sm" />
       </LoginPageLayout>
     }>

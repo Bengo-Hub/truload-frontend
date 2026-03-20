@@ -2,6 +2,7 @@
 
 import { AuthInitializer } from '@/components/auth/AuthInitializer';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { BrandProvider } from '@/contexts/BrandContext';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { CACHE_TIMES, GC_TIMES } from '@/lib/query/config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -35,6 +36,7 @@ function createQueryClient() {
         refetchOnMount: true, // Only refetch on mount if data is stale
         refetchOnReconnect: true,
         structuralSharing: true, // Avoid re-renders when data hasn't changed
+        throwOnError: false, // Don't bubble query errors to error boundaries — handle in components
       },
       mutations: {
         retry: 1,
@@ -50,11 +52,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthInitializer>
-        <CurrencyProvider>
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
-        </CurrencyProvider>
+        <BrandProvider>
+          <CurrencyProvider>
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
+          </CurrencyProvider>
+        </BrandProvider>
         <Toaster position="top-right" richColors />
         <ReactQueryDevtools initialIsOpen={false} />
       </AuthInitializer>
