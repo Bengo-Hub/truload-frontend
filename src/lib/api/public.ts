@@ -16,6 +16,7 @@ export interface PublicOrganization {
   loginPageImageUrl?: string | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
+  tenantType?: string | null;
 }
 
 export interface PublicStation {

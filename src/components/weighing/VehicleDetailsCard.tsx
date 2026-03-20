@@ -642,8 +642,8 @@ export function VehicleDetailsCard({
 
         {showExtendedDetails && (
           <div className="pt-4 border-t border-gray-100 space-y-4">
-            {/* Driver */}
-            {onDriverIdChange && (
+            {/* Driver — enforcement only (optional for commercial) */}
+            {!isCommercial && onDriverIdChange && (
               <SelectFieldWithCrud
                 label="Driver"
                 icon={<User className="h-4 w-4 text-gray-400" />}
@@ -664,7 +664,7 @@ export function VehicleDetailsCard({
               />
             )}
 
-            {/* Transporter */}
+            {/* Transporter — required for both use cases */}
             {onTransporterIdChange && (
               <SelectFieldWithCrud
                 label="Transporter"
@@ -686,8 +686,8 @@ export function VehicleDetailsCard({
               />
             )}
 
-            {/* Cargo Type */}
-            {onCargoIdChange && (
+            {/* Cargo Type — enforcement only */}
+            {!isCommercial && onCargoIdChange && (
               <SelectFieldWithCrud
                 label="Cargo Type"
                 icon={<Package className="h-4 w-4 text-gray-400" />}
@@ -708,8 +708,8 @@ export function VehicleDetailsCard({
               />
             )}
 
-            {/* Origin */}
-            {onOriginIdChange && (
+            {/* Origin — enforcement only */}
+            {!isCommercial && onOriginIdChange && (
               <div className={cn('space-y-2', hl('Origin') && 'rounded-lg p-2 ring-2 ring-red-500 bg-red-50/40')}>
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium text-gray-700">Origin</Label>
@@ -768,8 +768,8 @@ export function VehicleDetailsCard({
               </div>
             )}
 
-            {/* Destination */}
-            {onDestinationIdChange && (
+            {/* Destination — enforcement only */}
+            {!isCommercial && onDestinationIdChange && (
               <SelectFieldWithCrud
                 label="Destination"
                 icon={<MapPin className="h-4 w-4 text-gray-400" />}
@@ -812,8 +812,8 @@ export function VehicleDetailsCard({
               </div>
             )}
 
-            {/* Comment */}
-            {onCommentChange && (
+            {/* Comment — enforcement only */}
+            {!isCommercial && onCommentChange && (
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-700">Comment:</Label>
                 <Input

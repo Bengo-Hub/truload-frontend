@@ -17,6 +17,7 @@ import {
 } from '@/lib/auth/sso';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 function SsoCallbackContent() {
   const params = useParams();
@@ -71,7 +72,14 @@ function SsoCallbackContent() {
 
         // 4. Redirect to station selection
         router.replace(`/${orgSlug}/auth`);
-      } catch (err) {
+      } catch (err: any) {
+        // On 403 (org mismatch), show toast, clear SSO data, and redirect to login
+        if (err?.status === 403 || err?.code === 'org_mismatch') {
+          clearSsoPkceSession();
+          toast.error(err.message || 'You do not have access to this organisation.');
+          router.replace(`/${orgSlug}/auth/login`);
+          return;
+        }
         setError(err instanceof Error ? err.message : 'SSO login failed');
       }
     }

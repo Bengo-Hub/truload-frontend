@@ -10,6 +10,10 @@ const ORG_ID_KEY = 'truload_org_id';
 const STATION_ID_KEY = 'truload_station_id';
 const IS_HQ_USER_KEY = 'truload_is_hq_user';
 const SELECTED_STATION_ID_KEY = 'truload_selected_station_id';
+const IS_PLATFORM_OWNER_KEY = 'truload_is_platform_owner';
+
+/** Platform owner org code — users in this org don't send tenant headers */
+export const PLATFORM_OWNER_ORG_CODE = 'CODEVERTEX';
 
 interface TokenBundle {
   accessToken: string;
@@ -52,6 +56,26 @@ export function clearTokens(): void {
   localStorage.removeItem(STATION_ID_KEY);
   localStorage.removeItem(IS_HQ_USER_KEY);
   localStorage.removeItem(SELECTED_STATION_ID_KEY);
+  localStorage.removeItem(IS_PLATFORM_OWNER_KEY);
+
+  // Clear scale test caches (all keys starting with truload_scale_test_)
+  const scaleTestKeysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('truload_scale_test_')) {
+      scaleTestKeysToRemove.push(key);
+    }
+  }
+  scaleTestKeysToRemove.forEach((key) => localStorage.removeItem(key));
+
+  // Clear weighing session
+  localStorage.removeItem('truload_weighing_session');
+
+  // Clear SSO session storage keys
+  sessionStorage.removeItem('sso_code_verifier');
+  sessionStorage.removeItem('sso_state');
+  sessionStorage.removeItem('sso_exchange_token');
+  sessionStorage.removeItem('sso_return_to');
 
   // Clear cookies
   const now = new Date(0).toUTCString();
@@ -84,6 +108,19 @@ export function setTenantContext({ organizationId, stationId, isHqUser }: Tenant
   } else {
     localStorage.removeItem(STATION_ID_KEY);
   }
+}
+
+/** Mark current user as platform owner (CODEVERTEX org) — skips tenant headers on API requests. */
+export function setIsPlatformOwner(isPlatformOwner: boolean): void {
+  if (typeof window === 'undefined') return;
+  if (isPlatformOwner) localStorage.setItem(IS_PLATFORM_OWNER_KEY, '1');
+  else localStorage.removeItem(IS_PLATFORM_OWNER_KEY);
+}
+
+/** True when the current user is a platform owner (CODEVERTEX org) — should not send X-Org-ID/X-Station-ID headers. */
+export function getIsPlatformOwner(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(IS_PLATFORM_OWNER_KEY) === '1';
 }
 
 /** True when the current user is an HQ user (can access all stations; station filter is for drill-down only). */

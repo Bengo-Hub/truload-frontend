@@ -74,7 +74,7 @@ interface LoginFormProps {
   primaryColor?: string;
 }
 
-export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, primaryColor = '#0a9f3d' }: LoginFormProps = {}) {
+export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, primaryColor = '#5B1C4D' }: LoginFormProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orgFromRoute = useOrgSlug();

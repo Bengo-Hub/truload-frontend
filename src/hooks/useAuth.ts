@@ -10,27 +10,16 @@ import { useAuthStore } from '@/stores/auth.store';
  * This hook just exposes the auth state without triggering additional fetches.
  */
 export function useAuth() {
-  const {
-    user,
-    isAuthenticated,
-    isLoading,
-    error,
-    login,
-    logout,
-    fetchUser,
-    clearError,
-  } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const error = useAuthStore((s) => s.error);
+  const login = useAuthStore((s) => s.login);
+  const logout = useAuthStore((s) => s.logout);
+  const fetchUser = useAuthStore((s) => s.fetchUser);
+  const clearError = useAuthStore((s) => s.clearError);
 
-  return {
-    user,
-    isAuthenticated,
-    isLoading,
-    error,
-    login,
-    logout,
-    fetchUser,
-    clearError,
-  };
+  return { user, isAuthenticated, isLoading, error, login, logout, fetchUser, clearError };
 }
 
 /**

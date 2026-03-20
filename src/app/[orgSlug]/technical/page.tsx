@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useHealthStatus } from '@/hooks/queries/useTechnicalQueries';
 import { useMyStation, useScaleTestStatus } from '@/hooks/queries/useWeighingQueries';
-import { useHasPermission } from '@/hooks/useAuth';
+import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import {
@@ -51,6 +51,9 @@ function TechnicalContent() {
   const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(true);
   const canEdit = useHasPermission('config.read');
+  const { user } = useAuth();
+  // Services and Network tabs are only visible to platform users (superusers)
+  const isPlatformUser = user?.isSuperUser === true;
 
   // Real data hooks
   const { data: health, isLoading: healthLoading, dataUpdatedAt: healthUpdatedAt } = useHealthStatus();
@@ -203,12 +206,15 @@ function TechnicalContent() {
       </div>
 
       {/* Tabs (Calibration moved from Integrations to Technical per Section 19) */}
-      <Tabs defaultValue="services" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="services" className="flex items-center gap-2">
-            <Server className="h-4 w-4" />
-            <span className="hidden sm:inline">Services</span>
-          </TabsTrigger>
+      <Tabs defaultValue={isPlatformUser ? "services" : "scale-test"} className="space-y-6">
+        <TabsList className={`grid w-full ${isPlatformUser ? 'grid-cols-4' : 'grid-cols-2'}`}>
+          {/* Services — platform users only */}
+          {isPlatformUser && (
+            <TabsTrigger value="services" className="flex items-center gap-2">
+              <Server className="h-4 w-4" />
+              <span className="hidden sm:inline">Services</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="scale-test" className="flex items-center gap-2">
             <Scale className="h-4 w-4" />
             <span className="hidden sm:inline">Scale Test</span>
@@ -217,14 +223,17 @@ function TechnicalContent() {
             <Scale className="h-4 w-4" />
             <span className="hidden sm:inline">Calibration</span>
           </TabsTrigger>
-          <TabsTrigger value="network" className="flex items-center gap-2">
-            <Network className="h-4 w-4" />
-            <span className="hidden sm:inline">Network</span>
-          </TabsTrigger>
+          {/* Network — platform users only */}
+          {isPlatformUser && (
+            <TabsTrigger value="network" className="flex items-center gap-2">
+              <Network className="h-4 w-4" />
+              <span className="hidden sm:inline">Network</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
-        {/* Services Tab */}
-        <TabsContent value="services" className="space-y-6">
+        {/* Services Tab — platform users only */}
+        {isPlatformUser && <TabsContent value="services" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Service Health</CardTitle>
@@ -302,6 +311,8 @@ function TechnicalContent() {
             </Card>
           )}
         </TabsContent>
+
+        }
 
         {/* Scale Test Tab */}
         <TabsContent value="scale-test" className="space-y-6">
@@ -425,8 +436,8 @@ function TechnicalContent() {
           <CalibrationConfigTab canEdit={canEdit} />
         </TabsContent>
 
-        {/* Network Tab */}
-        <TabsContent value="network" className="space-y-6">
+        {/* Network Tab — platform users only */}
+        {isPlatformUser && <TabsContent value="network" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -493,7 +504,7 @@ function TechnicalContent() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </div>
   );

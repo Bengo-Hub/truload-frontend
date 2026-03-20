@@ -164,7 +164,7 @@ export default function ReceiptsPage() {
 
   if (!canRead) {
     return (
-      <ProtectedRoute requiredPermissions={['receipt.read']}>
+      <ProtectedRoute requiredPermissions={['receipt.read']} moduleKey="financial_receipts">
         <div className="flex h-[50vh] items-center justify-center">
           <div className="text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -180,7 +180,7 @@ export default function ReceiptsPage() {
 
   return (
     <AppShell title="Receipt Management" subtitle="View and manage payment receipts">
-      <ProtectedRoute requiredPermissions={['receipt.read']}>
+      <ProtectedRoute requiredPermissions={['receipt.read']} moduleKey="financial_receipts">
         <div className="space-y-6">
           {/* Page Header */}
           <div className="flex items-center justify-between">

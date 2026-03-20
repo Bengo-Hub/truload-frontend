@@ -38,7 +38,20 @@
 
 **Last Updated:** February 13, 2026
 
-### Current Phase: Sprint 20 Complete - System Audit, Reports & E2E Tests
+### Current Phase: Sprint 23 - Module Access Audit & Security Hardening
+
+**Sprint 23 Changes (March 20, 2026):**
+
+- **Report Filtering (Commercial Mode):** ModuleReportSelector now filters module dropdown by user's enabled modules via `useModuleAccess()` hook. Reporting page hides enforcement-only stat cards (Cases, Prosecutions, Yard, Fines) and charts (Case Trend, Revenue) for commercial tenants.
+- **Logout Flow:** `clearTokens()` now clears scale test cache (`truload_scale_test_*`), weighing session, and SSO session storage. Auth store logout calls `clearAllScaleTestCaches()`.
+- **SSO Callback:** Handles 403 `org_mismatch` errors with toast notification and redirect to login.
+- **Domain Redirect:** Added `middleware.ts` for domain-based default org slug — `truload.codevertexitsolutions.com` → `/truload-demo/auth/login`, `masterspace.co.ke` → `/kura/auth/login`.
+- **Weighing Setup Tabs (Commercial Mode):** Hidden enforcement-only tabs (Drivers, Cargo Types, Origins/Destinations, Roads) for commercial tenants. Only Transporters, Vehicles, and Makes tabs visible.
+- **Weighing Capture Step:** Hidden LocationConfigCard (County, Sub-County, Road) for commercial tenants since enforcement location tracking is not needed.
+- **Financial Modules:** Invoices and Receipts menu items now visible for commercial tenants (added to enabled modules).
+- **Platform-Managed Settings:** Replaced `isOperator` email check with `isPlatformOwner` (isSuperUser). Tenant users see only relevant tabs (Exchange Rates, Weighing, Middleware) on settings page, and only Weighing tab on system-config page. Platform-managed tabs completely hidden instead of showing "managed by platform" labels.
+
+### Previous: Sprint 20 Complete - System Audit, Reports & E2E Tests
 
 **Build Status:** ✅ **PRODUCTION BUILD SUCCESSFUL** (25 routes, 0 errors)
 **Application Status:** ✅ **PRODUCTION READY** (All modules audited, bugs fixed)

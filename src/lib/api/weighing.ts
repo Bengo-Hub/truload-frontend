@@ -809,14 +809,16 @@ export async function fetchAxleConfigurations(params?: {
   return data;
 }
 
-export async function getAxleConfigurationById(id: string): Promise<AxleConfiguration> {
-  const { data } = await apiClient.get<AxleConfiguration>(`/AxleConfiguration/${id}`);
+export async function getAxleConfigurationById(id: string, includeWeightReferences = true): Promise<AxleConfiguration> {
+  const { data } = await apiClient.get<AxleConfiguration>(`/AxleConfiguration/${id}`, {
+    params: { includeWeightReferences },
+  });
   return data;
 }
 
 export async function getAxleConfigurationByCode(code: string): Promise<AxleConfiguration | null> {
   try {
-    const { data } = await apiClient.get<AxleConfiguration>(`/AxleConfiguration/code/${code}`);
+    const { data } = await apiClient.get<AxleConfiguration>(`/AxleConfiguration/by-code/${encodeURIComponent(code)}`);
     return data;
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'response' in error) {

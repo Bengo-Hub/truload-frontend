@@ -19,8 +19,16 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const FALLBACK_LOGO = '/images/logos/kuraweigh-logo.png';
-const FALLBACK_PRIMARY = '#0a9f3d';
+const FALLBACK_LOGO = '/truload-logo.svg';
+const FALLBACK_PRIMARY = '#5B1C4D';
+
+/** Resolve a logo URL: /media/* paths go through getMediaUrl(), other paths are frontend static assets */
+function resolveLogoUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/media')) return getMediaUrl(url);
+  return url; // frontend static path like /images/logos/kura-logo.png
+}
 
 export default function TenantAuthStationSelectPage() {
   const params = useParams();
@@ -110,7 +118,7 @@ export default function TenantAuthStationSelectPage() {
   if (!orgSlug) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-emerald-50/30">
-        <p className="text-gray-600">Missing organisation. Go to <Link href="/auth/login" className="text-[#0a9f3d] underline">Sign in</Link>.</p>
+        <p className="text-gray-600">Missing organisation. Go to <Link href="/auth/login" className="text-[#5B1C4D] underline">Sign in</Link>.</p>
       </div>
     );
   }
@@ -118,7 +126,7 @@ export default function TenantAuthStationSelectPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-emerald-50/30 px-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0a9f3d] border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#5B1C4D] border-t-transparent" />
         <p className="mt-4 text-sm text-gray-600">Loading stations...</p>
       </div>
     );
@@ -128,7 +136,7 @@ export default function TenantAuthStationSelectPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-emerald-50/30 px-4">
         <p className="text-gray-600">{error ?? 'Organisation not found.'}</p>
-        <Link href="/auth/login" className="mt-4 text-sm font-medium text-[#0a9f3d] hover:underline">
+        <Link href="/auth/login" className="mt-4 text-sm font-medium text-[#5B1C4D] hover:underline">
           Back to sign in
         </Link>
       </div>
@@ -144,13 +152,14 @@ export default function TenantAuthStationSelectPage() {
           <div className="flex flex-col items-center text-center">
             <Link href="/" className="mb-4">
               <Image
-                src={org.platformLogoUrl ? getMediaUrl(org.platformLogoUrl) : (org.logoUrl ? getMediaUrl(org.logoUrl) : FALLBACK_LOGO)}
+                src={resolveLogoUrl(org.platformLogoUrl) || resolveLogoUrl(org.logoUrl) || FALLBACK_LOGO}
                 alt={org.name}
                 width={180}
                 height={48}
                 className="h-12 w-auto object-contain"
                 priority
-                unoptimized={!!(org.platformLogoUrl || org.logoUrl)}
+                unoptimized
+                onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_LOGO; }}
               />
             </Link>
             <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Select your station</h1>

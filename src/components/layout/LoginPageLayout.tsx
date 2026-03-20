@@ -5,17 +5,18 @@
  * Left: platform logo + form. Right: login background image by default, semi-transparent tenant logo overlay (bottom-right).
  */
 
+import { useSystemVersion } from '@/hooks/queries/useTechnicalQueries';
 import { getMediaUrl } from '@/lib/api/media';
 import type { PublicOrganization } from '@/lib/api/public';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-/** Platform logo on the login form (left). */
-const DEFAULT_PLATFORM_LOGO = '/kuraweigh-logo.svg';
-/** Tenant/org logo overlay on right panel - use transparent PNG. Path: public/images/logos/kura-logo.png */
-const DEFAULT_ORG_LOGO = '/images/logos/kura-logo.png';
-const FALLBACK_ORG_LOGO = '/kuraweigh-logo.svg';
+/** TruLoad default platform logo fallback (left panel). */
+const DEFAULT_PLATFORM_LOGO = '/truload-logo.svg';
+/** TruLoad default org logo fallback (right panel overlay). */
+const DEFAULT_ORG_LOGO = '/truload-logo.svg';
+const FALLBACK_ORG_LOGO = '/truload-logo.svg';
 /** Default right-panel background (Figma: backgroundImage). Add public/images/login-background-image.png */
 const DEFAULT_LOGIN_BACKGROUND_IMAGE = '/images/background-images/login-background-image.png';
 
@@ -30,14 +31,18 @@ interface LoginPageLayoutProps {
   primaryColor?: string;
 }
 
-export function LoginPageLayout({ org, children, subtitle, primaryColor = '#0a9f3d' }: LoginPageLayoutProps) {
+export function LoginPageLayout({ org, children, subtitle, primaryColor = '#5B1C4D' }: LoginPageLayoutProps) {
+  const { data: systemVersion } = useSystemVersion();
   const platformLogo = org?.platformLogoUrl || DEFAULT_PLATFORM_LOGO;
   const orgLogo = org?.logoUrl || DEFAULT_ORG_LOGO;
   const platformLogoSrc = platformLogo.startsWith('/media') ? getMediaUrl(platformLogo) : platformLogo;
   const orgLogoSrc = orgLogo.startsWith('/media') ? getMediaUrl(orgLogo) : orgLogo;
-  // Login background is always the default image; never taken from backend/org branding.
+  // Use tenant login background image if available, otherwise fall back to default
+  const loginBgImage = org?.loginPageImageUrl
+    ? (org.loginPageImageUrl.startsWith('/media') ? getMediaUrl(org.loginPageImageUrl) : org.loginPageImageUrl)
+    : DEFAULT_LOGIN_BACKGROUND_IMAGE;
   const rightPanelStyle = {
-    backgroundImage: `url(${DEFAULT_LOGIN_BACKGROUND_IMAGE})`,
+    backgroundImage: `url(${loginBgImage})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
@@ -70,7 +75,7 @@ export function LoginPageLayout({ org, children, subtitle, primaryColor = '#0a9f
           <div className="rounded-xl border-0 bg-white shadow-none">{children}</div>
           <div className="mt-8 flex flex-col items-center gap-1 text-[11px] text-gray-400">
             <p>© {new Date().getFullYear()} TruLoad. All rights reserved.</p>
-            <span className="font-mono">v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}</span>
+            <span className="font-mono">{systemVersion || process.env.NEXT_PUBLIC_APP_VERSION || 'v1.0.0'}</span>
           </div>
         </div>
       </div>

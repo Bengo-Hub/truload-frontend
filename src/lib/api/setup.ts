@@ -316,6 +316,7 @@ export async function fetchAxleConfigurations(params?: {
   legalFramework?: string;
   axleCount?: number;
   includeInactive?: boolean;
+  hasWeightReferences?: boolean;
 }): Promise<AxleConfigurationResponse[]> {
   const { data } = await apiClient.get<AxleConfigurationResponse[]>('/AxleConfiguration', {
     params,

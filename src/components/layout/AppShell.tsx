@@ -16,12 +16,12 @@ import { getEffectiveStationId } from '@/lib/auth/token';
 import { useAuthStore } from '@/stores/auth.store';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, Copy, MapPin, Menu } from 'lucide-react';
-import { useHealthStatus } from '@/hooks/queries/useTechnicalQueries';
+import { useSystemVersion } from '@/hooks/queries/useTechnicalQueries';
 import Image from 'next/image';
 import { ReactNode, useState } from 'react';
 import { AppSidebar } from './AppSidebar';
 
-const LOGO_FALLBACK = '/images/logos/kuraweigh-logo.png';
+const LOGO_FALLBACK = '/truload-logo.svg';
 
 interface AppShellProps {
   children: ReactNode;
@@ -33,17 +33,23 @@ export function AppShell({ children, title, subtitle }: AppShellProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const orgSlug = useOrgSlug();
+  const { data: systemVersion } = useSystemVersion();
   const user = useAuthStore((s) => s.user);
   const { data: org } = useQuery({
     queryKey: ['public-org', orgSlug],
     queryFn: () => fetchOrganizationByCode(orgSlug || ''),
     enabled: !!orgSlug,
+    staleTime: 24 * 60 * 60 * 1000, // 24h — org branding rarely changes
+    gcTime: 25 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    retry: 1,
   });
   const { data: stations = [] } = useStations();
   const effectiveStationId = getEffectiveStationId();
   const currentStation = effectiveStationId ? stations.find((s) => s.id === effectiveStationId) : null;
   const logoUrl = org?.logoUrl || LOGO_FALLBACK;
-  const primaryColor = org?.primaryColor || '#0a9f3d';
+  const primaryColor = org?.primaryColor || '#5B1C4D';
 
   return (
     <div className="min-h-dvh bg-gray-50 flex flex-col overflow-x-hidden">
@@ -130,7 +136,7 @@ export function AppShell({ children, title, subtitle }: AppShellProps) {
             <p>© {new Date().getFullYear()} TruLoad. All rights reserved.</p>
             <div className="flex items-center gap-2">
               <span className="font-mono bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
-                v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}
+                {systemVersion || process.env.NEXT_PUBLIC_APP_VERSION || 'v1.0.0'}
               </span>
             </div>
           </div>

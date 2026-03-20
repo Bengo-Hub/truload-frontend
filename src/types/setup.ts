@@ -91,6 +91,7 @@ export interface CreateOrganizationRequest {
   code: string;
   name: string;
   orgType?: string;
+  tenantType?: string;
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
@@ -100,6 +101,7 @@ export interface UpdateOrganizationRequest {
   code?: string;
   name?: string;
   orgType?: string;
+  tenantType?: string;
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
@@ -345,6 +347,8 @@ export interface AxleConfigurationResponse {
   updatedAt?: string;
   createdByUserId?: string;
   weightReferenceCount: number;
+  /** Weight references included when fetched with includeWeightReferences=true */
+  weightReferences?: AxleWeightReferenceResponse[];
 }
 
 export interface WeightReferenceInline {

@@ -81,8 +81,10 @@ import {
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 
-const VALID_TABS = ['transporters', 'drivers', 'vehicles', 'cargo-types', 'origins', 'roads', 'makes'] as const;
+const ALL_TABS = ['transporters', 'drivers', 'vehicles', 'cargo-types', 'origins', 'roads', 'makes'] as const;
+const COMMERCIAL_TABS = ['transporters', 'vehicles', 'makes'] as const;
 
 export default function WeighingMetadataPage() {
   return (
@@ -94,46 +96,58 @@ export default function WeighingMetadataPage() {
 
 function WeighingMetadataContent() {
   const searchParams = useSearchParams();
+  const { isCommercial } = useModuleAccess();
+  const VALID_TABS = isCommercial ? COMMERCIAL_TABS : ALL_TABS;
   const tabFromUrl = searchParams?.get('tab');
-  const initialTab = tabFromUrl && VALID_TABS.includes(tabFromUrl as (typeof VALID_TABS)[number])
+  const initialTab = tabFromUrl && (VALID_TABS as readonly string[]).includes(tabFromUrl)
     ? tabFromUrl
     : 'transporters';
   const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
-    if (tabFromUrl && VALID_TABS.includes(tabFromUrl as (typeof VALID_TABS)[number])) {
+    if (tabFromUrl && (VALID_TABS as readonly string[]).includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
-  }, [tabFromUrl]);
+  }, [tabFromUrl, VALID_TABS]);
+
+  const tabCount = VALID_TABS.length;
 
   return (
     <div className="w-full max-w-7xl mx-auto">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7">
+        <TabsList className={`grid w-full grid-cols-3 lg:grid-cols-${tabCount}`}>
           <TabsTrigger value="transporters" className="text-xs sm:text-sm">
             <Building2 className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
             Transporters
           </TabsTrigger>
-          <TabsTrigger value="drivers" className="text-xs sm:text-sm">
-            <UserCircle className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-            Drivers
-          </TabsTrigger>
+          {!isCommercial && (
+            <TabsTrigger value="drivers" className="text-xs sm:text-sm">
+              <UserCircle className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+              Drivers
+            </TabsTrigger>
+          )}
           <TabsTrigger value="vehicles" className="text-xs sm:text-sm">
             <Truck className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
             Vehicles
           </TabsTrigger>
-          <TabsTrigger value="cargo-types" className="text-xs sm:text-sm">
-            <Package className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-            Cargo Types
-          </TabsTrigger>
-          <TabsTrigger value="origins" className="text-xs sm:text-sm">
-            <MapPin className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-            Origins/Dest.
-          </TabsTrigger>
-          <TabsTrigger value="roads" className="text-xs sm:text-sm">
-            <RoadIcon className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-            Roads
-          </TabsTrigger>
+          {!isCommercial && (
+            <TabsTrigger value="cargo-types" className="text-xs sm:text-sm">
+              <Package className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+              Cargo Types
+            </TabsTrigger>
+          )}
+          {!isCommercial && (
+            <TabsTrigger value="origins" className="text-xs sm:text-sm">
+              <MapPin className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+              Origins/Dest.
+            </TabsTrigger>
+          )}
+          {!isCommercial && (
+            <TabsTrigger value="roads" className="text-xs sm:text-sm">
+              <RoadIcon className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+              Roads
+            </TabsTrigger>
+          )}
           <TabsTrigger value="makes" className="text-xs sm:text-sm">
             <Wrench className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
             Makes
@@ -142,11 +156,11 @@ function WeighingMetadataContent() {
 
         <div className="mt-6">
           <TabsContent value="transporters"><TransportersTab /></TabsContent>
-          <TabsContent value="drivers"><DriversTab /></TabsContent>
+          {!isCommercial && <TabsContent value="drivers"><DriversTab /></TabsContent>}
           <TabsContent value="vehicles"><VehiclesTab /></TabsContent>
-          <TabsContent value="cargo-types"><CargoTypesTab /></TabsContent>
-          <TabsContent value="origins"><OriginsDestinationsTab /></TabsContent>
-          <TabsContent value="roads"><RoadsTab /></TabsContent>
+          {!isCommercial && <TabsContent value="cargo-types"><CargoTypesTab /></TabsContent>}
+          {!isCommercial && <TabsContent value="origins"><OriginsDestinationsTab /></TabsContent>}
+          {!isCommercial && <TabsContent value="roads"><RoadsTab /></TabsContent>}
           <TabsContent value="makes"><VehicleMakesTab /></TabsContent>
         </div>
       </Tabs>

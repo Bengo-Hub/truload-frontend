@@ -164,15 +164,26 @@ export function EscalateCaseModal({
     setTransporterNtacNo(caseData.transporterNtacNo ?? '');
     setObNo(caseData.obNo ?? '');
     setInvestigatingOfficerId(caseData.investigatingOfficerId ?? '');
-    setCaseManagerId(caseData.caseManagerId ?? '');
-    setComplainantOfficerId(caseData.complainantOfficerId ?? '');
     setDetentionStationId(caseData.detentionStationId ?? '');
     setNotes('');
+
+    // Preselect default case manager and complainant if not already set on the case
+    // Look for seeded accounts by email pattern: "casemanager@*.truload.local" and "complainant@*.truload.local"
+    const defaultCaseManager = caseData.caseManagerId
+      ? caseData.caseManagerId
+      : users.find(u => u.email?.includes('casemanager@') && u.email?.endsWith('.truload.local'))?.id ?? '';
+    setCaseManagerId(defaultCaseManager);
+
+    const defaultComplainant = caseData.complainantOfficerId
+      ? caseData.complainantOfficerId
+      : users.find(u => u.email?.includes('complainant@') && u.email?.endsWith('.truload.local'))?.id ?? '';
+    setComplainantOfficerId(defaultComplainant);
   }, [
     open,
     caseData,
     driver,
     transporter,
+    users,
   ]);
 
   const isSubmitting = updateCaseMutation.isPending || escalateCaseMutation.isPending;

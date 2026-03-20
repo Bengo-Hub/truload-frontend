@@ -86,6 +86,7 @@ interface CreateOrgFormValues {
   code: string;
   name: string;
   orgType: string;
+  tenantType: string;
   contactEmail: string;
   contactPhone: string;
   address: string;
@@ -125,6 +126,7 @@ function CreateOrgDialog({
       code: "",
       name: "",
       orgType: "",
+      tenantType: "AxleLoadEnforcement",
       contactEmail: "",
       contactPhone: "",
       address: "",
@@ -156,6 +158,7 @@ function CreateOrgDialog({
       code: values.code.trim(),
       name: values.name.trim(),
       orgType: values.orgType || undefined,
+      tenantType: values.tenantType || undefined,
       contactEmail: values.contactEmail.trim() || undefined,
       contactPhone: values.contactPhone.trim() || undefined,
       address: values.address.trim() || undefined,
@@ -225,7 +228,7 @@ function CreateOrgDialog({
             </div>
 
             {/* Org Type */}
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label>Organization Type</Label>
               <Controller
                 name="orgType"
@@ -247,6 +250,29 @@ function CreateOrgDialog({
                           {opt.label}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+
+            {/* Tenant Type (use case) */}
+            <div className="space-y-2">
+              <Label>Tenant Use Case</Label>
+              <Controller
+                name="tenantType"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || "AxleLoadEnforcement"}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select use case" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AxleLoadEnforcement">Axle Load Enforcement</SelectItem>
+                      <SelectItem value="CommercialWeighing">Commercial Weighing</SelectItem>
                     </SelectContent>
                   </Select>
                 )}

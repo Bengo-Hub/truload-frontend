@@ -1,4 +1,4 @@
-import { getEffectiveStationId, getOrganizationId } from '@/lib/auth/token';
+import { getEffectiveStationId, getIsPlatformOwner, getOrganizationId } from '@/lib/auth/token';
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
 // Prefer same-origin relative base to ensure httpOnly cookies are sent.
@@ -105,15 +105,19 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
 
-      // Add multi-tenant headers. For HQ users, station is only sent when they select one for drill-down.
-      const orgId = getOrganizationId();
-      const stationId = getEffectiveStationId();
+      // Platform owners (CODEVERTEX org) do NOT send tenant headers — they have cross-tenant access.
+      // This matches the ordering-frontend pattern where platform owners bypass tenant slug routing.
+      if (!getIsPlatformOwner()) {
+        // Add multi-tenant headers. For HQ users, station is only sent when they select one for drill-down.
+        const orgId = getOrganizationId();
+        const stationId = getEffectiveStationId();
 
-      if (orgId) {
-        config.headers[ORG_ID_HEADER] = orgId;
-      }
-      if (stationId) {
-        config.headers[STATION_ID_HEADER] = stationId;
+        if (orgId) {
+          config.headers[ORG_ID_HEADER] = orgId;
+        }
+        if (stationId) {
+          config.headers[STATION_ID_HEADER] = stationId;
+        }
       }
     }
 

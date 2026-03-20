@@ -4,7 +4,8 @@
  */
 
 import * as authApi from '@/lib/auth/api';
-import { clearTokens, setTenantContext } from '@/lib/auth/token';
+import { clearTokens, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext } from '@/lib/auth/token';
+import { clearAllScaleTestCaches } from '@/lib/scale-test-cache';
 import type { User } from '@/types/auth/types';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -119,12 +120,13 @@ export const useAuthStore = create<AuthState>()(
        */
       logout: async () => {
         set({ isLoading: true });
-        
+
         try {
           await authApi.logout();
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
+          clearAllScaleTestCaches();
           clearTokens();
           set({
             user: null,
@@ -158,6 +160,7 @@ export const useAuthStore = create<AuthState>()(
                 stationId: user.stationId,
                 isHqUser: user.isHqUser,
               });
+              setIsPlatformOwner(user.organizationCode?.toUpperCase() === PLATFORM_OWNER_ORG_CODE);
               set({ user, isAuthenticated: true, isLoading: false, error: null });
             } catch (error) {
               // Silent fail for 401 (not logged in) to avoid unnecessary errors

@@ -28,7 +28,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#0a9f3d',
+  themeColor: '#5B1C4D',
   viewportFit: 'cover',
 };
 
@@ -40,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#0a9f3d" />
+        <meta name="theme-color" content="#5B1C4D" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -48,7 +48,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
         <link rel="icon" href="/icon-maskable.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icon-maskable.svg" />
-        <link rel="mask-icon" href="/icon-maskable.svg" color="#0a9f3d" />
+        <link rel="mask-icon" href="/icon-maskable.svg" color="#5B1C4D" />
       </head>
       <body className={`${inter.className} ${orbitron.variable}`}>
         <ErrorBoundary>

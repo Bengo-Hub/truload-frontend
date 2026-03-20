@@ -46,6 +46,7 @@ import {
   useYardProcessingTrend,
 } from '@/hooks/queries';
 import { useHasPermission, useUser } from '@/hooks/useAuth';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { DashboardFilterParams } from '@/lib/api/dashboard';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
@@ -141,40 +142,47 @@ interface TabProps {
 function OverviewTab({ filters, isCommercial }: TabProps) {
   const { formatAmount } = useCurrency();
   const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
+  const isEnforcement = !isCommercial;
+
+  // Commercial: only weighing stats + revenue. Enforcement: full suite.
+  // Passing undefined disables the query entirely (enabled: !!filters in hook).
   const { data: weighingStats, isLoading: loadingWeighing } = useDashboardWeighingStats(filters);
-  const { data: caseStats, isLoading: loadingCases } = useDashboardCaseStats(filters);
-  const { data: yardStats, isLoading: loadingYard } = useDashboardYardStats(filters);
+  const { data: caseStats } = useDashboardCaseStats(isEnforcement ? filters : undefined);
+  const { data: yardStats } = useDashboardYardStats(isEnforcement ? filters : undefined);
   const { data: userStats, isLoading: loadingUserStats } = useUserStatistics();
-  const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(filters);
+  const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(isEnforcement ? filters : undefined);
   const { data: revenueByStation, isLoading: loadingRevStation } = useRevenueByStation(filters);
-  const { data: stationPerf, isLoading: loadingStations } = useStationPerformance(filters);
+  // Station performance has compliance rates — enforcement only
+  const { data: stationPerf, isLoading: loadingStations } = useStationPerformance(isEnforcement ? filters : undefined);
   const { data: usersByStation, isLoading: loadingUsersByStation } = useUsersByStation();
 
-  const isLoading = loadingWeighing || loadingCases || loadingYard;
+  const isLoading = loadingWeighing;
 
   return (
     <div className="space-y-6">
-      {/* Row 1: Key Performance Indicators - 6 cards */}
+      {/* Row 1: KPI stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading || loadingUserStats ? (
-          Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: isCommercial ? 4 : 6 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <PermissionGate permissions="weighing.read">
               <StatCard title="Today's Weighings" value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Scale} color="bg-blue-500" />
             </PermissionGate>
-            <PermissionGate permissions="weighing.read">
-              <StatCard title="Compliance Rate" value={`${getStatValue(weighingStats, 'complianceRate')}%`} icon={Percent} color="bg-green-500" />
-            </PermissionGate>
+            {isEnforcement && (
+              <PermissionGate permissions="weighing.read">
+                <StatCard title="Compliance Rate" value={`${getStatValue(weighingStats, 'complianceRate')}%`} icon={Percent} color="bg-green-500" />
+              </PermissionGate>
+            )}
             <PermissionGate permissions="weighing.read">
               <StatCard title="Total Fees (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
             </PermissionGate>
-            {!isCommercial && (
+            {isEnforcement && (
               <PermissionGate permissions="case.read">
                 <StatCard title="Open Cases" value={formatNumber(getStatValue(caseStats, 'openCases'))} icon={FileText} color="bg-amber-500" />
               </PermissionGate>
             )}
-            {!isCommercial && (
+            {isEnforcement && (
               <PermissionGate permissions="yard.read">
                 <StatCard title="Vehicles in Yard" value={formatNumber(getStatValue(yardStats, 'totalPending'))} icon={Truck} color="bg-orange-500" />
               </PermissionGate>
@@ -184,11 +192,6 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
                 <StatCard title="Transporters Served" value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Truck} color="bg-amber-500" />
               </PermissionGate>
             )}
-            {isCommercial && (
-              <PermissionGate permissions="invoice.read">
-                <StatCard title="Revenue Today (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-orange-500" />
-              </PermissionGate>
-            )}
             <PermissionGate permissions="user.read">
               <StatCard title="Active Users" value={formatNumber(userStats?.activeUsers ?? 0)} icon={Users} color="bg-purple-500" />
             </PermissionGate>
@@ -196,27 +199,27 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
         )}
       </div>
 
-      {/* Row 2: Two main charts side by side */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-        <PermissionGate permissions="weighing.read">
-          <ChartWrapper title="Compliance Trend" subtitle="Daily compliance vs overload distribution" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Compliant', color: '#10b981' }, { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
-        </PermissionGate>
-        <PermissionGate permissions="receipt.read">
+      {/* Row 2: Charts — enforcement: compliance trend + revenue; commercial: revenue only */}
+      <div className="grid grid-cols-1 gap-6">
+        {isEnforcement && (
+          <PermissionGate permissions="weighing.read">
+            <ChartWrapper title="Compliance Trend" subtitle="Daily compliance vs overload distribution" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Compliant', color: '#10b981' }, { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
+          </PermissionGate>
+        )}
+        <PermissionGate permissions={isCommercial ? 'weighing.read' : 'receipt.read'}>
           <ChartWrapper title="Revenue by Station" subtitle="Fee collection performance by weighbridge" data={revenueByStation ?? []} series={[{ dataKey: 'revenue', name: 'Revenue (KES)', color: '#3b82f6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie']} valueFormatter={formatKES} isLoading={loadingRevStation} />
         </PermissionGate>
       </div>
 
-      {/* Row 3: Station Performance and Users by Station */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <PermissionGate permissions="weighing.read">
-          <ChartWrapper title="Station Performance" subtitle="Weighings and compliance rates across stations" data={stationPerf ?? []} series={[{ dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' }, { dataKey: 'compliance', name: 'Compliance %', color: '#10b981' }]} defaultChartType="bar" allowedChartTypes={['bar', 'line']} isLoading={loadingStations} />
-        </PermissionGate>
+      {/* Row 3: Station Performance (enforcement only — has compliance rates) and Users by Station */}
+      <div className={`grid grid-cols-1 gap-6 ${isEnforcement ? 'lg:grid-cols-2' : ''}`}>
+        {isEnforcement && (
+          <PermissionGate permissions="weighing.read">
+            <ChartWrapper title="Station Performance" subtitle="Weighings and compliance rates across stations" data={stationPerf ?? []} series={[{ dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' }, { dataKey: 'compliance', name: 'Compliance %', color: '#10b981' }]} defaultChartType="bar" allowedChartTypes={['bar', 'line']} isLoading={loadingStations} />
+          </PermissionGate>
+        )}
         <PermissionGate permissions="user.read">
-          {loadingUsersByStation ? (
-            <ChartSkeleton />
-          ) : (
-            <ChartWrapper title="Users by Station" subtitle="Staff distribution across weighbridges" data={usersByStation ?? []} series={[{ dataKey: 'count', name: 'Users', color: '#8b5cf6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie', 'donut']} isLoading={loadingUsersByStation} />
-          )}
+          <ChartWrapper title="Users by Station" subtitle="Staff distribution across weighbridges" data={usersByStation ?? []} series={[{ dataKey: 'count', name: 'Users', color: '#8b5cf6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie', 'donut']} isLoading={loadingUsersByStation} />
         </PermissionGate>
       </div>
     </div>
@@ -227,40 +230,56 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
 // Weighing Tab
 // ============================================================================
 
-function WeighingTab({ filters }: TabProps) {
+function WeighingTab({ filters, isCommercial }: TabProps) {
+  const isEnforcement = !isCommercial;
   const { data: weighingStats, isLoading } = useDashboardWeighingStats(filters);
-  const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(filters);
-  const { data: overloadDist, isLoading: loadingOverload } = useOverloadDistribution(filters);
-  const { data: axleViolations, isLoading: loadingAxle } = useAxleViolations(filters);
-  const { data: vehicleDist, isLoading: loadingVehicles } = useVehicleDistributionData(filters);
-  const { data: topOffenders, isLoading: loadingOffenders } = useTopOffenders(filters);
+  // Enforcement-only queries — disabled for commercial (enabled: !!filters guards in hooks)
+  const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(isEnforcement ? filters : undefined);
+  const { data: overloadDist, isLoading: loadingOverload } = useOverloadDistribution(isEnforcement ? filters : undefined);
+  const { data: axleViolations, isLoading: loadingAxle } = useAxleViolations(isEnforcement ? filters : undefined);
+  const { data: vehicleDist, isLoading: loadingVehicles } = useVehicleDistributionData(filters); // relevant to both
+  const { data: topOffenders, isLoading: loadingOffenders } = useTopOffenders(isEnforcement ? filters : undefined);
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: isCommercial ? 2 : 4 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <StatCard title="Total Weighings" value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Scale} color="bg-blue-500" />
-            <StatCard title="Compliance Rate" value={`${getStatValue(weighingStats, 'complianceRate')}%`} icon={CheckCircle} color="bg-green-500" />
-            <StatCard title="Overloaded Vehicles" value={formatNumber(getStatValue(weighingStats, 'overloadedCount'))} icon={AlertTriangle} color="bg-red-500" />
-            <StatCard title="Avg. Overload (kg)" value={formatNumber(getStatValue(weighingStats, 'avgOverloadKg'))} icon={TrendingUp} color="bg-amber-500" />
+            {isEnforcement && (
+              <>
+                <StatCard title="Compliance Rate" value={`${getStatValue(weighingStats, 'complianceRate')}%`} icon={CheckCircle} color="bg-green-500" />
+                <StatCard title="Overloaded Vehicles" value={formatNumber(getStatValue(weighingStats, 'overloadedCount'))} icon={AlertTriangle} color="bg-red-500" />
+                <StatCard title="Avg. Overload (kg)" value={formatNumber(getStatValue(weighingStats, 'avgOverloadKg'))} icon={TrendingUp} color="bg-amber-500" />
+              </>
+            )}
+            {isCommercial && (
+              <StatCard title="Total Fees (KES)" value={formatNumber(getStatValue(weighingStats, 'totalFeesKes'))} icon={Banknote} color="bg-emerald-500" />
+            )}
           </>
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartWrapper title="Compliance Trend" subtitle="Legal vs overloaded vehicles over time" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Legal', color: '#10b981' }, { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' }, { dataKey: 'warning', name: 'Warning', color: '#f59e0b' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
-        <ChartWrapper title="Overload Distribution" subtitle="Violations by overload severity band" data={overloadDist ?? []} series={[{ dataKey: 'count', name: 'Vehicles', color: '#ef4444' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie', 'donut']} isLoading={loadingOverload} />
-      </div>
+      {/* Enforcement-only charts */}
+      {isEnforcement && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <ChartWrapper title="Compliance Trend" subtitle="Legal vs overloaded vehicles over time" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Legal', color: '#10b981' }, { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' }, { dataKey: 'warning', name: 'Warning', color: '#f59e0b' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
+          <ChartWrapper title="Overload Distribution" subtitle="Violations by overload severity band" data={overloadDist ?? []} series={[{ dataKey: 'count', name: 'Vehicles', color: '#ef4444' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie', 'donut']} isLoading={loadingOverload} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartWrapper title="Axle Type Violations" subtitle="Overload violations by axle configuration" data={axleViolations ?? []} series={[{ dataKey: 'count', name: 'Violations', color: '#8b5cf6' }]} defaultChartType="pie" allowedChartTypes={['pie', 'donut', 'bar']} isLoading={loadingAxle} />
+        {isEnforcement && (
+          <ChartWrapper title="Axle Type Violations" subtitle="Overload violations by axle configuration" data={axleViolations ?? []} series={[{ dataKey: 'count', name: 'Violations', color: '#8b5cf6' }]} defaultChartType="pie" allowedChartTypes={['pie', 'donut', 'bar']} isLoading={loadingAxle} />
+        )}
         <ChartWrapper title="Vehicle Type Distribution" subtitle="Weighings by vehicle category" data={vehicleDist ?? []} series={[{ dataKey: 'value', name: 'Count', color: '#06b6d4' }]} defaultChartType="donut" allowedChartTypes={['donut', 'pie', 'bar']} isLoading={loadingVehicles} />
       </div>
 
-      <ChartWrapper title="Top Repeat Offenders" subtitle="Drivers with highest demerit points (Risk Assessment)" data={topOffenders ?? []} series={[{ dataKey: 'points', name: 'Demerit Points', color: '#ef4444' }, { dataKey: 'violations', name: 'Violations', color: '#f59e0b' }]} defaultChartType="bar" allowedChartTypes={['bar']} isLoading={loadingOffenders} />
+      {isEnforcement && (
+        <ChartWrapper title="Top Repeat Offenders" subtitle="Drivers with highest demerit points (Risk Assessment)" data={topOffenders ?? []} series={[{ dataKey: 'points', name: 'Demerit Points', color: '#ef4444' }, { dataKey: 'violations', name: 'Violations', color: '#f59e0b' }]} defaultChartType="bar" allowedChartTypes={['bar']} isLoading={loadingOffenders} />
+      )}
     </div>
   );
 }
@@ -432,7 +451,7 @@ function ProsecutionTab({ filters }: TabProps) {
 // Financial Tab
 // ============================================================================
 
-function FinancialTab({ filters }: TabProps) {
+function FinancialTab({ filters, isCommercial }: TabProps) {
   const { formatAmount } = useCurrency();
   const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const { data: invoiceStats, isLoading: loadingInvoices } = useDashboardInvoiceStats(filters);
@@ -460,15 +479,19 @@ function FinancialTab({ filters }: TabProps) {
             <PermissionGate permissions="invoice.read">
               <StatCard title="Outstanding (KES)" value={formatKES(getStatValue(invoiceStats, 'totalBalanceKes'))} rawValue={getStatValue(invoiceStats, 'totalBalanceKes')} icon={Banknote} color="bg-orange-500" />
             </PermissionGate>
-            <PermissionGate permissions="invoice.read">
-              <StatCard title="Outstanding (USD)" value={formatAmount(getStatValue(invoiceStats, 'totalBalanceUsd'), 'USD')} rawValue={getStatValue(invoiceStats, 'totalBalanceUsd')} icon={Banknote} color="bg-orange-400" />
-            </PermissionGate>
+            {!isCommercial && (
+              <PermissionGate permissions="invoice.read">
+                <StatCard title="Outstanding (USD)" value={formatAmount(getStatValue(invoiceStats, 'totalBalanceUsd'), 'USD')} rawValue={getStatValue(invoiceStats, 'totalBalanceUsd')} icon={Banknote} color="bg-orange-400" />
+              </PermissionGate>
+            )}
             <PermissionGate permissions="receipt.read">
               <StatCard title="Collected (KES)" value={formatKES(getStatValue(receiptStats, 'totalCollectedKes'))} rawValue={getStatValue(receiptStats, 'totalCollectedKes')} icon={CheckCircle} color="bg-emerald-600" />
             </PermissionGate>
-            <PermissionGate permissions="receipt.read">
-              <StatCard title="Collected (USD)" value={formatAmount(getStatValue(receiptStats, 'totalCollectedUsd'), 'USD')} rawValue={getStatValue(receiptStats, 'totalCollectedUsd')} icon={CheckCircle} color="bg-teal-500" />
-            </PermissionGate>
+            {!isCommercial && (
+              <PermissionGate permissions="receipt.read">
+                <StatCard title="Collected (USD)" value={formatAmount(getStatValue(receiptStats, 'totalCollectedUsd'), 'USD')} rawValue={getStatValue(receiptStats, 'totalCollectedUsd')} icon={CheckCircle} color="bg-teal-500" />
+              </PermissionGate>
+            )}
           </>
         )}
       </div>
@@ -505,7 +528,7 @@ function DashboardContent() {
   const fetchingCount = useIsFetching({ queryKey: DASHBOARD_QUERY_KEYS.all });
   const isRefreshing = fetchingCount > 0;
   const { user: currentUser } = useUser();
-  const isCommercial = currentUser?.tenantType === 'CommercialWeighing' || currentUser?.isCommercialTenant;
+  const { isCommercial, isEnforcement, showCases, showProsecution, showFinancial } = useModuleAccess();
 
   // Permission checks
   const canViewWeighing = useHasPermission('weighing.read');
@@ -513,21 +536,20 @@ function DashboardContent() {
   const canViewYard = useHasPermission('yard.read');
   const canViewTags = useHasPermission('tag.read');
   const canViewProsecution = useHasPermission('prosecution.read');
-  const canViewInvoices = useHasPermission('invoice.read');
-  const canViewReceipts = useHasPermission('receipt.read');
-  const canViewFinancial = canViewInvoices || canViewReceipts;
+  const canViewFinancial = showFinancial;
 
-  // Available tabs based on permissions — enforcement-only tabs hidden for commercial tenants
+  // Available tabs — module access gates enforcement tabs for commercial
   const availableTabs = useMemo(() => {
     const tabs = [{ value: 'overview', label: 'Overview', icon: LayoutDashboard }];
-    if (canViewWeighing) tabs.push({ value: 'weighing', label: 'Weighing', icon: Scale });
-    if (!isCommercial && canViewCases) tabs.push({ value: 'cases', label: 'Cases', icon: FileText });
-    if (!isCommercial && canViewYard) tabs.push({ value: 'yard', label: 'Yard', icon: Truck });
-    if (!isCommercial && canViewTags) tabs.push({ value: 'tags', label: 'Tags', icon: Tag });
-    if (!isCommercial && canViewProsecution) tabs.push({ value: 'prosecution', label: 'Prosecution', icon: Gavel });
+    // Weighing tab only for enforcement (commercial gets everything on overview)
+    if (isEnforcement && canViewWeighing) tabs.push({ value: 'weighing', label: 'Weighing', icon: Scale });
+    if (showCases && canViewCases) tabs.push({ value: 'cases', label: 'Cases', icon: FileText });
+    if (isEnforcement && canViewYard) tabs.push({ value: 'yard', label: 'Yard', icon: Truck });
+    if (isEnforcement && canViewTags) tabs.push({ value: 'tags', label: 'Tags', icon: Tag });
+    if (showProsecution && canViewProsecution) tabs.push({ value: 'prosecution', label: 'Prosecution', icon: Gavel });
     if (canViewFinancial) tabs.push({ value: 'financial', label: 'Financial', icon: Banknote });
     return tabs;
-  }, [isCommercial, canViewWeighing, canViewCases, canViewYard, canViewTags, canViewProsecution, canViewFinancial]);
+  }, [isCommercial, isEnforcement, showCases, showProsecution, canViewWeighing, canViewCases, canViewYard, canViewTags, canViewProsecution, canViewFinancial]);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.all });
@@ -562,9 +584,9 @@ function DashboardContent() {
           {activeTab === 'overview' && <OverviewTab filters={filters} isCommercial={isCommercial} />}
         </TabsContent>
 
-        {canViewWeighing && (
+        {isEnforcement && canViewWeighing && (
           <TabsContent value="weighing">
-            {activeTab === 'weighing' && <WeighingTab filters={filters} />}
+            {activeTab === 'weighing' && <WeighingTab filters={filters} isCommercial={isCommercial} />}
           </TabsContent>
         )}
 
@@ -594,7 +616,7 @@ function DashboardContent() {
 
         {canViewFinancial && (
           <TabsContent value="financial">
-            {activeTab === 'financial' && <FinancialTab filters={filters} />}
+            {activeTab === 'financial' && <FinancialTab filters={filters} isCommercial={isCommercial} />}
           </TabsContent>
         )}
       </Tabs>

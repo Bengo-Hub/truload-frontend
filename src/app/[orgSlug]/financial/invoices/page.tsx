@@ -202,7 +202,7 @@ export default function InvoicesPage() {
 
   if (!canRead) {
     return (
-      <ProtectedRoute requiredPermissions={['invoice.read']}>
+      <ProtectedRoute requiredPermissions={['invoice.read']} moduleKey="financial_invoices">
         <div className="flex h-[50vh] items-center justify-center">
           <div className="text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -218,7 +218,7 @@ export default function InvoicesPage() {
 
   return (
     <AppShell title="Invoice Management" subtitle="Manage prosecution invoices, payments, and billing">
-      <ProtectedRoute requiredPermissions={['invoice.read']}>
+      <ProtectedRoute requiredPermissions={['invoice.read']} moduleKey="financial_invoices">
         <div className="space-y-6">
           {/* Page Header */}
           <div className="flex items-center justify-between">

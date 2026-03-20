@@ -17,7 +17,7 @@ import {
 import { useStations } from '@/hooks/queries/useWeighingQueries';
 import { getSelectedStationId, setSelectedStationId } from '@/lib/auth/token';
 import { useAuthStore } from '@/stores/auth.store';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface StationSelectFilterProps {
   /** Current filter value (station id or 'all'). For non-HQ/non-superuser this is ignored and user's station is used. */
@@ -56,12 +56,15 @@ export function StationSelectFilter({
     ? (hqSelected ?? ALL_STATIONS_VALUE)
     : (userStationId ?? ALL_STATIONS_VALUE);
 
-  // Sync parent filter with non-HQ/non-superuser user's station on mount
+  // Sync parent filter with non-HQ/non-superuser user's station on mount (once only)
+  const syncedRef = useRef(false);
   useEffect(() => {
-    if (!canSelectStation && userStationId && onValueChange) {
+    if (!syncedRef.current && !canSelectStation && userStationId && onValueChange) {
+      syncedRef.current = true;
       onValueChange(userStationId);
     }
-  }, [canSelectStation, userStationId, onValueChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canSelectStation, userStationId]);
 
   const handleChange = useCallback(
     (newValue: string) => {

@@ -47,34 +47,30 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      if (orgSlug) {
-        router.push(`/${orgSlug}/auth/login`);
-      } else {
-        router.push('/kura/auth/login');
-      }
+      const loginPath = orgSlug ? `/${orgSlug}/auth/login` : '/auth/login';
+      router.replace(loginPath);
     }
-  }, [isAuthenticated, isLoading, orgSlug, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isLoading]);
 
+  const userId = user?.id;
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user) {
+    if (!isLoading && isAuthenticated && userId) {
       const rolesSatisfied = !requiredRoles?.length || hasRequiredRole;
       const permissionsSatisfied = !requiredPermissions?.length || hasRequiredPermission;
 
       if (!rolesSatisfied || !permissionsSatisfied || !hasModuleAccess) {
-        router.push(`/${orgSlug}/unauthorized`);
+        router.replace(`/${orgSlug}/unauthorized`);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     hasRequiredPermission,
     hasRequiredRole,
     hasModuleAccess,
     isAuthenticated,
     isLoading,
-    orgSlug,
-    requiredPermissions,
-    requiredRoles,
-    router,
-    user,
+    userId,
   ]);
 
   if (isLoading) {

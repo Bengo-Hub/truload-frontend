@@ -5,7 +5,9 @@
 
 import { apiClient } from '@/lib/api/client';
 import type { LoginRequest, LoginResponse, RefreshTokenResponse, TenantInfo, User } from '../../types/auth/types';
-import { clearTokens, setTenantContext, setTokens } from './token';
+import { clearAllScaleTestCaches } from '@/lib/scale-test-cache';
+import { clearTokens, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext, setTokens } from './token';
+import { clearSsoExchangeToken, clearSsoPkceSession } from './sso';
 
 /**
  * Login user with email and password.
@@ -47,6 +49,8 @@ export async function login(
       stationId: data.user.stationId,
       isHqUser,
     });
+    // Platform owners (CODEVERTEX org) don't send tenant headers
+    setIsPlatformOwner(data.user.organizationCode?.toUpperCase() === PLATFORM_OWNER_ORG_CODE);
   }
 
   return data;
@@ -79,6 +83,7 @@ export async function loginVerify2FA(twoFactorToken: string, code: string, useRe
       stationId: data.user.stationId,
       isHqUser,
     });
+    setIsPlatformOwner(data.user.organizationCode?.toUpperCase() === PLATFORM_OWNER_ORG_CODE);
   }
 
   return data;
@@ -113,6 +118,10 @@ export async function logout(): Promise<void> {
   try {
     await apiClient.post('/auth/logout', {});
   } finally {
+    clearAllScaleTestCaches();
+    localStorage.removeItem('truload_weighing_session');
+    clearSsoPkceSession();
+    clearSsoExchangeToken();
     clearTokens();
   }
 }
@@ -189,11 +198,33 @@ export async function getTenantInfo(orgCode: string): Promise<TenantInfo | null>
  * Returns { requiresStationSelection: true, ssoExchangeToken } on success.
  */
 export async function ssoExchange(accessToken: string): Promise<{ requiresStationSelection: boolean; ssoExchangeToken: string }> {
-  const { data } = await apiClient.post<{ requiresStationSelection: boolean; ssoExchangeToken: string }>(
-    '/auth/sso-exchange',
-    { accessToken }
-  );
-  return data;
+  // Use raw fetch instead of apiClient to avoid the axios interceptor
+  // which attaches truload auth tokens (we don't have one yet during SSO flow)
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const response = await fetch(`${baseUrl}/api/v1/auth/sso-exchange`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `SSO exchange failed (${response.status})`;
+    let errorCode: string | undefined;
+    try {
+      const errorBody = await response.json();
+      if (errorBody.message) errorMessage = errorBody.message;
+      if (errorBody.code) errorCode = errorBody.code;
+    } catch {
+      const text = await response.text();
+      if (text) errorMessage = `SSO exchange failed (${response.status}): ${text}`;
+    }
+    const err = new Error(errorMessage) as Error & { status?: number; code?: string };
+    err.status = response.status;
+    err.code = errorCode;
+    throw err;
+  }
+
+  return response.json();
 }
 
 /**
@@ -225,6 +256,7 @@ export async function selectStation(
       stationId: data.user.stationId,
       isHqUser: !!data.user.isHqUser,
     });
+    setIsPlatformOwner(data.user.organizationCode?.toUpperCase() === PLATFORM_OWNER_ORG_CODE);
   }
 
   return data;

@@ -55,7 +55,9 @@ function TenantAuthLoginContent() {
         if (orgData) setOrg(orgData);
 
         if (tenantInfo?.tenantType === 'CommercialWeighing') {
-          // Commercial tenant — redirect to SSO
+          // Commercial tenant — redirect to SSO using the auth-api SSO tenant slug
+          // ssoTenantSlug (e.g. "truload") maps to the auth-api tenant, NOT the org code ("truload-demo")
+          const ssoSlug = tenantInfo.ssoTenantSlug || orgSlug;
           const verifier = generateCodeVerifier();
           const challenge = await generateCodeChallenge(verifier);
           const state = generateState();
@@ -65,7 +67,7 @@ function TenantAuthLoginContent() {
           storeSsoState(state);
           storeSsoReturnTo(`/${orgSlug}/dashboard`);
 
-          const authorizeUrl = buildAuthorizeUrl(orgSlug, challenge, state, callbackUrl);
+          const authorizeUrl = buildAuthorizeUrl(ssoSlug, challenge, state, callbackUrl);
           window.location.href = authorizeUrl;
           return; // navigation in progress
         }
@@ -82,7 +84,7 @@ function TenantAuthLoginContent() {
     };
   }, [orgSlug, router]);
 
-  const primaryColor = org?.primaryColor || '#0a9f3d';
+  const primaryColor = org?.primaryColor || '#5B1C4D';
   const orgDisplayName = org?.name ?? (orgSlug ? formatOrgDisplay(orgSlug) : 'Truload');
   const subtitle = orgDisplayName ? (
     <p className="text-sm font-medium text-gray-600">
@@ -124,7 +126,7 @@ export default function TenantAuthLoginPage() {
   return (
     <Suspense
       fallback={
-        <LoginPageLayout org={null} primaryColor="#0a9f3d">
+        <LoginPageLayout org={null} primaryColor="#5B1C4D">
           <div className="animate-pulse space-y-4">
             <div className="h-10 rounded bg-muted" />
             <div className="h-10 rounded bg-muted" />
