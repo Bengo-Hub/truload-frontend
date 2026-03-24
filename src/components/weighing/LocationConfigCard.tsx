@@ -130,11 +130,15 @@ export function LocationConfigCard({
                   ))}
                 </SelectContent>
               </Select>
-              <AddRoadModal onCreated={(road) => {
-                queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.ROADS, 'county', selectedCountyId] });
-                queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.ROADS, 'subcounty', selectedSubcountyId] });
-                setSelectedRoadId(road.id);
-              }} />
+              <AddRoadModal
+                defaultCountyId={selectedCountyId}
+                defaultSubcountyId={selectedSubcountyId}
+                onCreated={(road) => {
+                  queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.ROADS, 'county', selectedCountyId] });
+                  queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.ROADS, 'subcounty', selectedSubcountyId] });
+                  setSelectedRoadId(road.id);
+                }}
+              />
             </div>
           </div>
         </div>

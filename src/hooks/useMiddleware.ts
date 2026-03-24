@@ -212,6 +212,8 @@ export interface UseMiddlewareReturn extends MiddlewareState {
   resetSession: () => void;
   switchBound: (bound: 'A' | 'B') => void;
   requestStatus: () => void;
+  sendUpdateConfig: (totalAxles: number, axleConfigurationCode: string) => void;
+  sendWeightsCaptured: () => void;
   forceLocalConnection: () => void;
   forceBackendConnection: () => void;
   // Traffic control
@@ -1127,24 +1129,68 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   }, [sendMessage, state.connectionMode, localApiBase]);
 
   const resetSession = useCallback(() => {
-    if (state.connectionMode === 'local_api') {
+    // Clear local weight state immediately (don't wait for middleware ack)
+    setState(s => ({
+      ...s,
+      weights: s.weights ? { ...s.weights, weight: 0, axleWeights: [], runningTotal: 0, gvw: 0 } : s.weights,
+    }));
+
+    // Try WebSocket first, fall back to HTTP API if WebSocket is unavailable
+    const wsSent = sendMessage('reset-session', {});
+    if (!wsSent) {
+      // WebSocket unavailable — use HTTP API fallback
       fetch(`${localApiBase}/reset-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
-      }).catch((err) => console.warn('[useMiddleware] API reset-session failed', err));
-    } else {
-      sendMessage('reset-session', {});
+      }).catch((err) => console.warn('[useMiddleware] API reset-session fallback failed', err));
     }
-  }, [sendMessage, state.connectionMode, localApiBase]);
+  }, [sendMessage, localApiBase]);
 
   const switchBound = useCallback((newBound: 'A' | 'B') => {
-    sendMessage('bound-switch', { bound: newBound });
-  }, [sendMessage]);
+    const wsSent = sendMessage('bound-switch', { bound: newBound });
+    if (!wsSent) {
+      fetch(`${localApiBase}/bound-switch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bound: newBound }),
+      }).catch((err) => console.warn('[useMiddleware] API bound-switch fallback failed', err));
+    }
+  }, [sendMessage, localApiBase]);
 
   const requestStatus = useCallback(() => {
     sendMessage('status-request', {});
   }, [sendMessage]);
+
+  /**
+   * Send axle configuration update to TruConnect when user changes config on step 2.
+   * Updates the expected axle count so middleware knows when all axles are captured.
+   */
+  const sendUpdateConfig = useCallback((totalAxles: number, axleConfigurationCode: string) => {
+    const wsSent = sendMessage('update-config', { totalAxles, axleConfigurationCode });
+    if (!wsSent) {
+      fetch(`${localApiBase}/update-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ totalAxles, axleConfigurationCode }),
+      }).catch((err) => console.warn('[useMiddleware] API update-config fallback failed', err));
+    }
+  }, [sendMessage, localApiBase]);
+
+  /**
+   * Send weights-captured acknowledgment to TruConnect after frontend processes autoweigh response.
+   * TruConnect will reset the session and prepare for the next vehicle.
+   */
+  const sendWeightsCaptured = useCallback(() => {
+    const wsSent = sendMessage('weights-captured', {});
+    if (!wsSent) {
+      fetch(`${localApiBase}/weights-captured`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }).catch((err) => console.warn('[useMiddleware] API weights-captured fallback failed', err));
+    }
+  }, [sendMessage, localApiBase]);
 
   // Auto-connect on mount
   // Store disconnect in ref for cleanup
@@ -1195,6 +1241,8 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     resetSession,
     switchBound,
     requestStatus,
+    sendUpdateConfig,
+    sendWeightsCaptured,
     forceLocalConnection,
     forceBackendConnection,
     sendEnter: () => sendMessage('enter', {}),

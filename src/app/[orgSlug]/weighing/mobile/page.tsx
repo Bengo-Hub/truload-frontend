@@ -110,6 +110,12 @@ export default function MobileWeighingPage() {
     return setting.settingValue?.toLowerCase() === 'true';
   }, [allSettings]);
 
+  // Operational tolerance (kg) from settings — used in local compliance calculation
+  const operationalToleranceKg = useMemo(() => {
+    const setting = allSettings.find(s => s.settingKey === 'weighing.operational_tolerance_kg');
+    return setting?.settingValue ? parseInt(setting.settingValue, 10) : 200;
+  }, [allSettings]);
+
   // Entity creation mutations are now handled by useWeighingUI
   // Vehicle lookup mutation for auto-creating vehicles
   const createVehicleMutation = useCreateVehicle();
@@ -264,6 +270,18 @@ export default function MobileWeighingPage() {
   // Local state for captured weights (for UI display during capture)
   const [localCapturedWeights, setLocalCapturedWeights] = useState<number[]>([]);
   const [localCurrentAxle, setLocalCurrentAxle] = useState(1);
+
+  // Sync local captured weights from restored session (so compliance display works after page reload)
+  const lastSyncedSessionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (weighingSession?.transactionId && weighingSession.transactionId !== lastSyncedSessionIdRef.current) {
+      lastSyncedSessionIdRef.current = weighingSession.transactionId;
+      if (weighingSession.capturedAxles.length > 0) {
+        setLocalCapturedWeights(weighingSession.capturedAxles.map(a => a.weightKg));
+        setLocalCurrentAxle(weighingSession.capturedAxles.length + 1);
+      }
+    }
+  }, [weighingSession?.transactionId, weighingSession?.capturedAxles]);
 
   // Derive captured state from hook or local state
   const capturedAxles = weighingSession?.capturedAxles.map(a => a.axleNumber) || [];
@@ -445,7 +463,10 @@ export default function MobileWeighingPage() {
         const config = axleConfigurations.find((c: any) => c.id === existingVehicle.axleConfigurationId);
         if (config) {
           setSelectedConfig(config.axleCode);
-          setAxleConfig(config.axleCode);
+          // Only change axle config if no weights have been captured yet — preserves in-progress capture
+          if (!weighingSession?.capturedAxles?.length) {
+            setAxleConfig(config.axleCode);
+          }
         }
       }
       if (existingVehicle.makeModel) {
@@ -473,7 +494,10 @@ export default function MobileWeighingPage() {
     if (txn.vehicleMake) setVehicleMake(txn.vehicleMake);
     if (txn.axleConfiguration) {
       setSelectedConfig(txn.axleConfiguration);
-      setAxleConfig(txn.axleConfiguration);
+      // Only change axle config if no weights have been captured yet — preserves restored session axles
+      if (!weighingSession?.capturedAxles?.length) {
+        setAxleConfig(txn.axleConfiguration);
+      }
     }
     // County: resolve from subcounty if we have subcounties loaded
     if (txn.subcountyId && subcounties?.length) {
@@ -658,7 +682,7 @@ export default function MobileWeighingPage() {
   const groupResults: AxleGroupResult[] = useMemo(() => {
     // Map captured weights by axle number for easy lookup
     const capturedWeightMap = new Map<number, number>();
-    localCapturedWeights.forEach((weight, index) => {
+    capturedWeights.forEach((weight, index) => {
       const axleNum = index + 1;
       capturedWeightMap.set(axleNum, weight);
     });
@@ -668,7 +692,7 @@ export default function MobileWeighingPage() {
       const fallbackConfig = axleConfigurations.find(c => c.axleCode === selectedConfig);
       const configGvw = fallbackConfig?.gvwPermissibleKg || 0;
       const perAxlePermissible = totalAxles > 0 ? Math.round(configGvw / totalAxles) : 0;
-      const totalMeasured = localCapturedWeights.reduce((sum, w) => sum + w, 0);
+      const totalMeasured = capturedWeights.reduce((sum, w) => sum + w, 0);
       return [{
         groupLabel: 'A',
         axleType: 'Unknown',
@@ -680,7 +704,7 @@ export default function MobileWeighingPage() {
         overloadKg: Math.max(0, totalMeasured - configGvw),
         pavementDamageFactor: 1.0,
         status: configGvw > 0 && totalMeasured > configGvw ? 'OVERLOAD' : 'LEGAL',
-        axles: localCapturedWeights.map((w, i) => ({
+        axles: capturedWeights.map((w, i) => ({
           axleNumber: i + 1,
           measuredKg: w,
           permissibleKg: perAxlePermissible,
@@ -761,13 +785,14 @@ export default function MobileWeighingPage() {
         measuredKg,
         overloadKg,
         pavementDamageFactor,
+        operationalToleranceKg,
         status,
         axles,
       });
     }
 
     return results;
-  }, [weightReferences, localCapturedWeights, totalAxles, axleConfigurations, selectedConfig]);
+  }, [weightReferences, capturedWeights, totalAxles, axleConfigurations, selectedConfig, operationalToleranceKg]);
 
   // Use compliance data from hook if available, otherwise from selected axle config
   const selectedAxleGvw = axleConfigurations.find(c => c.axleCode === selectedConfig)?.gvwPermissibleKg;
@@ -945,14 +970,11 @@ export default function MobileWeighingPage() {
     }
   }, []);
 
-  // Weight confirmation handlers
+  // Weight confirmation handlers — "Take Weight" saves weights without requiring vehicle details.
+  // Required-field validation is only enforced when the user clicks "Proceed to Decision".
   const handleOpenConfirmModal = useCallback(() => {
-    if (!validationResult.isValid) {
-      setIsMissingFieldsModalOpen(true);
-      return;
-    }
     setIsConfirmModalOpen(true);
-  }, [validationResult.isValid]);
+  }, []);
 
   const handleConfirmWeight = useCallback(async () => {
     setIsCapturingWeight(true);
@@ -960,6 +982,10 @@ export default function MobileWeighingPage() {
       const result = await confirmWeight();
       if (result) {
         toast.success('Weights confirmed and submitted successfully.');
+        // Notify TruConnect that weights have been captured — middleware can reset and prepare for next vehicle
+        if (middleware.connected) {
+          middleware.sendWeightsCaptured();
+        }
       } else {
         toast.error('Failed to submit weights. Please try again.');
       }
@@ -969,7 +995,7 @@ export default function MobileWeighingPage() {
       setIsCapturingWeight(false);
       setIsConfirmModalOpen(false);
     }
-  }, [confirmWeight]);
+  }, [confirmWeight, middleware]);
 
   // Resume a pending transaction — reset capture state so user can weigh fresh
   const handleResumeTransaction = useCallback((txn: WeighingTransaction) => {
@@ -1180,7 +1206,14 @@ export default function MobileWeighingPage() {
   }, [vehiclePlate, currentStation, overallStatus, gvwOverload]);
 
   // Proceed to decision step (flushes vehicle details to backend)
+  // This is where required-field validation is enforced (not on "Take Weight")
   const handleProceedToDecision = useCallback(async () => {
+    // Validate required fields before proceeding to decision
+    if (!validationResult.isValid) {
+      setIsMissingFieldsModalOpen(true);
+      return;
+    }
+
     if (!weighingSession?.transactionId) {
       handleNextStep();
       return;
@@ -1219,7 +1252,7 @@ export default function MobileWeighingPage() {
     } catch {
       toast.error('Failed to update weighing transaction.');
     }
-  }, [weighingSession, vehiclePlate, selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId, selectedCargoId, effectiveActId, selectedRoadId, selectedSubcountyId, locationCountyName, reliefVehicleReg, comment, geoLat, geoLng, updateVehicleDetails, handleNextStep]);
+  }, [weighingSession, vehiclePlate, selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId, selectedCargoId, effectiveActId, selectedRoadId, selectedSubcountyId, locationCountyName, reliefVehicleReg, comment, geoLat, geoLng, updateVehicleDetails, handleNextStep, validationResult.isValid]);
 
   // Send to yard - creates a yard entry for non-compliant vehicles
   const handleSendToYard = useCallback(async () => {
@@ -1463,6 +1496,11 @@ export default function MobileWeighingPage() {
                   setAxleConfig(config);
                   setLocalCapturedWeights([]);
                   setLocalCurrentAxle(1);
+                  // Notify TruConnect of expected axle count for autoweigh tracking
+                  const totalAxles = getTotalAxles(config);
+                  if (middleware.connected) {
+                    middleware.sendUpdateConfig(totalAxles, config);
+                  }
                 }}
                 isCommercial={isCommercial}
                 groupResults={groupResults}

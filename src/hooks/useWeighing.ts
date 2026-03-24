@@ -525,8 +525,14 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     setSession(prev => prev ? { ...prev, vehiclePlate: plate } : null);
   }, []);
 
-  // Set axle configuration
+  // Ref for synchronous session access (avoids stale closure in setAxleConfig)
+  const sessionRef = useRef<WeighingSessionState | null>(null);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
+  // Set axle configuration — only resets captured axles when config actually changes
   const setAxleConfig = useCallback((configCode: string) => {
+    if (sessionRef.current?.axleConfigCode === configCode) return;
+
     setSession(prev => {
       if (!prev) return null;
       const updated = { ...prev, axleConfigCode: configCode, capturedAxles: [] };
