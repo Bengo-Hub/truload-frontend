@@ -31,16 +31,22 @@ const ROAD_CLASSES = ['A', 'B', 'C', 'D', 'E', 'S'];
 export function AddRoadModal({
   onCreated,
   trigger,
+  defaultCountyId,
+  defaultSubcountyId,
 }: {
   onCreated: (r: Road) => void;
   trigger?: React.ReactNode;
+  /** Pre-select county when opening from weighing screen */
+  defaultCountyId?: string;
+  /** Pre-select subcounty when opening from weighing screen */
+  defaultSubcountyId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [roadClass, setRoadClass] = useState('C');
-  const [countyId, setCountyId] = useState<string>('');
-  const [subcountyId, setSubcountyId] = useState<string>('');
+  const [countyId, setCountyId] = useState<string>(defaultCountyId || '');
+  const [subcountyId, setSubcountyId] = useState<string>(defaultSubcountyId || '');
   const [counties, setCounties] = useState<CountyDto[]>([]);
   const [subcounties, setSubcounties] = useState<SubcountyDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,8 +54,11 @@ export function AddRoadModal({
   useEffect(() => {
     if (open) {
       fetchCounties().then(setCounties).catch(console.error);
+      // Pre-select county/subcounty from defaults when opening
+      if (defaultCountyId && !countyId) setCountyId(defaultCountyId);
+      if (defaultSubcountyId && !subcountyId) setSubcountyId(defaultSubcountyId);
     }
-  }, [open]);
+  }, [open, defaultCountyId, defaultSubcountyId]);
 
   useEffect(() => {
     if (countyId) {
