@@ -122,8 +122,10 @@ export async function voidInvoice(id: string, reason: string): Promise<InvoiceDt
 /**
  * Get invoice statistics
  */
-export async function getInvoiceStatistics(): Promise<InvoiceStatistics> {
-  const { data } = await apiClient.get<InvoiceStatistics>('/invoices/statistics');
+export async function getInvoiceStatistics(stationId?: string): Promise<InvoiceStatistics> {
+  const { data } = await apiClient.get<InvoiceStatistics>('/invoices/statistics', {
+    params: stationId ? { stationId } : undefined,
+  });
   return data;
 }
 

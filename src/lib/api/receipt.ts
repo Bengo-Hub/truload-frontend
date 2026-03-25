@@ -114,8 +114,10 @@ export async function voidReceipt(id: string, reason: string): Promise<ReceiptDt
 /**
  * Get receipt statistics
  */
-export async function getReceiptStatistics(): Promise<ReceiptStatistics> {
-  const { data } = await apiClient.get<ReceiptStatistics>('/receipts/statistics');
+export async function getReceiptStatistics(stationId?: string): Promise<ReceiptStatistics> {
+  const { data } = await apiClient.get<ReceiptStatistics>('/receipts/statistics', {
+    params: stationId ? { stationId } : undefined,
+  });
   return data;
 }
 

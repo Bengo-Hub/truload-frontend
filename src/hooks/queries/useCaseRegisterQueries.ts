@@ -15,7 +15,7 @@ export const CASE_QUERY_KEYS = {
   caseById: (id: string) => ['cases', 'detail', id] as const,
   caseByCaseNo: (caseNo: string) => ['cases', 'by-case-no', caseNo] as const,
   caseByWeighing: (weighingId: string) => ['cases', 'by-weighing', weighingId] as const,
-  caseStatistics: ['cases', 'statistics'] as const,
+  caseStatistics: (stationId?: string) => ['cases', 'statistics', stationId ?? 'all'] as const,
   violationTypes: ['violation-types'] as const,
   caseStatuses: ['case-statuses'] as const,
   dispositionTypes: ['disposition-types'] as const,
@@ -82,10 +82,10 @@ export function useCaseByWeighingId(weighingId?: string) {
 /**
  * Get case statistics
  */
-export function useCaseStatistics() {
+export function useCaseStatistics(stationId?: string) {
   return useQuery({
-    queryKey: CASE_QUERY_KEYS.caseStatistics,
-    queryFn: caseApi.getCaseStatistics,
+    queryKey: CASE_QUERY_KEYS.caseStatistics(stationId),
+    queryFn: () => caseApi.getCaseStatistics(stationId),
     ...QUERY_OPTIONS.semiStatic,
   });
 }
@@ -141,7 +141,7 @@ export function useCreateCase() {
     mutationFn: caseApi.createCase,
     onSuccess: (newCase) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.caseStatistics });
+      queryClient.invalidateQueries({ queryKey: ['cases', 'statistics'] });
       queryClient.setQueryData(CASE_QUERY_KEYS.caseById(newCase.id), newCase);
     },
   });
@@ -157,7 +157,7 @@ export function useCreateCaseFromWeighing() {
     mutationFn: caseApi.createCaseFromWeighing,
     onSuccess: (newCase) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.caseStatistics });
+      queryClient.invalidateQueries({ queryKey: ['cases', 'statistics'] });
       queryClient.setQueryData(CASE_QUERY_KEYS.caseById(newCase.id), newCase);
       if (newCase.weighingId) {
         queryClient.setQueryData(CASE_QUERY_KEYS.caseByWeighing(newCase.weighingId), newCase);
@@ -176,7 +176,7 @@ export function useCreateCaseFromProhibition() {
     mutationFn: caseApi.createCaseFromProhibition,
     onSuccess: (newCase) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.caseStatistics });
+      queryClient.invalidateQueries({ queryKey: ['cases', 'statistics'] });
       queryClient.setQueryData(CASE_QUERY_KEYS.caseById(newCase.id), newCase);
     },
   });
@@ -209,7 +209,7 @@ export function useCloseCase() {
       caseApi.closeCase(id, request),
     onSuccess: (closedCase, { id }) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.caseStatistics });
+      queryClient.invalidateQueries({ queryKey: ['cases', 'statistics'] });
       queryClient.setQueryData(CASE_QUERY_KEYS.caseById(id), closedCase);
     },
   });
@@ -226,7 +226,7 @@ export function useEscalateCase() {
       caseApi.escalateCase(id, caseManagerId),
     onSuccess: (escalatedCase, { id }) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.caseStatistics });
+      queryClient.invalidateQueries({ queryKey: ['cases', 'statistics'] });
       queryClient.setQueryData(CASE_QUERY_KEYS.caseById(id), escalatedCase);
     },
   });
@@ -258,7 +258,7 @@ export function useDeleteCase() {
     mutationFn: caseApi.deleteCase,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.cases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.caseStatistics });
+      queryClient.invalidateQueries({ queryKey: ['cases', 'statistics'] });
     },
   });
 }

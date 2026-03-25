@@ -70,7 +70,7 @@ export default function CaseRegisterPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Query hooks
-  const { data: statistics, isLoading: isLoadingStats } = useCaseStatistics();
+  const { data: statistics, isLoading: isLoadingStats } = useCaseStatistics(filters.stationId);
   const { data: violationTypes = [] } = useViolationTypes();
   const { data: caseStatuses = [] } = useCaseStatuses();
   const {

@@ -318,8 +318,10 @@ export async function deleteCase(id: string): Promise<void> {
 /**
  * Get case statistics
  */
-export async function getCaseStatistics(): Promise<CaseStatistics> {
-  const { data } = await apiClient.get<CaseStatistics>('/case/cases/statistics');
+export async function getCaseStatistics(stationId?: string): Promise<CaseStatistics> {
+  const { data } = await apiClient.get<CaseStatistics>('/case/cases/statistics', {
+    params: stationId ? { stationId } : undefined,
+  });
   return data;
 }
 

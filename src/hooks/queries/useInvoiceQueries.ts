@@ -16,7 +16,7 @@ export const INVOICE_QUERY_KEYS = {
   invoiceById: (id: string) => ['invoices', 'detail', id] as const,
   invoicesByProsecution: (prosecutionId: string) =>
     ['invoices', 'by-prosecution', prosecutionId] as const,
-  invoiceStatistics: ['invoices', 'statistics'] as const,
+  invoiceStatistics: (stationId?: string) => ['invoices', 'statistics', stationId ?? 'all'] as const,
 };
 
 // ============================================================================
@@ -62,10 +62,10 @@ export function useInvoiceSearch(criteria: invoiceApi.InvoiceSearchCriteria) {
 /**
  * Get invoice statistics
  */
-export function useInvoiceStatistics() {
+export function useInvoiceStatistics(stationId?: string) {
   return useQuery({
-    queryKey: INVOICE_QUERY_KEYS.invoiceStatistics,
-    queryFn: invoiceApi.getInvoiceStatistics,
+    queryKey: INVOICE_QUERY_KEYS.invoiceStatistics(stationId),
+    queryFn: () => invoiceApi.getInvoiceStatistics(stationId),
     ...QUERY_OPTIONS.semiStatic,
   });
 }
@@ -84,7 +84,7 @@ export function useGenerateInvoice() {
     mutationFn: (prosecutionId: string) => invoiceApi.generateInvoice(prosecutionId),
     onSuccess: (newInvoice, prosecutionId) => {
       queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoices });
-      queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoiceStatistics });
+      queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
       queryClient.invalidateQueries({
         queryKey: INVOICE_QUERY_KEYS.invoicesByProsecution(prosecutionId),
       });
@@ -107,7 +107,7 @@ export function useUpdateInvoiceStatus() {
       invoiceApi.updateInvoiceStatus(id, status),
     onSuccess: (updatedInvoice, { id }) => {
       queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoices });
-      queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoiceStatistics });
+      queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
       queryClient.setQueryData(INVOICE_QUERY_KEYS.invoiceById(id), updatedInvoice);
     },
   });
@@ -124,7 +124,7 @@ export function useVoidInvoice() {
       invoiceApi.voidInvoice(id, reason),
     onSuccess: (voidedInvoice, { id }) => {
       queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoices });
-      queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoiceStatistics });
+      queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
       queryClient.setQueryData(INVOICE_QUERY_KEYS.invoiceById(id), voidedInvoice);
     },
   });

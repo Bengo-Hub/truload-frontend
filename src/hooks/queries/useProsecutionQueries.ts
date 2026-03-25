@@ -14,7 +14,7 @@ export const PROSECUTION_QUERY_KEYS = {
   prosecutions: ['prosecutions'] as const,
   prosecutionById: (id: string) => ['prosecutions', 'detail', id] as const,
   prosecutionByCase: (caseId: string) => ['prosecutions', 'by-case', caseId] as const,
-  prosecutionStatistics: ['prosecutions', 'statistics'] as const,
+  prosecutionStatistics: (stationId?: string) => ['prosecutions', 'statistics', stationId ?? 'all'] as const,
   chargeCalculation: (weighingId: string, framework: string) =>
     ['charge-calculation', weighingId, framework] as const,
 };
@@ -63,10 +63,10 @@ export function useProsecutionSearch(criteria: prosecutionApi.ProsecutionSearchC
 /**
  * Get prosecution statistics
  */
-export function useProsecutionStatistics() {
+export function useProsecutionStatistics(stationId?: string) {
   return useQuery({
-    queryKey: PROSECUTION_QUERY_KEYS.prosecutionStatistics,
-    queryFn: prosecutionApi.getProsecutionStatistics,
+    queryKey: PROSECUTION_QUERY_KEYS.prosecutionStatistics(stationId),
+    queryFn: () => prosecutionApi.getProsecutionStatistics(stationId),
     ...QUERY_OPTIONS.semiStatic,
   });
 }
@@ -104,7 +104,7 @@ export function useCreateProsecution() {
     }) => prosecutionApi.createProsecution(caseId, request),
     onSuccess: (newProsecution) => {
       queryClient.invalidateQueries({ queryKey: PROSECUTION_QUERY_KEYS.prosecutions });
-      queryClient.invalidateQueries({ queryKey: PROSECUTION_QUERY_KEYS.prosecutionStatistics });
+      queryClient.invalidateQueries({ queryKey: ['prosecutions', 'statistics'] });
       queryClient.invalidateQueries({
         queryKey: PROSECUTION_QUERY_KEYS.prosecutionByCase(newProsecution.caseRegisterId),
       });
@@ -147,7 +147,7 @@ export function useDeleteProsecution() {
     mutationFn: prosecutionApi.deleteProsecution,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROSECUTION_QUERY_KEYS.prosecutions });
-      queryClient.invalidateQueries({ queryKey: PROSECUTION_QUERY_KEYS.prosecutionStatistics });
+      queryClient.invalidateQueries({ queryKey: ['prosecutions', 'statistics'] });
     },
   });
 }

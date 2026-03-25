@@ -86,7 +86,7 @@ export default function InvoicesPage() {
 
   // Queries
   const { data: invoices, isLoading: isLoadingInvoices, refetch: refetchInvoices } = useInvoiceSearch(searchCriteria);
-  const { data: statistics, isLoading: isLoadingStats } = useInvoiceStatistics();
+  const { data: statistics, isLoading: isLoadingStats } = useInvoiceStatistics(searchCriteria.stationId);
 
   // Mutations
   const updateStatusMutation = useUpdateInvoiceStatus();

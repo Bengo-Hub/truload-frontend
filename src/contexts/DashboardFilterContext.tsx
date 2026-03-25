@@ -63,10 +63,18 @@ export function DashboardFilterProvider({ children }: { children: ReactNode }) {
     key: K,
     value: DashboardFilters[K]
   ) => {
+    // Non-HQ users cannot change the station filter — enforce server-assigned station
+    if (key === 'stationId' && !getIsHqUser()) return;
     setFiltersState((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const setFilters = useCallback((newFilters: Partial<DashboardFilters>) => {
+    // Non-HQ users cannot change the station filter
+    if ('stationId' in newFilters && !getIsHqUser()) {
+      const { stationId: _, ...rest } = newFilters;
+      setFiltersState((prev) => ({ ...prev, ...rest }));
+      return;
+    }
     setFiltersState((prev) => ({ ...prev, ...newFilters }));
   }, []);
 
