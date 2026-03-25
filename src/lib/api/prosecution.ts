@@ -187,8 +187,10 @@ export async function deleteProsecution(id: string): Promise<void> {
 /**
  * Get prosecution statistics
  */
-export async function getProsecutionStatistics(): Promise<ProsecutionStatistics> {
-  const { data } = await apiClient.get<ProsecutionStatistics>('/prosecutions/statistics');
+export async function getProsecutionStatistics(stationId?: string): Promise<ProsecutionStatistics> {
+  const { data } = await apiClient.get<ProsecutionStatistics>('/prosecutions/statistics', {
+    params: stationId ? { stationId } : undefined,
+  });
   return data;
 }
 

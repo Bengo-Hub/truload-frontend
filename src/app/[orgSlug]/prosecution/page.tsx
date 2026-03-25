@@ -105,7 +105,7 @@ function ProsecutionContent() {
   const [editStatus, setEditStatus] = useState('');
 
   // Query hooks
-  const { data: statistics, isLoading: isLoadingStats } = useProsecutionStatistics();
+  const { data: statistics, isLoading: isLoadingStats } = useProsecutionStatistics(filters.stationId);
   const {
     data: searchResult,
     isLoading: isLoadingCases,

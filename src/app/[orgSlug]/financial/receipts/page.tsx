@@ -71,7 +71,7 @@ export default function ReceiptsPage() {
 
   // Queries
   const { data: receipts, isLoading: isLoadingReceipts, refetch: refetchReceipts } = useReceiptSearch(searchCriteria);
-  const { data: statistics, isLoading: isLoadingStats } = useReceiptStatistics();
+  const { data: statistics, isLoading: isLoadingStats } = useReceiptStatistics(searchCriteria.stationId);
 
   // Mutations
   const voidReceiptMutation = useVoidReceipt();

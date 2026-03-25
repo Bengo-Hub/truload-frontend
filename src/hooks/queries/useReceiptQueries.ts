@@ -16,7 +16,7 @@ export const RECEIPT_QUERY_KEYS = {
   receipts: ['receipts'] as const,
   receiptById: (id: string) => ['receipts', 'detail', id] as const,
   receiptsByInvoice: (invoiceId: string) => ['receipts', 'by-invoice', invoiceId] as const,
-  receiptStatistics: ['receipts', 'statistics'] as const,
+  receiptStatistics: (stationId?: string) => ['receipts', 'statistics', stationId ?? 'all'] as const,
 };
 
 // ============================================================================
@@ -62,10 +62,10 @@ export function useReceiptSearch(criteria: receiptApi.ReceiptSearchCriteria) {
 /**
  * Get receipt statistics
  */
-export function useReceiptStatistics() {
+export function useReceiptStatistics(stationId?: string) {
   return useQuery({
-    queryKey: RECEIPT_QUERY_KEYS.receiptStatistics,
-    queryFn: receiptApi.getReceiptStatistics,
+    queryKey: RECEIPT_QUERY_KEYS.receiptStatistics(stationId),
+    queryFn: () => receiptApi.getReceiptStatistics(stationId),
     ...QUERY_OPTIONS.semiStatic,
   });
 }
@@ -90,16 +90,16 @@ export function useRecordPayment() {
     }) => receiptApi.recordPayment(invoiceId, request),
     onSuccess: (newReceipt, { invoiceId }) => {
       queryClient.invalidateQueries({ queryKey: RECEIPT_QUERY_KEYS.receipts });
-      queryClient.invalidateQueries({ queryKey: RECEIPT_QUERY_KEYS.receiptStatistics });
+      queryClient.invalidateQueries({ queryKey: ['receipts', 'statistics'] });
       queryClient.invalidateQueries({
         queryKey: RECEIPT_QUERY_KEYS.receiptsByInvoice(invoiceId),
       });
       // Invalidate invoice to update paid status
       queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoiceById(invoiceId) });
       queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoices });
-      queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoiceStatistics });
+      queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
       // Invalidate prosecution statistics
-      queryClient.invalidateQueries({ queryKey: PROSECUTION_QUERY_KEYS.prosecutionStatistics });
+      queryClient.invalidateQueries({ queryKey: ['prosecutions', 'statistics'] });
       queryClient.setQueryData(RECEIPT_QUERY_KEYS.receiptById(newReceipt.id), newReceipt);
     },
   });
@@ -116,11 +116,11 @@ export function useVoidReceipt() {
       receiptApi.voidReceipt(id, reason),
     onSuccess: (voidedReceipt, { id }) => {
       queryClient.invalidateQueries({ queryKey: RECEIPT_QUERY_KEYS.receipts });
-      queryClient.invalidateQueries({ queryKey: RECEIPT_QUERY_KEYS.receiptStatistics });
+      queryClient.invalidateQueries({ queryKey: ['receipts', 'statistics'] });
       // Invalidate invoice to update paid status
       queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoices });
-      queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoiceStatistics });
-      queryClient.invalidateQueries({ queryKey: PROSECUTION_QUERY_KEYS.prosecutionStatistics });
+      queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['prosecutions', 'statistics'] });
       queryClient.setQueryData(RECEIPT_QUERY_KEYS.receiptById(id), voidedReceipt);
     },
   });
