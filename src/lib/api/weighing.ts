@@ -149,6 +149,32 @@ export interface WeighingTransaction {
   vehicleImageUrls?: string[];
 }
 
+/** Backend group-level compliance result (from AxleGroupAggregationService) */
+export interface BackendGroupResult {
+  groupLabel: string;
+  axleType: string;
+  axleCount: number;
+  groupWeightKg: number;
+  groupPermissibleKg: number;
+  toleranceKg: number;
+  effectiveLimitKg: number;
+  overloadKg: number;
+  pavementDamageFactor: number;
+  status: string;
+  operationalToleranceKg: number;
+  feeUsd: number;
+  feeKes: number;
+  demeritPoints: number;
+  axles: {
+    axleNumber: number;
+    measuredWeightKg: number;
+    permissibleWeightKg: number;
+    overloadKg: number;
+    tyreType?: string;
+    spacingMeters?: number;
+  }[];
+}
+
 export interface WeighingResult {
   weighingId: string;
   ticketNumber: string;
@@ -156,18 +182,29 @@ export interface WeighingResult {
   gvwMeasuredKg: number;
   gvwPermissibleKg: number;
   gvwOverloadKg: number;
+  /** GVW tolerance applied in kg (from DB tolerance settings) */
+  gvwToleranceKg?: number;
+  /** GVW effective limit including tolerance */
+  gvwEffectiveLimitKg?: number;
+  /** Display string for GVW tolerance (e.g. "5%", "2,000 kg", "0% (strict)") */
+  gvwToleranceDisplay?: string;
   isCompliant: boolean;
   controlStatus: string;
   /** Overall compliance status: LEGAL, WARNING, or OVERLOAD */
   overallStatus?: string;
   violationReason?: string;
   totalFeeUsd: number;
+  totalFeeKes?: number;
   hasPermit: boolean;
   reweighCycleNo: number;
   weighedAt: string;
   /** Whether vehicle has been sent to yard (auto-created on overload or manual). */
   isSentToYard?: boolean;
   operationalToleranceKg?: number;
+  /** Display string for axle tolerance (e.g. "0% (strict)", "5%") */
+  axleToleranceDisplay?: string;
+  /** Group-level compliance results from backend with DB-driven tolerance */
+  groupResults?: BackendGroupResult[];
   axleCompliance: {
     axleNumber: number;
     measuredWeightKg: number;

@@ -52,6 +52,9 @@ export interface ComplianceResult {
   gvwPermissibleKg: number;
   gvwMeasuredKg: number;
   gvwOverloadKg: number;
+  gvwToleranceKg: number;
+  gvwEffectiveLimitKg: number;
+  gvwToleranceDisplay: string;
   totalFeeUsd: number;
   demeritPoints: number;
   overallStatus: ComplianceStatus;
@@ -124,6 +127,9 @@ export interface AxleConfiguration {
   legalFramework: string;
   visualDiagramUrl?: string;
   notes?: string;
+  toleranceKg?: number;
+  tolerancePercentage?: number;
+  permissibleGvwKg?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
