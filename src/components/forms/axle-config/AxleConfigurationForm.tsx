@@ -12,6 +12,8 @@ interface AxleConfigFormData {
   name: string;
   numberOfAxles: number;
   maxGrossWeight: number;
+  toleranceKg?: number;
+  tolerancePercentage?: number;
   description?: string;
 }
 
@@ -33,6 +35,8 @@ export function AxleConfigurationForm({
       name: initialData?.name || '',
       numberOfAxles: initialData?.numberOfAxles || 0,
       maxGrossWeight: initialData?.maxGrossWeight || 0,
+      toleranceKg: initialData?.toleranceKg || undefined,
+      tolerancePercentage: initialData?.tolerancePercentage || undefined,
       description: initialData?.description || '',
     },
   });
@@ -43,6 +47,8 @@ export function AxleConfigurationForm({
         name: initialData.name || '',
         numberOfAxles: initialData.numberOfAxles || 0,
         maxGrossWeight: initialData.maxGrossWeight || 0,
+        toleranceKg: initialData.toleranceKg,
+        tolerancePercentage: initialData.tolerancePercentage,
         description: initialData.description || '',
       });
     }
@@ -105,7 +111,6 @@ export function AxleConfigurationForm({
               id="maxGrossWeight"
               type="number"
               min="0"
-              step="0.01"
               {...register('maxGrossWeight', {
                 required: 'Max gross weight is required',
                 valueAsNumber: true,
@@ -116,6 +121,39 @@ export function AxleConfigurationForm({
             {errors.maxGrossWeight && (
               <p className="text-sm text-red-500">{errors.maxGrossWeight.message}</p>
             )}
+          </div>
+
+          {/* Tolerance Kg */}
+          <div className="space-y-2">
+            <Label htmlFor="toleranceKg">Override Tolerance (kg)</Label>
+            <Input
+              id="toleranceKg"
+              type="number"
+              min="0"
+              placeholder="e.g., 2000"
+              {...register('toleranceKg', {
+                valueAsNumber: true,
+                min: { value: 0, message: 'Must be at least 0' },
+              })}
+            />
+            <p className="text-xs text-muted-foreground italic">Optional: fixed kg override (Traffic Act)</p>
+          </div>
+
+          {/* Tolerance Percentage */}
+          <div className="space-y-2">
+            <Label htmlFor="tolerancePercentage">Override Tolerance (%)</Label>
+            <Input
+              id="tolerancePercentage"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="e.g., 5.0"
+              {...register('tolerancePercentage', {
+                valueAsNumber: true,
+                min: { value: 0, message: 'Must be at least 0' },
+              })}
+            />
+            <p className="text-xs text-muted-foreground italic">Optional: percentage override (EAC)</p>
           </div>
         </div>
 

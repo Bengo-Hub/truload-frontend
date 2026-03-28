@@ -59,6 +59,9 @@ interface DecisionPanelProps {
   /** Flat fee to display in commercial mode (KES) */
   commercialWeighingFeeKes?: number;
 
+  /** Operational tolerance (kg) to display in warning message */
+  operationalToleranceKg?: number;
+
   className?: string;
 }
 
@@ -96,6 +99,7 @@ export function DecisionPanel({
   isSendingToYard = false,
   isCommercial = false,
   commercialWeighingFeeKes = 500,
+  operationalToleranceKg = 200,
   className,
 }: DecisionPanelProps) {
   const statusMessage = getDecisionMessage(overallStatus);
@@ -154,7 +158,7 @@ export function DecisionPanel({
                 {overallStatus === 'WARNING' && (
                   <div className="flex items-center gap-2 text-sm text-yellow-700">
                     <AlertTriangle className="h-4 w-4" />
-                    <span>Within operational tolerance (≤200kg)</span>
+                    <span>Within operational tolerance (≤{operationalToleranceKg}kg)</span>
                   </div>
                 )}
               </>

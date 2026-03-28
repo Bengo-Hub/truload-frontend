@@ -38,6 +38,7 @@ export function useAxleWeightReferences(configurationId?: string) {
     queryFn: () => setupApi.fetchAxleWeightReferencesByConfiguration(configurationId!),
     ...QUERY_OPTIONS.dynamic,
     enabled: !!configurationId,
+    placeholderData: keepPreviousData,
   });
 }
 

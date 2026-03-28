@@ -43,6 +43,7 @@ interface WeighingDecisionStepProps {
 
   // Navigation
   onBack?: () => void;
+  operationalToleranceKg?: number;
 }
 
 export function WeighingDecisionStep({
@@ -71,6 +72,7 @@ export function WeighingDecisionStep({
   isCommercial = false,
   commercialWeighingFeeKes,
   onBack,
+  operationalToleranceKg,
 }: WeighingDecisionStepProps) {
   return (
     <div className="space-y-4">
@@ -124,6 +126,7 @@ export function WeighingDecisionStep({
         isSendingToYard={isSendingToYard}
         isCommercial={isCommercial}
         commercialWeighingFeeKes={commercialWeighingFeeKes}
+        operationalToleranceKg={operationalToleranceKg}
       />
 
       {onBack && (

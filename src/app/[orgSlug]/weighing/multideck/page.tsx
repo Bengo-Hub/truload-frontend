@@ -40,12 +40,14 @@ import { WeighingCaptureStep } from '@/components/weighing/steps/WeighingCapture
 import { WeighingDecisionStep } from '@/components/weighing/steps/WeighingDecisionStep';
 import {
     useAllActs,
+    useAllSettings,
     useAxleWeightReferences,
     useCreateVehicle,
     useDeleteWeighingTransaction,
     useMyScaleTestStatus,
     useMyStation,
     usePendingWeighings,
+    useToleranceSettings,
     useUpdateVehicle,
     useVehicleByRegNo,
     useWeighingAxleConfigurations,
@@ -68,6 +70,7 @@ import {
     WeighingStep
 } from '@/types/weighing';
 import { ChevronLeft, ChevronRight, Loader2, Scale } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -78,6 +81,7 @@ import { toast } from 'sonner';
 export default function MultideckWeighingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const tenantType = user?.tenantType ?? 'AxleLoadEnforcement';
   const isCommercialTenant = tenantType === 'CommercialWeighing';
@@ -150,7 +154,8 @@ export default function MultideckWeighingPage() {
 
   // Bound state
   const [currentBoundState, setCurrentBoundState] = useState<string | undefined>();
-  const currentBound = currentBoundState ?? (currentStation?.supportsBidirectional ? currentStation.boundACode : undefined);
+  // Derive bound from station data — default to bound A
+  const currentBound = currentBoundState ?? currentStation?.boundACode ?? 'A';
 
   // Indicator health state
   const [indicators, setIndicators] = useState<ScaleInfo[]>([
@@ -219,9 +224,21 @@ export default function MultideckWeighingPage() {
 
   // Acts for compliance (permit/act section at top of Vehicle Details)
   const { data: acts = [] } = useAllActs();
+  const { data: allSettings = [] } = useAllSettings();
   const [selectedActId, setSelectedActId] = useState<string | undefined>();
   const defaultActId = acts.find((a) => a.isDefault)?.id ?? acts[0]?.id;
   const effectiveActId = selectedActId || defaultActId;
+
+  // Resolve legal framework and fetch DB tolerance settings (cached 30min)
+  const effectiveAct = acts.find(a => a.id === effectiveActId);
+  const effectiveLegalFramework = effectiveAct?.code || 'TRAFFIC_ACT';
+  const { data: toleranceSettings = [] } = useToleranceSettings(effectiveLegalFramework);
+
+  // Operational tolerance from settings (configurable per org)
+  const operationalToleranceKg = useMemo(() => {
+    const setting = allSettings.find((s: any) => s.settingKey === 'weighing.operational_tolerance_kg');
+    return setting?.settingValue ? parseInt(setting.settingValue, 10) : 200;
+  }, [allSettings]);
 
   const { position: geoPosition, refresh: refreshGeolocation, isSupported: isGeolocationSupported } = useGeolocation({ enableHighAccuracy: true, timeout: 10000 });
 
@@ -469,7 +486,7 @@ export default function MultideckWeighingPage() {
     : deckWeights.reduce((sum, d) => sum + d.weight, 0);
 
   // Group results: deck 1 → A, deck 2 → B, deck 3 → C, deck 4 → D. Only 4 decks; axles are grouped per config.
-  const groupResults: AxleGroupResult[] = useMemo(() => {
+  const localGroupResults: AxleGroupResult[] = useMemo(() => {
     const deckToGroup: Record<number, string> = { 1: 'A', 2: 'B', 3: 'C', 4: 'D' };
     const deckWeightMap = new Map<string, number>();
     deckWeights.forEach(dw => {
@@ -478,11 +495,20 @@ export default function MultideckWeighingPage() {
     });
 
     if (weightReferences.length === 0) {
+      // Fallback: use tolerance from DB settings, not hardcoded
+      const axleTol =
+        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
+        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive);
       return ['A', 'B', 'C', 'D'].map((groupLabel, index) => {
         const deckNum = index + 1;
         const measuredKg = isCaptured ? (deckWeightMap.get(groupLabel) || 0) : 0;
         const permissibleKg = groupLabel === 'A' ? 8000 : 16000;
-        const effectiveLimitKg = permissibleKg + (groupLabel === 'A' ? 400 : 0);
+        let tolKg = 0;
+        if (axleTol) {
+          if (axleTol.toleranceKg && axleTol.toleranceKg > 0) tolKg = axleTol.toleranceKg;
+          else if (axleTol.tolerancePercentage > 0) tolKg = Math.round(permissibleKg * axleTol.tolerancePercentage / 100);
+        }
+        const effectiveLimitKg = permissibleKg + tolKg;
         let status: ComplianceStatus = 'LEGAL';
         if (measuredKg > effectiveLimitKg) status = 'OVERLOAD';
         else if (measuredKg > permissibleKg) status = 'WARNING';
@@ -492,11 +518,12 @@ export default function MultideckWeighingPage() {
           axleType: groupLabel === 'A' ? 'Steering' : 'Tandem',
           axleCount: groupLabel === 'A' ? 1 : 2,
           permissibleKg,
-          toleranceKg: groupLabel === 'A' ? 400 : 0,
+          toleranceKg: tolKg,
           effectiveLimitKg,
           measuredKg,
           overloadKg: Math.max(0, measuredKg - effectiveLimitKg),
           pavementDamageFactor: 0,
+          operationalToleranceKg,
           status,
           axles: [{ axleNumber: deckNum, measuredKg, permissibleKg }],
         };
@@ -514,8 +541,18 @@ export default function MultideckWeighingPage() {
     for (const groupLabel of Array.from(groupMap.keys()).sort()) {
       const refs = groupMap.get(groupLabel)!;
       const permissibleKg = refs.reduce((sum, r) => sum + r.axleLegalWeightKg, 0);
-      const isSteering = groupLabel === 'A' && refs.length === 1;
-      const toleranceKg = isSteering ? Math.round(permissibleKg * 0.05) : 0;
+      // Apply tolerance from DB settings — prefer framework-specific over BOTH/GLOBAL
+      const axleTolerance =
+        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
+        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive);
+      let toleranceKg = 0;
+      if (axleTolerance) {
+        if (axleTolerance.toleranceKg && axleTolerance.toleranceKg > 0) {
+          toleranceKg = axleTolerance.toleranceKg;
+        } else if (axleTolerance.tolerancePercentage > 0) {
+          toleranceKg = Math.round(permissibleKg * axleTolerance.tolerancePercentage / 100);
+        }
+      }
       const effectiveLimitKg = permissibleKg + toleranceKg;
       const measuredKg = isCaptured ? (deckWeightMap.get(groupLabel) || 0) : 0;
 
@@ -529,17 +566,67 @@ export default function MultideckWeighingPage() {
         measuredKg,
         overloadKg: Math.max(0, measuredKg - effectiveLimitKg),
         pavementDamageFactor: 0,
+        operationalToleranceKg,
         status: measuredKg > effectiveLimitKg ? 'OVERLOAD' : (measuredKg > permissibleKg ? 'WARNING' : 'LEGAL'),
         axles: refs.map(r => ({ axleNumber: r.axlePosition, measuredKg: Math.round(measuredKg / refs.length), permissibleKg: r.axleLegalWeightKg })),
       });
     }
     return results;
-  }, [weightReferences, deckWeights, isCaptured]);
+  }, [weightReferences, deckWeights, isCaptured, toleranceSettings, operationalToleranceKg]);
 
-  const gvwPermissible = complianceResult?.gvwPermissibleKg || groupResults.reduce((sum, g) => sum + g.permissibleKg, 0) || 56000;
+  // When backend returns group results (after weight submission), use those as
+  // authoritative source with correct DB-driven tolerance per legal framework.
+  const effectiveGroupResults: AxleGroupResult[] = useMemo(() => {
+    if (!complianceResult?.groupResults || complianceResult.groupResults.length === 0) {
+      return localGroupResults;
+    }
+    return complianceResult.groupResults.map(bg => ({
+      groupLabel: bg.groupLabel,
+      axleType: bg.axleType,
+      axleCount: bg.axleCount,
+      permissibleKg: bg.groupPermissibleKg,
+      toleranceKg: bg.toleranceKg,
+      effectiveLimitKg: bg.effectiveLimitKg,
+      measuredKg: bg.groupWeightKg,
+      overloadKg: bg.overloadKg,
+      pavementDamageFactor: bg.pavementDamageFactor,
+      status: (bg.status as ComplianceStatus) || 'LEGAL',
+      operationalToleranceKg: bg.operationalToleranceKg,
+      axles: bg.axles.map(a => ({
+        axleNumber: a.axleNumber,
+        measuredKg: a.measuredWeightKg,
+        permissibleKg: a.permissibleWeightKg,
+      })),
+    }));
+  }, [complianceResult?.groupResults, localGroupResults]);
+
+  const gvwPermissible = complianceResult?.gvwPermissibleKg || effectiveGroupResults.reduce((sum, g) => sum + g.permissibleKg, 0) || 56000;
   const gvwMeasured = complianceResult?.gvwMeasuredKg || (isCaptured ? totalGVW : 0);
-  const gvwOverload = complianceResult?.gvwOverloadKg || Math.max(0, gvwMeasured - gvwPermissible);
-  const overallStatus: ComplianceStatus = (complianceResult?.overallStatus as ComplianceStatus) || (isCaptured ? calculateOverallStatus(groupResults, gvwOverload) : 'LEGAL');
+
+  // Compute GVW tolerance from DB settings (local fallback before backend submission)
+  const localGvwTolerance = useMemo(() => {
+    // Prefer framework-specific GVW tolerance over BOTH/GLOBAL wildcard
+    const gvwTolerance =
+      toleranceSettings.find((t: any) => t.appliesTo === 'GVW' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
+      toleranceSettings.find((t: any) => t.appliesTo === 'GVW' && t.isActive);
+    if (!gvwTolerance) return { kg: 0, display: '0% (strict)' };
+    if (gvwTolerance.toleranceKg && gvwTolerance.toleranceKg > 0) {
+      return { kg: gvwTolerance.toleranceKg, display: `${gvwTolerance.toleranceKg.toLocaleString()} kg` };
+    }
+    if (gvwTolerance.tolerancePercentage > 0) {
+      const kg = Math.round(gvwPermissible * gvwTolerance.tolerancePercentage / 100);
+      return { kg, display: `${gvwTolerance.tolerancePercentage}%` };
+    }
+    return { kg: 0, display: '0% (strict)' };
+  }, [toleranceSettings, gvwPermissible]);
+
+  // Use backend tolerance if available, otherwise local DB-based tolerance
+  const gvwToleranceKg = complianceResult?.gvwToleranceKg ?? localGvwTolerance.kg;
+  const gvwToleranceDisplay = complianceResult?.gvwToleranceDisplay ?? localGvwTolerance.display;
+  const gvwEffectiveLimitKg = gvwPermissible + gvwToleranceKg;
+
+  const gvwOverload = complianceResult?.gvwOverloadKg ?? Math.max(0, gvwMeasured - gvwEffectiveLimitKg);
+  const overallStatus: ComplianceStatus = (complianceResult?.overallStatus as ComplianceStatus) || (isCaptured ? calculateOverallStatus(effectiveGroupResults, gvwOverload) : 'LEGAL');
 
   // Actions
   const handleProceedToDecision = async () => {
@@ -600,10 +687,10 @@ export default function MultideckWeighingPage() {
   };
 
   const handleCapture = useCallback(async () => {
-    const deck1Groups = groupResults.filter(g => g.groupLabel === 'A');
-    const deck2Groups = groupResults.filter(g => g.groupLabel === 'B');
-    const deck3Groups = groupResults.filter(g => g.groupLabel === 'C');
-    const deck4Groups = groupResults.filter(g => g.groupLabel === 'D');
+    const deck1Groups = localGroupResults.filter(g => g.groupLabel === 'A');
+    const deck2Groups = localGroupResults.filter(g => g.groupLabel === 'B');
+    const deck3Groups = localGroupResults.filter(g => g.groupLabel === 'C');
+    const deck4Groups = localGroupResults.filter(g => g.groupLabel === 'D');
 
     const captureGroup = async (groups: AxleGroupResult[]) => {
       for (const group of groups) {
@@ -619,7 +706,7 @@ export default function MultideckWeighingPage() {
     await captureGroup(deck4Groups);
 
     setIsCaptured(true);
-  }, [groupResults, captureAxleWeight]);
+  }, [localGroupResults, captureAxleWeight]);
 
   const handleFinishAndNew = useCallback(async () => {
     // Ensure last minute details are saved
@@ -629,6 +716,13 @@ export default function MultideckWeighingPage() {
     }
     resetSession();
     middleware.resetSession();
+
+    // Clear weighing-related TanStack Query caches to prevent stale data
+    queryClient.removeQueries({ queryKey: ['weighingTransactions'] });
+    queryClient.removeQueries({ queryKey: ['pendingWeighings'] });
+    queryClient.invalidateQueries({ queryKey: ['weighingTransactions'] });
+
+    // Reset all local UI state for fresh session
     setIsCaptured(false);
     setVehiclePlate('');
     setIsPlateDisabled(false);
@@ -636,15 +730,17 @@ export default function MultideckWeighingPage() {
     setOverviewImage(undefined);
     setCompletedSteps([]);
     setCurrentStep('capture');
+    setSelectedConfig('2A');
     setSelectedDriverId(undefined);
     setSelectedTransporterId(undefined);
     setSelectedCargoId(undefined);
     setSelectedOriginId(undefined);
     setSelectedDestinationId(undefined);
     setSelectedVehicleId(undefined);
+    setSelectedActId(undefined);
     setComment('');
     toast.success('Transaction completed.');
-  }, [weighingSession, resetSession, middleware, handleProceedToDecision]);
+  }, [weighingSession, resetSession, middleware, queryClient, handleProceedToDecision]);
 
   const handleSendToYard = useCallback(async () => {
     if (!weighingSession?.transactionId || !currentStation?.id) return;
@@ -797,7 +893,7 @@ export default function MultideckWeighingPage() {
       setIsCaptured(true);
 
       // Notify TruConnect (weights captured + autoweigh) and reset for next vehicle (WebSocket or API)
-      const axleWeights = groupResults.flatMap((g) => g.axles.map((a) => a.measuredKg));
+      const axleWeights = localGroupResults.flatMap((g) => g.axles.map((a) => a.measuredKg));
       const totalAxles = axleWeights.length;
       if (weighingSession?.transactionId && totalAxles > 0 && middleware.connected) {
         middleware.completeVehicle({
@@ -815,14 +911,12 @@ export default function MultideckWeighingPage() {
       setIsCapturingWeight(false);
       setIsConfirmModalOpen(false);
     }
-  }, [handleCapture, confirmWeight, isCaptured, groupResults, gvwMeasured, weighingSession?.transactionId, selectedConfig, middleware]);
+  }, [handleCapture, confirmWeight, isCaptured, localGroupResults, gvwMeasured, weighingSession?.transactionId, selectedConfig, middleware]);
 
   const getTotalAxles = useCallback((config: string): number => {
-    const axleCount: Record<string, number> = {
-      '2A': 2, '3A': 3, '4A': 4, '5A': 5, '6C': 6, '7A': 7,
-    };
-    return axleCount[config] || 6;
-  }, []);
+    const configObj = axleConfigurations.find(c => c.axleCode === config);
+    return configObj?.axleNumber || 2;
+  }, [axleConfigurations]);
 
   // Proceed to vehicle step - auto-create vehicle if needed and initialize transaction (same as mobile)
   const handleProceedToVehicle = useCallback(async () => {
@@ -988,6 +1082,7 @@ export default function MultideckWeighingPage() {
                         vehiclePlate={vehiclePlate}
                         capturedAxles={[]}
                         currentAxle={0}
+                        weightReferences={weightReferences}
                       />
                       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                         <ImageCaptureCard
@@ -1000,11 +1095,14 @@ export default function MultideckWeighingPage() {
                         <ComplianceBanner status={overallStatus} gvwMeasured={gvwMeasured} gvwOverload={gvwOverload} />
                         <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
                           <ComplianceTable
-                            groupResults={groupResults}
+                            groupResults={effectiveGroupResults}
                             gvwPermissible={gvwPermissible}
                             gvwMeasured={gvwMeasured}
                             gvwOverload={gvwOverload}
                             overallStatus={overallStatus}
+                            gvwToleranceDisplay={gvwToleranceDisplay}
+                            gvwToleranceKg={gvwToleranceKg}
+                            gvwEffectiveLimitKg={gvwEffectiveLimitKg}
                           />
                         </div>
                       </div>
@@ -1114,6 +1212,7 @@ export default function MultideckWeighingPage() {
                  canReweigh={false}
                  isSentToYard={complianceResult?.isSentToYard ?? false}
                  onBack={handlePrevStep}
+                 operationalToleranceKg={operationalToleranceKg}
                />
              )}
           </div>
@@ -1126,19 +1225,18 @@ export default function MultideckWeighingPage() {
           onConfirm={handleConfirmWeight}
           vehiclePlate={vehiclePlate}
           axleType={selectedConfig}
-          axleGroups={groupResults.map(g => ({
+          axleGroups={effectiveGroupResults.map(g => ({
             group: g.groupLabel,
             permissible: g.permissibleKg,
-            tolerance: g.axleCount === 1 ? 5 : 0,
+            tolerance: g.toleranceKg > 0 ? `${g.toleranceKg.toLocaleString()} kg` : '0% (strict)',
             operationalTolerance: g.operationalToleranceKg,
             actual: g.measuredKg,
             overload: g.overloadKg,
-            result: g.status === 'LEGAL' ? 'Legal' as const : 'Overload' as const,
+            result: g.overloadKg > 0 ? 'Overload' as const : 'Legal' as const,
           }))}
           gvw={{
             permissible: gvwPermissible,
-            tolerance: 0,
-            operationalTolerance: complianceResult?.operationalToleranceKg,
+            tolerance: gvwToleranceDisplay,
             actual: gvwMeasured,
             overload: gvwOverload,
             result: gvwOverload > 0 ? 'Overload' : 'Legal',

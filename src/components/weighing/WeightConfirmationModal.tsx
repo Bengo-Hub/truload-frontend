@@ -14,7 +14,7 @@ import { AlertTriangle, Scale } from 'lucide-react';
 interface AxleGroup {
   group: string;
   permissible: number;
-  tolerance: number;
+  tolerance: number | string;
   actual: number;
   overload: number;
   operationalTolerance?: number;
@@ -30,7 +30,7 @@ interface WeightConfirmationModalProps {
   axleGroups: AxleGroup[];
   gvw: {
     permissible: number;
-    tolerance: number;
+    tolerance: number | string;
     actual: number;
     overload: number;
     operationalTolerance?: number;
@@ -110,7 +110,9 @@ export function WeightConfirmationModal({
                   <tr key={index} className={group.result === 'Overload' ? 'bg-red-50' : ''}>
                     <td className="px-4 py-2.5 font-medium">{group.group}</td>
                     <td className="px-4 py-2.5 text-right font-mono">{formatWeight(group.permissible)}</td>
-                    <td className="px-4 py-2.5 text-right">{group.tolerance}%</td>
+                    <td className="px-4 py-2.5 text-right font-medium">
+                      {typeof group.tolerance === 'number' ? `${group.tolerance}%` : group.tolerance}
+                    </td>
                     <td className="px-4 py-2.5 text-right text-gray-500">
                       {group.operationalTolerance ? `+${group.operationalTolerance}` : '-'}
                     </td>
@@ -140,7 +142,9 @@ export function WeightConfirmationModal({
                 )}>
                   <td className="px-4 py-2.5">GVW</td>
                   <td className="px-4 py-2.5 text-right font-mono">{formatWeight(gvw.permissible)}</td>
-                  <td className="px-4 py-2.5 text-right">{gvw.tolerance}%</td>
+                  <td className="px-4 py-2.5 text-right font-medium">
+                    {typeof gvw.tolerance === 'number' ? `${gvw.tolerance}%` : gvw.tolerance}
+                  </td>
                   <td className="px-4 py-2.5 text-right text-gray-500">
                     {gvw.operationalTolerance ? `+${gvw.operationalTolerance}` : '-'}
                   </td>

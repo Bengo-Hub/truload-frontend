@@ -623,22 +623,7 @@ export function VehicleDetailsCard({
           );
         })()}
 
-        {/* Axle Configuration */}
-        {!isCommercial && (
-          <SelectFieldWithCrud
-            label="Axle Configuration"
-            value={selectedConfig}
-            onChange={onConfigChange}
-            options={configs.map(c => ({
-              id: c.axleCode,
-              label: c.axleCode,
-              sublabel: c.description || c.axleName,
-            }))}
-            placeholder="Select configuration"
-            isReadOnly={isReadOnly}
-            required
-          />
-        )}
+        {/* Axle Configuration — managed by AxleConfigurationCard (left panel), not duplicated here */}
 
         {showExtendedDetails && (
           <div className="pt-4 border-t border-gray-100 space-y-4">

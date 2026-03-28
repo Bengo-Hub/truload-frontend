@@ -7,7 +7,7 @@ import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { CACHE_TIMES, GC_TIMES } from '@/lib/query/config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 
 /**
@@ -48,6 +48,16 @@ function createQueryClient() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(createQueryClient);
+
+  // Clear all TanStack Query caches on logout
+  useEffect(() => {
+    const handleLogout = () => {
+      queryClient.clear();
+      console.log('[Providers] TanStack Query cache cleared on logout');
+    };
+    window.addEventListener('truload:logout', handleLogout);
+    return () => window.removeEventListener('truload:logout', handleLogout);
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
