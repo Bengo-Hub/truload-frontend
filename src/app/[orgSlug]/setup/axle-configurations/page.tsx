@@ -75,6 +75,129 @@ interface WeightRefRow {
 // Maximum legal GVW in Kenya (56 tonnes = 56,000 kg)
 const MAX_LEGAL_GVW_KG = 56000;
 
+// ── Regulatory weight limits per tyre type ──
+// These are the legal max weights from Kenya Traffic Act Cap 403 & EAC Vehicle Load Control Act 2016
+const TYRE_WEIGHT_LIMITS: Record<string, { steering: number; single: number; tandem: number; label: string }> = {
+	S: { steering: 8000, single: 7500, tandem: 7500, label: 'Single Tyre (S)' },
+	D: { steering: 10000, single: 10000, tandem: 9000, label: 'Dual Tyres (D)' },
+	W: { steering: 8000, single: 8000, tandem: 8000, label: 'Wide Single (W)' },
+};
+
+// ── Common vehicle templates for quick setup ──
+interface AxleTemplate {
+	label: string;
+	description: string;
+	axleCount: number;
+	code: string;
+	positions: { grouping: 'A' | 'B' | 'C' | 'D'; tyreCode: string; groupCode: string }[];
+}
+
+const AXLE_TEMPLATES: AxleTemplate[] = [
+	{
+		label: '2A — Standard 2-Axle Truck',
+		description: 'Steering (S) + Single Drive (D) — GVW ~18,000 kg',
+		axleCount: 2, code: '2A',
+		positions: [
+			{ grouping: 'A', tyreCode: 'S', groupCode: 'S1' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'SA4' },
+		],
+	},
+	{
+		label: '3A — 3-Axle Truck (Tandem Rear)',
+		description: 'Steering (S) + Tandem Drive (DD) — GVW ~26,000 kg',
+		axleCount: 3, code: '3A',
+		positions: [
+			{ grouping: 'A', tyreCode: 'S', groupCode: 'S1' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+		],
+	},
+	{
+		label: '4D — 4-Axle Semi-Trailer',
+		description: 'Steering (S) + Drive (D) + Tandem Trailer (DD) — GVW ~36,000 kg',
+		axleCount: 4, code: '4D',
+		positions: [
+			{ grouping: 'A', tyreCode: 'S', groupCode: 'S1' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'SA4' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG8' },
+		],
+	},
+	{
+		label: '5D — 5-Axle Articulated Truck',
+		description: 'Steering + Tandem Drive + Tandem Trailer — GVW ~44,000 kg',
+		axleCount: 5, code: '5D',
+		positions: [
+			{ grouping: 'A', tyreCode: 'S', groupCode: 'S1' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG8' },
+		],
+	},
+	{
+		label: '6A — 6-Axle Heavy Transport',
+		description: 'Steering + Tandem Drive + Tridem Trailer — GVW ~50,000 kg',
+		axleCount: 6, code: '6A',
+		positions: [
+			{ grouping: 'A', tyreCode: 'S', groupCode: 'S1' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG12' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG12' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG12' },
+		],
+	},
+	{
+		label: '7C — 7-Axle B-Double',
+		description: 'Steering + Tandem + Tandem + Tandem — GVW ~56,000 kg',
+		axleCount: 7, code: '7C',
+		positions: [
+			{ grouping: 'A', tyreCode: 'S', groupCode: 'S1' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'B', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'C', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'D', tyreCode: 'D', groupCode: 'TAG8' },
+			{ grouping: 'D', tyreCode: 'D', groupCode: 'TAG8' },
+		],
+	},
+];
+
+/**
+ * Calculates the legal permissible weight for an axle based on its position,
+ * tyre type, and whether it's in a multi-axle group (tandem/tridem).
+ */
+function calculateLegalWeight(
+	tyreCode: string,
+	position: number,
+	grouping: string,
+	isMultiAxleGroup: boolean
+): number {
+	const limits = TYRE_WEIGHT_LIMITS[tyreCode];
+	if (!limits) return 8000;
+	if (position === 1 && grouping === 'A') return limits.steering;
+	if (isMultiAxleGroup) return limits.tandem;
+	return limits.single;
+}
+
+/**
+ * Generates a pipe-notation axle code from weight reference rows.
+ * e.g., rows with groups A:S, B:DD, C:DD → "5*S|DD|DD|"
+ */
+function generateAxleCode(rows: WeightRefRow[], lookupData: WeightRefLookupData | null): string {
+	if (!lookupData || rows.length === 0) return '';
+	const groups: Record<string, string[]> = {};
+	for (const row of rows) {
+		const tyreType = lookupData.tyreTypes.find(t => t.id === row.tyreTypeId);
+		const code = tyreType?.code || '?';
+		if (!groups[row.axleGrouping]) groups[row.axleGrouping] = [];
+		groups[row.axleGrouping].push(code);
+	}
+	const parts = ['A', 'B', 'C', 'D'].map(g => (groups[g] || []).join(''));
+	return `${rows.length}*${parts.join('|')}`;
+}
+
 export default function AxleConfigurationsPage() {
 	return (
 		<ProtectedRoute requiredPermissions={["config.manage_axle"]}>
@@ -357,9 +480,103 @@ function AxleConfigurationsContent() {
 		setWeightRefRows(prev => {
 			const updated = [...prev];
 			updated[index] = { ...updated[index], [field]: value };
+
+			// Auto-fill weight when tyre type changes
+			if (field === 'tyreTypeId' && value && lookupData) {
+				const tyreType = lookupData.tyreTypes.find(t => t.id === value);
+				if (tyreType?.code) {
+					const row = updated[index];
+					// Determine if this axle is in a multi-axle group (tandem/tridem)
+					const sameGroupCount = updated.filter(r => r.axleGrouping === row.axleGrouping).length;
+					const isMultiAxle = sameGroupCount >= 2;
+					const suggestedWeight = calculateLegalWeight(
+						tyreType.code, row.axlePosition, row.axleGrouping, isMultiAxle
+					);
+					// Only auto-fill if weight is 0 (not yet set)
+					if (row.axleLegalWeightKg === 0) {
+						updated[index].axleLegalWeightKg = suggestedWeight;
+					}
+				}
+			}
+
+			// Auto-suggest axle group when grouping changes
+			if (field === 'axleGrouping' && lookupData) {
+				const row = updated[index];
+				const sameGroupCount = updated.filter(r => r.axleGrouping === value).length;
+				const tyreType = lookupData.tyreTypes.find(t => t.id === row.tyreTypeId);
+				const tyreCode = tyreType?.code || '';
+
+				let suggestedGroupCode = '';
+				if (sameGroupCount >= 4) suggestedGroupCode = 'QAG16';
+				else if (sameGroupCount >= 3) suggestedGroupCode = 'TAG12';
+				else if (sameGroupCount >= 2) suggestedGroupCode = 'TAG8';
+				else if (tyreCode === 'D') suggestedGroupCode = 'SA4';
+				else if (tyreCode === 'W') suggestedGroupCode = 'WWW';
+				else suggestedGroupCode = 'S1';
+
+				const matchingGroup = lookupData.axleGroups.find(g => g.code === suggestedGroupCode);
+				if (matchingGroup && !row.axleGroupId) {
+					updated[index].axleGroupId = matchingGroup.id;
+				}
+			}
+
 			return updated;
 		});
 	};
+
+	// Apply a template preset to quickly set up a common configuration
+	const applyTemplate = useCallback((template: AxleTemplate) => {
+		if (!lookupData) return;
+
+		const rows: WeightRefRow[] = template.positions.map((pos, idx) => {
+			const tyreType = lookupData.tyreTypes.find(t => t.code === pos.tyreCode);
+			const axleGroup = lookupData.axleGroups.find(g => g.code === pos.groupCode);
+			const isMultiAxle = template.positions.filter(p => p.grouping === pos.grouping).length >= 2;
+			const weight = calculateLegalWeight(pos.tyreCode, idx + 1, pos.grouping, isMultiAxle);
+
+			return {
+				axlePosition: idx + 1,
+				axleLegalWeightKg: weight,
+				axleGrouping: pos.grouping,
+				axleGroupId: axleGroup?.id || '',
+				tyreTypeId: tyreType?.id,
+			};
+		});
+
+		setWeightRefRows(rows);
+		// Also update form fields
+		reset(prev => ({
+			...prev,
+			axleCode: template.code,
+			axleName: template.label,
+			axleNumber: template.axleCount,
+		}));
+	}, [lookupData, reset]);
+
+	// Auto-fill all weights based on tyre types (for when user has set tyre types but not weights)
+	const autoFillWeights = useCallback(() => {
+		if (!lookupData) return;
+		setWeightRefRows(prev => {
+			return prev.map((row, idx) => {
+				const tyreType = lookupData.tyreTypes.find(t => t.id === row.tyreTypeId);
+				if (!tyreType?.code) return row;
+				const sameGroupCount = prev.filter(r => r.axleGrouping === row.axleGrouping).length;
+				const isMultiAxle = sameGroupCount >= 2;
+				const weight = calculateLegalWeight(tyreType.code, row.axlePosition, row.axleGrouping, isMultiAxle);
+				return { ...row, axleLegalWeightKg: weight };
+			});
+		});
+		toast.success('Weights auto-filled based on tyre types and legal limits');
+	}, [lookupData]);
+
+	// Auto-generate axle code from current weight ref pattern
+	const autoGenerateCode = useCallback(() => {
+		const code = generateAxleCode(weightRefRows, lookupData);
+		if (code && !editing) {
+			reset(prev => ({ ...prev, axleCode: code }));
+			toast.success(`Code generated: ${code}`);
+		}
+	}, [weightRefRows, lookupData, editing, reset]);
 
 	// Export to CSV
 	const exportToCsv = () => {
@@ -493,6 +710,10 @@ function AxleConfigurationsContent() {
 									<SelectItem value="5">5-Axle</SelectItem>
 									<SelectItem value="6">6-Axle</SelectItem>
 									<SelectItem value="7">7-Axle</SelectItem>
+									<SelectItem value="8">8-Axle</SelectItem>
+									<SelectItem value="9">9-Axle</SelectItem>
+									<SelectItem value="10">10-Axle</SelectItem>
+									<SelectItem value="11">11-Axle</SelectItem>
 								</SelectContent>
 							</Select>
 							<Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -741,12 +962,66 @@ function AxleConfigurationsContent() {
 
 						<Separator />
 
+						{/* Quick Setup Templates (only in create mode) */}
+						{!editing && (
+							<div className="space-y-3">
+								<h4 className="text-sm font-medium text-muted-foreground">Quick Setup — Start from a Template</h4>
+								<p className="text-xs text-muted-foreground">
+									Select a common vehicle configuration below to auto-fill all weight references with legal limits.
+									You can customize any values after applying.
+								</p>
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+									{AXLE_TEMPLATES.map((tpl) => (
+										<button
+											key={tpl.code}
+											type="button"
+											onClick={() => applyTemplate(tpl)}
+											className="text-left p-3 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-colors group"
+										>
+											<div className="flex items-center gap-2">
+												<Truck className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+												<span className="text-sm font-medium group-hover:text-primary">{tpl.label}</span>
+											</div>
+											<p className="text-xs text-muted-foreground mt-1">{tpl.description}</p>
+										</button>
+									))}
+								</div>
+							</div>
+						)}
+
+						<Separator />
+
 						{/* Weight References */}
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
 								<h4 className="text-sm font-medium text-muted-foreground">
 									Weight References ({weightRefRows.length} axle{weightRefRows.length !== 1 ? 's' : ''})
 								</h4>
+								<div className="flex items-center gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={autoFillWeights}
+										disabled={!lookupData || weightRefRows.every(r => !r.tyreTypeId)}
+										title="Auto-fill weights based on selected tyre types and legal limits"
+									>
+										<Scale className="mr-1 h-3 w-3" />
+										Auto-fill Weights
+									</Button>
+									{!editing && (
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={autoGenerateCode}
+											disabled={!lookupData || weightRefRows.every(r => !r.tyreTypeId)}
+											title="Generate axle code from the current tyre type pattern"
+										>
+											Generate Code
+										</Button>
+									)}
+								</div>
 							</div>
 
 							{isLoadingLookup ? (
@@ -758,16 +1033,37 @@ function AxleConfigurationsContent() {
 							) : (
 								<>
 								{/* Help text for weight reference setup */}
-								<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700 space-y-1">
+								<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700 space-y-2">
 									<p className="font-medium">How to set up axle weight references:</p>
-									<ul className="list-disc list-inside space-y-0.5 text-blue-600">
-										<li><strong>Pos</strong> = Axle position (1 = front/steering, last = rear)</li>
-										<li><strong>Permissible Weight</strong> = Legal max weight per EAC/Traffic Act for this axle type</li>
-										<li><strong>Deck Group</strong>: A = Front/Steering, B = Trailer coupling, C = Mid-section, D = Rear</li>
-										<li><strong>Axle Group</strong>: S1 = Single (max 8t), SA4 = Single heavy (10t), TAG8 = Tandem 2-axle (9t ea), TAG12 = Tandem 12-wheel (8t ea), QAG16 = Quad 4-axle (8t ea)</li>
-										<li><strong>Tyre</strong>: S = Single tyre (7.5t), D = Dual/twin tyres (10t), W = Wide single super tyre (8t)</li>
-									</ul>
-									<p className="text-blue-500 italic">GVW is auto-calculated as the sum of all axle weights below.</p>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+										<div>
+											<p className="font-semibold text-blue-800 mb-0.5">Tyre Types & Legal Limits</p>
+											<ul className="list-disc list-inside space-y-0.5 text-blue-600">
+												<li><strong>S</strong> (Single): Steering = 8,000 kg / Other = 7,500 kg</li>
+												<li><strong>D</strong> (Dual/Twin): Steering = 10,000 kg / Single = 10,000 kg / Tandem = 9,000 kg</li>
+												<li><strong>W</strong> (Wide Single): 8,000 kg (all positions)</li>
+											</ul>
+										</div>
+										<div>
+											<p className="font-semibold text-blue-800 mb-0.5">Axle Group Limits</p>
+											<ul className="list-disc list-inside space-y-0.5 text-blue-600">
+												<li><strong>Steering</strong> (Group A, 1 axle): up to 10,000 kg</li>
+												<li><strong>Single Drive</strong> (1 axle): up to 10,000 kg</li>
+												<li><strong>Tandem</strong> (TAG8, 2 axles): up to 18,000 kg combined</li>
+												<li><strong>Tridem</strong> (TAG12, 3 axles): up to 24,000 kg combined</li>
+												<li><strong>Quad</strong> (QAG16, 4 axles): up to 32,000 kg combined</li>
+											</ul>
+										</div>
+									</div>
+									<div className="border-t border-blue-200 pt-1.5 mt-1">
+										<p className="font-semibold text-blue-800 mb-0.5">Quick Tips</p>
+										<ul className="list-disc list-inside space-y-0.5 text-blue-600">
+											<li>Select a <strong>Tyre Configuration</strong> first — weights auto-fill based on legal limits</li>
+											<li>Axles in the same <strong>Deck Group</strong> form a group (e.g., two axles both in B = Tandem)</li>
+											<li><strong>GVW</strong> is auto-calculated as the sum of all axle weights — max 56,000 kg in Kenya</li>
+											<li>Use <strong>Auto-fill Weights</strong> button to recalculate all weights from tyre types</li>
+										</ul>
+									</div>
 								</div>
 
 								<div className="border rounded-lg overflow-hidden">
@@ -800,7 +1096,27 @@ function AxleConfigurationsContent() {
 															placeholder="6000-10000"
 															className="h-8 font-mono"
 														/>
-														{selectedGroup && (
+														{selectedTyre?.code && (() => {
+															const sameGroupCount = weightRefRows.filter(r => r.axleGrouping === row.axleGrouping).length;
+															const isMulti = sameGroupCount >= 2;
+															const recommended = calculateLegalWeight(selectedTyre.code, row.axlePosition, row.axleGrouping, isMulti);
+															const isMatch = row.axleLegalWeightKg === recommended;
+															return (
+																<p className={`text-[10px] mt-0.5 ${isMatch ? 'text-green-600' : 'text-amber-600'}`}>
+																	{isMatch ? '✓' : '⚠'} Legal limit: {recommended.toLocaleString()} kg
+																	{!isMatch && row.axleLegalWeightKg > 0 && (
+																		<button
+																			type="button"
+																			className="ml-1 underline hover:text-primary"
+																			onClick={() => updateWeightRefRow(idx, 'axleLegalWeightKg', recommended)}
+																		>
+																			use this
+																		</button>
+																	)}
+																</p>
+															);
+														})()}
+														{!selectedTyre?.code && selectedGroup && (
 															<p className="text-[10px] text-muted-foreground mt-0.5">
 																Typical: {selectedGroup.typicalWeightKg?.toLocaleString() || '?'} kg
 															</p>
@@ -836,7 +1152,7 @@ function AxleConfigurationsContent() {
 																	<SelectItem key={g.id} value={g.id}>
 																		<span className="font-mono font-bold">{g.code}</span>
 																		<span className="text-muted-foreground ml-1">
-																			{g.name} ({g.axleCountInGroup} axle{g.axleCountInGroup > 1 ? 's' : ''}, ~{g.typicalWeightKg?.toLocaleString()}kg)
+																			{g.name} (~{g.typicalWeightKg?.toLocaleString()}kg)
 																		</span>
 																	</SelectItem>
 																))}
@@ -923,7 +1239,7 @@ function AxleConfigurationsContent() {
 												id="axleNumber"
 												type="number"
 												min={2}
-												max={8}
+												max={11}
 												value={field.value ?? 2}
 												onChange={(e) => field.onChange(parseInt(e.target.value) || 2)}
 												disabled={!!editing}

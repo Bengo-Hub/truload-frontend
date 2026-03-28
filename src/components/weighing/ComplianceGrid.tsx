@@ -20,6 +20,10 @@ interface ComplianceGridProps {
   gvwMeasuredKg: number;
   gvwOverloadKg: number;
   overallStatus: ComplianceStatus;
+  /** GVW tolerance display string from API (e.g. "5%", "2,000 kg", "0% (strict)") */
+  gvwToleranceDisplay?: string;
+  /** GVW tolerance in kg from API */
+  gvwToleranceKg?: number;
   isPending?: boolean;
   showPDF?: boolean;
   showTolerance?: boolean;
@@ -43,6 +47,8 @@ export function ComplianceGrid({
   gvwMeasuredKg,
   gvwOverloadKg,
   overallStatus,
+  gvwToleranceDisplay,
+  gvwToleranceKg,
   isPending = false,
   showPDF = false,
   showTolerance = false,
@@ -175,7 +181,10 @@ export function ComplianceGrid({
                   {formatWeight(gvwPermissibleKg)}
                 </TableCell>
                 {showTolerance && (
-                  <TableCell className="text-right text-gray-500 py-4">0% (strict)</TableCell>
+                  <TableCell className={cn('text-right py-4',
+                    gvwToleranceKg && gvwToleranceKg > 0 ? 'text-green-600' : 'text-gray-500')}>
+                    {gvwToleranceDisplay || '0% (strict)'}
+                  </TableCell>
                 )}
                 <TableCell className="text-right font-mono text-lg text-gray-900 py-4">
                   {gvwMeasuredKg > 0 ? formatWeight(gvwMeasuredKg) : '-'}

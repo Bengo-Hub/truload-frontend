@@ -12,6 +12,12 @@ interface ComplianceTableProps {
   gvwMeasured: number;
   gvwOverload: number;
   overallStatus: ComplianceStatus;
+  /** GVW tolerance display string from API (e.g. "5%", "2,000 kg", "0% (strict)") */
+  gvwToleranceDisplay?: string;
+  /** GVW tolerance in kg from API */
+  gvwToleranceKg?: number;
+  /** GVW effective limit including tolerance */
+  gvwEffectiveLimitKg?: number;
   /** Show hierarchical view with expandable groups (default: true) */
   hierarchical?: boolean;
   /** Compact mode for smaller spaces */
@@ -45,6 +51,9 @@ export function ComplianceTable({
   gvwMeasured,
   gvwOverload,
   overallStatus,
+  gvwToleranceDisplay,
+  gvwToleranceKg,
+  gvwEffectiveLimitKg,
   hierarchical = true,
   compact = false,
   isCommercial = false,
@@ -200,7 +209,7 @@ export function ComplianceTable({
                 <th className="px-3 py-2 text-left font-semibold w-[180px]">Group / Axle</th>
                 <th className="px-3 py-2 text-left font-semibold">Type</th>
                 <th className="px-3 py-2 text-right font-semibold">Permissible</th>
-                <th className="px-3 py-2 text-right font-semibold">Tolerance (+5%)</th>
+                <th className="px-3 py-2 text-right font-semibold">Tolerance</th>
                 <th className="px-3 py-2 text-right font-semibold">Op. Tol.</th>
                 <th className="px-3 py-2 text-right font-semibold">Measured</th>
                 <th className="px-3 py-2 text-right font-semibold">Excess</th>
@@ -211,9 +220,6 @@ export function ComplianceTable({
             <tbody className="divide-y divide-gray-100">
               {groupResults.map((group) => {
                 const isExpanded = expandedGroups.has(group.groupLabel);
-                // Single axle groups get 5% tolerance
-                const groupTolerance = group.axleCount === 1 ? Math.round(group.permissibleKg * 0.05) : 0;
-                const effectiveLimit = group.permissibleKg + groupTolerance;
                 const groupStatus = group.measuredKg === 0 ? 'PENDING' : group.status;
                 const groupStatusConfig = getStatusConfig(groupStatus);
                 const groupPdf = calculatePDF(group.measuredKg, group.permissibleKg);
@@ -251,14 +257,19 @@ export function ComplianceTable({
                         {formatKg(group.permissibleKg)}
                       </td>
                       <td className={cn('px-3 py-2.5 text-right font-mono', compact ? 'text-xs' : 'text-sm')}>
-                        {groupTolerance > 0 ? (
-                          <span className="text-amber-600 font-medium">{formatKg(effectiveLimit)}</span>
+                        {group.toleranceKg > 0 ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-amber-600 font-medium">{formatKg(group.permissibleKg + group.toleranceKg)}</span>
+                            <span className="text-[10px] text-slate-400">({formatKg(group.toleranceKg)} kg)</span>
+                          </div>
                         ) : (
-                          <span className="text-slate-400">N/A</span>
+                          <span className="text-slate-400">0</span>
                         )}
                       </td>
                       <td className={cn('px-3 py-2.5 text-right font-mono text-slate-500', compact ? 'text-xs' : 'text-sm')}>
-                        {group.operationalToleranceKg ? `+${group.operationalToleranceKg}` : '-'}
+                        {group.operationalToleranceKg ? (
+                          <span className="text-blue-600">+{formatKg(group.operationalToleranceKg)}</span>
+                        ) : '-'}
                       </td>
                       <td className={cn('px-3 py-2.5 text-right font-mono font-bold', compact ? 'text-xs' : 'text-sm')}>
                         {group.measuredKg > 0 ? formatKg(group.measuredKg) : '-'}
@@ -367,8 +378,12 @@ export function ComplianceTable({
                 <td className={cn('px-3 py-3 text-right font-mono', compact ? 'text-sm' : 'text-base')}>
                   {formatKg(gvwPermissible)}
                 </td>
-                <td className={cn('px-3 py-3 text-right text-slate-400', compact ? 'text-sm' : 'text-base')}>
-                  0% (strict)
+                <td className={cn('px-3 py-3 text-right', compact ? 'text-sm' : 'text-base',
+                  gvwToleranceKg && gvwToleranceKg > 0 ? 'text-green-600' : 'text-slate-400')}>
+                  {gvwToleranceDisplay || '0% (strict)'}
+                  {gvwEffectiveLimitKg && gvwToleranceKg && gvwToleranceKg > 0 && (
+                    <span className="block text-xs text-slate-400 font-mono">{formatKg(gvwEffectiveLimitKg)}</span>
+                  )}
                 </td>
                 <td className={cn('px-3 py-3 text-right text-slate-400', compact ? 'text-sm' : 'text-base')}>
                   -
@@ -416,8 +431,8 @@ export function ComplianceTable({
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-gray-100">
           {groupResults.map((group) => {
-            const groupTolerance = group.axleCount === 1 ? Math.round(group.permissibleKg * 0.05) : 0;
-            const effectiveLimit = group.permissibleKg + groupTolerance;
+            const groupTolerance = group.toleranceKg;
+            const effectiveLimit = group.effectiveLimitKg;
             const groupStatus = group.measuredKg === 0 ? 'PENDING' : group.status;
             const groupStatusConfig = getStatusConfig(groupStatus);
             const groupPdf = calculatePDF(group.measuredKg, group.permissibleKg);
