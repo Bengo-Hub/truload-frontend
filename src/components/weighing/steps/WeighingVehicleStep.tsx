@@ -23,6 +23,8 @@ interface WeighingVehicleStepProps {
   capturedAxles: number[];
   currentAxle: number;
   onAxleSelect?: (axle: number) => void;
+  /** Weight references for the selected axle config (for dynamic group rendering) */
+  weightReferences?: { axlePosition: number; axleGrouping: string; tyreTypeCode?: string; axleLegalWeightKg?: number }[];
   
   // Custom Middle Section (e.g. Mobile WeightCaptureCard or Multideck Weight Results)
   children?: React.ReactNode;
@@ -33,6 +35,9 @@ interface WeighingVehicleStepProps {
   gvwMeasured: number;
   gvwOverload: number;
   overallStatus: ComplianceStatus;
+  gvwToleranceDisplay?: string;
+  gvwToleranceKg?: number;
+  gvwEffectiveLimitKg?: number;
   
   // Right Column - Vehicle Details
   vehicleDetailsProps: any; // Props for VehicleDetailsCard
@@ -62,12 +67,16 @@ export function WeighingVehicleStep({
   capturedAxles,
   currentAxle,
   onAxleSelect,
+  weightReferences,
   children,
   groupResults,
   gvwPermissible,
   gvwMeasured,
   gvwOverload,
   overallStatus,
+  gvwToleranceDisplay,
+  gvwToleranceKg,
+  gvwEffectiveLimitKg,
   vehicleDetailsProps,
   allAxlesCaptured,
   reweighCycleNo,
@@ -109,6 +118,7 @@ export function WeighingVehicleStep({
             capturedAxles={capturedAxles}
             currentAxle={currentAxle}
             onAxleSelect={onAxleSelect}
+            weightReferences={weightReferences}
           />
 
           {children}
@@ -119,6 +129,9 @@ export function WeighingVehicleStep({
             gvwMeasured={gvwMeasured}
             gvwOverload={gvwOverload}
             overallStatus={overallStatus}
+            gvwToleranceDisplay={gvwToleranceDisplay}
+            gvwToleranceKg={gvwToleranceKg}
+            gvwEffectiveLimitKg={gvwEffectiveLimitKg}
             isCommercial={isCommercial}
           />
         </div>

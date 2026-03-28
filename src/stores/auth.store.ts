@@ -128,6 +128,13 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           clearAllScaleTestCaches();
           clearTokens();
+
+          // Clear all TanStack Query caches via custom event
+          // (QueryClient lives in React context, so we signal it to clear)
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('truload:logout'));
+          }
+
           set({
             user: null,
             isAuthenticated: false,
