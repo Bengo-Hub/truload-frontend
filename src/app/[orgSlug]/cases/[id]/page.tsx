@@ -39,6 +39,8 @@ import { useQuery } from '@tanstack/react-query';
 import {
     AlertTriangle,
     ArrowLeft,
+    ArrowRight,
+    Briefcase,
     Calendar,
     Car,
     CheckCircle,
@@ -228,6 +230,30 @@ export default function CaseDetailPage() {
                 )}
               </div>
             </div>
+
+            {/* Escalated Case Banner – link to full case management */}
+            {caseData.escalatedToCaseManager && !isClosed && (
+              <div className="flex items-center justify-between p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Briefcase className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="font-medium text-orange-900">
+                      This case has been escalated to Case Management
+                    </p>
+                    <p className="text-sm text-orange-700">
+                      Manage hearings, subfiles, diary, warrants, parties, and closure from the Case Management view.
+                    </p>
+                  </div>
+                </div>
+                <Button asChild>
+                  <Link href={`/${orgSlug}/case-management/${caseId}`}>
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Open Case Management
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            )}
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
