@@ -26,19 +26,34 @@ import {
 } from '@/components/ui/table';
 import {
     useCaseSearch,
+    useCaseStatistics,
     useCaseStatuses,
     useViolationTypes,
 } from '@/hooks/queries';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import type { CaseRegisterDto, CaseSearchParams } from '@/lib/api/caseRegister';
-import { FileText, Filter, Loader2, RefreshCcw, Search } from 'lucide-react';
+import {
+    AlertCircle,
+    BookOpen,
+    CheckCircle2,
+    Clock,
+    FileStack,
+    FileText,
+    Filter,
+    FolderOpen,
+    Gavel,
+    Loader2,
+    RefreshCcw,
+    Search,
+    Shield,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 
 /**
  * Case Management list: escalated cases only.
  * Separate from Case Register; focus on subfiles A–J, hearings, diary, closure checklist.
- * Case detail is at /cases/[id] (shared with register).
+ * Case detail is at /case-management/[id] with full 8-tab workflow interface.
  */
 export default function CaseManagementPage() {
   const orgSlug = useOrgSlug();
@@ -50,6 +65,7 @@ export default function CaseManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  const { data: caseStats } = useCaseStatistics();
   const { data: caseStatuses = [] } = useCaseStatuses();
   const { data: violationTypes = [] } = useViolationTypes();
   const {
@@ -95,7 +111,6 @@ export default function CaseManagementPage() {
   };
 
   const cases = casesResult?.items ?? [];
-  const totalPages = casesResult?.totalPages ?? 1;
   const currentPage = filters.pageNumber ?? 1;
 
   return (
@@ -105,6 +120,64 @@ export default function CaseManagementPage() {
         subtitle="Escalated cases: subfiles, hearings, diary, closure checklist"
       >
         <div className="space-y-6">
+          {/* Statistics Overview */}
+          {caseStats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-orange-100">
+                      <FolderOpen className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{caseStats.escalatedCases}</p>
+                      <p className="text-xs text-muted-foreground">Total Escalated</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-100">
+                      <AlertCircle className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{caseStats.openCases}</p>
+                      <p className="text-xs text-muted-foreground">Open Cases</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-yellow-100">
+                      <Clock className="h-5 w-5 text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{caseStats.pendingCases}</p>
+                      <p className="text-xs text-muted-foreground">Pending</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-100">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{caseStats.closedCases}</p>
+                      <p className="text-xs text-muted-foreground">Closed</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -200,20 +273,21 @@ export default function CaseManagementPage() {
                       <TableHead className="font-semibold">Violation</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
                       <TableHead className="font-semibold">Created</TableHead>
+                      <TableHead className="font-semibold">Workflows</TableHead>
                       <TableHead className="font-semibold">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoadingCases ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
                           <p className="text-muted-foreground mt-2">Loading cases...</p>
                         </TableCell>
                       </TableRow>
                     ) : cases.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-2" />
                           <p className="text-muted-foreground">No escalated cases found</p>
                           <p className="text-sm text-muted-foreground/80">
@@ -246,8 +320,37 @@ export default function CaseManagementPage() {
                               : '—'}
                           </TableCell>
                           <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Subfiles" asChild>
+                                <Link href={`/${orgSlug}/case-management/${caseItem.id}?tab=subfiles`}>
+                                  <FileStack className="h-3.5 w-3.5 text-blue-600" />
+                                </Link>
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Hearings" asChild>
+                                <Link href={`/${orgSlug}/case-management/${caseItem.id}?tab=hearings`}>
+                                  <Gavel className="h-3.5 w-3.5 text-purple-600" />
+                                </Link>
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Diary" asChild>
+                                <Link href={`/${orgSlug}/case-management/${caseItem.id}?tab=diary`}>
+                                  <BookOpen className="h-3.5 w-3.5 text-orange-600" />
+                                </Link>
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Warrants" asChild>
+                                <Link href={`/${orgSlug}/case-management/${caseItem.id}?tab=warrants`}>
+                                  <Shield className="h-3.5 w-3.5 text-red-600" />
+                                </Link>
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Closure" asChild>
+                                <Link href={`/${orgSlug}/case-management/${caseItem.id}?tab=closure`}>
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                                </Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell>
                             <Button variant="outline" size="sm" asChild>
-                              <Link href={`/${orgSlug}/cases/${caseItem.id}?from=case-management`}>Open</Link>
+                              <Link href={`/${orgSlug}/case-management/${caseItem.id}`}>Manage</Link>
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -257,10 +360,11 @@ export default function CaseManagementPage() {
                 </Table>
               </div>
 
-              {totalPages > 1 && (
+              {(casesResult?.totalCount ?? 0) > (filters.pageSize ?? 10) && (
                 <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
+                  page={currentPage}
+                  pageSize={filters.pageSize ?? 10}
+                  totalItems={casesResult?.totalCount ?? 0}
                   onPageChange={handlePageChange}
                   className="mt-4"
                 />
