@@ -11,6 +11,7 @@ import {
     ProsecutionSection,
 } from '@/components/case';
 import { DocumentsTab } from '@/components/case/DocumentsTab';
+import { DiaryEntryForm } from '@/components/case/subfiles/SubfileEntryForms';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,9 @@ import {
     useCaseById,
     useCloseCase,
     useDispositionTypes,
+    useSubfilesByCaseId,
+    useSubfileTypes,
+    useDeleteSubfile,
 } from '@/hooks/queries';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import {
@@ -48,18 +52,22 @@ import {
     Calendar,
     Car,
     CheckCircle2,
+    Clock,
+    Edit2,
     FileStack,
     FileText,
     Gavel,
     Loader2,
+    Plus,
     Scale,
     Shield,
+    Trash2,
     User,
     Users,
     XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -75,8 +83,10 @@ import { toast } from 'sonner';
  */
 export default function CaseManagementDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgSlug = useOrgSlug();
   const caseId = params.id as string;
+  const initialTab = searchParams.get('tab') || 'overview';
 
   const { data: caseData, isLoading, error, refetch } = useCaseById(caseId);
   const { data: dispositionTypes = [] } = useDispositionTypes();
@@ -85,6 +95,24 @@ export default function CaseManagementDetailPage() {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closeDispositionId, setCloseDispositionId] = useState('');
   const [closeReason, setCloseReason] = useState('');
+
+  // Diary (Subfile F) data
+  const { data: allSubfiles = [] } = useSubfilesByCaseId(caseId);
+  const { data: subfileTypes = [] } = useSubfileTypes();
+  const deleteSubfileMutation = useDeleteSubfile();
+  const [showDiaryForm, setShowDiaryForm] = useState(false);
+  const [editingDiaryEntry, setEditingDiaryEntry] = useState<typeof allSubfiles[0] | undefined>(undefined);
+
+  const diarySubfileType = subfileTypes.find(
+    (t) => t.code?.toUpperCase() === 'F' || t.name?.toUpperCase().includes('DIARY') || t.name?.toUpperCase().includes('INVESTIGATION')
+  );
+  const diaryEntries = allSubfiles
+    .filter((s) => diarySubfileType && s.subfileTypeId === diarySubfileType.id)
+    .sort((a, b) => {
+      const dateA = a.metadata ? JSON.parse(a.metadata).entryDate : a.createdAt;
+      const dateB = b.metadata ? JSON.parse(b.metadata).entryDate : b.createdAt;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
 
   const handleCloseCase = useCallback(async () => {
     if (!closeDispositionId || !closeReason) {
@@ -187,7 +215,7 @@ export default function CaseManagementDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column – Tabs */}
               <div className="lg:col-span-2 space-y-6">
-                <Tabs defaultValue="overview" className="w-full">
+                <Tabs defaultValue={initialTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto gap-1">
                     <TabsTrigger value="overview" className="text-xs">
                       <AlertTriangle className="h-3 w-3 mr-1" />Overview
@@ -324,28 +352,156 @@ export default function CaseManagementDetailPage() {
                   <TabsContent value="diary" className="space-y-4">
                     <Card>
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-slate-500" />
-                          Investigation Diary
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <BookOpen className="h-5 w-5 text-slate-500" />
+                            Investigation Diary (Subfile F)
+                          </CardTitle>
+                          {!isClosed && diarySubfileType && (
+                            <Button
+                              size="sm"
+                              onClick={() => { setEditingDiaryEntry(undefined); setShowDiaryForm(true); }}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Diary Entry
+                            </Button>
+                          )}
+                        </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        {/* Key events timeline */}
                         <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground space-y-2">
                           <p className="font-medium text-foreground">Key events</p>
                           <ul className="list-disc list-inside space-y-1">
-                            <li>Created {formatDate(caseData.createdAt)} by {caseData.createdByName || 'System'}</li>
+                            <li>Case created {formatDate(caseData.createdAt)} by {caseData.createdByName || 'System'}</li>
+                            {caseData.escalatedToCaseManager && (
+                              <li>Escalated to case management {caseData.caseManagerName ? `— ${caseData.caseManagerName}` : ''}</li>
+                            )}
                             {caseData.closedAt && (
-                              <li>Closed {formatDate(caseData.closedAt)} by {caseData.closedByName}</li>
+                              <li>Case closed {formatDate(caseData.closedAt)} by {caseData.closedByName}</li>
                             )}
                           </ul>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Use <strong>Subfile F</strong> in the Subfiles tab to record detailed investigation
-                          timelines and findings. Use <strong>Hearings</strong> for court dates and
-                          <strong> Documents</strong> for attachments.
-                        </p>
+
+                        {/* Diary entries from Subfile F */}
+                        {diaryEntries.length === 0 ? (
+                          <div className="text-center py-8 border rounded-lg bg-muted/10">
+                            <BookOpen className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+                            <p className="text-muted-foreground font-medium">No diary entries yet</p>
+                            <p className="text-sm text-muted-foreground/80 mt-1">
+                              Add investigation diary entries to track steps, findings, and actions taken.
+                            </p>
+                            {!isClosed && diarySubfileType && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-3"
+                                onClick={() => { setEditingDiaryEntry(undefined); setShowDiaryForm(true); }}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add First Entry
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {diaryEntries.map((entry) => {
+                              const meta = entry.metadata ? JSON.parse(entry.metadata) : {};
+                              const entryDate = meta.entryDate || entry.createdAt;
+                              return (
+                                <div
+                                  key={entry.id}
+                                  className="border rounded-lg p-4 hover:bg-muted/20 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                      <Clock className="h-4 w-4 text-orange-500 mt-1 shrink-0" />
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-medium text-sm">
+                                            {new Date(entryDate).toLocaleDateString('en-GB', {
+                                              day: '2-digit', month: 'short', year: 'numeric',
+                                              hour: '2-digit', minute: '2-digit',
+                                            })}
+                                          </span>
+                                          {meta.officerName && (
+                                            <Badge variant="outline" className="text-xs">
+                                              <User className="h-3 w-3 mr-1" />
+                                              {meta.officerName}
+                                            </Badge>
+                                          )}
+                                          {meta.obRef && (
+                                            <Badge variant="secondary" className="text-xs font-mono">
+                                              {meta.obRef}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {entry.content && (
+                                          <div
+                                            className="text-sm text-muted-foreground mt-2 prose prose-sm max-w-none"
+                                            dangerouslySetInnerHTML={{ __html: entry.content }}
+                                          />
+                                        )}
+                                        {entry.fileUrl && (
+                                          <a
+                                            href={entry.fileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-2"
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                            Attached file
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {!isClosed && (
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7"
+                                          title="Edit entry"
+                                          onClick={() => { setEditingDiaryEntry(entry); setShowDiaryForm(true); }}
+                                        >
+                                          <Edit2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-red-500 hover:text-red-700"
+                                          title="Delete entry"
+                                          onClick={async () => {
+                                            try {
+                                              await deleteSubfileMutation.mutateAsync({ id: entry.id, caseId });
+                                              toast.success('Diary entry deleted');
+                                            } catch { toast.error('Failed to delete entry'); }
+                                          }}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
+
+                    {/* Diary Entry Form Dialog */}
+                    {diarySubfileType && (
+                      <DiaryEntryForm
+                        open={showDiaryForm}
+                        onOpenChange={setShowDiaryForm}
+                        subfileType={diarySubfileType}
+                        caseId={caseId}
+                        caseNo={caseData.caseNo}
+                        existing={editingDiaryEntry}
+                      />
+                    )}
                   </TabsContent>
 
                   {/* Warrants Tab */}
