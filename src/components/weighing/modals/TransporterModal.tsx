@@ -38,7 +38,7 @@ export function TransporterModal({
       phone: '',
       email: '',
       address: '',
-      ntacNo: '',
+
     },
   });
   const formValues = watch();
@@ -53,7 +53,7 @@ export function TransporterModal({
         phone: transporter.phone || '',
         email: transporter.email || '',
         address: transporter.address || '',
-        ntacNo: transporter.ntacNo || '',
+
       });
     } else if (mode === 'create') {
       reset({
@@ -63,7 +63,7 @@ export function TransporterModal({
         phone: '',
         email: '',
         address: '',
-        ntacNo: '',
+  
       });
     }
   }, [transporter, mode, reset]);
