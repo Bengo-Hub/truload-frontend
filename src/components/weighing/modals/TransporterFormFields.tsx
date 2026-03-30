@@ -90,19 +90,6 @@ export function TransporterFormFields({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-ntacNo`} className="text-sm font-medium">
-            NTAC Number
-          </Label>
-          <Input
-            id={`${idPrefix}-ntacNo`}
-            placeholder="National Transport Authority Code"
-            value={values.ntacNo ?? ''}
-            onChange={(e) => onChange('ntacNo', e.target.value)}
-            disabled={disabled}
-            className="font-mono"
-          />
-        </div>
-        <div className="space-y-2">
           <Label htmlFor={`${idPrefix}-phone`} className="text-sm font-medium">Phone</Label>
           <Input
             id={`${idPrefix}-phone`}

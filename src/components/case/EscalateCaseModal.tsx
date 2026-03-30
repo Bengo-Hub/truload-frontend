@@ -53,7 +53,6 @@ const emptyTransporterFormValues: TransporterFormValues = {
   code: '',
   name: '',
   registrationNo: '',
-  ntacNo: '',
   phone: '',
   email: '',
   address: '',
@@ -149,13 +148,12 @@ export function EscalateCaseModal({
       licenseExpiryDate: driver?.licenseExpiryDate ? new Date(driver.licenseExpiryDate).toISOString().slice(0, 10) : '',
       isProfessionalDriver: driver?.isProfessionalDriver ?? false,
     });
-    const t = transporter as { registrationNo?: string; ntacNo?: string; phone?: string; phoneNumber?: string } | undefined;
+    const t = transporter as { registrationNo?: string; phone?: string; phoneNumber?: string } | undefined;
     setTransporterFormValues({
       ...emptyTransporterFormValues,
       code: transporter?.code ?? '',
       name: transporter?.name ?? caseData.transporterName ?? '',
       registrationNo: t?.registrationNo ?? '',
-      ntacNo: t?.ntacNo ?? '',
       phone: t?.phone ?? transporter?.phoneNumber ?? '',
       email: transporter?.email ?? '',
       address: transporter?.address ?? '',
