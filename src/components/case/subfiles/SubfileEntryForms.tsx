@@ -472,9 +472,14 @@ export function DiaryEntryForm({ open, onOpenChange, subfileType, caseId, caseNo
   const upload = useFileUpload();
 
   const parsedMeta = existing?.metadata ? JSON.parse(existing.metadata) : {};
+  const [entryType, setEntryType] = useState(parsedMeta.entryType ?? 'investigation');
+  const [priority, setPriority] = useState(parsedMeta.priority ?? 'normal');
+  const [status, setStatus] = useState(parsedMeta.status ?? 'open');
   const [entryDate, setEntryDate] = useState(parsedMeta.entryDate ?? new Date().toISOString().slice(0, 16));
   const [obRef, setObRef] = useState(parsedMeta.obRef ?? '');
   const [officerName, setOfficerName] = useState(parsedMeta.officerName ?? '');
+  const [followUpDate, setFollowUpDate] = useState(parsedMeta.followUpDate ?? '');
+  const [linkedHearingRef, setLinkedHearingRef] = useState(parsedMeta.linkedHearingRef ?? '');
   const [description, setDescription] = useState(existing?.content ?? '');
 
   const isEditing = !!existing;
@@ -491,7 +496,7 @@ export function DiaryEntryForm({ open, onOpenChange, subfileType, caseId, caseNo
     }
 
     const entryTitle = `Diary – ${new Date(entryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
-    const metadata = JSON.stringify({ entryDate, obRef, officerName });
+    const metadata = JSON.stringify({ entryDate, obRef, officerName, entryType, priority, status, followUpDate: followUpDate || undefined, linkedHearingRef: linkedHearingRef || undefined });
 
     try {
       if (isEditing) {
@@ -511,6 +516,45 @@ export function DiaryEntryForm({ open, onOpenChange, subfileType, caseId, caseNo
       onSubmit={handleSubmit} isSubmitting={isBusy} size="xl"
       submitLabel={isEditing ? 'Update' : 'Add Entry'}
     >
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label>Entry Type *</Label>
+          <Select value={entryType} onValueChange={setEntryType}>
+            <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="investigation">Investigation</SelectItem>
+              <SelectItem value="court_attendance">Court Attendance</SelectItem>
+              <SelectItem value="witness_interview">Witness Interview</SelectItem>
+              <SelectItem value="evidence_collection">Evidence Collection</SelectItem>
+              <SelectItem value="correspondence">Correspondence</SelectItem>
+              <SelectItem value="administrative">Administrative</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Priority *</Label>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="important">Important</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Status *</Label>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="open">Open</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="requires_follow_up">Requires Follow-up</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Entry Date & Time *</Label>
@@ -521,9 +565,19 @@ export function DiaryEntryForm({ open, onOpenChange, subfileType, caseId, caseNo
           <Input value={obRef} onChange={e => setObRef(e.target.value)} placeholder="e.g. OB/2026/001" />
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Investigating Officer <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <Input value={officerName} onChange={e => setOfficerName(e.target.value)} placeholder="Officer name" />
+        </div>
+        <div className="space-y-2">
+          <Label>Follow-up Date <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <Input type="date" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} />
+        </div>
+      </div>
       <div className="space-y-2">
-        <Label>Investigating Officer <span className="text-muted-foreground font-normal">(optional)</span></Label>
-        <Input value={officerName} onChange={e => setOfficerName(e.target.value)} placeholder="Officer name" />
+        <Label>Linked Hearing Reference <span className="text-muted-foreground font-normal">(optional)</span></Label>
+        <Input value={linkedHearingRef} onChange={e => setLinkedHearingRef(e.target.value)} placeholder="e.g. HRG/2026/001" />
       </div>
       <div className="space-y-2">
         <Label>Entry Description *</Label>

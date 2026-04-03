@@ -73,7 +73,7 @@ function AxleWeightsCell({ axles }: { axles?: WeighingTransaction['weighingAxles
               <span className={cn(overloaded ? 'text-red-600 font-bold' : 'text-gray-900')}>
                 {axle.measuredWeightKg.toLocaleString()}
               </span>
-              <span className="text-[10px] text-gray-400">/{axle.permissibleWeightKg.toLocaleString()}</span>
+              <span className="text-[10px] text-gray-400">/{(axle.permissibleWeightKg ?? 0).toLocaleString()}</span>
             </div>
           );
         })}

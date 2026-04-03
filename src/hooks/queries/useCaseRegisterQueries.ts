@@ -343,7 +343,7 @@ export function useApproveSpecialRelease() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: caseApi.approveSpecialRelease,
+    mutationFn: (id: string) => caseApi.approveSpecialRelease(id),
     onSuccess: (approvedRelease) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.specialReleases });
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.pendingReleases });

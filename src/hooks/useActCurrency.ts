@@ -14,7 +14,7 @@ import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { useCurrency } from '@/hooks/useCurrency';
 
 /** Default act for enforcement tenants (Traffic Act = KES) */
-const DEFAULT_ENFORCEMENT_CURRENCY = 'KES';
+const DEFAULT_ENFORCEMENT_CURRENCY: 'KES' | 'USD' = 'KES';
 
 export function useActCurrency() {
   const { isCommercial } = useModuleAccess();

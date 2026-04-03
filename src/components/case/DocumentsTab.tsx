@@ -35,6 +35,8 @@ const DOCUMENT_TYPE_CONFIG: Record<string, { icon: typeof FileText; color: strin
   Receipt: { icon: Receipt, color: 'text-green-600 bg-green-50', label: 'Receipt' },
   CourtMinutes: { icon: FileCheck, color: 'text-amber-600 bg-amber-50', label: 'Court Minutes' },
   SpecialReleaseCertificate: { icon: Shield, color: 'text-orange-600 bg-orange-50', label: 'Special Release' },
+  CoverPage: { icon: FileText, color: 'text-indigo-600 bg-indigo-50', label: 'Cover Page' },
+  OBExtract: { icon: FileText, color: 'text-teal-600 bg-teal-50', label: 'OB Extract' },
   Subfile: { icon: Upload, color: 'text-gray-600 bg-gray-50', label: 'Subfile' },
 };
 

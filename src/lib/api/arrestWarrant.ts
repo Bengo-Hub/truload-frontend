@@ -20,6 +20,11 @@ export interface ArrestWarrantDto {
   droppedAt?: string;
   executionDetails?: string;
   droppedReason?: string;
+  issuedDate: string;
+  executionDate?: string;
+  warrantFileUrl?: string;
+  casePartyId?: string;
+  casePartyName?: string;
   createdAt: string;
 }
 
@@ -29,14 +34,23 @@ export interface CreateArrestWarrantRequest {
   accusedIdNo?: string;
   offenceDescription?: string;
   issuedBy?: string;
+  issuedDate: string;
+  executionDate?: string;
+  warrantFileUrl?: string;
+  casePartyId?: string;
 }
 
 export interface ExecuteWarrantRequest {
   executionDetails: string;
+  executionDate?: string;
 }
 
 export interface DropWarrantRequest {
   droppedReason: string;
+}
+
+export interface LiftWarrantRequest {
+  liftedReason: string;
 }
 
 // ============================================================================
@@ -71,5 +85,13 @@ export async function dropWarrant(
   request: DropWarrantRequest
 ): Promise<ArrestWarrantDto> {
   const { data } = await apiClient.post<ArrestWarrantDto>(`/case/warrants/${id}/drop`, request);
+  return data;
+}
+
+export async function liftWarrant(
+  id: string,
+  request: LiftWarrantRequest
+): Promise<ArrestWarrantDto> {
+  const { data } = await apiClient.post<ArrestWarrantDto>(`/case/warrants/${id}/lift`, request);
   return data;
 }

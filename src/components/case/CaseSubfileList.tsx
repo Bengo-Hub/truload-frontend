@@ -249,30 +249,30 @@ function SubfileTypeSection({ subfileType, entries, caseId, caseNo, canEdit }: S
           className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
           onClick={() => setExpanded(!expanded)}
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {expanded
               ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             }
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {subfileType.code && (
                   <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
                     {subfileType.code}
                   </span>
                 )}
-                <span className="font-semibold text-sm">{subfileType.name}</span>
-                {isAuto && <Badge variant="secondary" className="text-xs">Auto</Badge>}
+                <span className="font-semibold text-sm truncate">{subfileType.name}</span>
+                {isAuto && <Badge variant="secondary" className="text-xs flex-shrink-0">Auto</Badge>}
               </div>
               {subfileType.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-md">{subfileType.description}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px] sm:max-w-md">{subfileType.description}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             {entries.length > 0
-              ? <Badge variant="outline" className="text-xs bg-green-50 border-green-200 text-green-700">{entries.length}</Badge>
-              : !isAuto && <Badge variant="outline" className="text-xs text-muted-foreground">Empty</Badge>
+              ? <Badge variant="outline" className="text-xs bg-green-50 border-green-200 text-green-700 flex-shrink-0">{entries.length}</Badge>
+              : !isAuto && <Badge variant="outline" className="text-xs text-muted-foreground flex-shrink-0">Empty</Badge>
             }
           </div>
         </button>

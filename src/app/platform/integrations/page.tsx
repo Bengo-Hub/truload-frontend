@@ -64,7 +64,7 @@ export default function PlatformIntegrationsPage() {
       if (result?.success) toast.success(`${providerName} test passed`);
       else toast.error(`${providerName} test failed`);
       return result;
-    } catch { toast.error('Test failed'); return { success: false, message: 'Failed' }; }
+    } catch { toast.error('Test failed'); return { success: false, provider: providerName, message: 'Failed' }; }
   };
 
   if (isLoading) {
@@ -133,7 +133,6 @@ export default function PlatformIntegrationsPage() {
             toast.success('Reconciliation completed');
             return result;
           }}
-          isReconciling={false}
         />
       </div>
     </PlatformShell>

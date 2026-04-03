@@ -52,6 +52,18 @@ export interface CaseRegisterDto {
   closedByName?: string;
   closingReason?: string;
   updatedAt: string;
+
+  // Overload analysis (populated when case originates from a weighing)
+  actualWeightKg?: number;
+  permissibleWeightKg?: number;
+  toleranceAppliedKg?: number;
+  overloadAfterToleranceKg?: number;
+
+  // Court / prosecution fields
+  courtCaseNo?: string;
+  policeCaseFileNo?: string;
+  obExtractFileUrl?: string;
+  nextHearingDate?: string;
 }
 
 export interface CreateCaseRequest {

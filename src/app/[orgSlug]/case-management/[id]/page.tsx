@@ -102,6 +102,8 @@ export default function CaseManagementDetailPage() {
   const deleteSubfileMutation = useDeleteSubfile();
   const [showDiaryForm, setShowDiaryForm] = useState(false);
   const [editingDiaryEntry, setEditingDiaryEntry] = useState<typeof allSubfiles[0] | undefined>(undefined);
+  const [diaryFilterType, setDiaryFilterType] = useState('all');
+  const [diaryFilterStatus, setDiaryFilterStatus] = useState('all');
 
   const diarySubfileType = subfileTypes.find(
     (t) => t.code?.toUpperCase() === 'F' || t.name?.toUpperCase().includes('DIARY') || t.name?.toUpperCase().includes('INVESTIGATION')
@@ -113,6 +115,48 @@ export default function CaseManagementDetailPage() {
       const dateB = b.metadata ? JSON.parse(b.metadata).entryDate : b.createdAt;
       return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
+
+  const filteredDiaryEntries = diaryEntries.filter((entry) => {
+    const meta = entry.metadata ? JSON.parse(entry.metadata) : {};
+    if (diaryFilterType !== 'all' && meta.entryType !== diaryFilterType) return false;
+    if (diaryFilterStatus !== 'all' && meta.status !== diaryFilterStatus) return false;
+    return true;
+  });
+
+  const diaryEntryTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      investigation: 'Investigation', court_attendance: 'Court Attendance',
+      witness_interview: 'Witness Interview', evidence_collection: 'Evidence Collection',
+      correspondence: 'Correspondence', administrative: 'Administrative', other: 'Other',
+    };
+    return labels[type] || type || 'Investigation';
+  };
+
+  const diaryEntryTypeBadgeClass = (type: string) => {
+    const classes: Record<string, string> = {
+      investigation: 'bg-blue-100 text-blue-800', court_attendance: 'bg-purple-100 text-purple-800',
+      witness_interview: 'bg-teal-100 text-teal-800', evidence_collection: 'bg-indigo-100 text-indigo-800',
+      correspondence: 'bg-gray-100 text-gray-800', administrative: 'bg-slate-100 text-slate-800',
+      other: 'bg-neutral-100 text-neutral-700',
+    };
+    return classes[type] || 'bg-gray-100 text-gray-800';
+  };
+
+  const diaryStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed': return <Badge className="bg-green-100 text-green-800 text-xs">Completed</Badge>;
+      case 'requires_follow_up': return <Badge className="bg-orange-100 text-orange-800 text-xs">Requires Follow-up</Badge>;
+      case 'open': default: return <Badge className="bg-blue-100 text-blue-800 text-xs">Open</Badge>;
+    }
+  };
+
+  const diaryPriorityBorderClass = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'border-l-4 border-l-red-500';
+      case 'important': return 'border-l-4 border-l-amber-400';
+      default: return '';
+    }
+  };
 
   const handleCloseCase = useCallback(async () => {
     if (!closeDispositionId || !closeReason) {
@@ -383,6 +427,52 @@ export default function CaseManagementDetailPage() {
                           </ul>
                         </div>
 
+                        {/* Filter bar */}
+                        {diaryEntries.length > 0 && (
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm text-muted-foreground whitespace-nowrap">Type:</Label>
+                              <Select value={diaryFilterType} onValueChange={setDiaryFilterType}>
+                                <SelectTrigger className="h-8 w-[160px] text-xs">
+                                  <SelectValue placeholder="All types" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Types</SelectItem>
+                                  <SelectItem value="investigation">Investigation</SelectItem>
+                                  <SelectItem value="court_attendance">Court Attendance</SelectItem>
+                                  <SelectItem value="witness_interview">Witness Interview</SelectItem>
+                                  <SelectItem value="evidence_collection">Evidence Collection</SelectItem>
+                                  <SelectItem value="correspondence">Correspondence</SelectItem>
+                                  <SelectItem value="administrative">Administrative</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm text-muted-foreground whitespace-nowrap">Status:</Label>
+                              <Select value={diaryFilterStatus} onValueChange={setDiaryFilterStatus}>
+                                <SelectTrigger className="h-8 w-[160px] text-xs">
+                                  <SelectValue placeholder="All statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Statuses</SelectItem>
+                                  <SelectItem value="open">Open</SelectItem>
+                                  <SelectItem value="completed">Completed</SelectItem>
+                                  <SelectItem value="requires_follow_up">Requires Follow-up</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {(diaryFilterType !== 'all' || diaryFilterStatus !== 'all') && (
+                              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setDiaryFilterType('all'); setDiaryFilterStatus('all'); }}>
+                                Clear filters
+                              </Button>
+                            )}
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {filteredDiaryEntries.length} of {diaryEntries.length} entries
+                            </span>
+                          </div>
+                        )}
+
                         {/* Diary entries from Subfile F */}
                         {diaryEntries.length === 0 ? (
                           <div className="text-center py-8 border rounded-lg bg-muted/10">
@@ -403,15 +493,20 @@ export default function CaseManagementDetailPage() {
                               </Button>
                             )}
                           </div>
+                        ) : filteredDiaryEntries.length === 0 ? (
+                          <div className="text-center py-6 border rounded-lg bg-muted/10">
+                            <p className="text-muted-foreground text-sm">No entries match the current filters.</p>
+                          </div>
                         ) : (
                           <div className="space-y-3">
-                            {diaryEntries.map((entry) => {
+                            {filteredDiaryEntries.map((entry) => {
                               const meta = entry.metadata ? JSON.parse(entry.metadata) : {};
                               const entryDate = meta.entryDate || entry.createdAt;
+                              const isFollowUpOverdue = meta.followUpDate && new Date(meta.followUpDate) < new Date();
                               return (
                                 <div
                                   key={entry.id}
-                                  className="border rounded-lg p-4 hover:bg-muted/20 transition-colors"
+                                  className={`border rounded-lg p-4 hover:bg-muted/20 transition-colors ${diaryPriorityBorderClass(meta.priority)}`}
                                 >
                                   <div className="flex items-start justify-between gap-4">
                                     <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -424,6 +519,18 @@ export default function CaseManagementDetailPage() {
                                               hour: '2-digit', minute: '2-digit',
                                             })}
                                           </span>
+                                          <Badge className={`text-xs ${diaryEntryTypeBadgeClass(meta.entryType)}`}>
+                                            {diaryEntryTypeLabel(meta.entryType)}
+                                          </Badge>
+                                          {diaryStatusBadge(meta.status)}
+                                          {meta.priority === 'urgent' && (
+                                            <Badge className="bg-red-100 text-red-800 text-xs">Urgent</Badge>
+                                          )}
+                                          {meta.priority === 'important' && (
+                                            <Badge className="bg-amber-100 text-amber-800 text-xs">Important</Badge>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-wrap mt-1">
                                           {meta.officerName && (
                                             <Badge variant="outline" className="text-xs">
                                               <User className="h-3 w-3 mr-1" />
@@ -435,7 +542,19 @@ export default function CaseManagementDetailPage() {
                                               {meta.obRef}
                                             </Badge>
                                           )}
+                                          {meta.linkedHearingRef && (
+                                            <Badge variant="outline" className="text-xs">
+                                              <Gavel className="h-3 w-3 mr-1" />
+                                              {meta.linkedHearingRef}
+                                            </Badge>
+                                          )}
                                         </div>
+                                        {meta.followUpDate && (
+                                          <p className={`text-xs mt-1 ${isFollowUpOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                                            {isFollowUpOverdue ? 'Overdue follow-up: ' : 'Follow-up: '}
+                                            {new Date(meta.followUpDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                          </p>
+                                        )}
                                         {entry.content && (
                                           <div
                                             className="text-sm text-muted-foreground mt-2 prose prose-sm max-w-none"

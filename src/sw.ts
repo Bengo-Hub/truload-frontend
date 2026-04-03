@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+// @ts-ignore -- no type declarations for next-pwa worker module
 import { defaultCache } from "@ducanh2912/next-pwa/worker";
 
 declare const self: ServiceWorkerGlobalScope & typeof globalThis;
@@ -30,7 +31,7 @@ self.addEventListener("notificationclick", (event: any) => {
     const urlToOpen = event.notification.data?.url || "/";
 
     event.waitUntil(
-        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList: any[]) => {
+        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
                 if (client.url === urlToOpen && "focus" in client) {
                     return client.focus();
