@@ -6,6 +6,7 @@
 
 export { ArrestWarrantList } from './ArrestWarrantList';
 export { CaseAssignmentLog } from './CaseAssignmentLog';
+export { ConvictionHistory } from './ConvictionHistory';
 export { CasePartyList } from './CasePartyList';
 export { CaseSubfileList } from './CaseSubfileList';
 export { ClosureChecklistPanel } from './ClosureChecklistPanel';

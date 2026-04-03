@@ -205,6 +205,77 @@ export async function downloadChargeSheetPdf(id: string): Promise<Blob> {
   return data;
 }
 
+// ============================================================================
+// Conviction History & Habitual Offenders Types
+// ============================================================================
+
+export interface ConvictionRecordDto {
+  prosecutionCaseId: string;
+  caseNo: string;
+  vehicleRegNumber: string;
+  driverName?: string;
+  overloadKg: number;
+  chargeAmountKes: number;
+  chargeAmountUsd: number;
+  legalFramework: string;
+  convictionDate: string;
+  convictionNumber: number;
+  status: string;
+}
+
+export interface HabitualOffenderDto {
+  vehicleId: string;
+  vehicleRegNumber: string;
+  totalConvictions: number;
+  firstConvictionDate: string;
+  lastConvictionDate: string;
+  totalFinesKes: number;
+  totalFinesUsd: number;
+}
+
+export interface HabitualOffendersResult {
+  items: HabitualOffenderDto[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface HabitualOffendersParams {
+  minConvictions?: number;
+  fromDate?: string;
+  toDate?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+// ============================================================================
+// Conviction History & Habitual Offenders API
+// ============================================================================
+
+/**
+ * Get conviction history for a vehicle
+ */
+export async function getConvictionHistory(vehicleId: string): Promise<ConvictionRecordDto[]> {
+  const { data } = await apiClient.get<ConvictionRecordDto[]>(
+    `/prosecutions/conviction-history/${vehicleId}`
+  );
+  return data;
+}
+
+/**
+ * Get habitual offenders report
+ */
+export async function getHabitualOffenders(
+  params: HabitualOffendersParams = {}
+): Promise<HabitualOffendersResult> {
+  const { data } = await apiClient.get<HabitualOffendersResult>(
+    '/prosecutions/habitual-offenders',
+    { params }
+  );
+  return data;
+}
+
 export interface ProsecutionDefaults {
   defaultCourtId?: string;
   defaultComplainantOfficerId?: string;

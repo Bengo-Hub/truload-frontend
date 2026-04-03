@@ -16,12 +16,16 @@ import {
 } from '@/hooks/queries';
 import { getIsHqUser, getStationId } from '@/lib/auth/token';
 import {
+  AlertTriangle,
+  ArrowRight,
   Brain,
   FileText,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
 
 function getDefaultReportDateRange() {
   const today = new Date();
@@ -49,6 +53,7 @@ export default function ReportingPage() {
 }
 
 function ReportingContent() {
+  const orgSlug = useOrgSlug();
   const { formatAmount } = useCurrency();
   const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const [activeTab, setActiveTab] = useState('general');
@@ -95,6 +100,34 @@ function ReportingContent() {
         <TabsContent value="general" className="space-y-6">
           {/* Module-filtered predefined reports */}
           <ModuleReportSelector />
+
+          {/* Quick access to specialized reports */}
+          {isEnforcement && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Specialized Reports</CardTitle>
+                <CardDescription>In-depth analytical reports for prosecution and enforcement</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link href={`/${orgSlug}/reporting/habitual-offenders`}>
+                  <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
+                        <AlertTriangle className="h-5 w-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Habitual Offenders Report</p>
+                        <p className="text-sm text-muted-foreground">
+                          Vehicles with multiple prosecutions, conviction ladders, and fine totals
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Charts Section */}
           <Card>
