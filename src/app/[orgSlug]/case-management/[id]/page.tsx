@@ -43,9 +43,13 @@ import {
     useSubfilesByCaseId,
     useSubfileTypes,
     useDeleteSubfile,
+    useHearingsByCaseId,
+    useWarrantsByCaseId,
 } from '@/hooks/queries';
+import { useCaseDocuments } from '@/hooks/queries/useCaseDocumentQueries';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import {
+    Activity,
     AlertTriangle,
     ArrowLeft,
     BookOpen,
@@ -395,6 +399,20 @@ export default function CaseManagementDetailPage() {
 
                   {/* Investigation Diary Tab */}
                   <TabsContent value="diary" className="space-y-4">
+                    {/* Prominent Add Diary Entry button */}
+                    {!isClosed && (
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() => { setEditingDiaryEntry(undefined); setShowDiaryForm(true); }}
+                          disabled={!diarySubfileType}
+                          title={!diarySubfileType ? 'Diary subfile type not configured — contact admin' : undefined}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Diary Entry
+                        </Button>
+                      </div>
+                    )}
+
                     <Card>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -402,15 +420,6 @@ export default function CaseManagementDetailPage() {
                             <BookOpen className="h-5 w-5 text-slate-500" />
                             Investigation Diary (Subfile F)
                           </CardTitle>
-                          {!isClosed && diarySubfileType && (
-                            <Button
-                              size="sm"
-                              onClick={() => { setEditingDiaryEntry(undefined); setShowDiaryForm(true); }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add Diary Entry
-                            </Button>
-                          )}
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -482,11 +491,12 @@ export default function CaseManagementDetailPage() {
                             <p className="text-sm text-muted-foreground/80 mt-1">
                               Add investigation diary entries to track steps, findings, and actions taken.
                             </p>
-                            {!isClosed && diarySubfileType && (
+                            {!isClosed && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="mt-3"
+                                disabled={!diarySubfileType}
                                 onClick={() => { setEditingDiaryEntry(undefined); setShowDiaryForm(true); }}
                               >
                                 <Plus className="h-4 w-4 mr-1" />
@@ -610,6 +620,9 @@ export default function CaseManagementDetailPage() {
                         )}
                       </CardContent>
                     </Card>
+
+                    {/* Activity Feed — auto-generated from case data */}
+                    <ActivityFeed caseId={caseId} />
 
                     {/* Diary Entry Form Dialog */}
                     {diarySubfileType && (
@@ -804,5 +817,117 @@ export default function CaseManagementDetailPage() {
       )}
       </ProtectedRoute>
     </AppShell>
+  );
+}
+
+// ─── ActivityFeed ────────────────────────────────────────────────────────────
+
+interface ActivityItem {
+  id: string;
+  date: string;
+  label: string;
+  detail?: string;
+  icon: typeof Gavel;
+  color: string;
+}
+
+function ActivityFeed({ caseId }: { caseId: string }) {
+  const { data: hearings = [] } = useHearingsByCaseId(caseId);
+  const { data: warrants = [] } = useWarrantsByCaseId(caseId);
+  const { data: documents = [] } = useCaseDocuments(caseId);
+
+  const activities: ActivityItem[] = [];
+
+  // Hearings
+  for (const h of hearings) {
+    activities.push({
+      id: `hearing-${h.id}`,
+      date: h.hearingDate,
+      label: `Hearing ${h.hearingStatusName ? `- ${h.hearingStatusName}` : 'scheduled'}`,
+      detail: [h.courtName, h.hearingTypeName, h.hearingOutcomeName].filter(Boolean).join(' / '),
+      icon: Gavel,
+      color: 'text-purple-600 bg-purple-50',
+    });
+  }
+
+  // Warrants
+  for (const w of warrants) {
+    activities.push({
+      id: `warrant-issued-${w.id}`,
+      date: w.issuedAt,
+      label: `Warrant issued - ${w.warrantNo}`,
+      detail: `${w.accusedName}${w.warrantStatusName ? ` (${w.warrantStatusName})` : ''}`,
+      icon: Shield,
+      color: 'text-red-600 bg-red-50',
+    });
+    if (w.executedAt) {
+      activities.push({
+        id: `warrant-exec-${w.id}`,
+        date: w.executedAt,
+        label: `Warrant executed - ${w.warrantNo}`,
+        detail: w.executionDetails || undefined,
+        icon: Shield,
+        color: 'text-green-600 bg-green-50',
+      });
+    }
+  }
+
+  // Documents generated (excluding subfiles which are manual uploads)
+  for (const d of documents) {
+    if (d.documentType === 'Subfile') continue;
+    activities.push({
+      id: `doc-${d.documentType}-${d.id}`,
+      date: d.createdAt,
+      label: `Document generated`,
+      detail: d.displayName,
+      icon: FileText,
+      color: 'text-blue-600 bg-blue-50',
+    });
+  }
+
+  // Sort newest first
+  activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (activities.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Activity className="h-5 w-5 text-indigo-500" />
+          Activity Feed
+          <Badge variant="secondary" className="text-xs ml-auto">Auto</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {activities.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.id}
+                className="flex items-start gap-3 rounded-md border border-dashed border-muted-foreground/20 bg-muted/20 px-3 py-2"
+              >
+                <div className={`p-1.5 rounded ${item.color} flex-shrink-0 mt-0.5`}>
+                  <Icon className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{item.label}</span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-dashed text-muted-foreground">Auto</Badge>
+                  </div>
+                  {item.detail && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground/70 mt-0.5">
+                    {new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

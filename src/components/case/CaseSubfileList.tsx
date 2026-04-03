@@ -255,17 +255,17 @@ function SubfileTypeSection({ subfileType, entries, caseId, caseNo, canEdit }: S
               : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             }
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {subfileType.code && (
                   <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
-                    {subfileType.code}
+                    {subfileType.code.length === 1 ? subfileType.code : subfileType.code[0]}
                   </span>
                 )}
-                <span className="font-semibold text-sm truncate">{subfileType.name}</span>
+                <span className="font-semibold text-sm truncate max-w-[150px] sm:max-w-xs">{subfileType.name}</span>
                 {isAuto && <Badge variant="secondary" className="text-xs flex-shrink-0">Auto</Badge>}
               </div>
               {subfileType.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px] sm:max-w-md">{subfileType.description}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 sm:line-clamp-1">{subfileType.description}</p>
               )}
             </div>
           </div>
@@ -292,7 +292,7 @@ function SubfileTypeSection({ subfileType, entries, caseId, caseNo, canEdit }: S
             ) : entries.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-2">No entries yet.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {entries.map(sf => (
                   <EntryCard
                     key={sf.id}
