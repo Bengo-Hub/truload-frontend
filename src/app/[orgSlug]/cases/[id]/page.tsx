@@ -1,6 +1,6 @@
 "use client";
 
-import { CaseAssignmentLog, EscalateCaseModal, ProsecutionSection } from '@/components/case';
+import { CaseAssignmentLog, ConvictionHistory, EscalateCaseModal, ProsecutionSection } from '@/components/case';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
@@ -606,6 +606,9 @@ export default function CaseDetailPage() {
 
                 {/* Assignment Log */}
                 <CaseAssignmentLog caseId={caseId} caseNo={caseData.caseNo} />
+
+                {/* Conviction History */}
+                <ConvictionHistory vehicleId={caseData.vehicleId} />
 
                 {/* Disposition */}
                 {caseData.dispositionType && (

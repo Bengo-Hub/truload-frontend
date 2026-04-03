@@ -7,6 +7,7 @@ import {
     CasePartyList,
     CaseSubfileList,
     ClosureChecklistPanel,
+    ConvictionHistory,
     CourtHearingList,
     ProsecutionSection,
 } from '@/components/case';
@@ -720,6 +721,9 @@ export default function CaseManagementDetailPage() {
 
                 {/* Assignment Log */}
                 <CaseAssignmentLog caseId={caseId} caseNo={caseData.caseNo} />
+
+                {/* Conviction History */}
+                <ConvictionHistory vehicleId={caseData.vehicleId} />
 
                 {/* Disposition */}
                 {caseData.dispositionType && (

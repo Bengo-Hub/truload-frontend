@@ -17,6 +17,9 @@ export const PROSECUTION_QUERY_KEYS = {
   prosecutionStatistics: (stationId?: string) => ['prosecutions', 'statistics', stationId ?? 'all'] as const,
   chargeCalculation: (weighingId: string, framework: string) =>
     ['charge-calculation', weighingId, framework] as const,
+  convictionHistory: (vehicleId: string) => ['prosecutions', 'conviction-history', vehicleId] as const,
+  habitualOffenders: (params: prosecutionApi.HabitualOffendersParams) =>
+    ['prosecutions', 'habitual-offenders', params] as const,
 };
 
 // ============================================================================
@@ -171,6 +174,30 @@ export function useDownloadChargeSheet() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     },
+  });
+}
+
+/**
+ * Get conviction history for a vehicle
+ */
+export function useConvictionHistory(vehicleId?: string) {
+  return useQuery({
+    queryKey: PROSECUTION_QUERY_KEYS.convictionHistory(vehicleId ?? ''),
+    queryFn: () => prosecutionApi.getConvictionHistory(vehicleId!),
+    ...QUERY_OPTIONS.dynamic,
+    enabled: !!vehicleId,
+  });
+}
+
+/**
+ * Get habitual offenders report
+ */
+export function useHabitualOffenders(params: prosecutionApi.HabitualOffendersParams) {
+  return useQuery({
+    queryKey: PROSECUTION_QUERY_KEYS.habitualOffenders(params),
+    queryFn: () => prosecutionApi.getHabitualOffenders(params),
+    ...QUERY_OPTIONS.dynamic,
+    placeholderData: (previousData) => previousData,
   });
 }
 
