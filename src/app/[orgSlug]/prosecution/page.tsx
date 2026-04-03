@@ -313,7 +313,7 @@ function ProsecutionContent() {
                   {isLoadingStats ? (
                     <Skeleton className="h-7 w-24" />
                   ) : (
-                    formatCurrency(statistics?.collectedFeesKes ?? 0)
+                    formatCurrency(statistics?.collectedFeesKes ?? 0, 'KES')
                   )}
                 </CardTitle>
               </div>

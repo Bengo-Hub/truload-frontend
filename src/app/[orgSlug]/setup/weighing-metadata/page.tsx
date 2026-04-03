@@ -64,6 +64,7 @@ import {
     useUpdateVehicleMake,
     useVehicleMakes,
 } from '@/hooks/queries';
+import type { Transporter as TransporterView } from '@/types/weighing';
 import {
     Building2,
     Eye,
@@ -203,7 +204,7 @@ function TransportersTab() {
   const handleSave = async (data: any) => {
     try {
       if (modalMode === 'edit' && selected?.id) {
-        await updateMutation.mutateAsync({ id: selected.id, data });
+        await updateMutation.mutateAsync({ id: selected.id, payload: data });
         toast.success('Transporter updated');
       } else {
         await createMutation.mutateAsync(data);
@@ -326,7 +327,7 @@ function DriversTab() {
   const handleSave = async (data: any) => {
     try {
       if (modalMode === 'edit' && selected?.id) {
-        await updateMutation.mutateAsync({ id: selected.id, data });
+        await updateMutation.mutateAsync({ id: selected.id, payload: data });
         toast.success('Driver updated');
       } else {
         await createMutation.mutateAsync(data);
@@ -455,7 +456,7 @@ function VehiclesTab() {
   const handleSave = async (data: any) => {
     try {
       if (modalMode === 'edit' && selected?.id) {
-        await updateMutation.mutateAsync({ id: selected.id, data });
+        await updateMutation.mutateAsync({ id: selected.id, payload: data });
         toast.success('Vehicle updated');
       } else {
         await createMutation.mutateAsync(data);
@@ -533,7 +534,7 @@ function VehiclesTab() {
         onOpenChange={setModalOpen}
         mode={modalMode}
         vehicle={selected}
-        transporters={transportersList ?? []}
+        transporters={(transportersList ?? []) as TransporterView[]}
         axleConfigurations={axleConfigsList ?? []}
         onSave={handleSave}
         isSaving={createMutation.isPending || updateMutation.isPending}
@@ -591,7 +592,7 @@ function CargoTypesTab() {
   const handleSave = async (data: any) => {
     try {
       if (modalMode === 'edit' && selected?.id) {
-        await updateMutation.mutateAsync({ id: selected.id, data });
+        await updateMutation.mutateAsync({ id: selected.id, payload: data });
         toast.success('Cargo type updated');
       } else {
         await createMutation.mutateAsync(data);
@@ -719,7 +720,7 @@ function OriginsDestinationsTab() {
   const handleSave = async (data: any) => {
     try {
       if (modalMode === 'edit' && selected?.id) {
-        await updateMutation.mutateAsync({ id: selected.id, data });
+        await updateMutation.mutateAsync({ id: selected.id, payload: data });
         toast.success('Origin/destination updated');
       } else {
         await createMutation.mutateAsync(data);
@@ -971,8 +972,8 @@ function RoadModal({
     }
   }, [road, mode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (mode === 'view') return;
     onSave({ code: code.trim(), name: name.trim(), roadClass });
   };
@@ -1059,7 +1060,7 @@ function VehicleMakesTab() {
   const handleSave = async (data: any) => {
     try {
       if (modalMode === 'edit' && selected?.id) {
-        await updateMutation.mutateAsync({ id: selected.id, data });
+        await updateMutation.mutateAsync({ id: selected.id, payload: data });
         toast.success('Vehicle make updated');
       } else {
         await createMutation.mutateAsync(data);

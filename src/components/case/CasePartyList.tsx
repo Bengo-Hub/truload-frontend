@@ -27,9 +27,15 @@ import { toast } from 'sonner';
 
 const PARTY_ROLES = [
   { value: 'defendant_driver', label: 'Defendant (Driver)', color: 'bg-red-100 text-red-800' },
+  { value: 'defendant_owner', label: 'Defendant (Owner)', color: 'bg-red-100 text-red-700' },
+  { value: 'defendant_transporter', label: 'Defendant (Transporter)', color: 'bg-red-100 text-red-600' },
   { value: 'complainant', label: 'Complainant', color: 'bg-blue-100 text-blue-800' },
   { value: 'witness', label: 'Witness', color: 'bg-purple-100 text-purple-800' },
   { value: 'investigating_officer', label: 'Investigating Officer', color: 'bg-green-100 text-green-800' },
+  { value: 'ocs', label: 'OCS', color: 'bg-green-100 text-green-700' },
+  { value: 'arresting_officer', label: 'Arresting Officer', color: 'bg-green-100 text-green-600' },
+  { value: 'prosecutor', label: 'Prosecutor', color: 'bg-amber-100 text-amber-800' },
+  { value: 'other', label: 'Other (Specify)', color: 'bg-gray-100 text-gray-800' },
 ];
 
 function getRoleBadge(role: string) {
@@ -236,6 +242,16 @@ export function CasePartyList({ caseId, caseNo }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            {addRole === 'other' && (
+              <div className="space-y-2">
+                <Label>Custom Role Description *</Label>
+                <Input
+                  value={addNotes.startsWith('[Role: ') ? addNotes.replace(/^\[Role: [^\]]*\]\s*/, '') : addNotes}
+                  onChange={(e) => setAddNotes(`[Role: ${e.target.value}]`)}
+                  placeholder="Specify the party role (e.g., Loader, Consignee, Agent)"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Full Name *</Label>
               <Input value={addExternalName} onChange={(e) => setAddExternalName(e.target.value)} placeholder="Full name" />

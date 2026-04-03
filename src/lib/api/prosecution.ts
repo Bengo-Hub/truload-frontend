@@ -26,6 +26,7 @@ export interface ProsecutionCaseDto {
   totalFeeUsd: number;
   totalFeeKes: number;
   forexRate: number;
+  chargingCurrency?: string;
   certificateNo?: string;
   caseNotes?: string;
   status: string;

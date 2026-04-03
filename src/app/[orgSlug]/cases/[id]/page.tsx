@@ -36,6 +36,7 @@ import {
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { fetchUsers } from '@/lib/api/setup';
 import { useQuery } from '@tanstack/react-query';
+import { downloadSpecialReleaseCertificate } from '@/lib/api/caseRegister';
 import {
     AlertTriangle,
     ArrowLeft,
@@ -45,13 +46,16 @@ import {
     Car,
     CheckCircle,
     Clock,
+    Download,
     FileText,
+    Gavel,
     Loader2,
     Scale,
     Send,
     Shield,
     TrendingUp,
     User,
+    Weight,
     XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -162,6 +166,32 @@ export default function CaseDetailPage() {
   };
 
   const isClosed = caseData?.caseStatus?.toUpperCase() === 'CLOSED';
+  const isSpecialRelease = caseData?.dispositionType?.toLowerCase().includes('special_release') ||
+    caseData?.dispositionType?.toLowerCase().includes('special release');
+  const isEscalated = caseData?.escalatedToCaseManager ||
+    caseData?.caseStatus?.toUpperCase() === 'ESCALATED';
+
+  const formatWeight = (kg?: number) => {
+    if (kg == null) return '-';
+    return `${kg.toLocaleString()} kg`;
+  };
+
+  const handleDownloadCertificate = async (releaseId: string, certificateNo: string) => {
+    try {
+      const blob = await downloadSpecialReleaseCertificate(releaseId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SpecialRelease_${certificateNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Certificate downloaded');
+    } catch {
+      toast.error('Failed to download certificate');
+    }
+  };
 
   return (
     <AppShell title={caseData ? `Case ${caseData.caseNo}` : isLoading ? 'Loading...' : 'Error'} subtitle="Case register">
@@ -260,9 +290,11 @@ export default function CaseDetailPage() {
               {/* Left Column – Tabs */}
               <div className="lg:col-span-2 space-y-6">
                 <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className={`grid w-full ${isSpecialRelease ? 'grid-cols-1' : 'grid-cols-2'}`}>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="prosecution">Prosecution</TabsTrigger>
+                    {!isSpecialRelease && (
+                      <TabsTrigger value="prosecution">Prosecution</TabsTrigger>
+                    )}
                   </TabsList>
 
                   {/* Overview Tab */}
@@ -317,6 +349,68 @@ export default function CaseDetailPage() {
                         )}
                       </CardContent>
                     </Card>
+
+                    {/* Overload Analysis */}
+                    {caseData.weighingId && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Weight className="h-5 w-5 text-orange-500" />
+                            Overload Analysis
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {caseData.actualWeightKg != null ? (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label className="text-sm text-gray-500">Actual Weight (GVW)</Label>
+                                  <p className="font-mono font-bold text-lg">{formatWeight(caseData.actualWeightKg)}</p>
+                                </div>
+                                <div>
+                                  <Label className="text-sm text-gray-500">Permissible Weight</Label>
+                                  <p className="font-mono font-medium text-lg">{formatWeight(caseData.permissibleWeightKg)}</p>
+                                </div>
+                                <div>
+                                  <Label className="text-sm text-gray-500">Tolerance Applied</Label>
+                                  <p className="font-mono font-medium">{formatWeight(caseData.toleranceAppliedKg)}</p>
+                                </div>
+                                <div>
+                                  <Label className="text-sm text-gray-500">Overload After Tolerance</Label>
+                                  <p className={`font-mono font-bold text-lg ${
+                                    (caseData.overloadAfterToleranceKg ?? 0) > 0 ? 'text-red-600' : 'text-green-600'
+                                  }`}>
+                                    {formatWeight(caseData.overloadAfterToleranceKg)}
+                                  </p>
+                                </div>
+                              </div>
+                              {caseData.weighingId && (
+                                <Link href={`/${orgSlug}/weighing/tickets/${caseData.weighingId}`}>
+                                  <Button variant="outline" size="sm" className="mt-2">
+                                    <Scale className="mr-2 h-4 w-4" />
+                                    View Full Weight Ticket
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                              <Scale className="h-5 w-5 text-gray-400" />
+                              <div>
+                                <p className="text-sm text-gray-600">
+                                  Overload details are available on the weight ticket.
+                                </p>
+                                <Link href={`/${orgSlug}/weighing/tickets/${caseData.weighingId}`}>
+                                  <Button variant="link" size="sm" className="px-0">
+                                    View weight ticket for full analysis
+                                  </Button>
+                                </Link>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
 
                     {/* Vehicle & Driver */}
                     <Card>
@@ -397,7 +491,19 @@ export default function CaseDetailPage() {
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-sm text-gray-500 mt-2">{release.reason}</p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <p className="text-sm text-gray-500">{release.reason}</p>
+                                  {release.isApproved && release.certificateNo && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDownloadCertificate(release.id, release.certificateNo)}
+                                    >
+                                      <Download className="h-3 w-3 mr-1" />
+                                      View Certificate
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -406,15 +512,17 @@ export default function CaseDetailPage() {
                     )}
                   </TabsContent>
 
-                  {/* Prosecution Tab */}
-                  <TabsContent value="prosecution">
-                    <ProsecutionSection
-                      caseId={caseId}
-                      caseNo={caseData.caseNo}
-                      weighingId={caseData.weighingId}
-                      readOnly={false}
-                    />
-                  </TabsContent>
+                  {/* Prosecution Tab (hidden for special release cases) */}
+                  {!isSpecialRelease && (
+                    <TabsContent value="prosecution">
+                      <ProsecutionSection
+                        caseId={caseId}
+                        caseNo={caseData.caseNo}
+                        weighingId={caseData.weighingId}
+                        readOnly={false}
+                      />
+                    </TabsContent>
+                  )}
                 </Tabs>
               </div>
 
@@ -524,6 +632,71 @@ export default function CaseDetailPage() {
                           <Label className="text-sm text-gray-500">Court</Label>
                           <p className="font-medium">{caseData.courtName}</p>
                         </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Court Information (shown when case is escalated) */}
+                {isEscalated && (caseData.courtCaseNo || caseData.policeCaseFileNo || caseData.courtName) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Gavel className="h-5 w-5 text-purple-500" />
+                        Court Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {caseData.courtCaseNo && (
+                        <div>
+                          <Label className="text-sm text-gray-500">Court Case No</Label>
+                          <p className="font-mono font-medium">{caseData.courtCaseNo}</p>
+                        </div>
+                      )}
+                      {caseData.policeCaseFileNo && (
+                        <>
+                          <Separator />
+                          <div>
+                            <Label className="text-sm text-gray-500">Police Case File No</Label>
+                            <p className="font-mono font-medium">{caseData.policeCaseFileNo}</p>
+                          </div>
+                        </>
+                      )}
+                      {caseData.courtName && (
+                        <>
+                          <Separator />
+                          <div>
+                            <Label className="text-sm text-gray-500">Court Name</Label>
+                            <p className="font-medium">{caseData.courtName}</p>
+                          </div>
+                        </>
+                      )}
+                      {caseData.nextHearingDate && (
+                        <>
+                          <Separator />
+                          <div>
+                            <Label className="text-sm text-gray-500">Next Hearing Date</Label>
+                            <p className="font-medium">{formatDate(caseData.nextHearingDate)}</p>
+                          </div>
+                        </>
+                      )}
+                      {caseData.obExtractFileUrl && (
+                        <>
+                          <Separator />
+                          <div>
+                            <Label className="text-sm text-gray-500">OB Extract</Label>
+                            <a
+                              href={caseData.obExtractFileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button variant="outline" size="sm" className="mt-1">
+                                <FileText className="h-3 w-3 mr-1" />
+                                View OB Extract
+                              </Button>
+                            </a>
+                          </div>
+                        </>
                       )}
                     </CardContent>
                   </Card>
