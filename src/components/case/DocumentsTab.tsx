@@ -38,6 +38,7 @@ const DOCUMENT_TYPE_CONFIG: Record<string, { icon: typeof FileText; color: strin
   CoverPage: { icon: FileText, color: 'text-indigo-600 bg-indigo-50', label: 'Cover Page' },
   OBExtract: { icon: FileText, color: 'text-teal-600 bg-teal-50', label: 'OB Extract' },
   Subfile: { icon: Upload, color: 'text-gray-600 bg-gray-50', label: 'Subfile' },
+  ProhibitionOrder: { icon: Shield, color: 'text-rose-600 bg-rose-50', label: 'Prohibition Order' },
 };
 
 function getDocConfig(type: string) {

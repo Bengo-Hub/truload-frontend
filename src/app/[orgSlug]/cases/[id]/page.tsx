@@ -37,6 +37,8 @@ import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { fetchUsers } from '@/lib/api/setup';
 import { useQuery } from '@tanstack/react-query';
 import { downloadSpecialReleaseCertificate } from '@/lib/api/caseRegister';
+import { downloadWeightTicketPdf } from '@/lib/api/weighing';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
 import {
     AlertTriangle,
     ArrowLeft,
@@ -100,6 +102,9 @@ export default function CaseDetailPage() {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [showTicketPreview, setShowTicketPreview] = useState(false);
+  const [ticketPdfBlob, setTicketPdfBlob] = useState<Blob | null>(null);
+  const [ticketPdfLoading, setTicketPdfLoading] = useState(false);
 
   // Form states
   const [closeDispositionId, setCloseDispositionId] = useState('');
@@ -175,6 +180,21 @@ export default function CaseDetailPage() {
     if (kg == null) return '-';
     return `${kg.toLocaleString()} kg`;
   };
+
+  const handleViewWeightTicket = useCallback(async (weighingId: string) => {
+    setShowTicketPreview(true);
+    setTicketPdfLoading(true);
+    setTicketPdfBlob(null);
+    try {
+      const blob = await downloadWeightTicketPdf(weighingId);
+      setTicketPdfBlob(blob);
+    } catch {
+      toast.error('Failed to load weight ticket PDF');
+      setShowTicketPreview(false);
+    } finally {
+      setTicketPdfLoading(false);
+    }
+  }, []);
 
   const handleDownloadCertificate = async (releaseId: string, certificateNo: string) => {
     try {
@@ -332,9 +352,9 @@ export default function CaseDetailPage() {
                               <p className="font-mono font-medium">{caseData.weighingTicketNo}</p>
                             </div>
                             {caseData.weighingId && (
-                              <Link href={`/${orgSlug}/weighing/tickets/${caseData.weighingId}`}>
-                                <Button variant="link" size="sm">View Ticket</Button>
-                              </Link>
+                              <Button variant="link" size="sm" onClick={() => handleViewWeightTicket(caseData.weighingId!)}>
+                                View Ticket
+                              </Button>
                             )}
                           </div>
                         )}
@@ -385,12 +405,10 @@ export default function CaseDetailPage() {
                                 </div>
                               </div>
                               {caseData.weighingId && (
-                                <Link href={`/${orgSlug}/weighing/tickets/${caseData.weighingId}`}>
-                                  <Button variant="outline" size="sm" className="mt-2">
-                                    <Scale className="mr-2 h-4 w-4" />
-                                    View Full Weight Ticket
-                                  </Button>
-                                </Link>
+                                <Button variant="outline" size="sm" className="mt-2" onClick={() => handleViewWeightTicket(caseData.weighingId!)}>
+                                  <Scale className="mr-2 h-4 w-4" />
+                                  View Full Weight Ticket
+                                </Button>
                               )}
                             </div>
                           ) : (
@@ -400,11 +418,9 @@ export default function CaseDetailPage() {
                                 <p className="text-sm text-gray-600">
                                   Overload details are available on the weight ticket.
                                 </p>
-                                <Link href={`/${orgSlug}/weighing/tickets/${caseData.weighingId}`}>
-                                  <Button variant="link" size="sm" className="px-0">
-                                    View weight ticket for full analysis
-                                  </Button>
-                                </Link>
+                                <Button variant="link" size="sm" className="px-0" onClick={() => handleViewWeightTicket(caseData.weighingId!)}>
+                                  View weight ticket for full analysis
+                                </Button>
                               </div>
                             </div>
                           )}
@@ -757,6 +773,16 @@ export default function CaseDetailPage() {
             caseData={caseData}
             users={usersData?.items ?? []}
             onSuccess={refetch}
+          />
+
+          {/* Weight Ticket PDF Preview */}
+          <PdfPreviewDialog
+            open={showTicketPreview}
+            onOpenChange={setShowTicketPreview}
+            blob={ticketPdfBlob}
+            fileName={`WeightTicket_${caseData?.weighingTicketNo ?? 'ticket'}.pdf`}
+            title="Weight Ticket Preview"
+            isLoading={ticketPdfLoading}
           />
 
           {/* Special Release Modal */}

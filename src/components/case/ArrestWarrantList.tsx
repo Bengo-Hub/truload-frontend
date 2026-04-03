@@ -22,19 +22,21 @@ import {
 import { PermissionActionButton } from '@/components/ui/permission-action-button';
 import { useWarrantsByCaseId, useCreateWarrant, useExecuteWarrant, useDropWarrant, usePartiesByCaseId } from '@/hooks/queries';
 import type { ArrestWarrantDto } from '@/lib/api/arrestWarrant';
-import { CheckCircle, ExternalLink, Loader2, Plus, ShieldAlert, ShieldOff, XCircle } from 'lucide-react';
+import { uploadSubfileDocument } from '@/lib/api/fileUpload';
+import { CheckCircle, ExternalLink, Loader2, Plus, ShieldAlert, ShieldOff, Upload, X } from 'lucide-react';
 import { useHasPermission } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+const ACCEPTED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
 const trackWarrantSchema = z.object({
   accusedName: z.string().min(1, 'Accused name is required'),
-  accusedIdNo: z.string().optional(),
   offenceDescription: z.string().optional(),
-  issuedBy: z.string().optional(),
   issuedDate: z.string().min(1, 'Issue date is required'),
   executionDate: z.string().optional(),
   warrantFileUrl: z.string().optional(),
-  casePartyId: z.string().optional(),
+  casePartyId: z.string().min(1, 'Defendant is required'),
 });
 
 type TrackWarrantFormValues = z.infer<typeof trackWarrantSchema>;
@@ -85,6 +87,9 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
   const [showExecuteModal, setShowExecuteModal] = useState(false);
   const [showLiftModal, setShowLiftModal] = useState(false);
   const [selectedWarrant, setSelectedWarrant] = useState<ArrestWarrantDto | null>(null);
+  const [warrantFile, setWarrantFile] = useState<File | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   // Filter defendants from case parties for the dropdown
   const defendants = parties.filter(p =>
@@ -96,9 +101,7 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
     resolver: zodResolver(trackWarrantSchema),
     defaultValues: {
       accusedName: '',
-      accusedIdNo: '',
       offenceDescription: '',
-      issuedBy: '',
       issuedDate: '',
       executionDate: '',
       warrantFileUrl: '',
@@ -120,32 +123,63 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
 
   // Auto-fill accused name when defendant selected
   const handleDefendantSelect = (partyId: string) => {
-    trackForm.setValue('casePartyId', partyId);
+    trackForm.setValue('casePartyId', partyId, { shouldValidate: true });
     const party = parties.find(p => p.id === partyId);
     if (party) {
       const name = party.externalName || party.userName || party.driverName || party.vehicleOwnerName || party.transporterName || '';
       if (name) trackForm.setValue('accusedName', name);
-      const idNo = party.externalIdNumber || '';
-      if (idNo) trackForm.setValue('accusedIdNo', idNo);
     }
+  };
+
+  const handleWarrantFileChange = (file: File | null) => {
+    setFileError(null);
+    if (!file) {
+      setWarrantFile(null);
+      return;
+    }
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      setFileError('Only PDF and image files (jpg, jpeg, png) are accepted');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError('File must be under 5 MB');
+      return;
+    }
+    setWarrantFile(file);
   };
 
   const handleTrack = async (data: TrackWarrantFormValues) => {
     try {
+      let fileUrl = data.warrantFileUrl || undefined;
+
+      // Upload file if selected
+      if (warrantFile) {
+        setFileUploading(true);
+        try {
+          const uploadResult = await uploadSubfileDocument(caseId, warrantFile);
+          fileUrl = uploadResult.fileUrl;
+        } catch {
+          toast.error('File upload failed');
+          setFileUploading(false);
+          return;
+        }
+        setFileUploading(false);
+      }
+
       await createMutation.mutateAsync({
         caseRegisterId: caseId,
         accusedName: data.accusedName,
-        accusedIdNo: data.accusedIdNo || undefined,
         offenceDescription: data.offenceDescription || undefined,
-        issuedBy: data.issuedBy || undefined,
         issuedDate: data.issuedDate,
         executionDate: data.executionDate || undefined,
-        warrantFileUrl: data.warrantFileUrl || undefined,
-        casePartyId: data.casePartyId || undefined,
+        warrantFileUrl: fileUrl,
+        casePartyId: data.casePartyId,
       });
       toast.success('Warrant tracked successfully');
       setShowTrackModal(false);
       trackForm.reset();
+      setWarrantFile(null);
+      setFileError(null);
     } catch {
       toast.error('Failed to track warrant');
     }
@@ -274,7 +308,7 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
       </Card>
 
       {/* Track Warrant Modal */}
-      <Dialog open={showTrackModal} onOpenChange={(open) => { setShowTrackModal(open); if (!open) trackForm.reset(); }}>
+      <Dialog open={showTrackModal} onOpenChange={(open) => { setShowTrackModal(open); if (!open) { trackForm.reset(); setWarrantFile(null); setFileError(null); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Track Arrest Warrant</DialogTitle>
@@ -282,40 +316,22 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
           </DialogHeader>
           <form onSubmit={trackForm.handleSubmit(handleTrack)}>
             <div className="space-y-4 py-4">
-              {/* Link to defendant */}
-              {defendants.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Link to Defendant (Case Party)</Label>
-                  <Select onValueChange={handleDefendantSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select defendant..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {defendants.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.externalName || p.userName || p.driverName || p.vehicleOwnerName || 'Unknown'} ({p.partyRole?.replace(/_/g, ' ')})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
+              {/* Defendant select - primary field */}
               <div className="space-y-2">
-                <Label>Accused Name *</Label>
-                <Input {...trackForm.register('accusedName')} placeholder="Full name" />
-                {trackForm.formState.errors.accusedName && <p className="text-sm text-red-500">{trackForm.formState.errors.accusedName.message}</p>}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>ID Number</Label>
-                  <Input {...trackForm.register('accusedIdNo')} placeholder="ID/Passport" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Issued By (Magistrate)</Label>
-                  <Input {...trackForm.register('issuedBy')} placeholder="Magistrate name" />
-                </div>
+                <Label>Defendant (Case Party) *</Label>
+                <Select onValueChange={handleDefendantSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select defendant..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {defendants.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.externalName || p.userName || p.driverName || p.vehicleOwnerName || 'Unknown'} ({p.partyRole?.replace(/_/g, ' ')})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {trackForm.formState.errors.casePartyId && <p className="text-sm text-red-500">{trackForm.formState.errors.casePartyId.message}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -335,15 +351,37 @@ export function ArrestWarrantList({ caseId, caseNo }: Props) {
                 <Textarea {...trackForm.register('offenceDescription')} placeholder="Description of the offence..." rows={3} />
               </div>
 
-              <div className="space-y-2">
-                <Label>Warrant Document URL</Label>
-                <Input {...trackForm.register('warrantFileUrl')} placeholder="URL to warrant document (or upload via subfiles)" />
+              <div className="space-y-1.5">
+                <Label>Warrant Document <span className="text-muted-foreground ml-1 font-normal">(optional)</span></Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => handleWarrantFileChange(e.target.files?.[0] ?? null)}
+                  className="text-sm"
+                />
+                {warrantFile && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Upload className="h-3 w-3" />
+                    <span className="truncate max-w-[240px]">{warrantFile.name}</span>
+                    <span className="text-muted-foreground/60">{warrantFile.size < 1024 * 1024 ? `${(warrantFile.size / 1024).toFixed(1)} KB` : `${(warrantFile.size / (1024 * 1024)).toFixed(1)} MB`}</span>
+                    <button type="button" onClick={() => { setWarrantFile(null); setFileError(null); }}>
+                      <X className="h-3 w-3 hover:text-destructive" />
+                    </button>
+                  </div>
+                )}
+                {fileError && <p className="text-sm text-red-500">{fileError}</p>}
+                {fileUploading && (
+                  <div className="w-full bg-muted rounded-full h-1.5">
+                    <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: '60%' }} />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">PDF or images only (jpg, jpeg, png). Max 5 MB.</p>
               </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowTrackModal(false)}>Cancel</Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              <Button type="submit" disabled={createMutation.isPending || fileUploading}>
+                {(createMutation.isPending || fileUploading) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Track Warrant
               </Button>
             </DialogFooter>
