@@ -234,11 +234,15 @@ export default function MultideckWeighingPage() {
   const effectiveLegalFramework = effectiveAct?.code || 'TRAFFIC_ACT';
   const { data: toleranceSettings = [] } = useToleranceSettings(effectiveLegalFramework);
 
-  // Operational tolerance from settings (configurable per org)
+  // Operational tolerance (kg) from ToleranceSetting table (OPERATIONAL_ALLOWANCE)
+  // Single source of truth — same table used by backend CalculateComplianceAsync
   const operationalToleranceKg = useMemo(() => {
-    const setting = allSettings.find((s: any) => s.settingKey === 'weighing.operational_tolerance_kg');
-    return setting?.settingValue ? parseInt(setting.settingValue, 10) : 200;
-  }, [allSettings]);
+    const opAllowance = toleranceSettings.find((t: any) => t.code === 'OPERATIONAL_ALLOWANCE' && t.isActive);
+    if (opAllowance && opAllowance.toleranceKg !== null && opAllowance.toleranceKg !== undefined) {
+      return opAllowance.toleranceKg;
+    }
+    return 200; // Fallback only if setting not found in DB
+  }, [toleranceSettings]);
 
   const { position: geoPosition, refresh: refreshGeolocation, isSupported: isGeolocationSupported } = useGeolocation({ enableHighAccuracy: true, timeout: 10000 });
 
@@ -541,16 +545,28 @@ export default function MultideckWeighingPage() {
     for (const groupLabel of Array.from(groupMap.keys()).sort()) {
       const refs = groupMap.get(groupLabel)!;
       const permissibleKg = refs.reduce((sum, r) => sum + r.axleLegalWeightKg, 0);
-      // Apply tolerance from DB settings — prefer framework-specific over BOTH/GLOBAL
+      // Apply tolerance from DB settings
+      // Priority: framework-specific → standard law by axle type → 0% strict
+      const isSingleAxle = refs.length <= 1;
       const axleTolerance =
         toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
-        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive);
+        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework === 'BOTH');
       let toleranceKg = 0;
-      if (axleTolerance) {
-        if (axleTolerance.toleranceKg && axleTolerance.toleranceKg > 0) {
-          toleranceKg = axleTolerance.toleranceKg;
-        } else if (axleTolerance.tolerancePercentage > 0) {
-          toleranceKg = Math.round(permissibleKg * axleTolerance.tolerancePercentage / 100);
+      if (axleTolerance && (axleTolerance.toleranceKg ?? 0) > 0) {
+        toleranceKg = axleTolerance.toleranceKg;
+      } else if (axleTolerance && axleTolerance.tolerancePercentage > 0) {
+        toleranceKg = Math.round(permissibleKg * axleTolerance.tolerancePercentage / 100);
+      }
+      // If framework-specific returned 0, check standard law tolerance by axle type
+      if (toleranceKg === 0) {
+        const standardCode = isSingleAxle ? 'STANDARD_LAW_SINGLE' : 'STANDARD_LAW_GROUP';
+        const standardTolerance = toleranceSettings.find((t: any) => t.code === standardCode && t.isActive);
+        if (standardTolerance) {
+          if ((standardTolerance.toleranceKg ?? 0) > 0) {
+            toleranceKg = standardTolerance.toleranceKg;
+          } else if (standardTolerance.tolerancePercentage > 0) {
+            toleranceKg = Math.round(permissibleKg * standardTolerance.tolerancePercentage / 100);
+          }
         }
       }
       const effectiveLimitKg = permissibleKg + toleranceKg;
@@ -695,7 +711,8 @@ export default function MultideckWeighingPage() {
     const captureGroup = async (groups: AxleGroupResult[]) => {
       for (const group of groups) {
         for (const axle of group.axles) {
-          await captureAxleWeight(axle.axleNumber, axle.measuredKg);
+          // Pass selectedConfigId so backend uses the correct axle config (not a fallback standard)
+          await captureAxleWeight(axle.axleNumber, axle.measuredKg, selectedConfigId);
         }
       }
     };
@@ -706,7 +723,7 @@ export default function MultideckWeighingPage() {
     await captureGroup(deck4Groups);
 
     setIsCaptured(true);
-  }, [localGroupResults, captureAxleWeight]);
+  }, [localGroupResults, captureAxleWeight, selectedConfigId]);
 
   const handleFinishAndNew = useCallback(async () => {
     // Ensure last minute details are saved
