@@ -7,6 +7,8 @@ import {
   useSettingsByCategory,
   useUpdateSettingsBatch,
 } from '@/hooks/queries/useSettingsQueries';
+import { useToleranceSettings } from '@/hooks/queries/useActQueries';
+import { updateToleranceSetting } from '@/lib/api/acts';
 import type { ApplicationSettingDto, UpdateSettingsBatchRequest } from '@/lib/api/settings';
 
 import { Button } from '@/components/ui/button';
@@ -16,62 +18,90 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info, Loader2, Save, Scale } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 const KEY_SCALE_TEST_REQUIRED = 'weighing.scale_test_required';
 const KEY_MAX_REWEIGH_CYCLES = 'weighing.max_reweigh_cycles';
-const KEY_OPERATIONAL_TOLERANCE = 'weighing.operational_tolerance_kg';
 
 export function WeighingSettingsTab() {
   const { data: settings, isLoading } = useSettingsByCategory('Weighing');
+  const { data: toleranceSettings = [], isLoading: isLoadingTolerances } = useToleranceSettings('TRAFFIC_ACT');
   const updateBatch = useUpdateSettingsBatch();
-  
+  const queryClient = useQueryClient();
+
   const [scaleTestRequired, setScaleTestRequired] = useState<boolean>(false);
   const [maxReweighCycles, setMaxReweighCycles] = useState<string>('3');
-  const [operationalTolerance, setOperationalTolerance] = useState<string>('50');
+  const [operationalTolerance, setOperationalTolerance] = useState<string>('200');
   const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Find operational allowance tolerance setting
+  const opAllowanceSetting = toleranceSettings.find(
+    (t: any) => t.code === 'OPERATIONAL_ALLOWANCE' && t.isActive
+  );
 
   useEffect(() => {
     if (!settings?.length) return;
     const get = (key: string) => settings.find((s: ApplicationSettingDto) => s.settingKey === key);
-    
+
     const scaleTestSetting = get(KEY_SCALE_TEST_REQUIRED);
     setScaleTestRequired(scaleTestSetting?.settingValue === 'true');
-    
+
     const reweighSetting = get(KEY_MAX_REWEIGH_CYCLES);
     setMaxReweighCycles(reweighSetting?.settingValue ?? '3');
-    
-    const toleranceSetting = get(KEY_OPERATIONAL_TOLERANCE);
-    setOperationalTolerance(toleranceSetting?.settingValue ?? '50');
   }, [settings]);
 
+  // Load operational tolerance from ToleranceSetting table (single source of truth)
+  useEffect(() => {
+    if (opAllowanceSetting) {
+      setOperationalTolerance(String(opAllowanceSetting.toleranceKg ?? 200));
+    }
+  }, [opAllowanceSetting]);
+
   const handleSave = useCallback(async () => {
-    const updates: UpdateSettingsBatchRequest['settings'] = [
-      { settingKey: KEY_SCALE_TEST_REQUIRED, settingValue: scaleTestRequired.toString() },
-      { settingKey: KEY_MAX_REWEIGH_CYCLES, settingValue: maxReweighCycles },
-      { settingKey: KEY_OPERATIONAL_TOLERANCE, settingValue: operationalTolerance },
-    ];
+    setIsSaving(true);
     try {
+      // Save application settings (scale test, reweigh cycles)
+      const updates: UpdateSettingsBatchRequest['settings'] = [
+        { settingKey: KEY_SCALE_TEST_REQUIRED, settingValue: scaleTestRequired.toString() },
+        { settingKey: KEY_MAX_REWEIGH_CYCLES, settingValue: maxReweighCycles },
+      ];
       await updateBatch.mutateAsync({ settings: updates });
+
+      // Save operational tolerance to ToleranceSetting table (single source of truth)
+      if (opAllowanceSetting) {
+        await updateToleranceSetting(opAllowanceSetting.id, {
+          toleranceKg: parseInt(operationalTolerance, 10) || 0,
+        });
+        // Invalidate tolerance queries so all pages pick up the change
+        queryClient.invalidateQueries({ queryKey: ['tolerances'] });
+      }
+
       toast.success('Weighing settings saved');
       setHasChanges(false);
     } catch {
       toast.error('Failed to save settings');
+    } finally {
+      setIsSaving(false);
     }
-  }, [scaleTestRequired, maxReweighCycles, operationalTolerance, updateBatch]);
+  }, [scaleTestRequired, maxReweighCycles, operationalTolerance, updateBatch, opAllowanceSetting, queryClient]);
 
   useEffect(() => {
     if (!settings?.length) return;
     const get = (key: string) => settings.find((s: ApplicationSettingDto) => s.settingKey === key)?.settingValue ?? '';
-    
-    const changed =
-      (get(KEY_SCALE_TEST_REQUIRED) === 'true') !== scaleTestRequired ||
-      get(KEY_MAX_REWEIGH_CYCLES) !== maxReweighCycles ||
-      get(KEY_OPERATIONAL_TOLERANCE) !== operationalTolerance;
-      
-    setHasChanges(changed);
-  }, [settings, scaleTestRequired, maxReweighCycles, operationalTolerance]);
 
-  if (isLoading) {
+    const settingsChanged =
+      (get(KEY_SCALE_TEST_REQUIRED) === 'true') !== scaleTestRequired ||
+      get(KEY_MAX_REWEIGH_CYCLES) !== maxReweighCycles;
+
+    const toleranceChanged = opAllowanceSetting
+      ? String(opAllowanceSetting.toleranceKg ?? 200) !== operationalTolerance
+      : false;
+
+    setHasChanges(settingsChanged || toleranceChanged);
+  }, [settings, scaleTestRequired, maxReweighCycles, operationalTolerance, opAllowanceSetting]);
+
+  if (isLoading || isLoadingTolerances) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-24 w-full" />
@@ -123,22 +153,24 @@ export function WeighingSettingsTab() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="operational-tolerance">Operational tolerance (kg)</Label>
+          <Label htmlFor="operational-tolerance">Operational allowance (kg)</Label>
           <Input
             id="operational-tolerance"
             type="number"
+            min="0"
             value={operationalTolerance}
             onChange={(e) => setOperationalTolerance(e.target.value)}
             className="max-w-[200px]"
           />
           <p className="text-xs text-muted-foreground">
-            Allowable difference between scale readings and expected weights.
+            Additional operational allowance added to permissible limits for technical variance.
+            Set to 0 to disable. This value is used by both the frontend compliance display and the backend ticket generation.
           </p>
         </div>
 
         <div className="pt-4 border-t">
-          <Button onClick={handleSave} disabled={!hasChanges || updateBatch.isPending}>
-            {updateBatch.isPending ? (
+          <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
+            {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
               <Save className="h-4 w-4 mr-2" />

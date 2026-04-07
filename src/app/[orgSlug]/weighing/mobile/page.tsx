@@ -111,11 +111,15 @@ export default function MobileWeighingPage() {
     return setting.settingValue?.toLowerCase() === 'true';
   }, [allSettings]);
 
-  // Operational tolerance (kg) from settings — used in local compliance calculation
+  // Operational tolerance (kg) from ToleranceSetting table (OPERATIONAL_ALLOWANCE)
+  // Single source of truth — same table used by backend CalculateComplianceAsync
   const operationalToleranceKg = useMemo(() => {
-    const setting = allSettings.find(s => s.settingKey === 'weighing.operational_tolerance_kg');
-    return setting?.settingValue ? parseInt(setting.settingValue, 10) : 200;
-  }, [allSettings]);
+    const opAllowance = toleranceSettings.find(t => t.code === 'OPERATIONAL_ALLOWANCE' && t.isActive);
+    if (opAllowance && opAllowance.toleranceKg !== null && opAllowance.toleranceKg !== undefined) {
+      return opAllowance.toleranceKg;
+    }
+    return 200; // Fallback only if setting not found in DB
+  }, [toleranceSettings]);
 
   // Entity creation mutations are now handled by useWeighingUI
   // Vehicle lookup mutation for auto-creating vehicles
@@ -749,16 +753,29 @@ export default function MobileWeighingPage() {
       const permissibleKg = sortedRefs.reduce((sum: number, r: any) => sum + r.axleLegalWeightKg, 0);
 
       // Apply tolerance from DB settings (per legal framework)
-      // Prefer framework-specific setting over BOTH/GLOBAL wildcard
+      // Priority: framework-specific → standard law by axle type → 0% strict
+      const isSingleAxle = sortedRefs.length <= 1;
       const axleTolerance =
         toleranceSettings.find(t => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
-        toleranceSettings.find(t => t.appliesTo === 'AXLE' && t.isActive);
+        toleranceSettings.find(t => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework === 'BOTH');
       let toleranceKg = 0;
-      if (axleTolerance) {
-        if (axleTolerance.toleranceKg && axleTolerance.toleranceKg > 0) {
-          toleranceKg = axleTolerance.toleranceKg;
-        } else if (axleTolerance.tolerancePercentage > 0) {
-          toleranceKg = Math.round(permissibleKg * axleTolerance.tolerancePercentage / 100);
+      if (axleTolerance && (axleTolerance.toleranceKg ?? 0) > 0) {
+        toleranceKg = axleTolerance.toleranceKg!;
+      } else if (axleTolerance && axleTolerance.tolerancePercentage > 0) {
+        toleranceKg = Math.round(permissibleKg * axleTolerance.tolerancePercentage / 100);
+      }
+      // If framework-specific returned 0, check standard law tolerance by axle type
+      // Single axles (Steering/SingleDrive) get STANDARD_LAW_SINGLE (5%)
+      // Grouped axles (Tandem/Tridem) get STANDARD_LAW_GROUP (0%)
+      if (toleranceKg === 0) {
+        const standardCode = isSingleAxle ? 'STANDARD_LAW_SINGLE' : 'STANDARD_LAW_GROUP';
+        const standardTolerance = toleranceSettings.find(t => t.code === standardCode && t.isActive);
+        if (standardTolerance) {
+          if ((standardTolerance.toleranceKg ?? 0) > 0) {
+            toleranceKg = standardTolerance.toleranceKg!;
+          } else if (standardTolerance.tolerancePercentage > 0) {
+            toleranceKg = Math.round(permissibleKg * standardTolerance.tolerancePercentage / 100);
+          }
         }
       }
       const effectiveLimitKg = permissibleKg + toleranceKg;
@@ -955,7 +972,8 @@ export default function MobileWeighingPage() {
     const weight = currentAxleWeight;
 
     // Capture via useWeighing hook (persists locally, submitted to backend on confirm)
-    const success = await captureAxleWeight(currentAxle, weight);
+    // Pass selectedConfigId so backend uses the correct axle config (not a fallback standard)
+    const success = await captureAxleWeight(currentAxle, weight, selectedConfigId);
 
     if (success) {
       // Sync axle capture to middleware (autoweigh tracking; middleware sends weigh command to console for next axle)
@@ -974,7 +992,7 @@ export default function MobileWeighingPage() {
     } else {
       toast.error(`Failed to capture axle ${currentAxle}. Please try again.`);
     }
-  }, [capturedAxles, captureAxleWeight, currentAxle, currentAxleWeight, totalAxles, middleware, weighingSession]);
+  }, [capturedAxles, captureAxleWeight, currentAxle, currentAxleWeight, totalAxles, middleware, weighingSession, selectedConfigId]);
 
   // Edit plate handler (logs event)
   const handleEditPlate = () => {
