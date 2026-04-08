@@ -36,8 +36,8 @@ import {
     useMyStation,
     usePendingWeighings,
     useProsecutionDefaults,
-    useUpdateProsecutionDefaults,
     useToleranceSettings,
+    useUpdateProsecutionDefaults,
     useUpdateVehicle,
     useVehicleByRegNo,
     useWeighingAxleConfigurations
@@ -110,16 +110,6 @@ export default function MobileWeighingPage() {
     if (!setting) return false;
     return setting.settingValue?.toLowerCase() === 'true';
   }, [allSettings]);
-
-  // Operational tolerance (kg) from ToleranceSetting table (OPERATIONAL_ALLOWANCE)
-  // Single source of truth — same table used by backend CalculateComplianceAsync
-  const operationalToleranceKg = useMemo(() => {
-    const opAllowance = toleranceSettings.find(t => t.code === 'OPERATIONAL_ALLOWANCE' && t.isActive);
-    if (opAllowance && opAllowance.toleranceKg !== null && opAllowance.toleranceKg !== undefined) {
-      return opAllowance.toleranceKg;
-    }
-    return 200; // Fallback only if setting not found in DB
-  }, [toleranceSettings]);
 
   // Entity creation mutations are now handled by useWeighingUI
   // Vehicle lookup mutation for auto-creating vehicles
@@ -450,6 +440,16 @@ export default function MobileWeighingPage() {
 
   // Fetch DB tolerance settings for the active legal framework (cached 30min)
   const { data: toleranceSettings = [] } = useToleranceSettings(effectiveLegalFramework);
+
+  // Operational tolerance (kg) from ToleranceSetting table (OPERATIONAL_ALLOWANCE)
+  // Single source of truth — same table used by backend CalculateComplianceAsync
+  const operationalToleranceKg = useMemo(() => {
+    const opAllowance = toleranceSettings.find((t) => t.code === 'OPERATIONAL_ALLOWANCE' && t.isActive);
+    if (opAllowance && opAllowance.toleranceKg !== null && opAllowance.toleranceKg !== undefined) {
+      return opAllowance.toleranceKg;
+    }
+    return 200; // Fallback only if setting not found in DB
+  }, [toleranceSettings]);
 
   // Vehicle details form state - simple values
   const [permitNo, setPermitNo] = useState('');
