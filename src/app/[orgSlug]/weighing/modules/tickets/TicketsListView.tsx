@@ -141,7 +141,7 @@ export default function TicketsListView({
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden md:table-cell">Station</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap hidden lg:table-cell">Date Time</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10">Registration</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Coordinates</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Location</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap text-center hidden lg:table-cell">Time Taken (Secs)</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Source/Dest.</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden lg:table-cell">User</TableHead>
