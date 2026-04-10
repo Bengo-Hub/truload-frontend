@@ -1089,14 +1089,25 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   const localApiBase = localApiUrl.replace(/\/weights\/?$/, '');
 
   const captureAxle = useCallback((axleNumber: number, weight: number, axleConfigurationId?: string) => {
-    if (state.connectionMode === 'local_api') {
+    if (state.connectionMode === 'local_api' || state.connectionMode === 'disconnected') {
+      // Use HTTP API when polling OR when disconnected (best-effort delivery).
+      // This ensures the middleware's mobileState.axles stays in sync for MCGS
+      // cumulative weight subtraction even during WebSocket reconnection windows.
       fetch(`${localApiBase}/axle-captured`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ axleNumber, weight, axleConfigurationId }),
       }).catch((err) => console.warn('[useMiddleware] API axle-captured failed', err));
     } else {
-      sendMessage('axle-captured', { axleNumber, weight, axleConfigurationId });
+      // Try WebSocket first; fall back to HTTP API if WebSocket send fails
+      const wsSent = sendMessage('axle-captured', { axleNumber, weight, axleConfigurationId });
+      if (!wsSent) {
+        fetch(`${localApiBase}/axle-captured`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ axleNumber, weight, axleConfigurationId }),
+        }).catch((err) => console.warn('[useMiddleware] API axle-captured fallback failed', err));
+      }
     }
   }, [sendMessage, state.connectionMode, localApiBase]);
 
