@@ -976,10 +976,11 @@ export default function MobileWeighingPage() {
     const success = await captureAxleWeight(currentAxle, weight, selectedConfigId);
 
     if (success) {
-      // Sync axle capture to middleware (autoweigh tracking; middleware sends weigh command to console for next axle)
-      if (middleware.connected) {
-        middleware.captureAxle(currentAxle, weight);
-      }
+      // ALWAYS sync axle capture to middleware — even when disconnected.
+      // captureAxle handles API fallback internally; skipping this when disconnected
+      // causes the middleware's mobileState.axles to fall behind, which breaks
+      // cumulative weight subtraction for MCGS scales on subsequent axles.
+      middleware.captureAxle(currentAxle, weight);
 
       // Update local state for immediate UI feedback
       setLocalCapturedWeights(prev => [...prev, weight]);
