@@ -135,14 +135,17 @@ export function formatOverload(overloadKg: number): string {
 }
 
 /**
- * Format currency (USD)
+ * Format currency (KES)
  */
-export function formatFeeUsd(feeUsd: number): string {
-  return new Intl.NumberFormat('en-US', {
+export function formatFeeKes(feeKes: number): string {
+  return new Intl.NumberFormat('en-KE', {
     style: 'currency',
-    currency: 'USD',
-  }).format(feeUsd);
+    currency: 'KES',
+  }).format(feeKes);
 }
+
+/** @deprecated Use formatFeeKes instead */
+export const formatFeeUsd = formatFeeKes;
 
 /**
  * Format PDF value to 2 decimal places

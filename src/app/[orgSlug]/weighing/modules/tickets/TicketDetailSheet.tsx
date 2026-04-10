@@ -127,7 +127,7 @@ export default function TicketDetailSheet({
               <DetailRow label="GVW Permissible" value={formatWeight(ticket.gvwPermissibleKg)} />
               <DetailRow label="Overload" value={ticket.overloadKg > 0 ? formatWeight(ticket.overloadKg) : 'None'} />
               {ticket.totalFeeUsd > 0 && (
-                <DetailRow label="Fee (USD)" value={`$${ticket.totalFeeUsd.toLocaleString()}`} />
+                <DetailRow label="Fee (KES)" value={`KES ${ticket.totalFeeUsd.toLocaleString()}`} />
               )}
             </div>
           </div>

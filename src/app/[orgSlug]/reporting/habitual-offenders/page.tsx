@@ -41,7 +41,7 @@ import { useCallback, useState } from 'react';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useQueryClient } from '@tanstack/react-query';
 
-type SortField = 'totalConvictions' | 'firstConvictionDate' | 'lastConvictionDate' | 'totalFinesKes' | 'totalFinesUsd';
+type SortField = 'totalConvictions' | 'firstConvictionDate' | 'lastConvictionDate' | 'totalFinesKes';
 type SortDir = 'asc' | 'desc';
 
 export default function HabitualOffendersPage() {
@@ -321,9 +321,6 @@ function HabitualOffendersContent() {
                   <SortableHead field="totalFinesKes" className="text-right">
                     Total Fines (KES)
                   </SortableHead>
-                  <SortableHead field="totalFinesUsd" className="text-right">
-                    Total Fines (USD)
-                  </SortableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -336,13 +333,12 @@ function HabitualOffendersContent() {
                         <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                         <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
-                        <TableCell className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
                       </TableRow>
                     ))}
                   </>
                 ) : items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-48">
+                    <TableCell colSpan={5} className="h-48">
                       <div className="flex flex-col items-center justify-center text-center py-8">
                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
                           <Truck className="h-8 w-8 text-muted-foreground" />
@@ -386,9 +382,6 @@ function HabitualOffendersContent() {
                       <TableCell className="text-right font-mono font-semibold">
                         {formatAmount(offender.totalFinesKes, 'KES')}
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatAmount(offender.totalFinesUsd, 'USD')}
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -424,7 +417,7 @@ function HabitualOffendersContent() {
           </DialogHeader>
           {selectedVehicle && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Total Convictions</span>
                   <p className="font-bold text-lg">{selectedVehicle.totalConvictions}</p>
@@ -433,12 +426,6 @@ function HabitualOffendersContent() {
                   <span className="text-muted-foreground">Total Fines (KES)</span>
                   <p className="font-bold font-mono">
                     {formatAmount(selectedVehicle.totalFinesKes, 'KES')}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Total Fines (USD)</span>
-                  <p className="font-bold font-mono">
-                    {formatAmount(selectedVehicle.totalFinesUsd, 'USD')}
                   </p>
                 </div>
               </div>
