@@ -3,11 +3,12 @@
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { Camera, Eye, Loader2, Printer, RotateCcw } from 'lucide-react';
-import { useMemo } from 'react';
+import { Eye, Loader2, MapPin, Printer, RotateCcw } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 interface TicketsListViewProps {
   tickets: WeighingTransaction[];
@@ -124,7 +125,9 @@ export default function TicketsListView({
   // Show axle details column if any mobile tickets exist
   const showAxleDetails = hasMobileTickets;
 
-  const colCount = 18 + (showDeckColumns ? 4 : 0) + (showAxleDetails ? 1 : 0);
+  const colCount = 16 + (showDeckColumns ? 4 : 0) + (showAxleDetails ? 1 : 0);
+
+  const [mapModal, setMapModal] = useState<{ lat: number; lng: number; reg: string } | null>(null);
 
   return (
     <Card className="border border-gray-200 rounded-xl">
@@ -138,9 +141,7 @@ export default function TicketsListView({
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden md:table-cell">Station</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap hidden lg:table-cell">Date Time</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10">Registration</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Anprpic</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">ANPR</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap hidden xl:table-cell">ANPR Check</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Location</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap text-center hidden lg:table-cell">Time Taken (Secs)</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Source/Dest.</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden lg:table-cell">User</TableHead>
@@ -232,34 +233,21 @@ export default function TicketsListView({
                       {ticket.vehicleRegNumber}
                     </TableCell>
 
-                    {/* ANPR Pic */}
-                    <TableCell className="py-2 px-1 hidden xl:table-cell">
-                      {ticket.vehicleThumbnailUrl ? (
-                        <img
-                          src={ticket.vehicleThumbnailUrl}
-                          alt="ANPR"
-                          className="w-14 h-10 object-cover rounded border border-gray-200"
-                        />
-                      ) : (
-                        <div className="w-14 h-10 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                          <Camera className="h-3.5 w-3.5 text-gray-300" />
-                        </div>
-                      )}
-                    </TableCell>
-
-                    {/* ANPR Text */}
-                    <TableCell className="text-xs font-mono text-gray-600 py-2 hidden xl:table-cell">
-                      {ticket.anprRegistration ?? '—'}
-                    </TableCell>
-
-                    {/* ANPR Check */}
+                    {/* Coordinates */}
                     <TableCell className="text-xs py-2 hidden xl:table-cell">
-                      {ticket.anprMatch == null ? (
-                        <span className="text-gray-400">—</span>
-                      ) : ticket.anprMatch ? (
-                        <span className="text-green-600 font-medium">Match</span>
+                      {ticket.locationLat != null && ticket.locationLng != null ? (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                          onClick={() => setMapModal({ lat: ticket.locationLat!, lng: ticket.locationLng!, reg: ticket.vehicleRegNumber })}
+                        >
+                          <MapPin className="h-3 w-3" />
+                          <span className="font-mono text-[11px]">
+                            {ticket.locationLat.toFixed(5)}, {ticket.locationLng.toFixed(5)}
+                          </span>
+                        </button>
                       ) : (
-                        <span className="text-red-600 font-medium">Mismatch</span>
+                        <span className="text-gray-400">—</span>
                       )}
                     </TableCell>
 
@@ -384,6 +372,28 @@ export default function TicketsListView({
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Google Maps Modal */}
+      <Dialog open={mapModal !== null} onOpenChange={(open) => !open && setMapModal(null)}>
+        <DialogContent className="max-w-2xl w-[90vw] p-0 gap-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="text-sm font-semibold">
+              Weighing Location — {mapModal?.reg}
+            </DialogTitle>
+          </DialogHeader>
+          {mapModal && (
+            <div className="w-full h-[450px]">
+              <iframe
+                title="Weighing Location Map"
+                className="w-full h-full rounded-b-lg"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://maps.google.com/maps?q=${mapModal.lat},${mapModal.lng}&z=16&output=embed`}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

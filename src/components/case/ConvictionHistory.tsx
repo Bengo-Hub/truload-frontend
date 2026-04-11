@@ -107,10 +107,6 @@ function ConvictionStep({
             <span className="text-muted-foreground">Fine (KES):</span>{' '}
             <span className="font-mono">{formatCurrency(record.chargeAmountKes, 'KES')}</span>
           </div>
-          <div>
-            <span className="text-muted-foreground">Fine (USD):</span>{' '}
-            <span className="font-mono">{formatCurrency(record.chargeAmountUsd, 'USD')}</span>
-          </div>
           <div className="col-span-2">
             <span className="text-muted-foreground">Legal Framework:</span>{' '}
             <span className="font-medium">{record.legalFramework}</span>

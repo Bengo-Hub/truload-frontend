@@ -144,6 +144,10 @@ export interface WeighingTransaction {
   scaleTestResult?: string;
   scaleTestCarriedAt?: string;
 
+  // Location coordinates
+  locationLat?: number;
+  locationLng?: number;
+
   // Images
   vehicleThumbnailUrl?: string;
   vehicleImageUrls?: string[];

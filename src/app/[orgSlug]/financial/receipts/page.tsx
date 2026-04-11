@@ -229,7 +229,7 @@ export default function ReceiptsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {formatCurrency(statistics?.totalCollected || 0, 'USD')}
+                      {formatCurrency(statistics?.totalCollected || 0, 'KES')}
                     </div>
                     <p className="text-xs text-muted-foreground">Total collected</p>
                   </CardContent>

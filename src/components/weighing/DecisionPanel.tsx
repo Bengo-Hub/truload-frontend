@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { formatFeeUsd, getDecisionMessage, getStatusColor } from '@/lib/weighing-utils';
+import { formatFeeKes, getDecisionMessage, getStatusColor } from '@/lib/weighing-utils';
 import { ComplianceStatus } from '@/types/weighing';
 import {
     AlertTriangle,
@@ -144,7 +144,7 @@ export function DecisionPanel({
                   <div className="flex items-center gap-4 text-sm">
                     <span className="text-gray-600">
                       Fee:{' '}
-                      <span className="font-bold text-red-600">{formatFeeUsd(totalFeeUsd)}</span>
+                      <span className="font-bold text-red-600">{formatFeeKes(totalFeeUsd)}</span>
                     </span>
                     {demeritPoints > 0 && (
                       <span className="text-gray-600">
