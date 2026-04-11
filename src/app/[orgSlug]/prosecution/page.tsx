@@ -522,8 +522,8 @@ function ProsecutionContent() {
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">
                           {formatCurrency(
-                            item.chargingCurrency === 'USD' ? item.totalFeeUsd : item.totalFeeKes,
-                            item.chargingCurrency || 'KES'
+                            item.totalFeeKes,
+                            'KES'
                           )}
                         </TableCell>
                         <TableCell className="text-center hidden sm:table-cell">
@@ -645,10 +645,10 @@ function ProsecutionContent() {
                     <span className="font-mono">{selectedCase.gvwOverloadKg.toLocaleString()} kg</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">GVW Fee ({selectedCase.chargingCurrency || 'KES'}):</span>
+                    <span className="text-muted-foreground">GVW Fee (KES):</span>
                     <span className="font-mono">{formatCurrency(
-                      selectedCase.chargingCurrency === 'USD' ? selectedCase.gvwFeeUsd : selectedCase.gvwFeeKes,
-                      selectedCase.chargingCurrency || 'KES'
+                      selectedCase.gvwFeeKes,
+                      'KES'
                     )}</span>
                   </div>
                   <div className="flex justify-between">
@@ -656,10 +656,10 @@ function ProsecutionContent() {
                     <span className="font-mono">{selectedCase.maxAxleOverloadKg.toLocaleString()} kg</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Max Axle Fee ({selectedCase.chargingCurrency || 'KES'}):</span>
+                    <span className="text-muted-foreground">Max Axle Fee (KES):</span>
                     <span className="font-mono">{formatCurrency(
-                      selectedCase.chargingCurrency === 'USD' ? selectedCase.maxAxleFeeUsd : selectedCase.maxAxleFeeKes,
-                      selectedCase.chargingCurrency || 'KES'
+                      selectedCase.maxAxleFeeKes,
+                      'KES'
                     )}</span>
                   </div>
                   <div className="flex justify-between">
@@ -675,15 +675,9 @@ function ProsecutionContent() {
                   <span className="font-semibold">Total Fine:</span>
                   <div className="text-right">
                     <p className="text-lg font-bold text-primary">{formatCurrency(
-                      selectedCase.chargingCurrency === 'USD' ? selectedCase.totalFeeUsd : selectedCase.totalFeeKes,
-                      selectedCase.chargingCurrency || 'KES'
+                      selectedCase.totalFeeKes,
+                      'KES'
                     )}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedCase.chargingCurrency === 'USD'
-                        ? `(KES ${selectedCase.totalFeeKes.toLocaleString()} @ ${selectedCase.forexRate})`
-                        : `(USD ${selectedCase.totalFeeUsd.toLocaleString()} @ ${selectedCase.forexRate})`
-                      }
-                    </p>
                   </div>
                 </div>
               </div>

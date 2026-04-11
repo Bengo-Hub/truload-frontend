@@ -434,7 +434,6 @@ function ProsecutionTab({ filters }: TabProps) {
             <StatCard title="Paid" value={formatNumber(getStatValue(prosecutionStats, 'paidCases'))} icon={CheckCircle} color="bg-green-500" />
             <StatCard title="Court Cases" value={formatNumber(getStatValue(prosecutionStats, 'courtCases'))} icon={Gavel} color="bg-purple-500" />
             <StatCard title="Total Fees (KES)" value={formatKES(getStatValue(prosecutionStats, 'totalFeesKes'))} rawValue={getStatValue(prosecutionStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
-            <StatCard title="Total Fees (USD)" value={formatAmount(getStatValue(prosecutionStats, 'totalFeesUsd'), 'USD')} rawValue={getStatValue(prosecutionStats, 'totalFeesUsd')} icon={Banknote} color="bg-teal-500" />
           </>
         )}
       </div>
@@ -479,19 +478,9 @@ function FinancialTab({ filters, isCommercial }: TabProps) {
             <PermissionGate permissions="invoice.read">
               <StatCard title="Outstanding (KES)" value={formatKES(getStatValue(invoiceStats, 'totalBalanceKes'))} rawValue={getStatValue(invoiceStats, 'totalBalanceKes')} icon={Banknote} color="bg-orange-500" />
             </PermissionGate>
-            {!isCommercial && (
-              <PermissionGate permissions="invoice.read">
-                <StatCard title="Outstanding (USD)" value={formatAmount(getStatValue(invoiceStats, 'totalBalanceUsd'), 'USD')} rawValue={getStatValue(invoiceStats, 'totalBalanceUsd')} icon={Banknote} color="bg-orange-400" />
-              </PermissionGate>
-            )}
             <PermissionGate permissions="receipt.read">
               <StatCard title="Collected (KES)" value={formatKES(getStatValue(receiptStats, 'totalCollectedKes'))} rawValue={getStatValue(receiptStats, 'totalCollectedKes')} icon={CheckCircle} color="bg-emerald-600" />
             </PermissionGate>
-            {!isCommercial && (
-              <PermissionGate permissions="receipt.read">
-                <StatCard title="Collected (USD)" value={formatAmount(getStatValue(receiptStats, 'totalCollectedUsd'), 'USD')} rawValue={getStatValue(receiptStats, 'totalCollectedUsd')} icon={CheckCircle} color="bg-teal-500" />
-              </PermissionGate>
-            )}
           </>
         )}
       </div>

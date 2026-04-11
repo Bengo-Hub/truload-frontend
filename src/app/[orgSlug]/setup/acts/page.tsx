@@ -284,8 +284,8 @@ function FeeScheduleTable({ schedules }: { schedules: AxleFeeScheduleDto[] }) {
           <TableRow>
             <TableHead>Type</TableHead>
             <TableHead>Overload Range (kg)</TableHead>
-            <TableHead className="text-right">Fee/kg (USD)</TableHead>
-            <TableHead className="text-right">Flat Fee (USD)</TableHead>
+            <TableHead className="text-right">Fee/kg (KES)</TableHead>
+            <TableHead className="text-right">Flat Fee (KES)</TableHead>
             <TableHead className="text-right">Demerit Pts</TableHead>
             <TableHead>Description</TableHead>
           </TableRow>
@@ -330,11 +330,11 @@ function AxleTypeFeeTable({ schedules }: { schedules: AxleTypeOverloadFeeSchedul
         <TableHeader>
           <TableRow>
             <TableHead>Overload Range (kg)</TableHead>
-            <TableHead className="text-right">Steering (USD)</TableHead>
-            <TableHead className="text-right">Single Drive (USD)</TableHead>
-            <TableHead className="text-right">Tandem (USD)</TableHead>
-            <TableHead className="text-right">Tridem (USD)</TableHead>
-            <TableHead className="text-right">Quad (USD)</TableHead>
+            <TableHead className="text-right">Steering (KES)</TableHead>
+            <TableHead className="text-right">Single Drive (KES)</TableHead>
+            <TableHead className="text-right">Tandem (KES)</TableHead>
+            <TableHead className="text-right">Tridem (KES)</TableHead>
+            <TableHead className="text-right">Quad (KES)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

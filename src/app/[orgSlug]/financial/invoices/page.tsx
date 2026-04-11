@@ -289,7 +289,7 @@ export default function InvoicesPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {formatCurrency(statistics?.totalAmountPaid || 0, 'USD')}
+                      {formatCurrency(statistics?.totalAmountPaid || 0, 'KES')}
                     </div>
                     <p className="text-xs text-muted-foreground">All time collections</p>
                   </CardContent>
