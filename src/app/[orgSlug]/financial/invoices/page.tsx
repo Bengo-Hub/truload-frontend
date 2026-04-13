@@ -191,6 +191,9 @@ export default function InvoicesPage() {
   };
 
   const { formatAmount: formatCurrency } = useCurrency();
+  const totalPaidKes = statistics?.totalAmountPaidKes ?? 0;
+  const totalPaidUsd = statistics?.totalAmountPaidUsd ?? 0;
+  const hasDualRevenue = totalPaidKes > 0 && totalPaidUsd > 0;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -288,9 +291,19 @@ export default function InvoicesPage() {
                     <DollarSign className="h-4 w-4 text-green-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {formatCurrency(statistics?.totalAmountPaid || 0, 'USD')}
-                    </div>
+                    {hasDualRevenue ? (
+                      <div className="space-y-1">
+                        <div className="text-xl font-bold">{formatCurrency(totalPaidKes, 'KES')}</div>
+                        <div className="text-sm font-semibold text-muted-foreground">{formatCurrency(totalPaidUsd, 'USD')}</div>
+                      </div>
+                    ) : (
+                      <div className="text-2xl font-bold">
+                        {formatCurrency(
+                          totalPaidKes > 0 ? totalPaidKes : totalPaidUsd,
+                          totalPaidKes > 0 ? 'KES' : 'USD'
+                        )}
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">All time collections</p>
                   </CardContent>
                 </Card>
