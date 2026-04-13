@@ -56,6 +56,8 @@ export interface ComplianceResult {
   gvwEffectiveLimitKg: number;
   gvwToleranceDisplay: string;
   totalFeeUsd: number;
+  totalFeeKes?: number;
+  chargingCurrency?: string;
   demeritPoints: number;
   overallStatus: ComplianceStatus;
   isCompliant: boolean;

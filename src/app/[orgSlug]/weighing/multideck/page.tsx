@@ -1214,6 +1214,8 @@ export default function MultideckWeighingPage() {
                  gvwMeasured={gvwMeasured}
                  overallStatus={overallStatus}
                  totalFeeUsd={complianceResult?.totalFeeUsd ?? 0}
+                 totalFeeKes={complianceResult?.totalFeeKes}
+                 chargingCurrency={complianceResult?.chargingCurrency}
                  reweighCycleNo={reweighCycleNo}
                  isValid={validationResult.isValid}
                  missingFields={validationResult.missingFields}

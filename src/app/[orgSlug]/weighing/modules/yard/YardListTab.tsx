@@ -18,6 +18,7 @@ import {
   YARD_QUERY_KEYS,
 } from '@/hooks/queries/useYardQueries';
 import type { YardEntryDto } from '@/lib/api/yard';
+import { formatFee } from '@/lib/weighing-utils';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -323,7 +324,9 @@ export default function YardListTab() {
                       {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'}
                     </TableCell>
                     <TableCell className="font-mono text-gray-600 py-4 text-right">
-                      {entry.totalFeeUsd ? `$${entry.totalFeeUsd.toLocaleString()}` : '-'}
+                      {(entry.totalFeeUsd || entry.totalFeeKes)
+                        ? formatFee(entry.totalFeeUsd ?? 0, entry.totalFeeKes, entry.chargingCurrency)
+                        : '-'}
                     </TableCell>
                     <TableCell className="py-4">
                       <StatusBadge status={getYardStatusBadge(entry.status)} />
@@ -535,7 +538,9 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
               <div>
                 <Label className="text-xs text-gray-500">Fee</Label>
                 <p className="font-mono font-medium">
-                  {entry.totalFeeUsd ? `$${entry.totalFeeUsd.toLocaleString()}` : '-'}
+                  {(entry.totalFeeUsd || entry.totalFeeKes)
+                    ? formatFee(entry.totalFeeUsd ?? 0, entry.totalFeeKes, entry.chargingCurrency)
+                    : '-'}
                 </p>
               </div>
               {entry.releasedAt && (
@@ -593,7 +598,7 @@ function ReleaseDialog({ entry, open, onClose, onRelease, isSubmitting }: Releas
                 <p className="text-sm font-medium text-yellow-800">Confirm Release</p>
                 <p className="text-xs text-yellow-700 mt-1">
                   Overload: {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'} |
-                  Fee: ${entry.totalFeeUsd?.toLocaleString() || 0}
+                  Fee: {formatFee(entry.totalFeeUsd ?? 0, entry.totalFeeKes, entry.chargingCurrency)}
                 </p>
               </div>
             </div>
