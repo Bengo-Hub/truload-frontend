@@ -190,10 +190,16 @@ export default function InvoicesPage() {
     }
   };
 
-  const { formatAmount: formatCurrency } = useCurrency();
+  const { formatAmount: formatCurrency, selectedCurrency } = useCurrency();
   const totalPaidKes = statistics?.totalAmountPaidKes ?? 0;
   const totalPaidUsd = statistics?.totalAmountPaidUsd ?? 0;
+  const totalPaidLegacy = statistics?.totalAmountPaid ?? 0;
   const hasDualRevenue = totalPaidKes > 0 && totalPaidUsd > 0;
+  const singleRevenueAmount = totalPaidKes > 0
+    ? { amount: totalPaidKes, currency: 'KES' }
+    : totalPaidUsd > 0
+      ? { amount: totalPaidUsd, currency: 'USD' }
+      : { amount: totalPaidLegacy, currency: selectedCurrency };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -298,10 +304,7 @@ export default function InvoicesPage() {
                       </div>
                     ) : (
                       <div className="text-2xl font-bold">
-                        {formatCurrency(
-                          totalPaidKes > 0 ? totalPaidKes : totalPaidUsd,
-                          totalPaidKes > 0 ? 'KES' : 'USD'
-                        )}
+                        {formatCurrency(singleRevenueAmount.amount, singleRevenueAmount.currency)}
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground">All time collections</p>

@@ -745,19 +745,19 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
               <div className="flex justify-between">
                 <span className="text-gray-500">Amount Due:</span>
                 <span className="font-semibold">
-                  {formatCurrency(selectedInvoice?.amountDue || 0, selectedInvoice?.currency || 'USD')}
+                  {formatCurrency(selectedInvoice?.amountDue || 0, selectedInvoice?.currency || 'KES')}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Already Paid:</span>
                 <span className="text-green-600">
-                  {formatCurrency(selectedInvoice?.amountPaid || 0, selectedInvoice?.currency || 'USD')}
+                  {formatCurrency(selectedInvoice?.amountPaid || 0, selectedInvoice?.currency || 'KES')}
                 </span>
               </div>
               <div className="flex justify-between border-t pt-2 mt-2">
                 <span className="text-gray-500 font-semibold">Balance:</span>
                 <span className="font-bold text-red-600">
-                  {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency || 'USD')}
+                  {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency || 'KES')}
                 </span>
               </div>
             </div>
@@ -850,7 +850,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
                 <div className="flex justify-between">
                   <span className="text-gray-600">Amount:</span>
                   <span className="font-bold text-lg">
-                    {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency || 'USD')}
+                    {formatCurrency(selectedInvoice?.balanceRemaining || 0, selectedInvoice?.currency || 'KES')}
                   </span>
                 </div>
                 {selectedInvoice?.pesaflowInvoiceNumber && (
