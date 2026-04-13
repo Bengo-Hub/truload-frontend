@@ -14,18 +14,18 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { queryPaymentStatus, reconcileInvoice, type PesaflowPaymentStatusResponse } from '@/lib/api/integration';
 import { AlertTriangle, CheckCircle2, Loader2, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 interface ReconcileDialogProps {
@@ -56,20 +56,13 @@ export function ReconcileDialog({
   const [amount, setAmount] = useState(amountDue.toString());
   const [paymentStatus, setPaymentStatus] = useState<PesaflowPaymentStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const invoiceReference = pesaflowInvoiceNumber?.trim() || '';
-
-  useEffect(() => {
-    if (!open) return;
-    setTransactionRef(invoiceReference);
-    setAmount(amountDue.toString());
-  }, [open, invoiceReference, amountDue]);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: currency || 'KES' }).format(val);
 
   const handleVerify = async () => {
-    if (!invoiceReference.trim() && !transactionRef.trim()) {
-      setError('Invoice reference is required for verification');
+    if (!transactionRef.trim()) {
+      setError('Transaction reference is required');
       return;
     }
 
@@ -77,7 +70,7 @@ export function ReconcileDialog({
     setStep('verifying');
 
     try {
-      const refNo = invoiceReference || transactionRef.trim();
+      const refNo = pesaflowInvoiceNumber || invoiceNo;
       const status = await queryPaymentStatus(invoiceId, refNo);
 
       if (status.status === 'PAID' || status.amountPaid > 0) {
@@ -175,7 +168,7 @@ export function ReconcileDialog({
                 id="reconcile-ref"
                 value={transactionRef}
                 onChange={(e) => setTransactionRef(e.target.value)}
-                placeholder="e.g. PJLVXY or UDDEQ11M54"
+                placeholder="e.g. PESAFLOW-TXN-12345"
                 disabled={step === 'verifying'}
               />
             </div>
