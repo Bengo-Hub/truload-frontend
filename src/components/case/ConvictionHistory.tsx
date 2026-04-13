@@ -1,12 +1,14 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConvictionHistory } from '@/hooks/queries';
 import { useCurrency } from '@/hooks/useCurrency';
-import { Gavel, Scale, AlertTriangle } from 'lucide-react';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
 import type { ConvictionRecordDto } from '@/lib/api/prosecution';
+import { AlertTriangle, Gavel, Scale } from 'lucide-react';
+import Link from 'next/link';
 
 interface ConvictionHistoryProps {
   vehicleId?: string;
@@ -130,6 +132,7 @@ function ConvictionStep({
 export function ConvictionHistory({ vehicleId }: ConvictionHistoryProps) {
   const { data: convictions, isLoading } = useConvictionHistory(vehicleId);
   const { formatAmount } = useCurrency();
+  const orgSlug = useOrgSlug();
 
   if (!vehicleId) return null;
 
@@ -173,6 +176,9 @@ export function ConvictionHistory({ vehicleId }: ConvictionHistoryProps) {
     );
   }
 
+  const [primaryConviction, ...remainingConvictions] = convictions;
+  const remainingCount = remainingConvictions.length;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -197,14 +203,22 @@ export function ConvictionHistory({ vehicleId }: ConvictionHistoryProps) {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col">
-          {convictions.map((record, index) => (
-            <ConvictionStep
-              key={record.prosecutionCaseId}
-              record={record}
-              isLast={index === convictions.length - 1}
-              formatCurrency={formatAmount}
-            />
-          ))}
+          <ConvictionStep
+            key={primaryConviction.prosecutionCaseId}
+            record={primaryConviction}
+            isLast
+            formatCurrency={formatAmount}
+          />
+          {remainingCount > 0 && (
+            <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm">
+              <Link
+                href={`/${orgSlug}/reporting/habitual-offenders`}
+                className="font-medium text-primary hover:underline"
+              >
+                +{remainingCount} more conviction{remainingCount > 1 ? 's' : ''} &mdash; view in Habitual Offenders report
+              </Link>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
