@@ -125,6 +125,10 @@ export interface WeighingTransaction {
   anprCheckCount?: number;
   anprMatch?: boolean;
 
+  // Location coordinates
+  locationLat?: number;
+  locationLng?: number;
+
   // Route & Cargo (IDs for form prefill)
   roadId?: string;
   subcountyId?: string;
