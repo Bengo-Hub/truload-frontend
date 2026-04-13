@@ -11,6 +11,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import type { WeighingTransaction } from '@/lib/api/weighing';
+import { formatFee } from '@/lib/weighing-utils';
 import { cn } from '@/lib/utils';
 import { Printer } from 'lucide-react';
 
@@ -126,8 +127,11 @@ export default function TicketDetailSheet({
               <DetailRow label="GVW Measured" value={formatWeight(ticket.gvwMeasuredKg)} />
               <DetailRow label="GVW Permissible" value={formatWeight(ticket.gvwPermissibleKg)} />
               <DetailRow label="Overload" value={ticket.overloadKg > 0 ? formatWeight(ticket.overloadKg) : 'None'} />
-              {ticket.totalFeeUsd > 0 && (
-                <DetailRow label="Fee (USD)" value={`$${ticket.totalFeeUsd.toLocaleString()}`} />
+              {(ticket.totalFeeUsd > 0 || (ticket.totalFeeKes ?? 0) > 0) && (
+                <DetailRow
+                  label={`Fee (${ticket.chargingCurrency || 'USD'})`}
+                  value={formatFee(ticket.totalFeeUsd, ticket.totalFeeKes, ticket.chargingCurrency)}
+                />
               )}
             </div>
           </div>

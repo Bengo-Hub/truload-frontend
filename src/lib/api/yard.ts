@@ -21,6 +21,8 @@ export interface YardEntryDto {
   gvwPermissibleKg?: number;
   overloadKg?: number;
   totalFeeUsd?: number;
+  totalFeeKes?: number;
+  chargingCurrency?: string;
   createdAt: string;
   updatedAt: string;
   /** Whether the linked case is closed. Release is only allowed when true (per FRD). */

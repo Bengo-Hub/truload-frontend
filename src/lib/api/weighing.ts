@@ -80,6 +80,8 @@ export interface WeighingTransaction {
   excessKg?: number;
   controlStatus: string;
   totalFeeUsd: number;
+  totalFeeKes?: number;
+  chargingCurrency?: string;
   weighedAt: string;
   isSync: boolean;
   isCompliant: boolean;
@@ -199,6 +201,7 @@ export interface WeighingResult {
   violationReason?: string;
   totalFeeUsd: number;
   totalFeeKes?: number;
+  chargingCurrency?: string;
   hasPermit: boolean;
   reweighCycleNo: number;
   weighedAt: string;

@@ -14,6 +14,8 @@ interface WeighingDecisionStepProps {
   reweighCycleNo: number;
   overallStatus: ComplianceStatus;
   totalFeeUsd: number;
+  totalFeeKes?: number;
+  chargingCurrency?: string;
   isValid: boolean;
   missingFields: string[];
   isSentToYard?: boolean;
@@ -53,6 +55,8 @@ export function WeighingDecisionStep({
   reweighCycleNo,
   overallStatus,
   totalFeeUsd,
+  totalFeeKes,
+  chargingCurrency,
   isValid,
   missingFields,
   isSentToYard,
@@ -106,6 +110,8 @@ export function WeighingDecisionStep({
       <DecisionPanel
         overallStatus={overallStatus}
         totalFeeUsd={totalFeeUsd}
+        totalFeeKes={totalFeeKes}
+        chargingCurrency={chargingCurrency}
         demeritPoints={0}
         reweighCycleNo={reweighCycleNo}
         requiredFieldsValid={isValid}
