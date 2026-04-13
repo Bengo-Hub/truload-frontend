@@ -150,10 +150,16 @@ export default function ReceiptsPage() {
     }
   };
 
-  const { formatAmount: formatCurrency } = useCurrency();
+  const { formatAmount: formatCurrency, selectedCurrency } = useCurrency();
   const totalCollectedKes = statistics?.totalCollectedKes ?? 0;
   const totalCollectedUsd = statistics?.totalCollectedUsd ?? 0;
+  const totalCollectedLegacy = statistics?.totalCollected ?? 0;
   const hasDualTotalCollected = totalCollectedKes > 0 && totalCollectedUsd > 0;
+  const singleCollectedAmount = totalCollectedKes > 0
+    ? { amount: totalCollectedKes, currency: 'KES' }
+    : totalCollectedUsd > 0
+      ? { amount: totalCollectedUsd, currency: 'USD' }
+      : { amount: totalCollectedLegacy, currency: selectedCurrency };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -238,10 +244,7 @@ export default function ReceiptsPage() {
                       </div>
                     ) : (
                       <div className="text-2xl font-bold">
-                        {formatCurrency(
-                          totalCollectedKes > 0 ? totalCollectedKes : totalCollectedUsd,
-                          totalCollectedKes > 0 ? 'KES' : 'USD'
-                        )}
+                        {formatCurrency(singleCollectedAmount.amount, singleCollectedAmount.currency)}
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground">Total collected</p>

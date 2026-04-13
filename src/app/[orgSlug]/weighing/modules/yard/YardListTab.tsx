@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { SearchInput, StatusBadge, SummaryCard } from '@/components/weighing';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCurrency } from '@/hooks/useCurrency';
 import {
   useReleaseYardEntry,
   useUpdateYardEntryStatus,
@@ -74,6 +75,7 @@ export default function YardListTab() {
   const canRead = useHasPermission('yard.read');
   const canUpdate = useHasPermission('yard.update');
   const canEscalate = useHasPermission('yard.escalate');
+  const { formatAmount: formatCurrency } = useCurrency();
 
   // Debounce search input
   useEffect(() => {
@@ -323,7 +325,7 @@ export default function YardListTab() {
                       {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'}
                     </TableCell>
                     <TableCell className="font-mono text-gray-600 py-4 text-right">
-                      {entry.totalFeeUsd ? `$${entry.totalFeeUsd.toLocaleString()}` : '-'}
+                      {entry.totalFeeUsd ? formatCurrency(entry.totalFeeUsd, 'USD') : '-'}
                     </TableCell>
                     <TableCell className="py-4">
                       <StatusBadge status={getYardStatusBadge(entry.status)} />
@@ -451,6 +453,7 @@ interface ViewEntryDialogProps {
 }
 
 function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
+  const { formatAmount: formatCurrency } = useCurrency();
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-KE', {
       day: '2-digit',
@@ -535,7 +538,7 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
               <div>
                 <Label className="text-xs text-gray-500">Fee</Label>
                 <p className="font-mono font-medium">
-                  {entry.totalFeeUsd ? `$${entry.totalFeeUsd.toLocaleString()}` : '-'}
+                  {entry.totalFeeUsd ? formatCurrency(entry.totalFeeUsd, 'USD') : '-'}
                 </p>
               </div>
               {entry.releasedAt && (
@@ -568,6 +571,7 @@ interface ReleaseDialogProps {
 
 function ReleaseDialog({ entry, open, onClose, onRelease, isSubmitting }: ReleaseDialogProps) {
   const [releaseNotes, setReleaseNotes] = useState('');
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const handleRelease = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -593,7 +597,7 @@ function ReleaseDialog({ entry, open, onClose, onRelease, isSubmitting }: Releas
                 <p className="text-sm font-medium text-yellow-800">Confirm Release</p>
                 <p className="text-xs text-yellow-700 mt-1">
                   Overload: {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'} |
-                  Fee: ${entry.totalFeeUsd?.toLocaleString() || 0}
+                  Fee: {formatCurrency(entry.totalFeeUsd || 0, 'USD')}
                 </p>
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
 import { Printer } from 'lucide-react';
@@ -64,6 +65,7 @@ export default function TicketDetailSheet({
   canPrint,
 }: TicketDetailSheetProps) {
   if (!ticket) return null;
+  const { formatAmount: formatCurrency } = useCurrency();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,7 +129,7 @@ export default function TicketDetailSheet({
               <DetailRow label="GVW Permissible" value={formatWeight(ticket.gvwPermissibleKg)} />
               <DetailRow label="Overload" value={ticket.overloadKg > 0 ? formatWeight(ticket.overloadKg) : 'None'} />
               {ticket.totalFeeUsd > 0 && (
-                <DetailRow label="Fee (USD)" value={`$${ticket.totalFeeUsd.toLocaleString()}`} />
+                <DetailRow label="Fee (USD)" value={formatCurrency(ticket.totalFeeUsd, 'USD')} />
               )}
             </div>
           </div>
