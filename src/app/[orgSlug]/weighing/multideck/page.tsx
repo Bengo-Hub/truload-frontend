@@ -553,7 +553,7 @@ export default function MultideckWeighingPage() {
         toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework === 'BOTH');
       let toleranceKg = 0;
       if (axleTolerance && (axleTolerance.toleranceKg ?? 0) > 0) {
-        toleranceKg = axleTolerance.toleranceKg;
+        toleranceKg = axleTolerance.toleranceKg ?? 0;
       } else if (axleTolerance && axleTolerance.tolerancePercentage > 0) {
         toleranceKg = Math.round(permissibleKg * axleTolerance.tolerancePercentage / 100);
       }
@@ -563,7 +563,7 @@ export default function MultideckWeighingPage() {
         const standardTolerance = toleranceSettings.find((t: any) => t.code === standardCode && t.isActive);
         if (standardTolerance) {
           if ((standardTolerance.toleranceKg ?? 0) > 0) {
-            toleranceKg = standardTolerance.toleranceKg;
+            toleranceKg = standardTolerance.toleranceKg ?? 0;
           } else if (standardTolerance.tolerancePercentage > 0) {
             toleranceKg = Math.round(permissibleKg * standardTolerance.tolerancePercentage / 100);
           }
