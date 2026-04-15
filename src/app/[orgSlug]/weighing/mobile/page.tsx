@@ -1687,6 +1687,8 @@ export default function MobileWeighingPage() {
                 gvwMeasured={gvwMeasured}
                 reweighCycleNo={reweighCycleNo}
                 totalFeeUsd={complianceResult?.totalFeeUsd ?? 0}
+                totalFeeKes={complianceResult?.totalFeeKes}
+                chargingCurrency={complianceResult?.chargingCurrency}
                 isValid={validationResult.isValid}
                 missingFields={validationResult.missingFields}
                 isSentToYard={complianceResult?.isSentToYard ?? false}
