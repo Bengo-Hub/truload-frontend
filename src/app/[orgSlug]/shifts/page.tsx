@@ -55,6 +55,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCanDelete } from '@/hooks/useCanDelete';
 import {
   assignUserShift,
   createShiftRotation,
@@ -170,6 +171,7 @@ function statusBadgeClasses(status: string): string {
 // ---------------------------------------------------------------------------
 
 export default function ShiftsPage() {
+  const canDelete = useCanDelete();
   return (
     <AppShell title="Shift Management" subtitle="Configure work shifts, rotations, and assignments">
       <ProtectedRoute requiredPermissions={["user.manage_shifts"]}>
@@ -224,6 +226,7 @@ function ShiftsContent() {
 type ShiftFormValues = CreateWorkShiftRequest;
 
 function WorkShiftsTab() {
+  const canDelete = useCanDelete();
   const canManage = useHasPermission('user.manage_shifts');
   const queryClient = useQueryClient();
 
@@ -443,8 +446,7 @@ function WorkShiftsTab() {
                             <Edit3 className="h-4 w-4" />
                           </Button>
                         )}
-                        {canManage && (
-                          <Button
+                        {canManage && canDelete && (<Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -452,8 +454,7 @@ function WorkShiftsTab() {
                             title="Delete shift"
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                          </Button>)}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -741,6 +742,7 @@ interface RotationFormValues {
 }
 
 function ShiftRotationsTab() {
+  const canDelete = useCanDelete();
   const canManage = useHasPermission('user.manage_shifts');
   const queryClient = useQueryClient();
 
@@ -962,8 +964,7 @@ function ShiftRotationsTab() {
                             <Edit3 className="h-4 w-4" />
                           </Button>
                         )}
-                        {canManage && (
-                          <Button
+                        {canManage && canDelete && (<Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -971,8 +972,7 @@ function ShiftRotationsTab() {
                             title="Delete rotation"
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                          </Button>)}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1026,6 +1026,7 @@ interface RotationFormDialogProps {
 }
 
 function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFormDialogProps) {
+  const canDelete = useCanDelete();
   const queryClient = useQueryClient();
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<RotationFormValues>({
@@ -1237,7 +1238,7 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
+                    {canDelete && (<Button
                       type="button"
                       variant="ghost"
                       size="icon"
@@ -1245,7 +1246,7 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
                       onClick={() => removeRotationShift(idx)}
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </Button>)}
                   </div>
                 ))}
               </div>
@@ -1272,6 +1273,7 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
 // ===========================================================================
 
 function UserAssignmentsTab() {
+  const canDelete = useCanDelete();
   const canManage = useHasPermission('user.manage_shifts');
   const _queryClient = useQueryClient();
 
@@ -1467,8 +1469,7 @@ function UserAssignmentsTab() {
                                   <Edit3 className="h-4 w-4" />
                                 </Button>
                               )}
-                              {canManage && (
-                                <Button
+                              {canManage && canDelete && (<Button
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -1476,8 +1477,7 @@ function UserAssignmentsTab() {
                                   title="Delete assignment"
                                 >
                                   <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
+                                </Button>)}
                             </div>
                           </TableCell>
                         </TableRow>

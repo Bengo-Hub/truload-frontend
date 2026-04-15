@@ -60,6 +60,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useCanDelete } from '@/hooks/useCanDelete';
 
 interface CourtHearingListProps {
   caseId: string;
@@ -67,6 +68,7 @@ interface CourtHearingListProps {
 }
 
 export function CourtHearingList({ caseId, caseNo }: CourtHearingListProps) {
+  const canDelete = useCanDelete();
   // Queries
   const { data: hearings = [], isLoading, refetch } = useHearingsByCaseId(caseId);
   const { data: courts = [] } = useCourts();
