@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { getHealthStatus } from '@/lib/api/health';
-import { QUERY_OPTIONS, CACHE_TIMES, GC_TIMES } from '@/lib/query/config';
+import { QUERY_OPTIONS } from '@/lib/query/config';
+import { useQuery } from '@tanstack/react-query';
 
 const TECHNICAL_KEYS = {
   HEALTH: ['technical', 'health'] as const,
@@ -20,8 +20,8 @@ export function useHealthStatus() {
 }
 
 /**
- * Fetch system version from health endpoint, cached for 24 hours.
- * Use this in footers, login pages, and anywhere the version needs to be shown.
+ * Fetch system version from health endpoint.
+ * Kept fresh so login/footer reflects the latest published backend version.
  */
 export function useSystemVersion() {
   return useQuery({
@@ -30,11 +30,12 @@ export function useSystemVersion() {
       const health = await getHealthStatus();
       return health.version ?? null;
     },
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
-    gcTime: 25 * 60 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchInterval: 15 * 60 * 1000, // 15 minutes after last fetch
     retry: 1,
   });
 }

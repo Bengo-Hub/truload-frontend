@@ -65,6 +65,12 @@ export interface InvoiceStatistics {
   totalAmountDue: number;
   totalAmountPaid: number;
   totalBalance: number;
+  totalAmountDueKes?: number;
+  totalAmountDueUsd?: number;
+  totalAmountPaidKes?: number;
+  totalAmountPaidUsd?: number;
+  totalBalanceKes?: number;
+  totalBalanceUsd?: number;
 }
 
 // ============================================================================

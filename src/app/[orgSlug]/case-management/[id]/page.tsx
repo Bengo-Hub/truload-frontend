@@ -48,6 +48,7 @@ import {
 } from '@/hooks/queries';
 import { useCaseDocuments } from '@/hooks/queries/useCaseDocumentQueries';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
+import { useCanDelete } from '@/hooks/useCanDelete';
 import {
     Activity,
     AlertTriangle,
@@ -87,6 +88,7 @@ import { toast } from 'sonner';
  *  - Close Case (with disposition)
  */
 export default function CaseManagementDetailPage() {
+  const canDelete = useCanDelete();
   const params = useParams();
   const searchParams = useSearchParams();
   const orgSlug = useOrgSlug();
@@ -596,7 +598,7 @@ export default function CaseManagementDetailPage() {
                                         >
                                           <Edit2 className="h-3.5 w-3.5" />
                                         </Button>
-                                        <Button
+                                        {canDelete && (<Button
                                           variant="ghost"
                                           size="icon"
                                           className="h-7 w-7 text-red-500 hover:text-red-700"
@@ -609,7 +611,7 @@ export default function CaseManagementDetailPage() {
                                           }}
                                         >
                                           <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
+                                        </Button>)}
                                       </div>
                                     )}
                                   </div>

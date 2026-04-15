@@ -61,6 +61,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useHasPermission } from "@/hooks/useAuth";
+import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   adminResetPassword,
   assignRoles,
@@ -1410,7 +1411,9 @@ export default function AccountsTab() {
   // -- Permissions
   const canCreate = useHasPermission("user.create");
   const canEdit = useHasPermission("user.update");
-  const canDelete = useHasPermission("user.delete");
+  const hasDeletePermission = useHasPermission("user.delete");
+  const platformCanDelete = useCanDelete();
+  const canDelete = hasDeletePermission && platformCanDelete;
   const canAssignRoles = useHasPermission("user.assign_roles");
 
   const queryClient = useQueryClient();

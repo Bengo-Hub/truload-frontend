@@ -27,6 +27,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useCanDelete } from '@/hooks/useCanDelete';
 import { CargoTypeModal } from '@/components/weighing/modals/CargoTypeModal';
 import { DriverModal } from '@/components/weighing/modals/DriverModal';
 import { EntityModal, type ModalMode } from '@/components/weighing/modals/EntityModal';
@@ -1236,6 +1237,7 @@ function ActionButtons({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const canDelete = useCanDelete();
   return (
     <div className="flex items-center justify-end gap-1">
       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onView} title="View">
@@ -1244,9 +1246,11 @@ function ActionButtons({
       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit} title="Edit">
         <Pencil className="h-4 w-4" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete} title="Delete">
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {canDelete && (
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete} title="Delete">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

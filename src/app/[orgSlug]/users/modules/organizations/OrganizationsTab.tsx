@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 
 import { useHasPermission } from "@/hooks/useAuth";
+import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   createOrganization,
   deleteOrganization,
@@ -705,6 +706,7 @@ function DeleteOrgDialog({
 
 export default function OrganizationsTab() {
   // -- State
+  const canDelete = useCanDelete();
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editOrg, setEditOrg] = useState<OrganizationDto | null>(null);
@@ -934,15 +936,17 @@ export default function OrganizationsTab() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      title="Delete organization"
-                      onClick={() => setDeleteTargetOrg(org)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Delete organization"
+                        onClick={() => setDeleteTargetOrg(org)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

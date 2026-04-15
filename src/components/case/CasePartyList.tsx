@@ -23,6 +23,7 @@ import { usePartiesByCaseId, useAddParty, useUpdateParty, useRemoveParty } from 
 import type { CasePartyDto } from '@/lib/api/caseParty';
 import { Loader2, MoreHorizontal, Plus, Trash2, Edit, Users } from 'lucide-react';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCanDelete } from '@/hooks/useCanDelete';
 import { toast } from 'sonner';
 
 const PARTY_ROLES = [
@@ -54,6 +55,7 @@ interface Props {
 }
 
 export function CasePartyList({ caseId, caseNo }: Props) {
+  const canDelete = useCanDelete();
   const canEdit = useHasPermission('case.update');
   const { data: parties = [], isLoading } = usePartiesByCaseId(caseId);
   const addMutation = useAddParty();

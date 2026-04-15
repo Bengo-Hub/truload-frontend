@@ -33,6 +33,7 @@ import {
   FileText, Loader2, Plus, Trash2,
 } from 'lucide-react';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCanDelete } from '@/hooks/useCanDelete';
 import { toast } from 'sonner';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -382,6 +383,7 @@ interface Props {
 }
 
 export function CaseSubfileList({ caseId, caseNo }: Props) {
+  const canDelete = useCanDelete();
   const canEdit = useHasPermission('case.update');
   const { data: subfiles = [], isLoading } = useSubfilesByCaseId(caseId);
   const { data: completion } = useSubfileCompletion(caseId);

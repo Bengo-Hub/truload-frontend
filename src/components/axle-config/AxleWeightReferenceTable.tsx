@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import type { AxleWeightReferenceResponse } from '@/types/setup';
+import { useCanDelete } from '@/hooks/useCanDelete';
 
 interface AxleWeightReferenceTableProps {
   weightReferences: AxleWeightReferenceResponse[];
@@ -16,6 +17,7 @@ export function AxleWeightReferenceTable({
   onEdit,
   onDelete,
 }: AxleWeightReferenceTableProps) {
+  const canDelete = useCanDelete();
   return (
     <div className="border rounded-lg">
       <Table>

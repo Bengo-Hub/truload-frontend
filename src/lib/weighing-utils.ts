@@ -145,6 +145,25 @@ export function formatFeeUsd(feeUsd: number): string {
 }
 
 /**
+ * Format fee in the appropriate currency based on the Act used.
+ * EACT Act → USD ($), Traffic Act → KES.
+ */
+export function formatFee(
+  feeUsd: number,
+  feeKes?: number,
+  chargingCurrency?: string,
+): string {
+  if (chargingCurrency === 'USD') {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(feeUsd);
+  }
+  const amount = feeKes != null && feeKes > 0 ? feeKes : feeUsd;
+  if (chargingCurrency === 'KES' && feeKes != null && feeKes > 0) {
+    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(feeKes);
+  }
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
+/**
  * Format PDF value to 2 decimal places
  */
 export function formatPDF(pdf: number): string {

@@ -11,6 +11,7 @@ import {
   useUpsertIntegration,
 } from '@/hooks/queries/useIntegrationQueries';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
+import { useCanDelete } from '@/hooks/useCanDelete';
 import type { UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 import { reconcilePayments, testIntegrationConnectivity } from '@/lib/api/integration';
 import { notificationApi } from '@/lib/api/notification';
@@ -133,6 +134,7 @@ const API_SERVICES: ApiServiceDef[] = [
 // ============================================================================
 
 export default function IntegrationSettingsPage() {
+  const canDelete = useCanDelete();
   return (
     <ProtectedRoute requiredPermissions={['config.read']}>
       <IntegrationSettingsContent />
@@ -560,6 +562,7 @@ function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
 // ============================================================================
 
 function ApiSettingsTab({ canEdit }: { canEdit: boolean }) {
+  const canDelete = useCanDelete();
   const [activeService, setActiveService] = useState(API_SERVICES[0].value);
 
   const {
@@ -719,7 +722,7 @@ function ApiSettingsTab({ canEdit }: { canEdit: boolean }) {
                           }
                         />
                       </div>
-                      <Button
+                      {canDelete && (<Button
                         type="button"
                         variant="ghost"
                         size="icon"
@@ -728,7 +731,7 @@ function ApiSettingsTab({ canEdit }: { canEdit: boolean }) {
                         className="h-10 w-10 text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </Button>)}
                     </div>
                   ))}
                 </div>
