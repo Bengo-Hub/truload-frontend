@@ -41,6 +41,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import { useHasPermission } from "@/hooks/useAuth";
+import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   createDepartment,
   deleteDepartment,
@@ -494,6 +495,7 @@ function DeleteDepartmentDialog({ department, open, onOpenChange }: DeleteDepart
 
 export default function DepartmentsTab() {
   const canManageDepartments = useHasPermission("system.manage_departments");
+  const canDelete = useCanDelete();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -716,15 +718,17 @@ export default function DepartmentsTab() {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => setDeleteTarget(dept)}
-                      title="Delete department"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget(dept)}
+                        title="Delete department"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
