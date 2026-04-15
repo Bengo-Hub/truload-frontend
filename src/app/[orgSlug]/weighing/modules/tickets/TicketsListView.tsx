@@ -6,8 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { Camera, Eye, Loader2, Printer, RotateCcw } from 'lucide-react';
-import { useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Camera, Eye, Loader2, MapPin, Printer, RotateCcw } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 interface TicketsListViewProps {
   tickets: WeighingTransaction[];
@@ -110,6 +111,8 @@ export default function TicketsListView({
   onView,
   onPrint,
 }: TicketsListViewProps) {
+  const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   // Determine if we should show deck columns (static/multideck) or axle columns (mobile)
   const hasDeckTickets = useMemo(
     () => tickets.some(t => t.weighingType === 'static' || t.weighingType === 'multideck'),
@@ -140,7 +143,7 @@ export default function TicketsListView({
               <TableHead className="text-xs font-semibold text-gray-700 h-10">Registration</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Anprpic</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">ANPR</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap hidden xl:table-cell">ANPR Check</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap hidden xl:table-cell">Location</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap text-center hidden lg:table-cell">Time Taken (Secs)</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden xl:table-cell">Source/Dest.</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden lg:table-cell">User</TableHead>
@@ -252,14 +255,19 @@ export default function TicketsListView({
                       {ticket.anprRegistration ?? '—'}
                     </TableCell>
 
-                    {/* ANPR Check */}
+                    {/* Location */}
                     <TableCell className="text-xs py-2 hidden xl:table-cell">
-                      {ticket.anprMatch == null ? (
-                        <span className="text-gray-400">—</span>
-                      ) : ticket.anprMatch ? (
-                        <span className="text-green-600 font-medium">Match</span>
+                      {ticket.locationLat != null && ticket.locationLng != null ? (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                          onClick={() => setMapCoords({ lat: ticket.locationLat!, lng: ticket.locationLng! })}
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                          <span className="text-[11px]">{ticket.locationLat!.toFixed(4)}, {ticket.locationLng!.toFixed(4)}</span>
+                        </button>
                       ) : (
-                        <span className="text-red-600 font-medium">Mismatch</span>
+                        <span className="text-gray-400">—</span>
                       )}
                     </TableCell>
 
@@ -384,6 +392,29 @@ export default function TicketsListView({
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Google Maps Modal */}
+      <Dialog open={mapCoords !== null} onOpenChange={(open) => { if (!open) setMapCoords(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Weighing Location</DialogTitle>
+          </DialogHeader>
+          {mapCoords && (
+            <div className="w-full aspect-video rounded overflow-hidden">
+              <iframe
+                title="Weighing Location Map"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${mapCoords.lat},${mapCoords.lng}&zoom=15`}
+                allowFullScreen
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
