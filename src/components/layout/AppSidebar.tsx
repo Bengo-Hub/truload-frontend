@@ -16,6 +16,7 @@ import {
   Cog,
   CreditCard,
   Database,
+  FileText,
   FolderOpen,
   Gavel,
   LayoutDashboard,
@@ -86,6 +87,14 @@ const menuSections: MenuSection[] = [
       { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read'], moduleKey: 'setup_weighing_metadata' },
       { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
       { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['config.read'], moduleKey: 'setup_system_config' },
+    ],
+  },
+  {
+    title: 'Security & Data',
+    items: [
+      { href: '/setup/security?tab=password', label: 'Security & Policy', icon: Shield, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
+      { href: '/setup/security?tab=backup', label: 'Backup & Restore', icon: Database, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
+      { href: '/setup/security?tab=audit', label: 'Audit Logs', icon: FileText, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
     ],
   },
 ];

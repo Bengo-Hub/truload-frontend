@@ -32,6 +32,7 @@ import { fetchRoles } from '@/lib/api/setup';
 import type { RoleDto } from '@/types/setup';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Database, Download, FileText, Info, Key, Loader2, RefreshCcw, Save, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -57,9 +58,23 @@ interface ShiftSettingsForm {
   require2FA: boolean;
 }
 
+const VALID_TABS = ['password', 'backup', 'audit', 'shifts'] as const;
+type TabValue = typeof VALID_TABS[number];
+
 export default function SecurityPage() {
   const canEdit = useHasPermission('system.security_policy');
   const [backupFileName, setBackupFileName] = useState('');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get('tab');
+  const initialTab: TabValue = (VALID_TABS as readonly string[]).includes(tabParam ?? '')
+    ? (tabParam as TabValue)
+    : 'password';
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
+  useEffect(() => {
+    if (tabParam && (VALID_TABS as readonly string[]).includes(tabParam)) {
+      setActiveTab(tabParam as TabValue);
+    }
+  }, [tabParam]);
 
   // Roles list for shift settings excluded roles
   const { data: allRoles } = useQuery({
@@ -226,7 +241,7 @@ export default function SecurityPage() {
             </Button>
           </div>
 
-          <Tabs defaultValue="password" className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
             <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
               <TabsTrigger value="password" className="flex items-center gap-2">
                 <Key className="h-4 w-4" />

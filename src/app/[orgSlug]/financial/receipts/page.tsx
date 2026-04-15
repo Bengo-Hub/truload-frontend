@@ -150,7 +150,16 @@ export default function ReceiptsPage() {
     }
   };
 
-  const { formatAmount: formatCurrency } = useCurrency();
+  const { formatAmount: formatCurrency, selectedCurrency } = useCurrency();
+  const totalCollectedKes = statistics?.totalCollectedKes ?? 0;
+  const totalCollectedUsd = statistics?.totalCollectedUsd ?? 0;
+  const totalCollectedLegacy = statistics?.totalCollected ?? 0;
+  const hasDualTotalCollected = totalCollectedKes > 0 && totalCollectedUsd > 0;
+  const singleCollectedAmount = totalCollectedKes > 0
+    ? { amount: totalCollectedKes, currency: 'KES' }
+    : totalCollectedUsd > 0
+      ? { amount: totalCollectedUsd, currency: 'USD' }
+      : { amount: totalCollectedLegacy, currency: selectedCurrency };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -228,9 +237,16 @@ export default function ReceiptsPage() {
                     <DollarSign className="h-4 w-4 text-green-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {formatCurrency(statistics?.totalCollected || 0, 'USD')}
-                    </div>
+                    {hasDualTotalCollected ? (
+                      <div className="space-y-1">
+                        <div className="text-xl font-bold">{formatCurrency(totalCollectedKes, 'KES')}</div>
+                        <div className="text-sm font-semibold text-muted-foreground">{formatCurrency(totalCollectedUsd, 'USD')}</div>
+                      </div>
+                    ) : (
+                      <div className="text-2xl font-bold">
+                        {formatCurrency(singleCollectedAmount.amount, singleCollectedAmount.currency)}
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">Total collected</p>
                   </CardContent>
                 </Card>
@@ -365,7 +381,7 @@ export default function ReceiptsPage() {
                             <TableCell>{receipt.invoiceNo || 'N/A'}</TableCell>
                             <TableCell>{formatCurrency(receipt.amountPaid, receipt.currency)}</TableCell>
                             <TableCell>{getPaymentMethodBadge(receipt.paymentMethod)}</TableCell>
-                            <TableCell>{formatDate(receipt.createdAt)}</TableCell>
+                            <TableCell>{formatDate(receipt.paymentDate || receipt.createdAt)}</TableCell>
                             <TableCell>{getStatusBadge(receipt.status)}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
@@ -460,7 +476,7 @@ export default function ReceiptsPage() {
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Payment Date</Label>
-                      <p className="font-medium">{formatDate(selectedReceipt.createdAt)}</p>
+                      <p className="font-medium">{formatDate(selectedReceipt.paymentDate || selectedReceipt.createdAt)}</p>
                     </div>
                   </div>
                   {selectedReceipt.transactionReference && (

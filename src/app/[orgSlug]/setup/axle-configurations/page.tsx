@@ -2,6 +2,7 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useHasPermission } from '@/hooks/useAuth';
+import { useCanDelete } from '@/hooks/useCanDelete';
 import type { WeightRefLookupData } from '@/lib/api/setup';
 import {
 	createAxleConfiguration,
@@ -208,6 +209,7 @@ export default function AxleConfigurationsPage() {
 
 function AxleConfigurationsContent() {
 	const canEdit = useHasPermission('config.manage_axle');
+	const canDelete = useCanDelete();
 	const queryClient = useQueryClient();
 
 	// State
@@ -863,9 +865,7 @@ function AxleConfigurationsContent() {
 											</TableCell>
 											<TableCell className="text-right">
 												<div className="flex items-center justify-end gap-1">
-													{canEdit && (
-														<>
-															<Button
+													{canEdit && (<Button
 																variant="ghost"
 																size="icon"
 																onClick={() => openEdit(cfg)}
@@ -873,8 +873,8 @@ function AxleConfigurationsContent() {
 																className="h-8 w-8"
 															>
 																<Edit3 className="h-4 w-4" />
-															</Button>
-															<Button
+															</Button>)}
+													{canDelete && (<Button
 																variant="ghost"
 																size="icon"
 																onClick={() => confirmDelete(cfg)}
@@ -882,9 +882,7 @@ function AxleConfigurationsContent() {
 																className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
 															>
 																<Trash2 className="h-4 w-4" />
-															</Button>
-														</>
-													)}
+															</Button>)}
 												</div>
 											</TableCell>
 										</TableRow>

@@ -12,8 +12,6 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
-  Database,
-  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -47,9 +45,6 @@ const navSections = [
     items: [
       { href: '/platform/system-config', label: 'System Config', icon: Settings },
       { href: '/platform/integrations', label: 'Integrations', icon: Activity },
-      { href: '/platform/security', label: 'Security & Policy', icon: Shield },
-      { href: '/platform/backups', label: 'Backup & Restore', icon: Database },
-      { href: '/platform/audit-logs', label: 'Audit Logs', icon: FileText },
     ],
   },
 ];

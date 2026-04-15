@@ -16,9 +16,6 @@ import {
   Activity,
   Building2,
   CheckCircle,
-  Database,
-  FileText,
-  Key,
   Settings,
   Shield,
   Users,
@@ -33,9 +30,6 @@ const quickActions = [
   { href: '/platform/roles', label: 'Roles & Permissions', description: 'Configure access control', icon: Shield, color: 'bg-amber-100 text-amber-600' },
   { href: '/platform/system-config', label: 'System Config', description: 'Rate limits, cache, modules', icon: Settings, color: 'bg-gray-100 text-gray-600' },
   { href: '/platform/integrations', label: 'Integrations', description: 'Payment, SMS, API services', icon: Activity, color: 'bg-emerald-100 text-emerald-600' },
-  { href: '/platform/security', label: 'Security & Policy', description: 'Password policy, shift settings', icon: Key, color: 'bg-rose-100 text-rose-600' },
-  { href: '/platform/backups', label: 'Backup & Restore', description: 'Database backups and recovery', icon: Database, color: 'bg-cyan-100 text-cyan-600' },
-  { href: '/platform/audit-logs', label: 'Audit Logs', description: 'System activity and security logs', icon: FileText, color: 'bg-orange-100 text-orange-600' },
 ];
 
 export default function PlatformDashboardPage() {

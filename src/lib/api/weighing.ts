@@ -80,6 +80,8 @@ export interface WeighingTransaction {
   excessKg?: number;
   controlStatus: string;
   totalFeeUsd: number;
+  totalFeeKes?: number;
+  chargingCurrency?: string;
   weighedAt: string;
   isSync: boolean;
   isCompliant: boolean;
@@ -124,6 +126,10 @@ export interface WeighingTransaction {
   anprRegistration?: string;
   anprCheckCount?: number;
   anprMatch?: boolean;
+
+  // Location coordinates
+  locationLat?: number;
+  locationLng?: number;
 
   // Route & Cargo (IDs for form prefill)
   roadId?: string;
@@ -195,6 +201,7 @@ export interface WeighingResult {
   violationReason?: string;
   totalFeeUsd: number;
   totalFeeKes?: number;
+  chargingCurrency?: string;
   hasPermit: boolean;
   reweighCycleNo: number;
   weighedAt: string;

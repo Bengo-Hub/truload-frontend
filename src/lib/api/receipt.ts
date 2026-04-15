@@ -57,6 +57,10 @@ export interface ReceiptStatistics {
   todayCount: number;
   todayAmount: number;
   totalCollected: number;
+  todayAmountKes?: number;
+  todayAmountUsd?: number;
+  totalCollectedKes?: number;
+  totalCollectedUsd?: number;
   byPaymentMethod: Array<{
     method: string;
     count: number;
