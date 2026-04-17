@@ -1154,3 +1154,121 @@ export async function downloadAndSavePdf(
   window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
 }
+
+// ============================================================================
+// Commercial Weighing API
+// ============================================================================
+
+import type {
+  CaptureFirstWeightRequest,
+  CaptureSecondWeightRequest,
+  CommercialWeighingResult,
+  InitiateCommercialWeighingRequest,
+  UpdateQualityDeductionRequest,
+  UseStoredTareRequest,
+  VehicleTareHistory,
+} from '@/types/weighing';
+
+/**
+ * Initiate a new commercial weighing transaction.
+ */
+export async function initiateCommercialWeighing(
+  request: InitiateCommercialWeighingRequest
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    '/commercial-weighing',
+    request
+  );
+  return data;
+}
+
+/**
+ * Capture the first weight (first pass on the scale).
+ */
+export async function captureFirstWeight(
+  id: string,
+  request: CaptureFirstWeightRequest
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${id}/first-weight`,
+    request
+  );
+  return data;
+}
+
+/**
+ * Capture the second weight (second pass on the scale).
+ */
+export async function captureSecondWeight(
+  id: string,
+  request: CaptureSecondWeightRequest
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${id}/second-weight`,
+    request
+  );
+  return data;
+}
+
+/**
+ * Use a stored/preset tare weight instead of measuring on the scale.
+ */
+export async function useStoredTare(
+  id: string,
+  request: UseStoredTareRequest
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${id}/use-stored-tare`,
+    request
+  );
+  return data;
+}
+
+/**
+ * Get the full commercial weighing result.
+ */
+export async function getCommercialResult(
+  id: string
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.get<CommercialWeighingResult>(
+    `/commercial-weighing/${id}`
+  );
+  return data;
+}
+
+/**
+ * Get the commercial weight ticket as PDF.
+ */
+export async function getCommercialTicketPdf(id: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(
+    `/commercial-weighing/${id}/ticket/pdf`,
+    { responseType: 'blob' }
+  );
+  return data;
+}
+
+/**
+ * Update quality deduction and recalculate adjusted net weight.
+ */
+export async function updateQualityDeduction(
+  id: string,
+  request: UpdateQualityDeductionRequest
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.put<CommercialWeighingResult>(
+    `/commercial-weighing/${id}/quality-deduction`,
+    request
+  );
+  return data;
+}
+
+/**
+ * Get tare weight history for a vehicle.
+ */
+export async function getVehicleTareHistory(
+  vehicleId: string
+): Promise<VehicleTareHistory[]> {
+  const { data } = await apiClient.get<VehicleTareHistory[]>(
+    `/commercial-weighing/vehicles/${vehicleId}/tare-history`
+  );
+  return data;
+}

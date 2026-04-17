@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import {
     CargoTypeModal,
+    CommercialWeighingStepper,
     DriverModal,
     OriginDestinationModal,
     SCALE_TEST_SUCCESS_DESCRIPTION,
@@ -51,7 +52,7 @@ import { useWeighingUI } from '@/hooks/useWeighingUI';
 import { downloadAndSavePdf, downloadWeightTicketPdf, ScaleTest, UpdateWeighingRequest, WeighingTransaction } from '@/lib/api/weighing';
 import { createVehicleTag, createYardEntry, fetchTagCategories } from '@/lib/api/yard';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
-import { useAuthStore } from '@/stores/auth.store';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import {
     AxleGroupResult,
     ComplianceStatus,
@@ -60,7 +61,7 @@ import {
 } from '@/types/weighing';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -74,11 +75,7 @@ import { toast } from 'sonner';
  */
 export default function MobileWeighingPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const user = useAuthStore((s) => s.user);
-  const tenantType = user?.tenantType ?? 'AxleLoadEnforcement';
-  const isCommercialTenant = tenantType === 'CommercialWeighing';
-  const isCommercial = isCommercialTenant || searchParams.get('commercial') === 'true';
+  const { isCommercial } = useModuleAccess();
   const orgSlug = useOrgSlug();
   const queryClient = useQueryClient();
 
@@ -1476,7 +1473,7 @@ export default function MobileWeighingPage() {
   // Loading state
   if (isLoadingData) {
     return (
-      <AppShell title="Mobile Weighing" subtitle="Loading...">
+      <AppShell title={isCommercial ? 'Commercial Weighing' : 'Mobile Weighing'} subtitle="Loading...">
         <ProtectedRoute requiredPermissions={['weighing.create']}>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -1484,6 +1481,17 @@ export default function MobileWeighingPage() {
               <p className="text-gray-600">Loading station and configuration data...</p>
             </div>
           </div>
+        </ProtectedRoute>
+      </AppShell>
+    );
+  }
+
+  // Commercial weighing tenants get a completely different workflow
+  if (isCommercial) {
+    return (
+      <AppShell title="Commercial Weighing" subtitle={stationDisplayName}>
+        <ProtectedRoute requiredPermissions={['weighing.create']}>
+          <CommercialWeighingStepper />
         </ProtectedRoute>
       </AppShell>
     );

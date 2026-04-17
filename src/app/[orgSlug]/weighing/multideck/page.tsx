@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
     AxleConfigurationCard,
     CargoTypeModal,
+    CommercialWeighingStepper,
     ComplianceBanner,
     ComplianceTable,
     DriverModal,
@@ -59,10 +60,9 @@ import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useWeighing } from '@/hooks/useWeighing';
 import { useWeighingUI } from '@/hooks/useWeighingUI';
 import { downloadWeightTicketPdf, UpdateWeighingRequest, WeighingTransaction } from '@/lib/api/weighing';
-import { apiClient } from '@/lib/api/client';
 import { createYardEntry } from '@/lib/api/yard';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
-import { useAuthStore } from '@/stores/auth.store';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import {
     AxleGroupResult,
     ComplianceStatus,
@@ -71,7 +71,7 @@ import {
 } from '@/types/weighing';
 import { ChevronLeft, ChevronRight, Loader2, Scale } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -80,12 +80,8 @@ import { toast } from 'sonner';
  */
 export default function MultideckWeighingPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const user = useAuthStore((s) => s.user);
-  const tenantType = user?.tenantType ?? 'AxleLoadEnforcement';
-  const isCommercialTenant = tenantType === 'CommercialWeighing';
-  const isCommercial = isCommercialTenant || searchParams.get('commercial') === 'true';
+  const { isCommercial } = useModuleAccess();
   const orgSlug = useOrgSlug();
 
   // Workflow state
@@ -984,10 +980,21 @@ export default function MultideckWeighingPage() {
 
   if (isLoadingData) {
     return (
-      <AppShell title="Multideck Weighing" subtitle="Loading...">
+      <AppShell title={isCommercial ? 'Commercial Weighing' : 'Multideck Weighing'} subtitle="Loading...">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
         </div>
+      </AppShell>
+    );
+  }
+
+  // Commercial weighing tenants get a completely different workflow
+  if (isCommercial) {
+    return (
+      <AppShell title="Commercial Weighing" subtitle={stationDisplayName}>
+        <ProtectedRoute requiredPermissions={['weighing.create']}>
+          <CommercialWeighingStepper />
+        </ProtectedRoute>
       </AppShell>
     );
   }

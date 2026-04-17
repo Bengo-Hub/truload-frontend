@@ -582,3 +582,133 @@ export interface ExtendPermitRequest {
   newValidTo: string;
   comment?: string;
 }
+
+// ============================================================================
+// Commercial Weighing Types
+// ============================================================================
+
+/** Steps for the commercial weighing workflow */
+export type CommercialWeighingStep = 'capture' | 'first-weight' | 'second-weight' | 'ticket';
+
+/** Commercial weighing result matching backend CommercialWeighingResultDto */
+export interface CommercialWeighingResult {
+  id: string;
+  ticketNumber: string;
+  controlStatus: string;
+  weighingMode: 'commercial';
+
+  // Vehicle info
+  vehicleId: string;
+  vehicleRegNumber: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  trailerRegNo?: string;
+
+  // People
+  driverId?: string;
+  driverName?: string;
+  transporterId?: string;
+  transporterName?: string;
+  weighedByUserName?: string;
+
+  // Station
+  stationId: string;
+  stationName?: string;
+
+  // Weight fields
+  firstWeightKg?: number;
+  firstWeightType?: 'tare' | 'gross';
+  firstWeightAt?: string;
+
+  secondWeightKg?: number;
+  secondWeightType?: 'tare' | 'gross';
+  secondWeightAt?: string;
+
+  tareWeightKg?: number;
+  grossWeightKg?: number;
+  netWeightKg?: number;
+  tareSource?: string;
+
+  // Quality and adjustments
+  qualityDeductionKg?: number;
+  adjustedNetWeightKg?: number;
+
+  // Order/consignment
+  consignmentNo?: string;
+  orderReference?: string;
+  expectedNetWeightKg?: number;
+  weightDiscrepancyKg?: number;
+  sealNumbers?: string;
+  remarks?: string;
+
+  // Route & Cargo
+  originId?: string;
+  sourceLocation?: string;
+  destinationId?: string;
+  destinationLocation?: string;
+  cargoId?: string;
+  cargoType?: string;
+
+  // Tolerance
+  toleranceExceeded: boolean;
+  toleranceDisplay?: string;
+
+  // Metadata
+  industryMetadata?: string;
+  weighedAt: string;
+  createdAt: string;
+}
+
+/** Request to initiate a commercial weighing */
+export interface InitiateCommercialWeighingRequest {
+  stationId: string;
+  vehicleId?: string;
+  vehicleRegNo?: string;
+  cargoId?: string;
+  transporterId?: string;
+  driverId?: string;
+  originId?: string;
+  destinationId?: string;
+  consignmentNo?: string;
+  orderReference?: string;
+  expectedNetWeightKg?: number;
+  sealNumbers?: string;
+  trailerRegNo?: string;
+  remarks?: string;
+  industryMetadata?: string;
+}
+
+/** Request to capture the first weight */
+export interface CaptureFirstWeightRequest {
+  weightKg: number;
+  weightType: 'tare' | 'gross';
+}
+
+/** Request to capture the second weight */
+export interface CaptureSecondWeightRequest {
+  weightKg: number;
+}
+
+/** Request to use stored tare weight */
+export interface UseStoredTareRequest {
+  overrideTareWeightKg?: number;
+}
+
+/** Request to update quality deduction */
+export interface UpdateQualityDeductionRequest {
+  qualityDeductionKg: number;
+  reason?: string;
+}
+
+/** Vehicle tare weight history entry */
+export interface VehicleTareHistory {
+  id: string;
+  vehicleId: string;
+  vehicleRegNo?: string;
+  tareWeightKg: number;
+  weighedAt: string;
+  stationId?: string;
+  stationName?: string;
+  source: string;
+  notes?: string;
+}
