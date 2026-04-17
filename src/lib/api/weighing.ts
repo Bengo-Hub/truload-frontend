@@ -145,6 +145,10 @@ export interface WeighingTransaction {
   // Permit
   permitNumber?: string;
 
+  // Commercial weighing fields
+  tareWeightKg?: number;
+  consignmentNumber?: string;
+
   // Scale test
   scaleTestId?: string;
   scaleTestResult?: string;

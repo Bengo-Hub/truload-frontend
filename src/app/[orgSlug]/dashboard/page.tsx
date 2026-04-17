@@ -18,8 +18,10 @@ import { DashboardFilterProvider, useDashboardFilters } from '@/contexts/Dashboa
 import {
   DASHBOARD_QUERY_KEYS,
   useAxleViolations,
+  useCargoVolumeByType,
   useCaseDisposition,
   useCaseTrend,
+  useCommercialThroughput,
   useComplianceTrend,
   useDashboardCaseStats,
   useDashboardHearingOutcomes,
@@ -40,6 +42,7 @@ import {
   useTagTrend,
   useTagsByCategory,
   useTopOffenders,
+  useTopTransporters,
   useUserStatistics,
   useUsersByStation,
   useVehicleDistributionData,
@@ -51,12 +54,14 @@ import { useCurrency } from '@/hooks/useCurrency';
 import type { DashboardFilterParams } from '@/lib/api/dashboard';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import {
+  Activity,
   AlertTriangle,
   Banknote,
   CheckCircle,
   FileText,
   Gavel,
   LayoutDashboard,
+  Package,
   Percent,
   RefreshCcw,
   Scale,
@@ -155,6 +160,10 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
   // Station performance has compliance rates — enforcement only
   const { data: stationPerf, isLoading: loadingStations } = useStationPerformance(isEnforcement ? filters : undefined);
   const { data: usersByStation, isLoading: loadingUsersByStation } = useUsersByStation();
+  // Commercial-only charts
+  const { data: throughputData, isLoading: loadingThroughput } = useCommercialThroughput(isCommercial ? filters : undefined);
+  const { data: topTransporters, isLoading: loadingTransporters } = useTopTransporters(isCommercial ? filters : undefined);
+  const { data: cargoVolume, isLoading: loadingCargo } = useCargoVolumeByType(isCommercial ? filters : undefined);
 
   const isLoading = loadingWeighing;
 
@@ -163,19 +172,29 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
       {/* Row 1: KPI stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading || loadingUserStats ? (
-          Array.from({ length: isCommercial ? 4 : 6 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: isCommercial ? 5 : 6 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <PermissionGate permissions="weighing.read">
-              <StatCard title="Today's Weighings" value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Scale} color="bg-blue-500" />
+              <StatCard title={isCommercial ? 'Vehicles Weighed Today' : "Today's Weighings"} value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Scale} color="bg-blue-500" />
             </PermissionGate>
             {isEnforcement && (
               <PermissionGate permissions="weighing.read">
                 <StatCard title="Compliance Rate" value={`${getStatValue(weighingStats, 'complianceRate')}%`} icon={Percent} color="bg-green-500" />
               </PermissionGate>
             )}
+            {isCommercial && (
+              <PermissionGate permissions="weighing.read">
+                <StatCard title="Total Net Weight (tons)" value={formatNumber(Math.round(getStatValue(weighingStats, 'totalFeesKes') / 1000))} icon={Package} color="bg-cyan-500" />
+              </PermissionGate>
+            )}
+            {isCommercial && (
+              <PermissionGate permissions="weighing.read">
+                <StatCard title="Throughput (veh/hr)" value={throughputData && throughputData.length > 0 ? formatNumber(throughputData[throughputData.length - 1]?.vehiclesPerHour ?? 0) : '0'} icon={Activity} color="bg-indigo-500" />
+              </PermissionGate>
+            )}
             <PermissionGate permissions="weighing.read">
-              <StatCard title="Total Fees (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
+              <StatCard title="Revenue (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
             </PermissionGate>
             {isEnforcement && (
               <PermissionGate permissions="case.read">
@@ -199,11 +218,21 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
         )}
       </div>
 
-      {/* Row 2: Charts — enforcement: compliance trend + revenue; commercial: revenue only */}
-      <div className="grid grid-cols-1 gap-6">
+      {/* Row 2: Charts — enforcement: compliance trend + revenue; commercial: top transporters + cargo volume */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {isEnforcement && (
           <PermissionGate permissions="weighing.read">
             <ChartWrapper title="Compliance Trend" subtitle="Daily compliance vs overload distribution" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Compliant', color: '#10b981' }, { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
+          </PermissionGate>
+        )}
+        {isCommercial && (
+          <PermissionGate permissions="weighing.read">
+            <ChartWrapper title="Top Transporters" subtitle="Transporters by trip count" data={topTransporters ?? []} series={[{ dataKey: 'trips', name: 'Trips', color: '#3b82f6' }, { dataKey: 'totalNetWeightKg', name: 'Net Weight (kg)', color: '#10b981' }]} defaultChartType="bar" allowedChartTypes={['bar']} isLoading={loadingTransporters} />
+          </PermissionGate>
+        )}
+        {isCommercial && (
+          <PermissionGate permissions="weighing.read">
+            <ChartWrapper title="Cargo Volume by Type" subtitle="Weight distribution across cargo types" data={cargoVolume ?? []} series={[{ dataKey: 'volumeKg', name: 'Volume (kg)', color: '#8b5cf6' }]} defaultChartType="donut" allowedChartTypes={['donut', 'pie', 'bar']} isLoading={loadingCargo} />
           </PermissionGate>
         )}
         <PermissionGate permissions={isCommercial ? 'weighing.read' : 'receipt.read'}>
@@ -216,6 +245,11 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
         {isEnforcement && (
           <PermissionGate permissions="weighing.read">
             <ChartWrapper title="Station Performance" subtitle="Weighings and compliance rates across stations" data={stationPerf ?? []} series={[{ dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' }, { dataKey: 'compliance', name: 'Compliance %', color: '#10b981' }]} defaultChartType="bar" allowedChartTypes={['bar', 'line']} isLoading={loadingStations} />
+          </PermissionGate>
+        )}
+        {isCommercial && (
+          <PermissionGate permissions="weighing.read">
+            <ChartWrapper title="Throughput Trend" subtitle="Vehicles processed per hour over time" data={throughputData ?? []} series={[{ dataKey: 'vehiclesPerHour', name: 'Vehicles/Hour', color: '#06b6d4' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingThroughput} />
           </PermissionGate>
         )}
         <PermissionGate permissions="user.read">

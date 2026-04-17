@@ -43,6 +43,10 @@ export const DASHBOARD_QUERY_KEYS = {
   tagsByCategory: (filters?: DashboardFilterParams) => ['dashboard', 'tags-by-category', filters] as const,
   prosecutionTrend: (filters?: DashboardFilterParams) => ['dashboard', 'prosecution-trend', filters] as const,
   prosecutionByStatus: (filters?: DashboardFilterParams) => ['dashboard', 'prosecution-by-status', filters] as const,
+  // Commercial
+  commercialThroughput: (filters?: DashboardFilterParams) => ['dashboard', 'commercial-throughput', filters] as const,
+  topTransporters: (filters?: DashboardFilterParams) => ['dashboard', 'top-transporters', filters] as const,
+  cargoVolume: (filters?: DashboardFilterParams) => ['dashboard', 'cargo-volume', filters] as const,
 };
 
 /**
@@ -316,6 +320,37 @@ export function useProsecutionByStatus(filters?: DashboardFilterParams) {
   return useQuery({
     queryKey: DASHBOARD_QUERY_KEYS.prosecutionByStatus(filters),
     queryFn: () => dashboardApi.getProsecutionByStatus(filters),
+    ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
+  });
+}
+
+// ============================================================================
+// Commercial Dashboard Hooks
+// ============================================================================
+
+export function useCommercialThroughput(filters?: DashboardFilterParams) {
+  return useQuery({
+    queryKey: DASHBOARD_QUERY_KEYS.commercialThroughput(filters),
+    queryFn: () => dashboardApi.getCommercialThroughput(filters),
+    ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
+  });
+}
+
+export function useTopTransporters(filters?: DashboardFilterParams) {
+  return useQuery({
+    queryKey: DASHBOARD_QUERY_KEYS.topTransporters(filters),
+    queryFn: () => dashboardApi.getTopTransporters(filters),
+    ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
+  });
+}
+
+export function useCargoVolumeByType(filters?: DashboardFilterParams) {
+  return useQuery({
+    queryKey: DASHBOARD_QUERY_KEYS.cargoVolume(filters),
+    queryFn: () => dashboardApi.getCargoVolumeByType(filters),
     ...DASHBOARD_OPTIONS,
     enabled: !!filters,
   });
