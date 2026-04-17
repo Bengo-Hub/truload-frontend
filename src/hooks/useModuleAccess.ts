@@ -14,12 +14,18 @@
  */
 
 import { useAuthStore } from '@/stores/auth.store';
+import { useSearchParams } from 'next/navigation';
 
 export function useModuleAccess() {
   const user = useAuthStore((s) => s.user);
+  const searchParams = useSearchParams();
 
   const tenantType = user?.tenantType ?? 'AxleLoadEnforcement';
-  const isCommercial = tenantType === 'CommercialWeighing' || user?.isCommercialTenant === true;
+  // Allow ?commercial=true query param override for testing/demo purposes
+  const isCommercial =
+    tenantType === 'CommercialWeighing' ||
+    user?.isCommercialTenant === true ||
+    searchParams.get('commercial') === 'true';
   const isEnforcement = !isCommercial;
   const isSuperUser = user?.isSuperUser === true;
   const enabledModules = user?.enabledModules ?? [];

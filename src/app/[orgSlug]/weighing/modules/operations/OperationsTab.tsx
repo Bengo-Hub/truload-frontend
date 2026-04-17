@@ -14,9 +14,9 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMyStation, useRecentWeighings, useScaleTests, useTodayWeighingStats } from '@/hooks/queries';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/stores/auth.store';
 import { endOfDay, format, startOfDay, subDays } from 'date-fns';
 import {
   Activity,
@@ -64,9 +64,7 @@ interface RecentWeighing {
 export default function OperationsTab() {
   const router = useRouter();
   const orgSlug = useOrgSlug();
-  const user = useAuthStore((s) => s.user);
-  const tenantType = user?.tenantType ?? 'AxleLoadEnforcement';
-  const isCommercialTenant = tenantType === 'CommercialWeighing';
+  const { isCommercial: isCommercialTenant } = useModuleAccess();
 
   // Station data for scale tests
   const { data: currentStation, isLoading: _isLoadingStation } = useMyStation();
