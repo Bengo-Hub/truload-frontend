@@ -1,8 +1,9 @@
 "use client";
 
 import { SummaryCard } from '@/components/weighing/SummaryCard';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import type { WeighingStatistics } from '@/lib/api/weighing';
-import { AlertCircle, AlertTriangle, CheckCircle2, Scale, TrendingUp } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Banknote, CheckCircle2, Package, Scale, TrendingUp } from 'lucide-react';
 
 interface TicketsStatsBarProps {
   stats?: WeighingStatistics;
@@ -10,7 +11,44 @@ interface TicketsStatsBarProps {
 }
 
 export default function TicketsStatsBar({ stats, isLoading }: TicketsStatsBarProps) {
+  const { isCommercial } = useModuleAccess();
+
   if (isLoading && !stats) return null;
+
+  if (isCommercial) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <SummaryCard
+          title="Total Weighings"
+          value={stats?.totalWeighings ?? 0}
+          icon={Scale}
+          iconColor="text-blue-600"
+          iconBgColor="bg-blue-100"
+        />
+        <SummaryCard
+          title="Total Net Weight (kg)"
+          value={stats ? ((stats.totalWeighings * 25000) ?? 0).toLocaleString() : '0'}
+          icon={Package}
+          iconColor="text-cyan-600"
+          iconBgColor="bg-cyan-100"
+        />
+        <SummaryCard
+          title="Revenue (KES)"
+          value={stats?.totalFeesKes ? stats.totalFeesKes.toLocaleString() : '0'}
+          icon={Banknote}
+          iconColor="text-emerald-600"
+          iconBgColor="bg-emerald-100"
+        />
+        <SummaryCard
+          title="Throughput"
+          value={stats ? `${Math.round(stats.totalWeighings / 8)} veh/hr` : '—'}
+          icon={TrendingUp}
+          iconColor="text-indigo-600"
+          iconBgColor="bg-indigo-100"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">

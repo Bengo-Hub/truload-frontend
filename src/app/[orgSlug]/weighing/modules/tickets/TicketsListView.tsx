@@ -16,6 +16,7 @@ interface TicketsListViewProps {
   error: Error | null;
   canRead: boolean;
   canPrint: boolean;
+  isCommercial?: boolean;
   onView?: (ticket: WeighingTransaction) => void;
   onPrint?: (ticket: WeighingTransaction) => void;
 }
@@ -108,6 +109,7 @@ export default function TicketsListView({
   error,
   canRead,
   canPrint,
+  isCommercial = false,
   onView,
   onPrint,
 }: TicketsListViewProps) {
@@ -127,13 +129,30 @@ export default function TicketsListView({
   // Show axle details column if any mobile tickets exist
   const showAxleDetails = hasMobileTickets;
 
-  const colCount = 18 + (showDeckColumns ? 4 : 0) + (showAxleDetails ? 1 : 0);
+  const commercialColCount = 11; // #, Ticket, Date, Vehicle, Transporter, Tare, Gross, Net, Cargo, Consignment, Actions
+  const enforcementColCount = 18 + (showDeckColumns ? 4 : 0) + (showAxleDetails ? 1 : 0);
+  const colCount = isCommercial ? commercialColCount : enforcementColCount;
 
   return (
     <Card className="border border-gray-200 rounded-xl">
       <CardContent className="p-0 overflow-x-auto">
         <Table>
           <TableHeader>
+            {isCommercial ? (
+              <TableRow className="hover:bg-transparent border-b border-gray-200 bg-gray-50">
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 pl-3 w-8">#</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap">Ticket No.</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 whitespace-nowrap">Date</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10">Vehicle</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden md:table-cell">Transporter</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 text-right">Tare (kg)</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 text-right">Gross (kg)</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 text-right">Net Weight (kg)</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden lg:table-cell">Cargo</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 hidden lg:table-cell">Consignment</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-700 h-10 pr-3 text-right">Actions</TableHead>
+              </TableRow>
+            ) : (
             <TableRow className="hover:bg-transparent border-b border-gray-200 bg-gray-50">
               <TableHead className="text-xs font-semibold text-gray-700 h-10 pl-3 w-8">#</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 w-8" />
@@ -165,6 +184,7 @@ export default function TicketsListView({
               <TableHead className="text-xs font-semibold text-gray-700 h-10 text-center whitespace-nowrap">Excess [KG]</TableHead>
               <TableHead className="text-xs font-semibold text-gray-700 h-10 pr-3 text-right">Actions</TableHead>
             </TableRow>
+            )}
           </TableHeader>
           <TableBody>
             {isLoading ? (
@@ -193,6 +213,49 @@ export default function TicketsListView({
                 const compliance = getComplianceStatus(ticket);
                 const excessKg = ticket.excessKg ?? Math.max(0, ticket.overloadKg);
                 const isMobile = ticket.weighingType === 'mobile';
+
+                // Commercial row layout: simplified weight-focused view
+                if (isCommercial) {
+                  const tareKg = ticket.tareWeightKg ?? 0;
+                  const grossKg = ticket.gvwMeasuredKg;
+                  const netKg = grossKg - tareKg;
+                  return (
+                    <TableRow key={ticket.id} className="hover:bg-gray-50/50 border-b border-gray-100">
+                      <TableCell className="text-xs text-gray-500 py-2 pl-3">{idx + 1}</TableCell>
+                      <TableCell className="py-2 px-2">
+                        <a href="#" className="text-xs font-mono text-blue-600 hover:underline">{ticket.ticketNumber}</a>
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-600 py-2 whitespace-nowrap">{formatDateTime(ticket.weighedAt)}</TableCell>
+                      <TableCell className="text-xs font-mono font-semibold text-gray-900 py-2">{ticket.vehicleRegNumber}</TableCell>
+                      <TableCell className="text-xs text-gray-600 py-2 hidden md:table-cell">
+                        <div className="truncate max-w-[120px]">{ticket.transporterName ?? '--'}</div>
+                      </TableCell>
+                      <TableCell className="text-xs text-right py-2 font-mono">{tareKg.toLocaleString()}</TableCell>
+                      <TableCell className="text-xs text-right py-2 font-mono">{grossKg.toLocaleString()}</TableCell>
+                      <TableCell className="text-xs text-right py-2 font-mono font-bold text-blue-700">{netKg.toLocaleString()}</TableCell>
+                      <TableCell className="text-xs text-gray-600 py-2 hidden lg:table-cell">
+                        <div className="truncate max-w-[100px]">{ticket.cargoType ?? '--'}</div>
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-600 py-2 hidden lg:table-cell">
+                        <div className="truncate max-w-[100px]">{ticket.consignmentNumber ?? '--'}</div>
+                      </TableCell>
+                      <TableCell className="py-2 pr-3 text-right">
+                        <div className="flex justify-end gap-0.5">
+                          {canRead && (
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="View Details" onClick={() => onView?.(ticket)}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canPrint && (
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Print Ticket" onClick={() => onPrint?.(ticket)}>
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
 
                 return (
                   <TableRow key={ticket.id} className="hover:bg-gray-50/50 border-b border-gray-100">

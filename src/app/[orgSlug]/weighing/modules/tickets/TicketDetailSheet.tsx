@@ -21,6 +21,7 @@ interface TicketDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onPrint?: (ticket: WeighingTransaction) => void;
   canPrint?: boolean;
+  isCommercial?: boolean;
 }
 
 function formatDateTime(dateStr: string) {
@@ -63,6 +64,7 @@ export default function TicketDetailSheet({
   onOpenChange,
   onPrint,
   canPrint,
+  isCommercial = false,
 }: TicketDetailSheetProps) {
   if (!ticket) return null;
 
@@ -87,46 +89,76 @@ export default function TicketDetailSheet({
         </DialogHeader>
 
         <div className="space-y-6 mt-2">
-          {/* Compliance Status */}
-          <div className="flex items-center gap-3">
-            <Image
-              src={ticket.isCompliant
-                ? '/images/weighing/greenbutton.png'
-                : ticket.overloadKg > 2000
-                ? '/images/weighing/redbutton.jpg'
-                : '/images/weighing/tagged.png'
-              }
-              alt={ticket.isCompliant ? 'Compliant' : 'Non-compliant'}
-              width={36}
-              height={36}
-              className="shrink-0"
-            />
-            <div>
-              <StatusBadge status={ticket.controlStatus} />
-              {ticket.isCompliant && (
-                <p className="text-sm text-green-600 font-medium mt-0.5">Vehicle is compliant</p>
-              )}
-              {!ticket.isCompliant && ticket.overloadKg > 0 && (
-                <p className="text-sm text-red-600 font-medium mt-0.5">
-                  Overloaded by {formatWeight(ticket.overloadKg)}
-                </p>
-              )}
+          {/* Compliance Status (enforcement only) */}
+          {!isCommercial && (
+            <div className="flex items-center gap-3">
+              <Image
+                src={ticket.isCompliant
+                  ? '/images/weighing/greenbutton.png'
+                  : ticket.overloadKg > 2000
+                  ? '/images/weighing/redbutton.jpg'
+                  : '/images/weighing/tagged.png'
+                }
+                alt={ticket.isCompliant ? 'Compliant' : 'Non-compliant'}
+                width={36}
+                height={36}
+                className="shrink-0"
+              />
+              <div>
+                <StatusBadge status={ticket.controlStatus} />
+                {ticket.isCompliant && (
+                  <p className="text-sm text-green-600 font-medium mt-0.5">Vehicle is compliant</p>
+                )}
+                {!ticket.isCompliant && ticket.overloadKg > 0 && (
+                  <p className="text-sm text-red-600 font-medium mt-0.5">
+                    Overloaded by {formatWeight(ticket.overloadKg)}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Commercial Weight Summary */}
+          {isCommercial && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Weight Summary</h4>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-gray-500">Tare Weight</p>
+                    <p className="text-lg font-bold text-gray-900">{formatWeight(ticket.tareWeightKg ?? 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Gross Weight</p>
+                    <p className="text-lg font-bold text-gray-900">{formatWeight(ticket.gvwMeasuredKg)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Net Weight</p>
+                    <p className="text-lg font-bold text-blue-700">{formatWeight(ticket.gvwMeasuredKg - (ticket.tareWeightKg ?? 0))}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Vehicle & Weighing */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">Vehicle & Weighing</h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">{isCommercial ? 'Vehicle Details' : 'Vehicle & Weighing'}</h4>
             <div className="bg-gray-50 rounded-lg p-3">
               <DetailRow label="Vehicle Registration" value={ticket.vehicleRegNumber} />
               <DetailRow label="Vehicle Make" value={ticket.vehicleMake} />
               <DetailRow label="Vehicle Type" value={ticket.vehicleType} />
-              <DetailRow label="Axle Configuration" value={ticket.axleConfiguration} />
+              {!isCommercial && <DetailRow label="Axle Configuration" value={ticket.axleConfiguration} />}
               <DetailRow label="Weighing Type" value={ticket.weighingType} />
-              <DetailRow label="Bound" value={ticket.bound} />
-              <DetailRow label="GVW Measured" value={formatWeight(ticket.gvwMeasuredKg)} />
-              <DetailRow label="GVW Permissible" value={formatWeight(ticket.gvwPermissibleKg)} />
-              <DetailRow label="Overload" value={ticket.overloadKg > 0 ? formatWeight(ticket.overloadKg) : 'None'} />
+              {!isCommercial && <DetailRow label="Bound" value={ticket.bound} />}
+              {!isCommercial && (
+                <>
+                  <DetailRow label="GVW Measured" value={formatWeight(ticket.gvwMeasuredKg)} />
+                  <DetailRow label="GVW Permissible" value={formatWeight(ticket.gvwPermissibleKg)} />
+                  <DetailRow label="Overload" value={ticket.overloadKg > 0 ? formatWeight(ticket.overloadKg) : 'None'} />
+                </>
+              )}
+              {isCommercial && <DetailRow label="Consignment" value={ticket.consignmentNumber} />}
               {(ticket.totalFeeUsd > 0 || (ticket.totalFeeKes ?? 0) > 0) && (
                 <DetailRow
                   label={`Fee (${ticket.chargingCurrency || 'USD'})`}
@@ -136,8 +168,8 @@ export default function TicketDetailSheet({
             </div>
           </div>
 
-          {/* Axle Weights */}
-          {ticket.weighingAxles && ticket.weighingAxles.length > 0 && (
+          {/* Axle Weights (enforcement only) */}
+          {!isCommercial && ticket.weighingAxles && ticket.weighingAxles.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Axle Weights</h4>
               <div className="bg-gray-50 rounded-lg p-3">

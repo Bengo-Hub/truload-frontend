@@ -33,6 +33,7 @@ import { useModuleAccess } from '@/hooks/useModuleAccess';
 
 const MODULE_ICONS: Record<string, LucideIcon> = {
   weighing: Scale,
+  commercial: Scale,
   prosecution: Gavel,
   cases: FileText,
   financial: DollarSign,
@@ -42,6 +43,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
 
 const MODULE_LABELS: Record<string, string> = {
   weighing: 'Weighing',
+  commercial: 'Commercial',
   prosecution: 'Prosecution',
   cases: 'Cases',
   financial: 'Financial',
@@ -75,7 +77,7 @@ export function ModuleReportSelector() {
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewFileName, setPreviewFileName] = useState('');
 
-  const { isEnforcement, hasModule, showFinancial } = useModuleAccess();
+  const { isEnforcement, isCommercial, hasModule, showFinancial } = useModuleAccess();
 
   const { data: catalog, isLoading: catalogLoading } = useReportCatalog(
     selectedModule === 'all' ? undefined : selectedModule
@@ -87,6 +89,11 @@ export function ModuleReportSelector() {
     switch (reportModule) {
       case 'weighing':
         return hasModule('weighing');
+      case 'commercial':
+        // Commercial report types: commercial-daily-summary, transporter-statement,
+        // cargo-volume, weight-discrepancy, commercial-revenue, throughput,
+        // tare-weight-audit, fleet-utilization, driver-productivity, quality-commodity
+        return isCommercial && hasModule('weighing');
       case 'prosecution':
         return hasModule('prosecution');
       case 'cases':

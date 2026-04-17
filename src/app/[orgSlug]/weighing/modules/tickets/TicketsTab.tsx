@@ -16,6 +16,7 @@ import { QUERY_KEYS } from '@/lib/query/config';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import TicketsStatsBar from './TicketsStatsBar';
 import TicketsFilterBar, { type ViewMode } from './TicketsFilterBar';
 import TicketsListView from './TicketsListView';
@@ -57,6 +58,7 @@ export default function TicketsTab() {
   // Permissions
   const canExport = useHasPermission('weighing.export');
   const canRead = useHasPermission('weighing.read');
+  const { isCommercial } = useModuleAccess();
 
   // Lookups
   const { data: myStation } = useMyStation();
@@ -262,6 +264,7 @@ export default function TicketsTab() {
           error={error}
           canRead={canRead}
           canPrint={canExport}
+          isCommercial={isCommercial}
           onView={handleView}
           onPrint={handlePrint}
         />
@@ -312,6 +315,7 @@ export default function TicketsTab() {
         onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}
         onPrint={handlePrint}
         canPrint={canExport}
+        isCommercial={isCommercial}
       />
 
       {/* PDF Preview Dialog */}

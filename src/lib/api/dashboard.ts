@@ -503,6 +503,61 @@ export async function getProsecutionByStatus(filters?: DashboardFilterParams) {
 }
 
 // ============================================================================
+// Commercial Dashboard API Functions
+// ============================================================================
+
+export interface CommercialThroughputData {
+  name: string;
+  vehiclesPerHour: number;
+  totalVehicles: number;
+}
+
+export interface TopTransporterData {
+  name: string;
+  trips: number;
+  totalNetWeightKg: number;
+}
+
+export interface CargoVolumeData {
+  name: string;
+  volumeKg: number;
+  trips: number;
+}
+
+/**
+ * Get throughput (vehicles/hour) for commercial weighbridges
+ */
+export async function getCommercialThroughput(filters?: DashboardFilterParams) {
+  const response = await apiClient.get<CommercialThroughputData[]>(
+    '/weighing-transactions/throughput',
+    { params: buildParams(filters) }
+  );
+  return response.data;
+}
+
+/**
+ * Get top transporters by trip count
+ */
+export async function getTopTransporters(filters?: DashboardFilterParams) {
+  const response = await apiClient.get<TopTransporterData[]>(
+    '/weighing-transactions/top-transporters',
+    { params: { ...buildParams(filters), limit: '10' } }
+  );
+  return response.data;
+}
+
+/**
+ * Get cargo volume breakdown by cargo type
+ */
+export async function getCargoVolumeByType(filters?: DashboardFilterParams) {
+  const response = await apiClient.get<CargoVolumeData[]>(
+    '/weighing-transactions/cargo-volume',
+    { params: buildParams(filters) }
+  );
+  return response.data;
+}
+
+// ============================================================================
 // Exported API Object
 // ============================================================================
 
@@ -538,4 +593,8 @@ export const dashboardApi = {
   getTagsByCategory,
   getProsecutionTrend,
   getProsecutionByStatus,
+  // Commercial
+  getCommercialThroughput,
+  getTopTransporters,
+  getCargoVolumeByType,
 };
