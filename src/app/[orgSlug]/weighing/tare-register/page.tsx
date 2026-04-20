@@ -4,7 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -19,13 +19,6 @@ import { Pagination, usePagination } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
   Table,
   TableBody,
   TableCell,
@@ -34,18 +27,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { useModuleAccess } from '@/hooks/useModuleAccess';
 import {
   useRecordTareWeight,
   useVehiclesPaged,
   useVehicleTareHistory,
 } from '@/hooks/queries';
 import type { Vehicle } from '@/types/weighing';
-import { AlertTriangle, CheckCircle2, Clock, History, Plus, Search, Truck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock, History, Plus, Search, Truck, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { useDebounce } from 'use-debounce';
 
 function formatDate(iso?: string) {
   if (!iso) return '—';
@@ -178,25 +168,25 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
   );
 }
 
-// ─── Tare History Sheet ───────────────────────────────────────────────────────
+// ─── Tare History Dialog ──────────────────────────────────────────────────────
 
-interface TareHistorySheetProps {
+interface TareHistoryDialogProps {
   vehicle: Vehicle | null;
   open: boolean;
   onClose: () => void;
 }
 
-function TareHistorySheet({ vehicle, open, onClose }: TareHistorySheetProps) {
+function TareHistoryDialog({ vehicle, open, onClose }: TareHistoryDialogProps) {
   const { data: history, isLoading } = useVehicleTareHistory(vehicle?.id);
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-[420px] sm:w-[520px]">
-        <SheetHeader>
-          <SheetTitle>Tare History — {vehicle?.regNo}</SheetTitle>
-          <SheetDescription>All recorded tare weights for this vehicle.</SheetDescription>
-        </SheetHeader>
-        <div className="mt-6 space-y-3">
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Tare History — {vehicle?.regNo}</DialogTitle>
+          <DialogDescription>All recorded tare weights for this vehicle.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
           {isLoading && Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full rounded-lg" />
           ))}
@@ -219,41 +209,46 @@ function TareHistorySheet({ vehicle, open, onClose }: TareHistorySheetProps) {
             </div>
           ))}
         </div>
-      </SheetContent>
-    </Sheet>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            <X className="h-4 w-4 mr-1" />
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TareRegisterPage() {
-  const router = useRouter();
-  const { isCommercial } = useModuleAccess();
   const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebounce(search, 300);
-  const { page, pageSize, setPage } = usePagination({ defaultPageSize: 20 });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { pageNumber, pageSize, setPage } = usePagination(20);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
 
   const { data, isLoading } = useVehiclesPaged({
     search: debouncedSearch || undefined,
-    page,
+    page: pageNumber,
     pageSize,
   });
 
   const [recordTarget, setRecordTarget] = useState<Vehicle | null>(null);
   const [historyTarget, setHistoryTarget] = useState<Vehicle | null>(null);
 
-  useEffect(() => {
-    if (!isCommercial) router.replace('./');
-  }, [isCommercial, router]);
-
-  if (!isCommercial) return null;
-
   const vehicles = data?.items ?? [];
   const totalCount = data?.totalCount ?? 0;
 
   return (
     <AppShell title="Tare Register" subtitle="Manage stored tare weights for commercial weighing">
-      <ProtectedRoute requiredPermissions={['weighing.read']}>
+      <ProtectedRoute requiredPermissions={['weighing.read']} moduleKey="tare_register">
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -403,9 +398,11 @@ export default function TareRegisterPage() {
               {totalCount > pageSize && (
                 <div className="border-t px-4 py-3">
                   <Pagination
-                    currentPage={page}
-                    totalPages={Math.ceil(totalCount / pageSize)}
+                    page={pageNumber}
+                    pageSize={pageSize}
+                    totalItems={totalCount}
                     onPageChange={setPage}
+                    showPageSizeSelector={false}
                   />
                 </div>
               )}
@@ -418,7 +415,7 @@ export default function TareRegisterPage() {
           open={!!recordTarget}
           onClose={() => setRecordTarget(null)}
         />
-        <TareHistorySheet
+        <TareHistoryDialog
           vehicle={historyTarget}
           open={!!historyTarget}
           onClose={() => setHistoryTarget(null)}

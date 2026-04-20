@@ -969,3 +969,38 @@ export function useRecordTareWeight() {
     },
   });
 }
+
+// ============================================================================
+// TOLERANCE SETTINGS HOOKS (Commercial weighing admin)
+// ============================================================================
+
+const TOLERANCE_SETTINGS_KEY = ['commercial-tolerance-settings'] as const;
+
+export function useToleranceSettings() {
+  return useQuery({
+    queryKey: TOLERANCE_SETTINGS_KEY,
+    queryFn: weighingApi.getToleranceSettings,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateToleranceSetting() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.createToleranceSetting,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TOLERANCE_SETTINGS_KEY });
+    },
+  });
+}
+
+export function useUpdateToleranceSetting() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: weighingApi.CommercialToleranceSetting }) =>
+      weighingApi.updateToleranceSetting(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TOLERANCE_SETTINGS_KEY });
+    },
+  });
+}

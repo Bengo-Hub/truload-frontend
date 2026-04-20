@@ -1306,7 +1306,7 @@ export interface VehicleListParams {
 }
 
 export interface PagedVehicles {
-  items: Vehicle[];
+  items: import('@/types/weighing').Vehicle[];
   totalCount: number;
   page: number;
   pageSize: number;
@@ -1319,5 +1319,47 @@ export async function getVehiclesPaged(
   params: VehicleListParams = {}
 ): Promise<PagedVehicles> {
   const { data } = await apiClient.get<PagedVehicles>('/Vehicle', { params });
+  return data;
+}
+
+// ============================================================================
+// Commercial Tolerance Settings API
+// ============================================================================
+
+export interface CommercialToleranceSetting {
+  id?: string;
+  toleranceType: 'percentage' | 'absolute';
+  toleranceValue: number;
+  maxToleranceKg?: number;
+  cargoTypeId?: string;
+  cargoTypeName?: string;
+  description?: string;
+}
+
+export async function getToleranceSettings(): Promise<CommercialToleranceSetting[]> {
+  const { data } = await apiClient.get<CommercialToleranceSetting[]>(
+    '/commercial-weighing/tolerance-settings'
+  );
+  return data;
+}
+
+export async function createToleranceSetting(
+  payload: CommercialToleranceSetting
+): Promise<CommercialToleranceSetting> {
+  const { data } = await apiClient.post<CommercialToleranceSetting>(
+    '/commercial-weighing/tolerance-settings',
+    payload
+  );
+  return data;
+}
+
+export async function updateToleranceSetting(
+  id: string,
+  payload: CommercialToleranceSetting
+): Promise<CommercialToleranceSetting> {
+  const { data } = await apiClient.put<CommercialToleranceSetting>(
+    `/commercial-weighing/tolerance-settings/${id}`,
+    payload
+  );
   return data;
 }
