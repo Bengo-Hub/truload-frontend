@@ -936,3 +936,36 @@ export function usePrefetchLookupData() {
     });
   };
 }
+
+// ============================================================================
+// TARE REGISTER HOOKS (Commercial weighing)
+// ============================================================================
+
+export function useVehiclesPaged(params: weighingApi.VehicleListParams = {}) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.VEHICLES, 'paged', params],
+    queryFn: () => weighingApi.getVehiclesPaged(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useVehicleTareHistory(vehicleId: string | undefined) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.VEHICLES, vehicleId, 'tare-history'],
+    queryFn: () => weighingApi.getVehicleTareHistory(vehicleId!),
+    enabled: !!vehicleId,
+    staleTime: 30_000,
+  });
+}
+
+export function useRecordTareWeight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.recordTareWeight,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.VEHICLES, variables.vehicleId, 'tare-history'] });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.VEHICLES, 'paged'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLES });
+    },
+  });
+}
