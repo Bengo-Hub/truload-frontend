@@ -1276,3 +1276,48 @@ export async function getVehicleTareHistory(
   );
   return data;
 }
+
+export interface RecordTareWeightRequest {
+  vehicleId: string;
+  tareWeightKg: number;
+  source: 'measured' | 'manual';
+  notes?: string;
+  setAsDefault?: boolean;
+}
+
+/**
+ * Record a new tare weight for a vehicle and update vehicle's stored tare.
+ */
+export async function recordTareWeight(
+  request: RecordTareWeightRequest
+): Promise<VehicleTareHistory> {
+  const { data } = await apiClient.post<VehicleTareHistory>(
+    `/commercial-weighing/tare-history`,
+    request
+  );
+  return data;
+}
+
+export interface VehicleListParams {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  transporterId?: string;
+}
+
+export interface PagedVehicles {
+  items: Vehicle[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Fetch paginated list of vehicles (used by Tare Register).
+ */
+export async function getVehiclesPaged(
+  params: VehicleListParams = {}
+): Promise<PagedVehicles> {
+  const { data } = await apiClient.get<PagedVehicles>('/Vehicle', { params });
+  return data;
+}

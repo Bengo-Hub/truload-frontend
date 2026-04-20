@@ -199,6 +199,11 @@ export interface Vehicle {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Commercial tare fields
+  defaultTareWeightKg?: number;
+  lastTareWeightKg?: number;
+  lastTareWeighedAt?: string;
+  tareExpiryDays?: number;
   // Navigation
   transporter?: Transporter;
   axleConfiguration?: AxleConfiguration;
