@@ -226,7 +226,8 @@ export default function OperationsTab() {
                     <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mb-2">
                       <Truck className="h-6 w-6 text-purple-600" />
                     </div>
-                    <h3 className="text-sm font-bold text-gray-900">Mobile</h3>
+                    <h3 className="text-sm font-bold text-gray-900">Mobile Weighing - <i>commercial</i></h3>
+                     <p className="text-[10px] text-gray-500 text-center mt-0.5">Axle-by-axle portable</p>
                   </button>
                   <button
                     onClick={() => handleWeighingTypeSelect('multideck-commercial')}
@@ -235,7 +236,8 @@ export default function OperationsTab() {
                     <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center mb-2">
                       <Gauge className="h-6 w-6 text-orange-600" />
                     </div>
-                    <h3 className="text-sm font-bold text-gray-900">Multi-deck</h3>
+                    <h3 className="text-sm font-bold text-gray-900">Multi-deck - <i>commercial</i></h3>
+                    <p className="text-[10px] text-gray-500 text-center mt-0.5">4-deck platform system</p>
                   </button>
                 </>
               ) : (
