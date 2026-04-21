@@ -27,7 +27,7 @@ export default function TicketsStatsBar({ stats, isLoading }: TicketsStatsBarPro
         />
         <SummaryCard
           title="Total Net Weight (kg)"
-          value={stats ? ((stats.totalWeighings * 25000) ?? 0).toLocaleString() : '0'}
+          value={stats ? (stats.totalWeighings * 25000).toLocaleString() : '0'}
           icon={Package}
           iconColor="text-cyan-600"
           iconBgColor="bg-cyan-100"

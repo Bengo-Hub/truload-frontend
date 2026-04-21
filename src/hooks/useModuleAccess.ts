@@ -64,8 +64,13 @@ export function useModuleAccess() {
     showFinancialInvoices: hasModule('financial_invoices'),
     showFinancialReceipts: hasModule('financial_receipts'),
     showFinancial: hasModule('financial_invoices') || hasModule('financial_receipts'),
-    showSetupAxle: isEnforcement && hasModule('setup_axle'),
+    // Axle configs used by both enforcement and commercial for vehicle classification
+    showSetupAxle: hasModule('setup_axle'),
     showSetupActs: isEnforcement && hasModule('setup_acts'),
     showSetupSystemConfig: hasModule('setup_system_config'),
+    // Commercial-specific modules
+    showTareRegister: isCommercial && hasModule('tare_register'),
+    showToleranceSettings: isCommercial && hasModule('setup_tolerance'),
+    showCommercialReports: isCommercial && hasModule('reporting'),
   };
 }

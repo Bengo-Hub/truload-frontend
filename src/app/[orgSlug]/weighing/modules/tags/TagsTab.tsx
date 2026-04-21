@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetBody, SheetFooter } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination, usePagination } from '@/components/ui/pagination';
@@ -658,85 +659,94 @@ function ViewTagDialog({ tag, onClose }: ViewTagDialogProps) {
   const effectiveDays = parseEffectiveDays(tag.effectiveTimePeriod);
 
   return (
-    <Dialog open onOpenChange={(value) => (!value ? onClose() : undefined)}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Tag className="h-5 w-5" />
+    <Sheet open onOpenChange={(value) => (!value ? onClose() : undefined)}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Tag className="h-4 w-4" />
             Tag Details
-          </DialogTitle>
-          <DialogDescription>Vehicle: {tag.regNo}</DialogDescription>
-        </DialogHeader>
+          </SheetTitle>
+          <SheetDescription>Vehicle: {tag.regNo}</SheetDescription>
+        </SheetHeader>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <SheetBody className="space-y-5">
+          {/* Status banner */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
-              <Label className="text-xs text-gray-500">Status</Label>
-              <div className="mt-1">
-                <Badge variant={tag.status === 'open' ? 'destructive' : 'secondary'}>
-                  {tag.status === 'open' ? 'Open' : 'Closed'}
-                </Badge>
-              </div>
+              <p className="text-xs text-gray-500">Vehicle Registration</p>
+              <p className="font-mono font-semibold">{tag.regNo}</p>
             </div>
-            <div>
-              <Label className="text-xs text-gray-500">Tag Type</Label>
-              <p className="text-sm font-medium">{TAG_TYPE_LABELS[tag.tagType] || tag.tagType}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Category</Label>
-              <p className="text-sm font-medium">{tag.tagCategoryName || tag.tagCategoryCode}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Station</Label>
-              <p className="text-sm font-medium">{tag.stationCode}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Effective Duration</Label>
-              <p className="text-sm font-medium">{effectiveDays ? `${effectiveDays} days` : 'Indefinite'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Exported</Label>
-              <p className="text-sm font-medium">{tag.exported ? 'Yes' : 'No'}</p>
-            </div>
+            <Badge variant={tag.status === 'open' ? 'destructive' : 'secondary'}>
+              {tag.status === 'open' ? 'Open' : 'Closed'}
+            </Badge>
           </div>
 
+          {/* Tag details */}
           <div>
-            <Label className="text-xs text-gray-500">Reason</Label>
-            <p className="text-sm mt-1 bg-gray-50 p-3 rounded-lg">{tag.reason}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Tag Information</p>
+            <div className="bg-gray-50 rounded-lg px-3">
+              {[
+                { label: 'Tag Type', value: TAG_TYPE_LABELS[tag.tagType] || tag.tagType },
+                { label: 'Category', value: tag.tagCategoryName || tag.tagCategoryCode },
+                { label: 'Station', value: tag.stationCode },
+                { label: 'Effective Duration', value: effectiveDays ? `${effectiveDays} days` : 'Indefinite' },
+                { label: 'Exported to KeNHA', value: tag.exported ? 'Yes' : 'No' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-sm text-muted-foreground">{label}</span>
+                  <span className="text-sm font-medium">{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="border-t pt-4">
-            <Label className="text-xs text-gray-500">Created</Label>
-            <p className="text-sm">{formatDateTime(tag.openedAt)} by {tag.createdByName || '-'}</p>
+          {/* Reason */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Reason / Description</p>
+            <p className="text-sm bg-amber-50 border border-amber-100 p-3 rounded-lg">{tag.reason}</p>
           </div>
 
-          {tag.closedAt && (
-            <div>
-              <Label className="text-xs text-gray-500">Closed</Label>
-              <p className="text-sm">{formatDateTime(tag.closedAt)} by {tag.closedByName || '-'}</p>
-              {tag.closedReason && (
-                <p className="text-sm mt-1 bg-green-50 p-3 rounded-lg">{tag.closedReason}</p>
+          {/* Timeline */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Timeline</p>
+            <div className="bg-gray-50 rounded-lg px-3">
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-sm text-muted-foreground">Opened</span>
+                <span className="text-sm font-medium">{formatDateTime(tag.openedAt)}{tag.createdByName ? ` · ${tag.createdByName}` : ''}</span>
+              </div>
+              {tag.closedAt && (
+                <div className="flex justify-between py-2 last:border-0">
+                  <span className="text-sm text-muted-foreground">Closed</span>
+                  <span className="text-sm font-medium">{formatDateTime(tag.closedAt)}{tag.closedByName ? ` · ${tag.closedByName}` : ''}</span>
+                </div>
               )}
             </div>
+          </div>
+
+          {/* Closure reason */}
+          {tag.closedReason && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Closure Reason</p>
+              <p className="text-sm bg-green-50 border border-green-100 p-3 rounded-lg">{tag.closedReason}</p>
+            </div>
           )}
 
+          {/* Evidence photo indicator */}
           {tag.tagPhotoPath && (
-            <div>
-              <Label className="text-xs text-gray-500">Evidence Photo</Label>
-              <div className="mt-1 p-2 border rounded-lg bg-gray-50 text-center">
-                <ImageIcon className="h-8 w-8 mx-auto text-gray-400" />
-                <p className="text-xs text-gray-500 mt-1">Photo attached</p>
+            <div className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
+              <ImageIcon className="h-5 w-5 text-gray-400 shrink-0" />
+              <div>
+                <p className="text-sm font-medium">Evidence Photo Attached</p>
+                <p className="text-xs text-gray-500">Photo on file</p>
               </div>
             </div>
           )}
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <SheetFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

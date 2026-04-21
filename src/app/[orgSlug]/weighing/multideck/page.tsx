@@ -48,11 +48,11 @@ import {
     useMyScaleTestStatus,
     useMyStation,
     usePendingWeighings,
-    useToleranceSettings,
     useUpdateVehicle,
     useVehicleByRegNo,
     useWeighingAxleConfigurations,
 } from '@/hooks/queries';
+import { useToleranceSettings } from '@/hooks/queries/useActQueries';
 import { useHasPermission } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useMiddleware } from '@/hooks/useMiddleware';
@@ -993,7 +993,7 @@ export default function MultideckWeighingPage() {
     return (
       <AppShell title="Commercial Weighing" subtitle={stationDisplayName}>
         <ProtectedRoute requiredPermissions={['weighing.create']}>
-          <CommercialWeighingStepper />
+          <CommercialWeighingStepper mode="multideck" />
         </ProtectedRoute>
       </AppShell>
     );

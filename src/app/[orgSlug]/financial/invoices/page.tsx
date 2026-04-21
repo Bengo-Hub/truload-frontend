@@ -16,6 +16,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetBody,
+    SheetFooter,
+} from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -537,72 +546,63 @@ export default function InvoicesPage() {
             </CardContent>
           </Card>
 
-          {/* Details Dialog */}
-          <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Invoice Details</DialogTitle>
-                <DialogDescription>
-                  Invoice #{selectedInvoice?.invoiceNo}
-                </DialogDescription>
-              </DialogHeader>
+          {/* Details Drawer */}
+          <Sheet open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Invoice Details</SheetTitle>
+                <SheetDescription>Invoice #{selectedInvoice?.invoiceNo}</SheetDescription>
+              </SheetHeader>
               {selectedInvoice && (
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Invoice Number</Label>
-                      <p className="font-medium">{selectedInvoice.invoiceNo}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Status</Label>
-                      <div className="mt-1">{getStatusBadge(selectedInvoice.status)}</div>
+                <SheetBody className="space-y-5">
+                  {/* Amount hero */}
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Amount Due</p>
+                    <p className="text-3xl font-bold">{formatCurrency(selectedInvoice.amountDue, selectedInvoice.currency)}</p>
+                    <div className="mt-2">{getStatusBadge(selectedInvoice.status)}</div>
+                  </div>
+
+                  {/* Invoice info */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Invoice Information</p>
+                    <div className="bg-gray-50 rounded-lg px-3">
+                      {[
+                        { label: 'Invoice Number', value: selectedInvoice.invoiceNo },
+                        { label: 'Case Reference', value: selectedInvoice.caseNo || 'N/A' },
+                        { label: 'Currency', value: selectedInvoice.currency },
+                        { label: 'Due Date', value: selectedInvoice.dueDate ? formatDate(selectedInvoice.dueDate) : 'N/A' },
+                        { label: 'Created', value: formatDate(selectedInvoice.createdAt) },
+                        { label: 'Paid Date', value: selectedInvoice.paidAt ? formatDate(selectedInvoice.paidAt) : 'Not paid' },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+                          <span className="text-sm text-muted-foreground">{label}</span>
+                          <span className="text-sm font-medium">{value}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Amount</Label>
-                      <p className="text-xl font-bold">{formatCurrency(selectedInvoice.amountDue, selectedInvoice.currency)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Due Date</Label>
-                      <p className="font-medium">
-                        {selectedInvoice.dueDate ? formatDate(selectedInvoice.dueDate) : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Created</Label>
-                      <p className="font-medium">{formatDate(selectedInvoice.createdAt)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Paid Date</Label>
-                      <p className="font-medium">
-                        {selectedInvoice.paidAt ? formatDate(selectedInvoice.paidAt) : 'Not paid'}
-                      </p>
-                    </div>
-                  </div>
+
                   {selectedInvoice.voidedAt && (
                     <div>
-                      <Label className="text-muted-foreground">Void Reason</Label>
-                      <p className="font-medium">{selectedInvoice.voidReason || 'N/A'}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Void Details</p>
+                      <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+                        <p className="text-sm text-red-700">{selectedInvoice.voidReason || 'No reason provided'}</p>
+                      </div>
                     </div>
                   )}
-                </div>
+                </SheetBody>
               )}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
-                  Close
-                </Button>
+              <SheetFooter>
+                <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>Close</Button>
                 {selectedInvoice && (
                   <Button onClick={() => handleDownloadPdf(selectedInvoice)}>
                     <Download className="mr-2 h-4 w-4" />
                     Download PDF
                   </Button>
                 )}
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
 
           {/* Void Dialog */}
           <Dialog open={showVoidDialog} onOpenChange={setShowVoidDialog}>

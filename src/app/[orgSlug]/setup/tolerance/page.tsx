@@ -29,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   useCargoTypes,
   useCreateToleranceSetting,
-  useToleranceSettings,
+  useCommercialToleranceSettings,
   useUpdateToleranceSetting,
 } from '@/hooks/queries';
 import type { CommercialToleranceSetting } from '@/lib/api/weighing';
@@ -240,7 +240,7 @@ function ToleranceFormDialog({ existing, open, onClose }: ToleranceFormDialogPro
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ToleranceSettingsPage() {
-  const { data: settings = [], isLoading } = useToleranceSettings();
+  const { data: settings = [], isLoading } = useCommercialToleranceSettings();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CommercialToleranceSetting | null>(null);
 
