@@ -26,6 +26,7 @@ import type {
     UpdateAxleConfigurationRequest,
     UpdateAxleWeightReferenceRequest,
     UpdateDepartmentRequest,
+    UpdateCommercialSettingsRequest,
     UpdateOrganizationBrandingRequest,
     UpdateOrganizationModulesRequest,
     UpdateOrganizationRequest,
@@ -197,6 +198,11 @@ export async function getCurrentOrganization(): Promise<OrganizationDto | null> 
 
 export async function updateCurrentOrganizationBranding(payload: UpdateOrganizationBrandingRequest): Promise<OrganizationDto> {
   const { data } = await apiClient.patch<OrganizationDto>('/Organizations/current/branding', payload);
+  return data;
+}
+
+export async function updateCurrentCommercialSettings(payload: UpdateCommercialSettingsRequest): Promise<OrganizationDto> {
+  const { data } = await apiClient.patch<OrganizationDto>('/Organizations/current/commercial-settings', payload);
   return data;
 }
 

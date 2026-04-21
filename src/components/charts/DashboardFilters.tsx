@@ -6,6 +6,7 @@
 'use client';
 
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
@@ -14,15 +15,21 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RotateCcw } from 'lucide-react';
 
-// Control status options
-const CONTROL_STATUS_OPTIONS = [
+const ENFORCEMENT_STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'LEGAL', label: 'Legal' },
   { value: 'WARNING', label: 'Warning' },
   { value: 'OVERLOAD', label: 'Overloaded' },
 ];
 
-// Weighing type options
+const COMMERCIAL_STATUS_OPTIONS = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'Pending', label: 'Pending' },
+  { value: 'FirstWeightCaptured', label: 'First Weight Done' },
+  { value: 'Complete', label: 'Complete' },
+  { value: 'ToleranceExceeded', label: 'Tolerance Exceeded' },
+];
+
 const WEIGHING_TYPE_OPTIONS = [
   { value: 'all', label: 'All Types' },
   { value: 'multideck', label: 'Multideck' },
@@ -31,6 +38,8 @@ const WEIGHING_TYPE_OPTIONS = [
 
 export function DashboardFilters() {
   const { filters, setFilter, resetFilters } = useDashboardFilters();
+  const { isCommercial } = useModuleAccess();
+  const statusOptions = isCommercial ? COMMERCIAL_STATUS_OPTIONS : ENFORCEMENT_STATUS_OPTIONS;
 
   return (
     <Card className="w-full">
@@ -108,7 +117,7 @@ export function DashboardFilters() {
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                {CONTROL_STATUS_OPTIONS.map((option) => (
+                {statusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>

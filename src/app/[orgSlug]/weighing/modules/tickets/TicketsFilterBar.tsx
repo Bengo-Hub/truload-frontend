@@ -45,6 +45,7 @@ interface TicketsFilterBarProps {
   isFetching: boolean;
   canExport: boolean;
   hasActiveFilters: boolean;
+  isCommercial?: boolean;
 }
 
 const VIEW_MODES: { value: ViewMode; icon: typeof List; label: string }[] = [
@@ -66,7 +67,24 @@ export default function TicketsFilterBar({
   onSearch, onClear, onRefresh, onExport,
   stations, axleConfigurations,
   isFetching, canExport, hasActiveFilters,
+  isCommercial = false,
 }: TicketsFilterBarProps) {
+  const statusOptions = isCommercial
+    ? [
+        { value: 'all', label: 'All Status' },
+        { value: 'Pending', label: 'Pending' },
+        { value: 'FirstWeightCaptured', label: 'First Weight Done' },
+        { value: 'Complete', label: 'Complete' },
+        { value: 'ToleranceExceeded', label: 'Tolerance Exceeded' },
+      ]
+    : [
+        { value: 'all', label: 'All Status' },
+        { value: 'Pending', label: 'Pending' },
+        { value: 'Compliant', label: 'Compliant' },
+        { value: 'Overload', label: 'Overload' },
+        { value: 'Charged', label: 'Charged' },
+        { value: 'Released', label: 'Released' },
+      ];
   return (
     <Card className="border border-gray-200 rounded-xl">
       <CardContent className="p-4 space-y-3">
@@ -134,16 +152,13 @@ export default function TicketsFilterBar({
         {/* Row 2: Dropdown Filters */}
         <div className="flex flex-wrap gap-3 items-end">
           <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-            <SelectTrigger className="w-[140px] h-9">
+            <SelectTrigger className="w-[160px] h-9">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Compliant">Compliant</SelectItem>
-              <SelectItem value="Overload">Overload</SelectItem>
-              <SelectItem value="Charged">Charged</SelectItem>
-              <SelectItem value="Released">Released</SelectItem>
+              {statusOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -166,19 +181,21 @@ export default function TicketsFilterBar({
             className="w-[160px]"
           />
 
-          <Select value={axleTypeFilter} onValueChange={onAxleTypeFilterChange}>
-            <SelectTrigger className="w-[140px] h-9">
-              <SelectValue placeholder="Axle Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Axle</SelectItem>
-              {axleConfigurations.map((ac) => (
-                <SelectItem key={ac.id} value={ac.axleCode}>
-                  {ac.axleCode} - {ac.axleName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!isCommercial && (
+            <Select value={axleTypeFilter} onValueChange={onAxleTypeFilterChange}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="Axle Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Axle</SelectItem>
+                {axleConfigurations.map((ac) => (
+                  <SelectItem key={ac.id} value={ac.axleCode}>
+                    {ac.axleCode} - {ac.axleName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Row 3: Search + Actions */}

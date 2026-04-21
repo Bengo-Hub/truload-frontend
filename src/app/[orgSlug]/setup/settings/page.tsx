@@ -64,6 +64,8 @@ import {
 
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
 import { WeighingSettingsTab } from '@/components/settings/WeighingSettingsTab';
+import { CommercialSettingsTab } from '@/components/settings/CommercialSettingsTab';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 
 // ============================================================================
 // Provider Definitions
@@ -150,11 +152,13 @@ function IntegrationSettingsContent() {
   const { user } = useAuth();
   const canEdit = useHasPermission(['config.read', 'config.update'], 'any');
   const isPlatformOwner = user?.isSuperUser === true;
+  const { isCommercial } = useModuleAccess();
 
-  // Tenant users see only: Exchange Rates, Weighing, Middleware
-  // Platform owners see all tabs: Payment Gateways, Notifications, APIs, Exchange Rates, Weighing, Middleware
-  const defaultTab = isPlatformOwner ? 'payment-gateways' : 'exchange-rates';
-  const tabCount = isPlatformOwner ? 6 : 3;
+  // Tab visibility:
+  // Platform owners: Payments, Notifications, APIs, Rates, Weighing, Middleware [+ Commercial if commercial tenant]
+  // Tenant users: Exchange Rates, Weighing, Middleware [+ Commercial if commercial tenant]
+  const defaultTab = isPlatformOwner ? 'payment-gateways' : isCommercial ? 'commercial' : 'exchange-rates';
+  const tabCount = isPlatformOwner ? (isCommercial ? 7 : 6) : (isCommercial ? 4 : 3);
 
   return (
     <div className="space-y-6">
@@ -198,6 +202,12 @@ function IntegrationSettingsContent() {
             <Scale className="h-4 w-4" />
             <span className="hidden sm:inline">Weighing</span>
           </TabsTrigger>
+          {isCommercial && (
+            <TabsTrigger value="commercial" className="gap-1.5">
+              <Scale className="h-4 w-4" />
+              <span className="hidden sm:inline">Commercial</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="middleware" className="gap-1.5">
             <Cpu className="h-4 w-4" />
             <span className="hidden sm:inline">Middleware</span>
@@ -223,6 +233,11 @@ function IntegrationSettingsContent() {
         <TabsContent value="weighing">
           <WeighingSettingsTab />
         </TabsContent>
+        {isCommercial && (
+          <TabsContent value="commercial">
+            <CommercialSettingsTab canEdit={canEdit} />
+          </TabsContent>
+        )}
         <TabsContent value="middleware">
           <MiddlewareTab />
         </TabsContent>

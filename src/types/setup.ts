@@ -80,6 +80,15 @@ export interface OrganizationDto {
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Commercial weighing settings (only populated for CommercialWeighing tenants)
+  commercialWeighingFeeKes?: number | null;
+  defaultTareExpiryDays?: number | null;
+  paymentGateway?: string | null;
+}
+
+export interface UpdateCommercialSettingsRequest {
+  commercialWeighingFeeKes?: number | null;
+  defaultTareExpiryDays?: number | null;
 }
 
 export interface UpdateOrganizationModulesRequest {
