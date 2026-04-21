@@ -86,7 +86,8 @@ import { toast } from 'sonner';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
 
 const ALL_TABS = ['transporters', 'drivers', 'vehicles', 'cargo-types', 'origins', 'roads', 'makes'] as const;
-const COMMERCIAL_TABS = ['transporters', 'vehicles', 'makes'] as const;
+// Roads are enforcement-specific (road acts, axle limits by road class); all other tabs apply to commercial too
+const COMMERCIAL_TABS = ['transporters', 'drivers', 'vehicles', 'cargo-types', 'origins', 'makes'] as const;
 
 export default function WeighingMetadataPage() {
   return (
@@ -122,28 +123,22 @@ function WeighingMetadataContent() {
             <Building2 className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
             Transporters
           </TabsTrigger>
-          {!isCommercial && (
-            <TabsTrigger value="drivers" className="text-xs sm:text-sm">
-              <UserCircle className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-              Drivers
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="drivers" className="text-xs sm:text-sm">
+            <UserCircle className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+            Drivers
+          </TabsTrigger>
           <TabsTrigger value="vehicles" className="text-xs sm:text-sm">
             <Truck className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
             Vehicles
           </TabsTrigger>
-          {!isCommercial && (
-            <TabsTrigger value="cargo-types" className="text-xs sm:text-sm">
-              <Package className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-              Cargo Types
-            </TabsTrigger>
-          )}
-          {!isCommercial && (
-            <TabsTrigger value="origins" className="text-xs sm:text-sm">
-              <MapPin className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-              Origins/Dest.
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="cargo-types" className="text-xs sm:text-sm">
+            <Package className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+            Cargo Types
+          </TabsTrigger>
+          <TabsTrigger value="origins" className="text-xs sm:text-sm">
+            <MapPin className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+            Origins/Dest.
+          </TabsTrigger>
           {!isCommercial && (
             <TabsTrigger value="roads" className="text-xs sm:text-sm">
               <RoadIcon className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
@@ -158,10 +153,10 @@ function WeighingMetadataContent() {
 
         <div className="mt-6">
           <TabsContent value="transporters"><TransportersTab /></TabsContent>
-          {!isCommercial && <TabsContent value="drivers"><DriversTab /></TabsContent>}
+          <TabsContent value="drivers"><DriversTab /></TabsContent>
           <TabsContent value="vehicles"><VehiclesTab /></TabsContent>
-          {!isCommercial && <TabsContent value="cargo-types"><CargoTypesTab /></TabsContent>}
-          {!isCommercial && <TabsContent value="origins"><OriginsDestinationsTab /></TabsContent>}
+          <TabsContent value="cargo-types"><CargoTypesTab /></TabsContent>
+          <TabsContent value="origins"><OriginsDestinationsTab /></TabsContent>
           {!isCommercial && <TabsContent value="roads"><RoadsTab /></TabsContent>}
           <TabsContent value="makes"><VehicleMakesTab /></TabsContent>
         </div>
