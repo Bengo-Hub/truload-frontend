@@ -976,7 +976,7 @@ export function useRecordTareWeight() {
 
 const TOLERANCE_SETTINGS_KEY = ['commercial-tolerance-settings'] as const;
 
-export function useToleranceSettings() {
+export function useCommercialToleranceSettings() {
   return useQuery({
     queryKey: TOLERANCE_SETTINGS_KEY,
     queryFn: weighingApi.getToleranceSettings,

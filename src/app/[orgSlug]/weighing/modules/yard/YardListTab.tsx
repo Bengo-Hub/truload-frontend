@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetBody, SheetFooter } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Pagination, usePagination } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -465,101 +466,100 @@ function ViewEntryDialog({ entry, onClose }: ViewEntryDialogProps) {
   };
 
   return (
-    <Dialog open onOpenChange={(value) => (!value ? onClose() : undefined)}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
+    <Sheet open onOpenChange={(value) => (!value ? onClose() : undefined)}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
             Yard Entry Details
-          </DialogTitle>
-          <DialogDescription>
-            Ticket: {entry.ticketNumber || '-'}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetTitle>
+          <SheetDescription>Ticket: {entry.ticketNumber || '-'}</SheetDescription>
+        </SheetHeader>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <SheetBody className="space-y-5">
+          {/* Status bar */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
-              <Label className="text-xs text-gray-500">Vehicle</Label>
-              <p className="font-mono font-medium">{entry.vehicleRegNumber || '-'}</p>
+              <p className="text-xs text-gray-500">Vehicle</p>
+              <p className="font-mono font-semibold">{entry.vehicleRegNumber || '-'}</p>
             </div>
-            <div>
-              <Label className="text-xs text-gray-500">Status</Label>
-              <p className="text-sm font-medium capitalize">{entry.status}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Driver</Label>
-              <p className="text-sm">{entry.driverName || '-'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Transporter</Label>
-              <p className="text-sm">{entry.transporterName || '-'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Station</Label>
-              <p className="text-sm">{entry.stationName || '-'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-gray-500">Reason</Label>
-              <p className="text-sm">{YARD_REASON_LABELS[entry.reason] || entry.reason}</p>
-            </div>
+            <StatusBadge status={entry.status === 'released' ? 'LEGAL' : entry.status === 'escalated' ? 'OVERLOAD' : entry.status === 'processing' ? 'WARNING' : 'PENDING'} />
           </div>
 
-          <div className="border-t pt-4">
-            <Label className="text-xs text-gray-500">Weight Details</Label>
-            <div className="grid grid-cols-3 gap-4 mt-2">
+          {/* Weight summary */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Weight Details</p>
+            <div className="grid grid-cols-3 gap-3">
               <div className="bg-gray-50 p-3 rounded-lg text-center">
                 <p className="text-xs text-gray-500">Measured</p>
-                <p className="font-mono font-medium">
+                <p className="font-mono font-semibold text-sm">
                   {entry.gvwMeasuredKg ? `${entry.gvwMeasuredKg.toLocaleString()} kg` : '-'}
                 </p>
               </div>
               <div className="bg-gray-50 p-3 rounded-lg text-center">
                 <p className="text-xs text-gray-500">Permissible</p>
-                <p className="font-mono font-medium">
+                <p className="font-mono font-semibold text-sm">
                   {entry.gvwPermissibleKg ? `${entry.gvwPermissibleKg.toLocaleString()} kg` : '-'}
                 </p>
               </div>
               <div className="bg-red-50 p-3 rounded-lg text-center">
                 <p className="text-xs text-red-500">Overload</p>
-                <p className="font-mono font-bold text-red-600">
+                <p className="font-mono font-bold text-sm text-red-600">
                   {entry.overloadKg ? `+${entry.overloadKg.toLocaleString()} kg` : '-'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-gray-500">Entered Yard</Label>
-                <p className="text-sm">{formatDateTime(entry.enteredAt)}</p>
+          {/* Vehicle & people */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Vehicle & People</p>
+            <div className="bg-gray-50 rounded-lg px-3">
+              {[
+                { label: 'Driver', value: entry.driverName },
+                { label: 'Transporter', value: entry.transporterName },
+                { label: 'Station', value: entry.stationName },
+                { label: 'Reason', value: YARD_REASON_LABELS[entry.reason] || entry.reason },
+              ].map(({ label, value }) => value ? (
+                <div key={label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-sm text-muted-foreground">{label}</span>
+                  <span className="text-sm font-medium">{value}</span>
+                </div>
+              ) : null)}
+            </div>
+          </div>
+
+          {/* Timestamps & fee */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Timeline & Fees</p>
+            <div className="bg-gray-50 rounded-lg px-3">
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-sm text-muted-foreground">Entered Yard</span>
+                <span className="text-sm font-medium">{formatDateTime(entry.enteredAt)}</span>
               </div>
-              <div>
-                <Label className="text-xs text-gray-500">Fee</Label>
-                <p className="font-mono font-medium">
+              {entry.releasedAt && (
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-muted-foreground">Released</span>
+                  <span className="text-sm font-medium">{formatDateTime(entry.releasedAt)}</span>
+                </div>
+              )}
+              <div className="flex justify-between py-2 last:border-0">
+                <span className="text-sm text-muted-foreground">Fee</span>
+                <span className="text-sm font-medium font-mono">
                   {(entry.totalFeeUsd || entry.totalFeeKes)
                     ? formatFee(entry.totalFeeUsd ?? 0, entry.totalFeeKes, entry.chargingCurrency)
                     : '-'}
-                </p>
+                </span>
               </div>
-              {entry.releasedAt && (
-                <div>
-                  <Label className="text-xs text-gray-500">Released</Label>
-                  <p className="text-sm">{formatDateTime(entry.releasedAt)}</p>
-                </div>
-              )}
             </div>
           </div>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <SheetFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 

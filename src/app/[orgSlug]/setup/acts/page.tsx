@@ -6,7 +6,7 @@ import {
   useAllActs,
   useActConfiguration,
   useSetDefaultAct,
-  useUpdateToleranceSetting,
+  useUpdateActToleranceSetting,
 } from '@/hooks/queries/useActQueries';
 import type {
   ActDefinitionDto,
@@ -61,7 +61,7 @@ function ActsConfigurationContent() {
 
   const { data: actConfig, isLoading: configLoading } = useActConfiguration(activeActId);
   const setDefaultMutation = useSetDefaultAct();
-  const updateToleranceMutation = useUpdateToleranceSetting();
+  const updateToleranceMutation = useUpdateActToleranceSetting();
 
   const handleSetDefault = async (actId: string) => {
     try {

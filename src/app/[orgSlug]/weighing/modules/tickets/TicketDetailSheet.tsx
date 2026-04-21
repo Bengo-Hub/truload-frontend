@@ -4,12 +4,14 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetBody,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { formatFee } from '@/lib/weighing-utils';
 import { cn } from '@/lib/utils';
@@ -51,9 +53,18 @@ function StatusBadge({ status }: { status: string }) {
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === '') return null;
   return (
-    <div className="flex justify-between py-1.5 border-b border-gray-100 last:border-0">
+    <div className="flex justify-between py-2 border-b border-gray-100 last:border-0">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-right">{value}</span>
+      <span className="text-sm font-medium text-right max-w-[60%]">{value}</span>
+    </div>
+  );
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">{title}</h4>
+      <div className="bg-gray-50 rounded-lg px-3">{children}</div>
     </div>
   );
 }
@@ -69,29 +80,23 @@ export default function TicketDetailSheet({
   if (!ticket) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle>Weight Ticket #{ticket.ticketNumber}</DialogTitle>
-              <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <SheetTitle className="truncate">Ticket #{ticket.ticketNumber}</SheetTitle>
+              <SheetDescription>
                 {ticket.vehicleRegNumber} &mdash; {formatDateTime(ticket.weighedAt)}
-              </DialogDescription>
+              </SheetDescription>
             </div>
-            {canPrint && onPrint && (
-              <Button variant="outline" size="sm" onClick={() => onPrint(ticket)}>
-                <Printer className="h-4 w-4 mr-2" />
-                Print
-              </Button>
-            )}
           </div>
-        </DialogHeader>
+        </SheetHeader>
 
-        <div className="space-y-6 mt-2">
-          {/* Compliance Status (enforcement only) */}
+        <SheetBody className="space-y-5">
+          {/* Compliance Status (enforcement) */}
           {!isCommercial && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50">
               <Image
                 src={ticket.isCompliant
                   ? '/images/weighing/greenbutton.png'
@@ -120,106 +125,101 @@ export default function TicketDetailSheet({
 
           {/* Commercial Weight Summary */}
           {isCommercial && (
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Weight Summary</h4>
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-xs text-gray-500">Tare Weight</p>
-                    <p className="text-lg font-bold text-gray-900">{formatWeight(ticket.tareWeightKg ?? 0)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Gross Weight</p>
-                    <p className="text-lg font-bold text-gray-900">{formatWeight(ticket.gvwMeasuredKg)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Net Weight</p>
-                    <p className="text-lg font-bold text-blue-700">{formatWeight(ticket.gvwMeasuredKg - (ticket.tareWeightKg ?? 0))}</p>
-                  </div>
+            <div className="bg-blue-50 rounded-lg p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-3">Weight Summary</p>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-xs text-gray-500">Tare</p>
+                  <p className="text-lg font-bold text-gray-900">{formatWeight(ticket.tareWeightKg ?? 0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Gross</p>
+                  <p className="text-lg font-bold text-gray-900">{formatWeight(ticket.gvwMeasuredKg)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Net</p>
+                  <p className="text-lg font-bold text-blue-700">{formatWeight(ticket.gvwMeasuredKg - (ticket.tareWeightKg ?? 0))}</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Vehicle & Weighing */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">{isCommercial ? 'Vehicle Details' : 'Vehicle & Weighing'}</h4>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <DetailRow label="Vehicle Registration" value={ticket.vehicleRegNumber} />
-              <DetailRow label="Vehicle Make" value={ticket.vehicleMake} />
-              <DetailRow label="Vehicle Type" value={ticket.vehicleType} />
-              {!isCommercial && <DetailRow label="Axle Configuration" value={ticket.axleConfiguration} />}
-              <DetailRow label="Weighing Type" value={ticket.weighingType} />
-              {!isCommercial && <DetailRow label="Bound" value={ticket.bound} />}
-              {!isCommercial && (
-                <>
-                  <DetailRow label="GVW Measured" value={formatWeight(ticket.gvwMeasuredKg)} />
-                  <DetailRow label="GVW Permissible" value={formatWeight(ticket.gvwPermissibleKg)} />
-                  <DetailRow label="Overload" value={ticket.overloadKg > 0 ? formatWeight(ticket.overloadKg) : 'None'} />
-                </>
-              )}
-              {isCommercial && <DetailRow label="Consignment" value={ticket.consignmentNumber} />}
-              {(ticket.totalFeeUsd > 0 || (ticket.totalFeeKes ?? 0) > 0) && (
-                <DetailRow
-                  label={`Fee (${ticket.chargingCurrency || 'USD'})`}
-                  value={formatFee(ticket.totalFeeUsd, ticket.totalFeeKes, ticket.chargingCurrency)}
-                />
-              )}
-            </div>
-          </div>
+          <SectionCard title={isCommercial ? 'Vehicle Details' : 'Vehicle & Weighing'}>
+            <DetailRow label="Vehicle Registration" value={ticket.vehicleRegNumber} />
+            <DetailRow label="Vehicle Make" value={ticket.vehicleMake} />
+            <DetailRow label="Vehicle Type" value={ticket.vehicleType} />
+            {!isCommercial && <DetailRow label="Axle Configuration" value={ticket.axleConfiguration} />}
+            <DetailRow label="Weighing Type" value={ticket.weighingType} />
+            {!isCommercial && <DetailRow label="Bound" value={ticket.bound} />}
+            {!isCommercial && (
+              <>
+                <DetailRow label="GVW Measured" value={formatWeight(ticket.gvwMeasuredKg)} />
+                <DetailRow label="GVW Permissible" value={formatWeight(ticket.gvwPermissibleKg)} />
+                <DetailRow label="Overload" value={ticket.overloadKg > 0 ? formatWeight(ticket.overloadKg) : 'None'} />
+              </>
+            )}
+            {isCommercial && <DetailRow label="Consignment" value={ticket.consignmentNumber} />}
+            {(ticket.totalFeeUsd > 0 || (ticket.totalFeeKes ?? 0) > 0) && (
+              <DetailRow
+                label={`Fee (${ticket.chargingCurrency || 'USD'})`}
+                value={formatFee(ticket.totalFeeUsd, ticket.totalFeeKes, ticket.chargingCurrency)}
+              />
+            )}
+          </SectionCard>
 
-          {/* Axle Weights (enforcement only) */}
+          {/* Axle Weights (enforcement) */}
           {!isCommercial && ticket.weighingAxles && ticket.weighingAxles.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Axle Weights</h4>
-              <div className="bg-gray-50 rounded-lg p-3">
-                {ticket.weighingAxles.map((axle, idx) => {
-                  const overloaded = (axle.overloadKg ?? 0) > 0;
-                  return (
-                    <DetailRow
-                      key={idx}
-                      label={`Axle ${axle.axleNumber ?? idx + 1}`}
-                      value={
-                        <span className={cn(overloaded && 'text-red-600 font-semibold')}>
-                          {formatWeight(axle.measuredWeightKg)}
-                          {axle.permissibleWeightKg ? ` / ${formatWeight(axle.permissibleWeightKg)}` : ''}
-                          {overloaded && ` (+${formatWeight(axle.overloadKg!)})`}
-                        </span>
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </div>
+            <SectionCard title="Axle Weights">
+              {ticket.weighingAxles.map((axle, idx) => {
+                const overloaded = (axle.overloadKg ?? 0) > 0;
+                return (
+                  <DetailRow
+                    key={idx}
+                    label={`Axle ${axle.axleNumber ?? idx + 1}`}
+                    value={
+                      <span className={cn(overloaded && 'text-red-600 font-semibold')}>
+                        {formatWeight(axle.measuredWeightKg)}
+                        {axle.permissibleWeightKg ? ` / ${formatWeight(axle.permissibleWeightKg)}` : ''}
+                        {overloaded && ` (+${formatWeight(axle.overloadKg!)})`}
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </SectionCard>
           )}
 
           {/* People & Route */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">People & Route</h4>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <DetailRow label="Driver" value={ticket.driverName} />
-              <DetailRow label="Transporter" value={ticket.transporterName} />
-              <DetailRow label="Origin" value={ticket.sourceLocation} />
-              <DetailRow label="Destination" value={ticket.destinationLocation} />
-              <DetailRow label="Cargo" value={ticket.cargoType || ticket.cargoDescription} />
-              <DetailRow label="Permit" value={ticket.hasPermit ? (ticket.permitNumber || 'Yes') : 'No'} />
-            </div>
-          </div>
+          <SectionCard title="People & Route">
+            <DetailRow label="Driver" value={ticket.driverName} />
+            <DetailRow label="Transporter" value={ticket.transporterName} />
+            <DetailRow label="Origin" value={ticket.sourceLocation} />
+            <DetailRow label="Destination" value={ticket.destinationLocation} />
+            <DetailRow label="Cargo" value={ticket.cargoType || ticket.cargoDescription} />
+            <DetailRow label="Permit" value={ticket.hasPermit ? (ticket.permitNumber || 'Yes') : 'No'} />
+          </SectionCard>
 
           {/* Station & Officer */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">Station & Officer</h4>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <DetailRow label="Station" value={ticket.stationName} />
-              <DetailRow label="Station Code" value={ticket.stationCode} />
-              <DetailRow label="Weighed By" value={ticket.weighedByUserName} />
-              <DetailRow label="Weighed At" value={formatDateTime(ticket.weighedAt)} />
-              <DetailRow label="Capture Source" value={ticket.captureSource} />
-              <DetailRow label="Reweigh Cycle" value={ticket.reweighCycleNo > 0 ? `#${ticket.reweighCycleNo}` : undefined} />
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <SectionCard title="Station & Officer">
+            <DetailRow label="Station" value={ticket.stationName} />
+            <DetailRow label="Station Code" value={ticket.stationCode} />
+            <DetailRow label="Weighed By" value={ticket.weighedByUserName} />
+            <DetailRow label="Weighed At" value={formatDateTime(ticket.weighedAt)} />
+            <DetailRow label="Capture Source" value={ticket.captureSource} />
+            <DetailRow label="Reweigh Cycle" value={ticket.reweighCycleNo > 0 ? `#${ticket.reweighCycleNo}` : undefined} />
+          </SectionCard>
+        </SheetBody>
+
+        {canPrint && onPrint && (
+          <SheetFooter>
+            <Button variant="outline" onClick={() => onPrint(ticket)}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Ticket
+            </Button>
+          </SheetFooter>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }

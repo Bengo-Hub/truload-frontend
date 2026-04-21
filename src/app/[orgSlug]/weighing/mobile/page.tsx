@@ -37,12 +37,12 @@ import {
     useMyStation,
     usePendingWeighings,
     useProsecutionDefaults,
-    useToleranceSettings,
     useUpdateProsecutionDefaults,
     useUpdateVehicle,
     useVehicleByRegNo,
     useWeighingAxleConfigurations
 } from '@/hooks/queries';
+import { useToleranceSettings } from '@/hooks/queries/useActQueries';
 import { useHasPermission } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useMiddleware } from '@/hooks/useMiddleware';
@@ -1491,7 +1491,7 @@ export default function MobileWeighingPage() {
     return (
       <AppShell title="Commercial Weighing" subtitle={stationDisplayName}>
         <ProtectedRoute requiredPermissions={['weighing.create']}>
-          <CommercialWeighingStepper />
+          <CommercialWeighingStepper mode="mobile" />
         </ProtectedRoute>
       </AppShell>
     );

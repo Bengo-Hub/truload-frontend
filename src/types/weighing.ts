@@ -657,11 +657,24 @@ export interface CommercialWeighingResult {
   // Tolerance
   toleranceExceeded: boolean;
   toleranceDisplay?: string;
+  toleranceExceptionApproved: boolean;
+  toleranceExceptionApprovedBy?: string;
+  toleranceExceptionApprovedAt?: string;
+
+  // Axle / deck weights per pass
+  firstPassAxles: CommercialAxleWeight[];
+  secondPassAxles: CommercialAxleWeight[];
 
   // Metadata
   industryMetadata?: string;
   weighedAt: string;
   createdAt: string;
+}
+
+export interface CommercialAxleWeight {
+  axleNumber: number;
+  weightKg: number;
+  pass: 'first' | 'second';
 }
 
 /** Request to initiate a commercial weighing */
@@ -687,11 +700,15 @@ export interface InitiateCommercialWeighingRequest {
 export interface CaptureFirstWeightRequest {
   weightKg: number;
   weightType: 'tare' | 'gross';
+  /** Per-axle (mobile) or per-deck (multideck) weights in kg. Optional. */
+  axleWeights?: number[];
 }
 
 /** Request to capture the second weight */
 export interface CaptureSecondWeightRequest {
   weightKg: number;
+  /** Per-axle (mobile) or per-deck (multideck) weights for second pass. Optional. */
+  axleWeights?: number[];
 }
 
 /** Request to use stored tare weight */

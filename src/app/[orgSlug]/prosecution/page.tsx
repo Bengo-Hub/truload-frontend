@@ -14,6 +14,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetBody,
+    SheetFooter,
+} from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -602,77 +611,71 @@ function ProsecutionContent() {
         </CardContent>
       </Card>
 
-      {/* Detail Dialog */}
-      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Gavel className="h-5 w-5" />
+      {/* Detail Drawer */}
+      <Sheet open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Gavel className="h-4 w-4" />
               Prosecution Case Details
-            </DialogTitle>
-            <DialogDescription>
-              Case No: {selectedCase?.caseNo}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetTitle>
+            <SheetDescription>Case No: {selectedCase?.caseNo}</SheetDescription>
+          </SheetHeader>
           {selectedCase && (
-            <div className="space-y-6">
-              {/* Case Information */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Vehicle Registration</Label>
-                  <p className="font-medium">{selectedCase.vehicleRegNumber || '-'}</p>
+            <SheetBody className="space-y-5">
+              {/* Status hero */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-xs text-gray-500">Vehicle</p>
+                  <p className="font-mono font-semibold">{selectedCase.vehicleRegNumber || '-'}</p>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <div>{getStatusBadge(selectedCase.status)}</div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Weighing Ticket</Label>
-                  <p className="font-medium">{selectedCase.weighingTicketNo || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Prosecution Officer</Label>
-                  <p className="font-medium">{selectedCase.prosecutionOfficerName || '-'}</p>
+                {getStatusBadge(selectedCase.status)}
+              </div>
+
+              {/* Case info */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Case Information</p>
+                <div className="bg-gray-50 rounded-lg px-3">
+                  {[
+                    { label: 'Weighing Ticket', value: selectedCase.weighingTicketNo || '-' },
+                    { label: 'Prosecution Officer', value: selectedCase.prosecutionOfficerName || '-' },
+                    { label: 'Charge Basis', value: selectedCase.bestChargeBasis },
+                    { label: 'Penalty Multiplier', value: `${selectedCase.penaltyMultiplier}x` },
+                    { label: 'Created', value: formatDate(selectedCase.createdAt) },
+                    { label: 'Updated', value: formatDate(selectedCase.updatedAt) },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className="text-sm font-medium">{value}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Charge Breakdown */}
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <h4 className="text-sm font-semibold mb-3">Charge Breakdown</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">GVW Overload:</span>
-                    <span className="font-mono">{selectedCase.gvwOverloadKg.toLocaleString()} kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">GVW Fee ({selectedCase.chargingCurrency || 'KES'}):</span>
-                    <span className="font-mono">{formatCurrency(
-                      selectedCase.chargingCurrency === 'USD' ? selectedCase.gvwFeeUsd : selectedCase.gvwFeeKes,
-                      selectedCase.chargingCurrency || 'KES'
-                    )}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Max Axle Overload:</span>
-                    <span className="font-mono">{selectedCase.maxAxleOverloadKg.toLocaleString()} kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Max Axle Fee ({selectedCase.chargingCurrency || 'KES'}):</span>
-                    <span className="font-mono">{formatCurrency(
-                      selectedCase.chargingCurrency === 'USD' ? selectedCase.maxAxleFeeUsd : selectedCase.maxAxleFeeKes,
-                      selectedCase.chargingCurrency || 'KES'
-                    )}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Charge Basis:</span>
-                    <Badge variant="outline">{selectedCase.bestChargeBasis}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Penalty Multiplier:</span>
-                    <span className="font-mono">{selectedCase.penaltyMultiplier}x</span>
-                  </div>
+              {/* Charge breakdown */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Charge Breakdown</p>
+                <div className="bg-gray-50 rounded-lg px-3">
+                  {[
+                    { label: 'GVW Overload', value: `${selectedCase.gvwOverloadKg.toLocaleString()} kg` },
+                    { label: `GVW Fee (${selectedCase.chargingCurrency || 'KES'})`, value: formatCurrency(
+                        selectedCase.chargingCurrency === 'USD' ? selectedCase.gvwFeeUsd : selectedCase.gvwFeeKes,
+                        selectedCase.chargingCurrency || 'KES'
+                      )},
+                    { label: 'Max Axle Overload', value: `${selectedCase.maxAxleOverloadKg.toLocaleString()} kg` },
+                    { label: `Max Axle Fee (${selectedCase.chargingCurrency || 'KES'})`, value: formatCurrency(
+                        selectedCase.chargingCurrency === 'USD' ? selectedCase.maxAxleFeeUsd : selectedCase.maxAxleFeeKes,
+                        selectedCase.chargingCurrency || 'KES'
+                      )},
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className="text-sm font-mono font-medium">{value}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="mt-3 pt-3 border-t flex justify-between items-center">
-                  <span className="font-semibold">Total Fine:</span>
+                <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg flex justify-between items-center">
+                  <span className="font-semibold text-sm">Total Fine</span>
                   <div className="text-right">
                     <p className="text-lg font-bold text-primary">{formatCurrency(
                       selectedCase.chargingCurrency === 'USD' ? selectedCase.totalFeeUsd : selectedCase.totalFeeKes,
@@ -680,9 +683,8 @@ function ProsecutionContent() {
                     )}</p>
                     <p className="text-xs text-muted-foreground">
                       {selectedCase.chargingCurrency === 'USD'
-                        ? `(KES ${selectedCase.totalFeeKes.toLocaleString()} @ ${selectedCase.forexRate})`
-                        : `(USD ${selectedCase.totalFeeUsd.toLocaleString()} @ ${selectedCase.forexRate})`
-                      }
+                        ? `KES ${selectedCase.totalFeeKes.toLocaleString()} @ ${selectedCase.forexRate}`
+                        : `USD ${selectedCase.totalFeeUsd.toLocaleString()} @ ${selectedCase.forexRate}`}
                     </p>
                   </div>
                 </div>
@@ -690,31 +692,24 @@ function ProsecutionContent() {
 
               {/* Notes */}
               {selectedCase.caseNotes && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Case Notes</Label>
-                  <p className="text-sm p-3 bg-muted rounded-md">{selectedCase.caseNotes}</p>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Case Notes</p>
+                  <p className="text-sm p-3 bg-amber-50 border border-amber-100 rounded-lg">{selectedCase.caseNotes}</p>
                 </div>
               )}
-
-              {/* Dates */}
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Created: {formatDate(selectedCase.createdAt)}</span>
-                <span>Updated: {formatDate(selectedCase.updatedAt)}</span>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button onClick={() => handleDownloadChargeSheet(selectedCase.id)}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Charge Sheet
-                </Button>
-              </DialogFooter>
-            </div>
+            </SheetBody>
           )}
-        </DialogContent>
-      </Dialog>
+          <SheetFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Close</Button>
+            {selectedCase && (
+              <Button onClick={() => handleDownloadChargeSheet(selectedCase.id)}>
+                <Download className="mr-2 h-4 w-4" />
+                Charge Sheet
+              </Button>
+            )}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

@@ -12,9 +12,16 @@ export interface Vehicle {
   axleConfigurationId?: string;
   transporterId?: string;
   makeModel?: string;
+  make?: string;
+  model?: string;
   chassisNo?: string;
   tareWeight?: number;
   isActive?: boolean;
+  // Commercial tare management fields
+  lastTareWeightKg?: number;
+  defaultTareWeightKg?: number;
+  lastTareWeighedAt?: string;
+  tareExpiryDays?: number;
 }
 
 export interface Driver {
@@ -1247,6 +1254,29 @@ export async function getCommercialTicketPdf(id: string): Promise<Blob> {
   const { data } = await apiClient.get<Blob>(
     `/commercial-weighing/${id}/ticket/pdf`,
     { responseType: 'blob' }
+  );
+  return data;
+}
+
+/**
+ * Get an interim weight ticket PDF after the first weight is captured.
+ * Issued while vehicle unloads/loads between first and second weighing.
+ */
+export async function getInterimTicketPdf(id: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(
+    `/commercial-weighing/${id}/interim-ticket/pdf`,
+    { responseType: 'blob' }
+  );
+  return data;
+}
+
+/**
+ * Approve a tolerance exception for a transaction where discrepancy exceeded tolerance.
+ * Requires weighing.override permission.
+ */
+export async function approveToleranceException(id: string): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${id}/approve-tolerance-exception`
   );
   return data;
 }

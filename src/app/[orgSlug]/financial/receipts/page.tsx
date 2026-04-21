@@ -14,6 +14,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetBody,
+    SheetFooter,
+} from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -438,74 +447,66 @@ export default function ReceiptsPage() {
             </CardContent>
           </Card>
 
-          {/* Details Dialog */}
-          <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Receipt Details</DialogTitle>
-                <DialogDescription>
-                  Receipt #{selectedReceipt?.receiptNo}
-                </DialogDescription>
-              </DialogHeader>
+          {/* Details Drawer */}
+          <Sheet open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Receipt Details</SheetTitle>
+                <SheetDescription>Receipt #{selectedReceipt?.receiptNo}</SheetDescription>
+              </SheetHeader>
               {selectedReceipt && (
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Receipt Number</Label>
-                      <p className="font-medium">{selectedReceipt.receiptNo}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Status</Label>
-                      <div className="mt-1">{getStatusBadge(selectedReceipt.status)}</div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Amount</Label>
-                      <p className="text-xl font-bold">{formatCurrency(selectedReceipt.amountPaid, selectedReceipt.currency)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Payment Method</Label>
-                      <div className="mt-1">{getPaymentMethodBadge(selectedReceipt.paymentMethod)}</div>
+                <SheetBody className="space-y-5">
+                  {/* Amount hero */}
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Amount Paid</p>
+                    <p className="text-3xl font-bold">{formatCurrency(selectedReceipt.amountPaid, selectedReceipt.currency)}</p>
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      {getStatusBadge(selectedReceipt.status)}
+                      {getPaymentMethodBadge(selectedReceipt.paymentMethod)}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Invoice Number</Label>
-                      <p className="font-medium">{selectedReceipt.invoiceNo || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Payment Date</Label>
-                      <p className="font-medium">{formatDate(selectedReceipt.paymentDate || selectedReceipt.createdAt)}</p>
+
+                  {/* Receipt info */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Receipt Information</p>
+                    <div className="bg-gray-50 rounded-lg px-3">
+                      {[
+                        { label: 'Receipt Number', value: selectedReceipt.receiptNo },
+                        { label: 'Invoice Number', value: selectedReceipt.invoiceNo || 'N/A' },
+                        { label: 'Payment Date', value: formatDate(selectedReceipt.paymentDate || selectedReceipt.createdAt) },
+                        ...(selectedReceipt.transactionReference
+                          ? [{ label: 'Transaction Ref', value: selectedReceipt.transactionReference }]
+                          : []),
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+                          <span className="text-sm text-muted-foreground">{label}</span>
+                          <span className="text-sm font-medium font-mono">{value}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  {selectedReceipt.transactionReference && (
-                    <div>
-                      <Label className="text-muted-foreground">Transaction Reference</Label>
-                      <p className="font-mono text-sm">{selectedReceipt.transactionReference}</p>
-                    </div>
-                  )}
+
                   {selectedReceipt.voidedAt && (
                     <div>
-                      <Label className="text-muted-foreground">Void Reason</Label>
-                      <p className="font-medium">{selectedReceipt.voidReason || 'N/A'}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Void Details</p>
+                      <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+                        <p className="text-sm text-red-700">{selectedReceipt.voidReason || 'No reason provided'}</p>
+                      </div>
                     </div>
                   )}
-                </div>
+                </SheetBody>
               )}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
-                  Close
-                </Button>
+              <SheetFooter>
+                <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>Close</Button>
                 {selectedReceipt && (
                   <Button onClick={() => handleDownloadPdf(selectedReceipt)}>
                     <Download className="mr-2 h-4 w-4" />
                     Download PDF
                   </Button>
                 )}
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
 
           {/* Void Dialog */}
           <Dialog open={showVoidDialog} onOpenChange={setShowVoidDialog}>

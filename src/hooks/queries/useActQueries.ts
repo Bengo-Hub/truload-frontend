@@ -118,7 +118,7 @@ export function useSetDefaultAct() {
   });
 }
 
-export function useUpdateToleranceSetting() {
+export function useUpdateActToleranceSetting() {
   const queryClient = useQueryClient();
 
   return useMutation({
