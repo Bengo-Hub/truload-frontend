@@ -10,6 +10,7 @@ import {
   useWeighingStatistics,
   useDownloadWeightTicket,
 } from '@/hooks/queries/useWeighingQueries';
+import { getCommercialTicketPdf } from '@/lib/api/weighing';
 import type { SearchWeighingParams, WeighingTransaction } from '@/lib/api/weighing';
 import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query/config';
@@ -208,13 +209,19 @@ export default function TicketsTab() {
     try {
       setPreviewFileName(`WeightTicket_${ticket.ticketNumber ?? ticket.id}.pdf`);
       setPreviewOpen(true);
-      const result = await downloadTicketMutation.mutateAsync(ticket.id);
-      setPreviewBlob(result.blob);
+      if (isCommercial) {
+        // Commercial mode: use the commercial ticket endpoint
+        const blob = await getCommercialTicketPdf(ticket.id);
+        setPreviewBlob(blob);
+      } else {
+        const result = await downloadTicketMutation.mutateAsync(ticket.id);
+        setPreviewBlob(result.blob);
+      }
     } catch {
       toast.error('Failed to generate weight ticket');
       setPreviewOpen(false);
     }
-  }, [downloadTicketMutation]);
+  }, [downloadTicketMutation, isCommercial]);
 
   return (
     <div className="space-y-4">
@@ -254,6 +261,7 @@ export default function TicketsTab() {
         isFetching={isFetching}
         canExport={canExport}
         hasActiveFilters={hasActiveFilters}
+        isCommercial={isCommercial}
       />
 
       {/* View */}

@@ -153,8 +153,29 @@ export interface WeighingTransaction {
   permitNumber?: string;
 
   // Commercial weighing fields
+  weighingMode?: string;
   tareWeightKg?: number;
+  grossWeightKg?: number;
+  netWeightKg?: number;
+  firstWeightKg?: number;
+  firstWeightType?: string;
+  firstWeightAt?: string;
+  secondWeightKg?: number;
+  secondWeightType?: string;
+  secondWeightAt?: string;
+  tareSource?: string;
   consignmentNumber?: string;
+  orderReference?: string;
+  expectedNetWeightKg?: number;
+  weightDiscrepancyKg?: number;
+  sealNumbers?: string;
+  trailerRegNo?: string;
+  remarks?: string;
+  qualityDeductionKg?: number;
+  adjustedNetWeightKg?: number;
+  toleranceExceeded?: boolean;
+  toleranceDisplay?: string;
+  toleranceExceptionApproved?: boolean;
 
   // Scale test
   scaleTestId?: string;

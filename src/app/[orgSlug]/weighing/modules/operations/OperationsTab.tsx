@@ -226,8 +226,7 @@ export default function OperationsTab() {
                     <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mb-2">
                       <Truck className="h-6 w-6 text-purple-600" />
                     </div>
-                    <h3 className="text-sm font-bold text-gray-900">Commercial (Mobile)</h3>
-                    <p className="text-[10px] text-center uppercase font-bold tracking-tighter text-purple-600 mt-0.5">No Enforcement</p>
+                    <h3 className="text-sm font-bold text-gray-900">Mobile</h3>
                   </button>
                   <button
                     onClick={() => handleWeighingTypeSelect('multideck-commercial')}
@@ -236,8 +235,7 @@ export default function OperationsTab() {
                     <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center mb-2">
                       <Gauge className="h-6 w-6 text-orange-600" />
                     </div>
-                    <h3 className="text-sm font-bold text-gray-900">Commercial (Deck)</h3>
-                    <p className="text-[10px] text-center uppercase font-bold tracking-tighter text-orange-600 mt-0.5">No Enforcement</p>
+                    <h3 className="text-sm font-bold text-gray-900">Multi-deck</h3>
                   </button>
                 </>
               ) : (
@@ -284,45 +282,92 @@ export default function OperationsTab() {
                 <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                    <Truck className="h-4 w-4 text-blue-600" />
+              isCommercialTenant ? (
+                /* Commercial: show throughput, net weight, completed, tolerance flags */
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                    <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                      <Truck className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Vehicles Weighed</p>
+                      <p className="text-lg font-bold text-gray-900">{todayStats?.total || 0}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">Total Weighings</p>
-                    <p className="text-lg font-bold text-gray-900">{todayStats?.total || 0}</p>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-50 border border-green-100">
+                    <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Completed</p>
+                      <p className="text-lg font-bold text-green-600">{todayStats?.compliant ?? 0}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-purple-50 border border-purple-100">
+                    <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                      <Scale className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Total Net (t)</p>
+                      <p className="text-sm font-bold text-purple-600">
+                        {((todayStats as any)?.totalNetWeightKg ?? 0) > 0
+                          ? (((todayStats as any).totalNetWeightKg) / 1000).toFixed(1)
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+                    <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Tolerance Flags</p>
+                      <p className="text-sm font-bold text-amber-600">{todayStats?.overloaded ?? 0}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-50 border border-green-100">
-                  <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="h-4 w-4 text-green-600" />
+              ) : (
+                /* Enforcement: show compliance rate, overloads, warnings */
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                    <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                      <Truck className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Total Weighings</p>
+                      <p className="text-lg font-bold text-gray-900">{todayStats?.total || 0}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">Compliance Rate</p>
-                    <p className="text-lg font-bold text-green-600">{todayStats?.complianceRate ?? 100}%</p>
-                    <p className="text-[10px] text-green-600">{todayStats?.compliant ?? 0} compliant</p>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-50 border border-green-100">
+                    <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Compliance Rate</p>
+                      <p className="text-lg font-bold text-green-600">{todayStats?.complianceRate ?? 100}%</p>
+                      <p className="text-[10px] text-green-600">{todayStats?.compliant ?? 0} compliant</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-50 border border-red-100">
+                    <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Overloads</p>
+                      <p className="text-sm font-bold text-red-600">{todayStats?.overloaded ?? 0}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-yellow-50 border border-yellow-100">
+                    <div className="h-8 w-8 rounded-lg bg-yellow-100 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Warnings</p>
+                      <p className="text-sm font-bold text-yellow-600">{todayStats?.warnings ?? 0}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-50 border border-red-100">
-                  <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                    <XCircle className="h-4 w-4 text-red-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">Overloads</p>
-                    <p className="text-sm font-bold text-red-600">{todayStats?.overloaded ?? 0}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-yellow-50 border border-yellow-100">
-                  <div className="h-8 w-8 rounded-lg bg-yellow-100 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">Warnings</p>
-                    <p className="text-sm font-bold text-yellow-600">{todayStats?.warnings ?? 0}</p>
-                  </div>
-                </div>
-              </div>
+              )
             )}
           </CardContent>
         </Card>

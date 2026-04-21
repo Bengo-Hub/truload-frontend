@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import OperationsTab from './modules/operations/OperationsTab';
 import TicketsTab from './modules/tickets/TicketsTab';
 import YardListTab from './modules/yard/YardListTab';
@@ -21,20 +22,20 @@ import TagsTab from './modules/tags/TagsTab';
  * @see WEIGHING_SCREEN_SPECIFICATION.md for detailed requirements
  */
 export default function WeighingPage() {
+  const { isCommercial } = useModuleAccess();
+
   return (
     <AppShell
       title="Weighing"
-      subtitle="KURAWeigh - Vehicle Weighing & Management System"
+      subtitle={isCommercial ? 'TruLoad — Commercial Weighing' : 'KURAWeigh - Vehicle Weighing & Management System'}
     >
       <ProtectedRoute requiredPermissions={['weighing.read']}>
         <div className="space-y-6">
-          {/* Page Header */}
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Weighing Module</h1>
             <p className="text-sm text-gray-500">Manage all weighing operations and tickets</p>
           </div>
 
-          {/* Tabs */}
           <Tabs defaultValue="operations" className="w-full">
             <TabsList className="inline-flex h-11 items-center justify-center rounded-full bg-gray-100 p-1">
               <TabsTrigger
@@ -49,18 +50,23 @@ export default function WeighingPage() {
               >
                 Weight Tickets
               </TabsTrigger>
-              <TabsTrigger
-                value="yard"
-                className="rounded-full px-6 py-2 text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
-              >
-                Yard List
-              </TabsTrigger>
-              <TabsTrigger
-                value="tags"
-                className="rounded-full px-6 py-2 text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
-              >
-                Tags
-              </TabsTrigger>
+              {/* Yard List and Tags are enforcement-only — commercial tenants don't use them */}
+              {!isCommercial && (
+                <>
+                  <TabsTrigger
+                    value="yard"
+                    className="rounded-full px-6 py-2 text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  >
+                    Yard List
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="tags"
+                    className="rounded-full px-6 py-2 text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  >
+                    Tags
+                  </TabsTrigger>
+                </>
+              )}
             </TabsList>
 
             <TabsContent value="operations" className="mt-6">
@@ -71,13 +77,16 @@ export default function WeighingPage() {
               <TicketsTab />
             </TabsContent>
 
-            <TabsContent value="yard" className="mt-6">
-              <YardListTab />
-            </TabsContent>
-
-            <TabsContent value="tags" className="mt-6">
-              <TagsTab />
-            </TabsContent>
+            {!isCommercial && (
+              <>
+                <TabsContent value="yard" className="mt-6">
+                  <YardListTab />
+                </TabsContent>
+                <TabsContent value="tags" className="mt-6">
+                  <TagsTab />
+                </TabsContent>
+              </>
+            )}
           </Tabs>
         </div>
       </ProtectedRoute>
