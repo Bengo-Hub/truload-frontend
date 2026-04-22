@@ -67,6 +67,7 @@ export default function CaseRegisterPage() {
     pageSize: 10,
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [vehicleRegTerm, setVehicleRegTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   // Query hooks
@@ -85,9 +86,10 @@ export default function CaseRegisterPage() {
     setFilters(prev => ({
       ...prev,
       caseNo: searchTerm || undefined,
+      vehicleRegNumber: vehicleRegTerm || undefined,
       pageNumber: 1,
     }));
-  }, [searchTerm]);
+  }, [searchTerm, vehicleRegTerm]);
 
   // Handle filter change
   const handleFilterChange = useCallback((key: keyof CaseSearchParams, value: string | undefined) => {
@@ -107,6 +109,7 @@ export default function CaseRegisterPage() {
   const handleResetFilters = useCallback(() => {
     setFilters({ pageNumber: 1, pageSize: 10 });
     setSearchTerm('');
+    setVehicleRegTerm('');
   }, []);
 
   // Get status badge color
@@ -250,13 +253,23 @@ export default function CaseRegisterPage() {
             </CardHeader>
             <CardContent>
               {/* Search Bar */}
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex-1 relative">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className="flex-1 min-w-[180px] relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search by case number or vehicle reg..."
+                    placeholder="Case number..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex-1 min-w-[180px] relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Vehicle reg (e.g. KCX091X)..."
+                    value={vehicleRegTerm}
+                    onChange={(e) => setVehicleRegTerm(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     className="pl-10"
                   />

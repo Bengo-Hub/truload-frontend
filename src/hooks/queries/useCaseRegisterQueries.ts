@@ -22,7 +22,7 @@ export const CASE_QUERY_KEYS = {
   specialReleases: ['special-releases'] as const,
   specialReleaseById: (id: string) => ['special-releases', 'detail', id] as const,
   specialReleasesByCase: (caseId: string) => ['special-releases', 'by-case', caseId] as const,
-  pendingReleases: ['special-releases', 'pending'] as const,
+  pendingReleases: (params?: caseApi.PendingSpecialReleasesParams) => ['special-releases', 'pending', params ?? {}] as const,
   releaseTypes: ['release-types'] as const,
 };
 
@@ -292,12 +292,12 @@ export function useSpecialReleasesByCase(caseId?: string) {
 }
 
 /**
- * Get pending special releases
+ * Get pending special releases with optional search/filter params
  */
-export function usePendingSpecialReleases() {
+export function usePendingSpecialReleases(params?: caseApi.PendingSpecialReleasesParams) {
   return useQuery({
-    queryKey: CASE_QUERY_KEYS.pendingReleases,
-    queryFn: caseApi.getPendingSpecialReleases,
+    queryKey: CASE_QUERY_KEYS.pendingReleases(params),
+    queryFn: () => caseApi.getPendingSpecialReleases(params),
     ...QUERY_OPTIONS.dynamic,
   });
 }
@@ -327,7 +327,7 @@ export function useCreateSpecialRelease() {
     mutationFn: caseApi.createSpecialRelease,
     onSuccess: (newRelease) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.specialReleases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.pendingReleases });
+      queryClient.invalidateQueries({ queryKey: ['special-releases', 'pending'] });
       queryClient.invalidateQueries({
         queryKey: CASE_QUERY_KEYS.specialReleasesByCase(newRelease.caseRegisterId),
       });
@@ -346,7 +346,7 @@ export function useApproveSpecialRelease() {
     mutationFn: (id: string) => caseApi.approveSpecialRelease(id),
     onSuccess: (approvedRelease) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.specialReleases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.pendingReleases });
+      queryClient.invalidateQueries({ queryKey: ['special-releases', 'pending'] });
       queryClient.invalidateQueries({
         queryKey: CASE_QUERY_KEYS.specialReleasesByCase(approvedRelease.caseRegisterId),
       });
@@ -368,7 +368,7 @@ export function useRejectSpecialRelease() {
       caseApi.rejectSpecialRelease(id, reason),
     onSuccess: (rejectedRelease) => {
       queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.specialReleases });
-      queryClient.invalidateQueries({ queryKey: CASE_QUERY_KEYS.pendingReleases });
+      queryClient.invalidateQueries({ queryKey: ['special-releases', 'pending'] });
       queryClient.invalidateQueries({
         queryKey: CASE_QUERY_KEYS.specialReleasesByCase(rejectedRelease.caseRegisterId),
       });

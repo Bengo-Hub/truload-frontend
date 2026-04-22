@@ -50,6 +50,8 @@ interface MenuItem {
   permissions: string[];
   /** Module key for tenant-based visibility; must be in user.enabledModules (or all if superuser / no list). */
   moduleKey: string;
+  /** When true, item is only visible for CommercialWeighing tenants (even if no module filter is set). */
+  commercialOnly?: boolean;
 }
 
 interface MenuSection {
@@ -65,7 +67,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissions: [], moduleKey: 'dashboard' },
       { href: '/weighing', label: 'Weighing', icon: Weight, permissions: ['weighing.read'], moduleKey: 'weighing' },
-      { href: '/weighing/tare-register', label: 'Tare Register', icon: Scale, permissions: ['weighing.read'], moduleKey: 'tare_register' },
+      { href: '/weighing/tare-register', label: 'Tare Register', icon: Scale, permissions: ['weighing.read'], moduleKey: 'tare_register', commercialOnly: true },
       { href: '/cases', label: 'Case Register', icon: FolderOpen, permissions: ['case.read'], moduleKey: 'cases' },
       { href: '/case-management', label: 'Case management', icon: LayoutList, permissions: ['case.read'], moduleKey: 'case_management' },
       { href: '/cases/special-releases', label: 'Special releases', icon: ShieldAlert, permissions: ['case.special_release'], moduleKey: 'special_releases' },
@@ -81,7 +83,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/financial/invoices', label: 'Invoices', icon: Receipt, permissions: ['invoice.read'], moduleKey: 'financial_invoices' },
       { href: '/financial/receipts', label: 'Receipts', icon: CreditCard, permissions: ['receipt.read'], moduleKey: 'financial_receipts' },
-      { href: '/billing', label: 'Billing & Plans', icon: CreditCard, permissions: ['invoice.read'], moduleKey: 'billing' },
+      { href: '/billing', label: 'Billing & Plans', icon: CreditCard, permissions: ['invoice.read'], moduleKey: 'billing', commercialOnly: true },
     ],
   },
   {
@@ -90,7 +92,7 @@ const menuSections: MenuSection[] = [
       { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.read'], moduleKey: 'setup_axle' },
       { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read'], moduleKey: 'setup_weighing_metadata' },
       { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
-      { href: '/setup/tolerance', label: 'Tolerance Settings', icon: Sliders, permissions: ['config.read'], moduleKey: 'setup_tolerance' },
+      { href: '/setup/tolerance', label: 'Tolerance Settings', icon: Sliders, permissions: ['config.read'], moduleKey: 'setup_tolerance', commercialOnly: true },
       { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['config.read'], moduleKey: 'setup_system_config' },
     ],
   },
@@ -140,15 +142,18 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
     const isSuperUser = user.isSuperUser === true;
     const enabledModules = user.enabledModules ?? [];
     const hasModuleFilter = enabledModules.length > 0;
+    const isCommercial = user.tenantType === 'CommercialWeighing' || user.isCommercialTenant === true;
     return menuSections
       .map((section) => ({
         ...section,
         items: section.items.filter((item) => {
+          // Commercial-only items: never show for enforcement tenants (regardless of superuser status)
+          if (item.commercialOnly && !isCommercial) return false;
           // Tenant module filter: if org has enabledModules and user is not superuser, hide items whose moduleKey is not enabled
           if (hasModuleFilter && !isSuperUser && !enabledModules.includes(item.moduleKey)) return false;
-          // No permissions required = always visible (subject to module filter above)
+          // No permissions required = always visible (subject to filters above)
           if (item.permissions.length === 0) return true;
-          // Superuser sees everything (module filter already passed)
+          // Superuser sees everything (filters already passed)
           if (isSuperUser) return true;
           // User needs at least one of the listed permissions
           return item.permissions.some((p) => userPerms.includes(p.toLowerCase()));

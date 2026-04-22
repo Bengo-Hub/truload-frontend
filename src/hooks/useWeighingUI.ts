@@ -236,7 +236,15 @@ export function useWeighingUI(options: UseWeighingUIOptions = {}) {
       setIsVehicleMakeModalOpen(false);
       toast.success('Vehicle make added successfully');
     } catch (error) {
-      toast.error('Failed to add vehicle make');
+      const axiosErr = error as import('axios').AxiosError<string>;
+      const status = axiosErr?.response?.status;
+      if (status === 409) {
+        toast.error('A vehicle make with this code already exists. Please use a different name.');
+      } else if (status === 400 && axiosErr.response?.data && typeof axiosErr.response.data === 'string') {
+        toast.error(axiosErr.response.data);
+      } else {
+        toast.error('Failed to add vehicle make');
+      }
       throw error;
     } finally {
       setIsSavingEntity(false);

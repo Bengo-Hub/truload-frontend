@@ -385,11 +385,30 @@ export async function getSpecialReleasesByCase(caseRegisterId: string): Promise<
   return data;
 }
 
+export interface PendingSpecialReleasesParams {
+  caseNo?: string;
+  releaseType?: string;
+  from?: string;
+  to?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export interface PagedSpecialReleasesResponse {
+  items: SpecialReleaseDto[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 /**
- * Get pending special releases
+ * Get pending special releases (not yet approved or rejected)
  */
-export async function getPendingSpecialReleases(): Promise<SpecialReleaseDto[]> {
-  const { data } = await apiClient.get<SpecialReleaseDto[]>('/case/special-releases/pending');
+export async function getPendingSpecialReleases(
+  params?: PendingSpecialReleasesParams
+): Promise<PagedSpecialReleasesResponse> {
+  const { data } = await apiClient.get<PagedSpecialReleasesResponse>('/case/special-releases/pending', { params });
   return data;
 }
 
