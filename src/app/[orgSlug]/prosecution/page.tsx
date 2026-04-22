@@ -131,7 +131,8 @@ function ProsecutionContent() {
   const handleSearch = useCallback(() => {
     setFilters(prev => ({
       ...prev,
-      caseNo: searchTerm || undefined,
+      generalSearch: searchTerm || undefined,
+      caseNo: undefined,
       vehicleRegNumber: undefined,
       pageNumber: 1,
     }));

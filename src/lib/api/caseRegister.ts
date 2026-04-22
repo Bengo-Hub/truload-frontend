@@ -105,6 +105,7 @@ export interface CloseCaseRequest {
 }
 
 export interface CaseSearchParams {
+  generalSearch?: string;
   caseNo?: string;
   vehicleRegNumber?: string;
   stationId?: string;

@@ -72,6 +72,7 @@ export interface UpdateProsecutionRequest {
 }
 
 export interface ProsecutionSearchCriteria {
+  generalSearch?: string;
   caseNo?: string;
   vehicleRegNumber?: string;
   stationId?: string;
