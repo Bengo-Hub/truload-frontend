@@ -2,7 +2,6 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useHasPermission } from '@/hooks/useAuth';
-import { useCanDelete } from '@/hooks/useCanDelete';
 import type { WeightRefLookupData } from '@/lib/api/setup';
 import {
 	createAxleConfiguration,
@@ -209,7 +208,7 @@ export default function AxleConfigurationsPage() {
 
 function AxleConfigurationsContent() {
 	const canEdit = useHasPermission('config.manage_axle');
-	const canDelete = useCanDelete();
+	const canDelete = useHasPermission('config.manage_axle');
 	const queryClient = useQueryClient();
 
 	// State

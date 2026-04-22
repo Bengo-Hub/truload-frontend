@@ -61,7 +61,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useHasPermission } from "@/hooks/useAuth";
-import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   adminResetPassword,
   assignRoles,
@@ -1411,9 +1410,7 @@ export default function AccountsTab() {
   // -- Permissions
   const canCreate = useHasPermission("user.create");
   const canEdit = useHasPermission("user.update");
-  const hasDeletePermission = useHasPermission("user.delete");
-  const platformCanDelete = useCanDelete();
-  const canDelete = hasDeletePermission && platformCanDelete;
+  const canDelete = useHasPermission("user.delete");
   const canAssignRoles = useHasPermission("user.assign_roles");
 
   const queryClient = useQueryClient();
@@ -1478,9 +1475,9 @@ export default function AccountsTab() {
   const activeDepartments = departments.filter((d) => d.isActive);
   const hasActiveFilters = !!(search || roleFilter || orgFilter || deptFilter);
 
-  // Station dropdown: only superuser or HQ users can select any station; others see only their assigned station (disabled)
+  // Station dropdown: superuser, HQ users, or users with user.assign_roles permission can assign any station
   const currentUser = useAuthStore((s) => s.user);
-  const canSelectStation = (currentUser?.isSuperUser ?? false) || (currentUser?.isHqUser ?? false);
+  const canSelectStation = (currentUser?.isSuperUser ?? false) || (currentUser?.isHqUser ?? false) || canAssignRoles;
   const stationsForForm = useMemo(
     () =>
       canSelectStation
