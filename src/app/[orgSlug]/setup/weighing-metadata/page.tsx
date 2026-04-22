@@ -1063,8 +1063,14 @@ function VehicleMakesTab() {
         toast.success('Vehicle make created');
       }
       setModalOpen(false);
-    } catch {
-      toast.error('Failed to save vehicle make');
+    } catch (error) {
+      const axiosErr = error as import('axios').AxiosError<string>;
+      const status = axiosErr?.response?.status;
+      if (status === 409) {
+        toast.error('A vehicle make with this code already exists. Try a different name.');
+      } else {
+        toast.error('Failed to save vehicle make');
+      }
     }
   };
 
