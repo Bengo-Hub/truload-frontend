@@ -84,6 +84,7 @@ export interface OrganizationDto {
   commercialWeighingFeeKes?: number | null;
   defaultTareExpiryDays?: number | null;
   paymentGateway?: string | null;
+  ssoTenantSlug?: string | null;
 }
 
 export interface UpdateCommercialSettingsRequest {

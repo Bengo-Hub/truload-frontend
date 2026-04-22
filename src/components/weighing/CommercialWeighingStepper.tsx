@@ -43,6 +43,8 @@ import {
   updateQualityDeduction,
   useStoredTare,
 } from '@/lib/api/weighing';
+import { getCurrentOrganization } from '@/lib/api/setup';
+import { TreasuryCheckoutDialog } from '@/components/payments/TreasuryCheckoutDialog';
 import type {
   CommercialWeighingResult,
   CommercialWeighingStep,
@@ -51,6 +53,7 @@ import type {
 import { cn } from '@/lib/utils';
 import { formatWeight } from '@/lib/weighing-utils';
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock, Loader2, ShieldCheck } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -101,6 +104,9 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const [isTareExpired, setIsTareExpired] = useState(false);
   const [tareExpiryDaysLeft, setTareExpiryDaysLeft] = useState<number | null>(null);
 
+  // Payment modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
   // Quality deduction
   const [qualityDeductionKg, setQualityDeductionKg] = useState(0);
   const [qualityDeductionReason, setQualityDeductionReason] = useState('');
@@ -118,6 +124,15 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     expectedNetWeightKg: '',
     remarks: '',
   });
+
+  // Org info — needed to check if fee charging is configured
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', 'current'],
+    queryFn: getCurrentOrganization,
+    staleTime: 5 * 60 * 1000,
+  });
+  const feeIsConfigured = (orgData?.commercialWeighingFeeKes ?? 0) > 0 && !!orgData?.paymentGateway;
+  const tenantSlug = orgData?.ssoTenantSlug ?? '';
 
   const weighingUI = useWeighingUI({ stationId: currentStation?.id });
   const {
@@ -813,6 +828,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               isApplyingDeduction={isApplyingDeduction}
               onPrintTicket={handlePrintTicket}
               onComplete={handleComplete}
+              onCollectPayment={feeIsConfigured && result.treasuryPaymentUrl ? () => setShowPaymentModal(true) : undefined}
               isLoading={isLoading}
             />
           </div>
@@ -874,6 +890,27 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Treasury payment dialog — shown when Pay button clicked on ticket step */}
+      {showPaymentModal && result?.treasuryPaymentUrl && (
+        <TreasuryCheckoutDialog
+          open={showPaymentModal}
+          onOpenChange={setShowPaymentModal}
+          invoiceNo={result.invoiceNo ?? result.ticketNumber ?? ''}
+          amountDue={result.invoiceAmountKes ?? orgData?.commercialWeighingFeeKes ?? 0}
+          currency="KES"
+          treasuryPaymentUrl={result.treasuryPaymentUrl}
+          paymentIntentId={result.treasuryIntentId}
+          treasuryIntentStatus={result.invoiceStatus === 'paid' ? 'succeeded' : undefined}
+          onPaymentConfirmed={() => {
+            setShowPaymentModal(false);
+            toast.success('Payment confirmed. Transaction complete.');
+            if (transactionId) {
+              getCommercialResult(transactionId).then((updated) => setResult(updated));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

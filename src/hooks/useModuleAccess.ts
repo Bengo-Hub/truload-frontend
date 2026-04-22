@@ -72,5 +72,6 @@ export function useModuleAccess() {
     showTareRegister: isCommercial && hasModule('tare_register'),
     showToleranceSettings: isCommercial && hasModule('setup_tolerance'),
     showCommercialReports: isCommercial && hasModule('reporting'),
+    showBilling: isCommercial,
   };
 }

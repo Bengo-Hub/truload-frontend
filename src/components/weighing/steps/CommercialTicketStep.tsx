@@ -9,7 +9,7 @@ import { CommercialNetWeightDisplay } from '@/components/weighing/CommercialNetW
 import { cn } from '@/lib/utils';
 import { formatWeight } from '@/lib/weighing-utils';
 import type { CommercialWeighingResult } from '@/types/weighing';
-import { AlertTriangle, CheckCircle2, FileDown, Printer } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CreditCard, FileDown, Printer } from 'lucide-react';
 import { useState } from 'react';
 
 interface CommercialTicketStepProps {
@@ -30,6 +30,8 @@ interface CommercialTicketStepProps {
   onPrintTicket: () => void;
   /** Complete transaction callback */
   onComplete: () => void;
+  /** Open treasury payment modal (commercial only) */
+  onCollectPayment?: () => void;
   /** Whether operations are loading */
   isLoading: boolean;
   className?: string;
@@ -61,6 +63,7 @@ export function CommercialTicketStep({
   isApplyingDeduction,
   onPrintTicket,
   onComplete,
+  onCollectPayment,
   isLoading,
   className,
 }: CommercialTicketStepProps) {
@@ -299,6 +302,18 @@ export function CommercialTicketStep({
             <FileDown className="h-4 w-4" />
             Download PDF
           </Button>
+          {onCollectPayment && (
+            <Button
+              size="lg"
+              variant="outline"
+              className="gap-2 border-amber-500 text-amber-700 hover:bg-amber-50"
+              onClick={onCollectPayment}
+              disabled={isLoading || result.invoiceStatus === 'paid'}
+            >
+              <CreditCard className="h-4 w-4" />
+              {result.invoiceStatus === 'paid' ? 'Paid' : `Pay ${result.invoiceAmountKes ? `KES ${result.invoiceAmountKes.toLocaleString()}` : 'Fee'}`}
+            </Button>
+          )}
           <Button
             size="lg"
             className="bg-green-600 hover:bg-green-700 text-white gap-2"

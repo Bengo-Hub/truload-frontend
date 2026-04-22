@@ -665,6 +665,13 @@ export interface CommercialWeighingResult {
   firstPassAxles: CommercialAxleWeight[];
   secondPassAxles: CommercialAxleWeight[];
 
+  // Invoice / payment (populated once weighing completes)
+  invoiceNo?: string;
+  invoiceStatus?: string;
+  invoiceAmountKes?: number;
+  treasuryIntentId?: string;
+  treasuryPaymentUrl?: string;
+
   // Metadata
   industryMetadata?: string;
   weighedAt: string;

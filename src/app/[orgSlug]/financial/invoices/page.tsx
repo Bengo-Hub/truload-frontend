@@ -5,6 +5,9 @@ import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { AppShell } from '@/components/layout/AppShell';
 import { PesaflowCheckoutDialog } from '@/components/payments/PesaflowCheckoutDialog';
 import { ReconcileDialog } from '@/components/payments/ReconcileDialog';
+import { TreasuryCheckoutDialog } from '@/components/payments/TreasuryCheckoutDialog';
+import { TreasuryManualReconcileDialog } from '@/components/payments/TreasuryManualReconcileDialog';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,6 +80,7 @@ export default function InvoicesPage() {
   const canRead = useHasPermission('invoice.read');
   const canUpdate = useHasPermission('invoice.update');
   const canVoid = useHasPermission('invoice.void');
+  const { isCommercial } = useModuleAccess();
 
   // Search state
   const [searchCriteria, setSearchCriteria] = useState<InvoiceSearchCriteria>({
@@ -90,6 +94,8 @@ export default function InvoicesPage() {
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [showReconcileDialog, setShowReconcileDialog] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
+  const [showTreasuryCheckout, setShowTreasuryCheckout] = useState(false);
+  const [showTreasuryReconcile, setShowTreasuryReconcile] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [voidReason, setVoidReason] = useState('');
 
@@ -122,26 +128,40 @@ export default function InvoicesPage() {
 
   const handleMarkAsPaid = (invoice: InvoiceDto) => {
     setSelectedInvoice(invoice);
-    setShowReconcileDialog(true);
+    if (invoice.invoiceType === 'commercial_weighing_fee') {
+      setShowTreasuryReconcile(true);
+    } else {
+      setShowReconcileDialog(true);
+    }
   };
 
   const handlePay = async (invoice: InvoiceDto) => {
     setSelectedInvoice(invoice);
 
+    // Commercial invoices use treasury payment
+    if (invoice.invoiceType === 'commercial_weighing_fee') {
+      if (invoice.treasuryPaymentUrl) {
+        setShowTreasuryCheckout(true);
+      } else {
+        toast.error('No payment link available. The invoice may still be processing.');
+      }
+      return;
+    }
+
+    // Enforcement invoices use Pesaflow
     if (invoice.pesaflowPaymentLink) {
       setShowCheckoutDialog(true);
       return;
     }
 
-    // Generate link if missing
+    // Generate Pesaflow link if missing
     try {
       setIsGeneratingLink(true);
       const result = await createPesaflowInvoice(invoice.id, {
-        clientName: 'Client', // Ideally pull from case details if available
+        clientName: 'Client',
       });
 
       if (result.success && result.paymentLink) {
-        // Update local state temporarily or refetch
         invoice.pesaflowPaymentLink = result.paymentLink;
         invoice.pesaflowInvoiceNumber = result.pesaflowInvoiceNumber || undefined;
         setShowCheckoutDialog(true);
@@ -235,7 +255,7 @@ export default function InvoicesPage() {
   }
 
   return (
-    <AppShell title="Invoice Management" subtitle="Manage prosecution invoices, payments, and billing">
+    <AppShell title="Invoice Management" subtitle={isCommercial ? "Manage weighing invoices and payments" : "Manage prosecution invoices, payments, and billing"}>
       <ProtectedRoute requiredPermissions={['invoice.read']} moduleKey="financial_invoices">
         <div className="space-y-6">
           {/* Page Header */}
@@ -243,7 +263,7 @@ export default function InvoicesPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Invoice Management</h1>
               <p className="text-muted-foreground">
-                Manage prosecution invoices, payments, and billing
+                {isCommercial ? 'Manage weighing invoices and payments' : 'Manage prosecution invoices, payments, and billing'}
               </p>
             </div>
           </div>
@@ -513,7 +533,7 @@ export default function InvoicesPage() {
                     />
                   )}
 
-                  {/* Checkout Dialog */}
+                  {/* Enforcement: Pesaflow Checkout */}
                   {selectedInvoice && (
                     <PesaflowCheckoutDialog
                       open={showCheckoutDialog}
@@ -525,6 +545,42 @@ export default function InvoicesPage() {
                       onPaymentConfirmed={() => {
                         queryClient.invalidateQueries({ queryKey: ['invoices'] });
                         queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
+                      }}
+                    />
+                  )}
+
+                  {/* Commercial: Treasury Checkout */}
+                  {selectedInvoice?.treasuryPaymentUrl && (
+                    <TreasuryCheckoutDialog
+                      open={showTreasuryCheckout}
+                      onOpenChange={setShowTreasuryCheckout}
+                      invoiceNo={selectedInvoice.invoiceNo}
+                      amountDue={selectedInvoice.amountDue}
+                      currency={selectedInvoice.currency}
+                      treasuryPaymentUrl={selectedInvoice.treasuryPaymentUrl}
+                      paymentIntentId={selectedInvoice.treasuryIntentId}
+                      treasuryIntentStatus={selectedInvoice.treasuryIntentStatus}
+                      onPaymentConfirmed={() => {
+                        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+                        queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
+                        setShowTreasuryCheckout(false);
+                      }}
+                    />
+                  )}
+
+                  {/* Commercial: Manual/Cash Reconcile */}
+                  {selectedInvoice?.invoiceType === 'commercial_weighing_fee' && (
+                    <TreasuryManualReconcileDialog
+                      open={showTreasuryReconcile}
+                      onOpenChange={setShowTreasuryReconcile}
+                      invoiceId={selectedInvoice.id}
+                      invoiceNo={selectedInvoice.invoiceNo}
+                      amountDue={selectedInvoice.amountDue}
+                      currency={selectedInvoice.currency}
+                      onReconciled={() => {
+                        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+                        queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
+                        setShowTreasuryReconcile(false);
                       }}
                     />
                   )}

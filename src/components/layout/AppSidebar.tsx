@@ -81,6 +81,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/financial/invoices', label: 'Invoices', icon: Receipt, permissions: ['invoice.read'], moduleKey: 'financial_invoices' },
       { href: '/financial/receipts', label: 'Receipts', icon: CreditCard, permissions: ['receipt.read'], moduleKey: 'financial_receipts' },
+      { href: '/billing', label: 'Billing & Plans', icon: CreditCard, permissions: ['invoice.read'], moduleKey: 'billing' },
     ],
   },
   {
