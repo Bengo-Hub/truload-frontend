@@ -455,6 +455,10 @@ export default function CaseDetailPage() {
                             <p className="font-medium">{caseData.driverNtacNo || '-'}</p>
                           </div>
                           <div>
+                            <Label className="text-sm text-gray-500">Transporter</Label>
+                            <p className="font-medium">{caseData.transporterName || '-'}</p>
+                          </div>
+                          <div>
                             <Label className="text-sm text-gray-500">Transporter NTAC No</Label>
                             <p className="font-medium">{caseData.transporterNtacNo || '-'}</p>
                           </div>

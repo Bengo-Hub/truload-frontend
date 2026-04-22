@@ -78,7 +78,8 @@ export default function CaseManagementPage() {
   const handleSearch = useCallback(() => {
     setFilters((prev) => ({
       ...prev,
-      caseNo: searchTerm || undefined,
+      generalSearch: searchTerm || undefined,
+      caseNo: undefined,
       pageNumber: 1,
     }));
   }, [searchTerm]);
