@@ -5,6 +5,22 @@ All notable changes to TruLoad Frontend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/Bengo-Hub/truload-frontend/compare/v1.2.0...v1.3.0) (2026-04-22)
+
+
+### Features
+
+* billing page, manual reconcile dialog, commercial payment integration ([569b4d9](https://github.com/Bengo-Hub/truload-frontend/commit/569b4d9fe27f69d79a1602005b3608a7b28e01d6))
+* **commercial:** commercial mode UI gating, ticket drawer, filters, and settings tab ([e6b6ae7](https://github.com/Bengo-Hub/truload-frontend/commit/e6b6ae7450f06ad570cd64bd129b62a31bb7e81f))
+* sheet drawer pattern for all detail views + commercial weighing stepper ([e059905](https://github.com/Bengo-Hub/truload-frontend/commit/e05990510ff0e19e24f8bb150b31cfb6a9c9eae0))
+* tare register UI, tolerance settings page, commercial sidebar entries ([015b27c](https://github.com/Bengo-Hub/truload-frontend/commit/015b27c307a604b9680dabfd15b31074fda4ba10))
+
+
+### Bug Fixes
+
+* **ci:** sync pnpm-lock.yaml with @bengo-hub/shared-ui-lib dependency ([056b677](https://github.com/Bengo-Hub/truload-frontend/commit/056b677c5678c9d6356a49f76a489969635f10af))
+* **commercial:** show drivers, cargo-types, and origins/destinations tabs in commercial mode ([0c55006](https://github.com/Bengo-Hub/truload-frontend/commit/0c55006be329a1ae86f81f563a6f8e2c56144b16))
+
 ## [1.2.0](https://github.com/Bengo-Hub/truload-frontend/compare/v1.1.0...v1.2.0) (2026-04-17)
 
 
