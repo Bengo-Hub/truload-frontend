@@ -17,6 +17,8 @@ export interface InvoiceDto {
   amountDue: number;
   currency: string;
   status: string;
+  /** "enforcement_fine" | "commercial_weighing_fee" */
+  invoiceType?: string;
   generatedAt: string;
   dueDate?: string;
   pesaflowInvoiceNumber?: string;
@@ -26,6 +28,12 @@ export interface InvoiceDto {
   pesaflowAmountNet?: number;
   pesaflowTotalAmount?: number;
   pesaflowSyncStatus?: string;
+  /** Treasury intent ID for commercial invoices */
+  treasuryIntentId?: string;
+  /** Treasury intent status (e.g. "pending", "succeeded") */
+  treasuryIntentStatus?: string;
+  /** Pre-built treasury pay URL (books.codevertexitsolutions.com/pay?intent_id=...) */
+  treasuryPaymentUrl?: string;
   amountPaid: number;
   balanceRemaining: number;
   paidAt?: string;
@@ -142,5 +150,17 @@ export async function downloadInvoicePdf(id: string): Promise<Blob> {
   const { data } = await apiClient.get<Blob>(`/invoices/${id}/pdf`, {
     responseType: 'blob',
   });
+  return data;
+}
+
+/**
+ * Manually reconcile a commercial invoice (cash / offline payment).
+ * Records the payment reference and marks the invoice as paid.
+ */
+export async function manualReconcileInvoice(
+  id: string,
+  payload: { amountPaid: number; channel: string; reference?: string; notes?: string }
+): Promise<InvoiceDto> {
+  const { data } = await apiClient.post<InvoiceDto>(`/invoices/${id}/reconcile`, payload);
   return data;
 }

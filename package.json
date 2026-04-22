@@ -16,6 +16,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@bengo-hub/shared-ui-lib": "github:Bengo-Hub/shared-ui-lib#3763cf2",
     "@hookform/resolvers": "^3.10.0",
     "@microsoft/signalr": "^10.0.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
