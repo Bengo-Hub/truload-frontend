@@ -27,7 +27,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useCanDelete } from '@/hooks/useCanDelete';
+import { useHasPermission } from '@/hooks/useAuth';
 import { CargoTypeModal } from '@/components/weighing/modals/CargoTypeModal';
 import { DriverModal } from '@/components/weighing/modals/DriverModal';
 import { EntityModal, type ModalMode } from '@/components/weighing/modals/EntityModal';
@@ -1238,7 +1238,7 @@ function ActionButtons({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('config.manage_taxonomy');
   return (
     <div className="flex items-center justify-end gap-1">
       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onView} title="View">

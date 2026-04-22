@@ -48,7 +48,7 @@ import {
 } from '@/hooks/queries';
 import { useCaseDocuments } from '@/hooks/queries/useCaseDocumentQueries';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
-import { useCanDelete } from '@/hooks/useCanDelete';
+import { useHasPermission } from '@/hooks/useAuth';
 import {
     Activity,
     AlertTriangle,
@@ -88,7 +88,7 @@ import { toast } from 'sonner';
  *  - Close Case (with disposition)
  */
 export default function CaseManagementDetailPage() {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('case.delete');
   const params = useParams();
   const searchParams = useSearchParams();
   const orgSlug = useOrgSlug();
