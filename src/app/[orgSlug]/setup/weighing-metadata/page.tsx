@@ -1320,6 +1320,5 @@ function useVehicleSearch(query: string) {
     queryKey: ['vehicles', 'search', query],
     queryFn: () => searchVehicles(query),
     ...QUERY_OPTIONS.dynamic,
-    enabled: query.length >= 2,
   });
 }
