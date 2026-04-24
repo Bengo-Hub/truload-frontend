@@ -40,6 +40,8 @@ import {
 import { fetchPermissions, fetchRoles } from "@/lib/api/setup";
 import type { PermissionDto } from "@/types/setup";
 
+import { useAuth } from "@/hooks/useAuth";
+
 // ---------------------------------------------------------------------------
 // Category colours
 // ---------------------------------------------------------------------------
@@ -159,6 +161,7 @@ function groupByCategory(permissions: PermissionDto[]): Record<string, Permissio
 type ViewMode = "grouped" | "table";
 
 export default function PermissionsTab() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grouped");
@@ -171,14 +174,14 @@ export default function PermissionsTab() {
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ["permissions-all"],
-    queryFn: fetchPermissions,
+    queryKey: ["permissions-all", user?.tenantUseCase],
+    queryFn: () => fetchPermissions(user?.tenantUseCase),
   });
 
   // Fetch all roles for context
   const { data: roles = [] } = useQuery({
-    queryKey: ["roles-all"],
-    queryFn: () => fetchRoles(false),
+    queryKey: ["roles-all", user?.tenantUseCase],
+    queryFn: () => fetchRoles(false, user?.tenantUseCase),
   });
 
   // Derived data

@@ -1415,6 +1415,8 @@ export default function AccountsTab() {
 
   const queryClient = useQueryClient();
 
+  const currentUser = useAuthStore((s) => s.user);
+
   // Reset pagination when filters change
   useEffect(() => {
     resetPagination();
@@ -1433,8 +1435,8 @@ export default function AccountsTab() {
   });
 
   const { data: roles = [] } = useQuery({
-    queryKey: ["roles"],
-    queryFn: () => fetchRoles(),
+    queryKey: ["roles", currentUser?.tenantUseCase],
+    queryFn: () => fetchRoles(false, currentUser?.tenantUseCase),
   });
   const { data: orgs = [] } = useQuery({
     queryKey: ["orgs"],
@@ -1476,7 +1478,6 @@ export default function AccountsTab() {
   const hasActiveFilters = !!(search || roleFilter || orgFilter || deptFilter);
 
   // Station dropdown: superuser, HQ users, or users with user.assign_roles permission can assign any station
-  const currentUser = useAuthStore((s) => s.user);
   const canSelectStation = (currentUser?.isSuperUser ?? false) || (currentUser?.isHqUser ?? false) || canAssignRoles;
   const stationsForForm = useMemo(
     () =>
