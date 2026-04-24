@@ -104,9 +104,9 @@ export async function assignRoles(id: string, payload: AssignRolesRequest): Prom
 }
 
 // Role Management
-export async function fetchRoles(includeInactive = false): Promise<RoleDto[]> {
+export async function fetchRoles(includeInactive = false, useCase?: string): Promise<RoleDto[]> {
   const { data } = await apiClient.get<RoleDto[]>('/user-management/roles', {
-    params: { includeInactive },
+    params: { includeInactive, useCase },
   });
   return data;
 }
@@ -139,13 +139,17 @@ export async function removePermissionFromRole(roleId: string, permissionId: str
 }
 
 // Permissions
-export async function fetchPermissions(): Promise<PermissionDto[]> {
-  const { data } = await apiClient.get<PermissionDto[]>('/permissions');
+export async function fetchPermissions(useCase?: string): Promise<PermissionDto[]> {
+  const { data } = await apiClient.get<PermissionDto[]>('/user-management/permissions', {
+    params: { useCase },
+  });
   return data;
 }
 
-export async function fetchPermissionsByCategory(category: string): Promise<PermissionDto[]> {
-  const { data } = await apiClient.get<PermissionDto[]>(`/permissions/category/${category}`);
+export async function fetchPermissionsByCategory(category: string, useCase?: string): Promise<PermissionDto[]> {
+  const { data } = await apiClient.get<PermissionDto[]>(`/user-management/permissions/category/${category}`, {
+    params: { useCase },
+  });
   return data;
 }
 

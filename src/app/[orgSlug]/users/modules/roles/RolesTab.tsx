@@ -41,7 +41,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import { PermissionActionButton } from "@/components/ui/permission-action-button";
-import { useHasPermission } from "@/hooks/useAuth";
+import { useAuth, useHasPermission } from "@/hooks/useAuth";
 import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   assignPermissionsToRole,
@@ -649,6 +649,7 @@ interface PermissionManagementDialogProps {
 
 function PermissionManagementDialog({ role, open, onOpenChange }: PermissionManagementDialogProps) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -656,8 +657,8 @@ function PermissionManagementDialog({ role, open, onOpenChange }: PermissionMana
 
   // Fetch all system permissions
   const { data: allPermissions = [], isLoading: loadingPermissions } = useQuery({
-    queryKey: ["permissions"],
-    queryFn: fetchPermissions,
+    queryKey: ["permissions", user?.tenantUseCase],
+    queryFn: () => fetchPermissions(user?.tenantUseCase),
     enabled: open,
   });
 
@@ -1057,6 +1058,7 @@ function RoleCard({
 
 export default function RolesTab() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const canManageRoles = useHasPermission("system.manage_roles");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -1072,8 +1074,8 @@ export default function RolesTab() {
     isLoading,
     isRefetching,
   } = useQuery<RoleDto[]>({
-    queryKey: ["roles"],
-    queryFn: () => fetchRoles(true),
+    queryKey: ["roles", user?.tenantUseCase],
+    queryFn: () => fetchRoles(true, user?.tenantUseCase),
   });
 
   // Fetch permission counts for all roles in a batch-like manner

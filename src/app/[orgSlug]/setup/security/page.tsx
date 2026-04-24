@@ -26,7 +26,7 @@ import {
     useUpdatePasswordPolicy,
     useUpdateShiftSettings,
 } from '@/hooks/queries';
-import { useHasPermission } from '@/hooks/useAuth';
+import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { formatFileSize } from '@/lib/api/backup';
 import { fetchRoles } from '@/lib/api/setup';
 import type { RoleDto } from '@/types/setup';
@@ -63,6 +63,7 @@ type TabValue = typeof VALID_TABS[number];
 
 export default function SecurityPage() {
   const canEdit = useHasPermission('system.security_policy');
+  const { user } = useAuth();
   const [backupFileName, setBackupFileName] = useState('');
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get('tab');
@@ -78,8 +79,8 @@ export default function SecurityPage() {
 
   // Roles list for shift settings excluded roles
   const { data: allRoles } = useQuery({
-    queryKey: ['roles-all'],
-    queryFn: () => fetchRoles(false),
+    queryKey: ['roles-all', user?.tenantUseCase],
+    queryFn: () => fetchRoles(false, user?.tenantUseCase),
   });
 
   // Audit log state

@@ -25,6 +25,8 @@ export interface User {
   organizationCode?: string;
   /** Tenant type: CommercialWeighing | AxleLoadEnforcement */
   tenantType?: 'CommercialWeighing' | 'AxleLoadEnforcement' | string;
+  /** Use case corresponding to the tenant (Commercial | Enforcement) */
+  tenantUseCase?: string;
   /** True when the tenant is a commercial weighing operator (not enforcement). */
   isCommercialTenant?: boolean;
   /** Module keys enabled for the user's org (sidebar filtering). Empty/missing = all modules. */
