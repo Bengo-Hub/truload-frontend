@@ -11,7 +11,6 @@ import {
   useUpsertIntegration,
 } from '@/hooks/queries/useIntegrationQueries';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
-import { useCanDelete } from '@/hooks/useCanDelete';
 import type { UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 import { reconcilePayments, testIntegrationConnectivity } from '@/lib/api/integration';
 import { notificationApi } from '@/lib/api/notification';
@@ -136,7 +135,7 @@ const API_SERVICES: ApiServiceDef[] = [
 // ============================================================================
 
 export default function IntegrationSettingsPage() {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('system.integration_management');
   return (
     <ProtectedRoute requiredPermissions={['config.read']}>
       <IntegrationSettingsContent />
@@ -577,7 +576,7 @@ function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
 // ============================================================================
 
 function ApiSettingsTab({ canEdit }: { canEdit: boolean }) {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('system.integration_management');
   const [activeService, setActiveService] = useState(API_SERVICES[0].value);
 
   const {

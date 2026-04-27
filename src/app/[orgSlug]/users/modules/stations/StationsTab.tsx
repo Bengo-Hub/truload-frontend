@@ -42,7 +42,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 
 import { useHasPermission } from "@/hooks/useAuth";
-import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   createStation,
   deleteStation,
@@ -929,9 +928,7 @@ function StationCard({ station, canEdit, canDelete, onEdit, onDelete }: StationC
 export default function StationsTab() {
   const canCreate = useHasPermission("station.create");
   const canEdit = useHasPermission("station.update");
-  const hasDeletePermission = useHasPermission("station.delete");
-  const platformCanDelete = useCanDelete();
-  const canDelete = hasDeletePermission && platformCanDelete;
+  const canDelete = useHasPermission("station.delete");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);

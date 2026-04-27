@@ -55,7 +55,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { useHasPermission } from '@/hooks/useAuth';
-import { useCanDelete } from '@/hooks/useCanDelete';
 import {
   assignUserShift,
   createShiftRotation,
@@ -171,7 +170,7 @@ function statusBadgeClasses(status: string): string {
 // ---------------------------------------------------------------------------
 
 export default function ShiftsPage() {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('user.manage_shifts');
   return (
     <AppShell title="Shift Management" subtitle="Configure work shifts, rotations, and assignments">
       <ProtectedRoute requiredPermissions={["user.manage_shifts"]}>
@@ -226,7 +225,7 @@ function ShiftsContent() {
 type ShiftFormValues = CreateWorkShiftRequest;
 
 function WorkShiftsTab() {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('user.manage_shifts');
   const canManage = useHasPermission('user.manage_shifts');
   const queryClient = useQueryClient();
 
@@ -742,7 +741,7 @@ interface RotationFormValues {
 }
 
 function ShiftRotationsTab() {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('user.manage_shifts');
   const canManage = useHasPermission('user.manage_shifts');
   const queryClient = useQueryClient();
 
@@ -1026,7 +1025,7 @@ interface RotationFormDialogProps {
 }
 
 function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFormDialogProps) {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('user.manage_shifts');
   const queryClient = useQueryClient();
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<RotationFormValues>({
@@ -1273,7 +1272,7 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
 // ===========================================================================
 
 function UserAssignmentsTab() {
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission('user.manage_shifts');
   const canManage = useHasPermission('user.manage_shifts');
   const _queryClient = useQueryClient();
 
