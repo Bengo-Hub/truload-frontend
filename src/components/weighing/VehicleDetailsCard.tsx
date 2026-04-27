@@ -21,11 +21,100 @@ import {
 import { AlertCircle, BookOpen, Building2, Car, CheckCircle2, Eye, FileText, Loader2, Locate, MapPin, Package, Pencil, Plus, RefreshCw, Scan, Truck, User } from 'lucide-react';
 import * as React from 'react';
 
-// Vehicle makes list
 const VEHICLE_MAKES = [
   'ISUZU', 'HINO', 'SCANIA', 'VOLVO', 'MAN', 'MERCEDES', 'DAF', 'RENAULT',
   'IVECO', 'FUSO', 'UD TRUCKS', 'TATA', 'ASHOK LEYLAND', 'EICHER', 'OTHER',
 ];
+
+interface VehicleMakeSearchableSelectProps {
+  makes: string[];
+  value: string;
+  onChange: (v: string) => void;
+  isReadOnly?: boolean;
+  onAdd?: () => void;
+  onRefresh?: () => void;
+}
+
+function VehicleMakeSearchableSelect({ makes, value, onChange, isReadOnly, onAdd, onRefresh }: VehicleMakeSearchableSelectProps) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const filtered = makes.filter(m => m.toLowerCase().includes(search.toLowerCase()));
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+        <Car className="h-4 w-4 text-gray-400" />
+        Vehicle Make:
+      </Label>
+      <div className="flex gap-2">
+        <div className="relative flex-1" ref={containerRef}>
+          <input
+            type="text"
+            value={open ? search : (value || '')}
+            onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+            onFocus={() => { setSearch(''); setOpen(true); }}
+            placeholder={value || 'Search vehicle make...'}
+            disabled={isReadOnly}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          {open && filtered.length > 0 && (
+            <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+              {filtered.map((make) => (
+                <div
+                  key={make}
+                  className={cn(
+                    'px-3 py-2 cursor-pointer text-sm hover:bg-gray-50',
+                    make === value && 'bg-primary/10 font-medium',
+                  )}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(make);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  {make}
+                </div>
+              ))}
+            </div>
+          )}
+          {open && filtered.length === 0 && (
+            <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg px-3 py-2 text-sm text-gray-400">
+              No matches
+            </div>
+          )}
+        </div>
+        {!isReadOnly && (
+          <div className="flex gap-1">
+            {onRefresh && (
+              <Button type="button" variant="outline" size="icon" onClick={onRefresh} title="Refresh vehicle makes" className="h-10 w-10">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+            {onAdd && (
+              <Button variant="outline" size="icon" onClick={onAdd} className="h-10 w-10 bg-green-600 hover:bg-green-700 text-white">
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface SelectFieldWithCrudProps {
   label: string;
@@ -573,55 +662,16 @@ export function VehicleDetailsCard({
         )}
 
         {/* Vehicle Make */}
-        {showPermitSection && onVehicleMakeChange && (() => {
-          // Use API-driven makes if available, fallback to hardcoded list
-          const makesList = apiVehicleMakes && apiVehicleMakes.length > 0
-            ? apiVehicleMakes.map(m => m.name)
-            : VEHICLE_MAKES;
-          return (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Car className="h-4 w-4 text-gray-400" />
-                Vehicle Make:
-              </Label>
-              <div className="flex gap-2">
-                <Select value={vehicleMake || ''} onValueChange={onVehicleMakeChange} disabled={isReadOnly}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {makesList.map((make) => (
-                      <SelectItem key={make} value={make}>
-                        {make}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!isReadOnly && (
-                  <div className="flex gap-1">
-                    {onRefreshVehicleMakes && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={onRefreshVehicleMakes}
-                        title="Refresh vehicle makes"
-                        className="h-10 w-10"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onAddVehicleMake && (
-                      <Button variant="outline" size="icon" onClick={onAddVehicleMake} className="h-10 w-10 bg-green-600 hover:bg-green-700 text-white">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        {showPermitSection && onVehicleMakeChange && (
+          <VehicleMakeSearchableSelect
+            makes={apiVehicleMakes && apiVehicleMakes.length > 0 ? apiVehicleMakes.map(m => m.name) : VEHICLE_MAKES}
+            value={vehicleMake || ''}
+            onChange={onVehicleMakeChange}
+            isReadOnly={isReadOnly}
+            onAdd={onAddVehicleMake}
+            onRefresh={onRefreshVehicleMakes}
+          />
+        )}
 
         {/* Axle Configuration — managed by AxleConfigurationCard (left panel), not duplicated here */}
 

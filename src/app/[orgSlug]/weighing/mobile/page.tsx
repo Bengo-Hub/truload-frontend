@@ -1663,6 +1663,7 @@ export default function MobileWeighingPage() {
                   onTrailerNoChange: setTrailerNo,
                   vehicleMake,
                   onVehicleMakeChange: setVehicleMake,
+                  vehicleMakes: vehicleMakesData,
                   onAddVehicleMake: () => setIsVehicleMakeModalOpen(true),
                   onRefreshVehicleMakes: refetchVehicleMakes,
                   reliefVehicleReg,
