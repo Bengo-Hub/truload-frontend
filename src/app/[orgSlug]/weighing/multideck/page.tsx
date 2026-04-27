@@ -127,7 +127,7 @@ export default function MultideckWeighingPage() {
     isScaleTestModalOpen, setIsScaleTestModalOpen,
     showCancelConfirm, setShowCancelConfirm,
     counties, subcounties, roads,
-    drivers, transporters, locations, cargoTypes,
+    drivers, transporters, locations, cargoTypes, vehicleMakesData,
     selectedDriverId, setSelectedDriverId,
     selectedTransporterId, setSelectedTransporterId,
     selectedCargoId, setSelectedCargoId,
@@ -141,6 +141,7 @@ export default function MultideckWeighingPage() {
     permitNo, setPermitNo,
     trailerNo, setTrailerNo,
     reliefVehicleReg, setReliefVehicleReg,
+    refetchVehicleMakes,
   } = weighingUI;
 
   // Vehicle lookup mutation
@@ -1163,6 +1164,8 @@ export default function MultideckWeighingPage() {
                           onTrailerNoChange={setTrailerNo}
                           vehicleMake={vehicleMake}
                           onVehicleMakeChange={setVehicleMake}
+                          vehicleMakes={vehicleMakesData}
+                          onRefreshVehicleMakes={refetchVehicleMakes}
                           reliefVehicleReg={reliefVehicleReg}
                           onReliefVehicleRegChange={setReliefVehicleReg}
                           showReliefVehicleReg={reweighCycleNo > 0}
