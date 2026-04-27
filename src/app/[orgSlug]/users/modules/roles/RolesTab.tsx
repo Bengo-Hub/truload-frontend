@@ -42,7 +42,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { PermissionActionButton } from "@/components/ui/permission-action-button";
 import { useAuth, useHasPermission } from "@/hooks/useAuth";
-import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   assignPermissionsToRole,
   createRole,
@@ -968,7 +967,7 @@ function RoleCard({
   onDelete,
 }: RoleCardProps) {
   const gradient = getRoleGradient(role);
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission("system.manage_roles");
 
   return (
     <Card className="overflow-hidden group hover:shadow-md transition-shadow duration-200">

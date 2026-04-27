@@ -43,7 +43,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 
 import { useHasPermission } from "@/hooks/useAuth";
-import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   createOrganization,
   deleteOrganization,
@@ -706,7 +705,7 @@ function DeleteOrgDialog({
 
 export default function OrganizationsTab() {
   // -- State
-  const canDelete = useCanDelete();
+  const canDelete = useHasPermission("system.manage_organizations");
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editOrg, setEditOrg] = useState<OrganizationDto | null>(null);

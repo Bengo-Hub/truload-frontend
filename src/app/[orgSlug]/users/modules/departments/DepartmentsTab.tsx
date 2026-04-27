@@ -41,7 +41,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import { useHasPermission } from "@/hooks/useAuth";
-import { useCanDelete } from "@/hooks/useCanDelete";
 import {
   createDepartment,
   deleteDepartment,
@@ -495,7 +494,7 @@ function DeleteDepartmentDialog({ department, open, onOpenChange }: DeleteDepart
 
 export default function DepartmentsTab() {
   const canManageDepartments = useHasPermission("system.manage_departments");
-  const canDelete = useCanDelete();
+  const canDelete = canManageDepartments;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
