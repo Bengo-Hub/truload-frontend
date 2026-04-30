@@ -5,6 +5,16 @@ All notable changes to TruLoad Frontend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1](https://github.com/Bengo-Hub/truload-frontend/compare/v1.3.0...v1.3.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* enforce fetch roles and permissions by use case ([e0b9177](https://github.com/Bengo-Hub/truload-frontend/commit/e0b91772a203add25bc99727ad37a959351a7e76))
+* proper permission mapping for users ([9f34162](https://github.com/Bengo-Hub/truload-frontend/commit/9f3416288954379b272f20bc86dc88af8d5981da))
+* replace useCanDelete with domain permissions in tenant pages ([5ed60a7](https://github.com/Bengo-Hub/truload-frontend/commit/5ed60a7bbacad2a142efceb2254c28e0efcc0874))
+* wire API vehicle makes to dropdown and make it searchable ([60f8bd3](https://github.com/Bengo-Hub/truload-frontend/commit/60f8bd38fbe10e2cc3710ebe7d6fe2f78b605e2b))
+
 ## [1.3.0](https://github.com/Bengo-Hub/truload-frontend/compare/v1.2.0...v1.3.0) (2026-04-22)
 
 
