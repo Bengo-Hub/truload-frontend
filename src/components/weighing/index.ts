@@ -14,10 +14,11 @@ export {
 export { VehicleDetailsCard } from './VehicleDetailsCard';
 export { WeighingPageHeader } from './WeighingPageHeader';
 export { WeighingStepper } from './WeighingStepper';
+export { WeighingStepperNav } from './WeighingStepperNav';
+export type { StepDef } from './WeighingStepperNav';
 
 // Step 1: Capture Components
 export { AxleGroupVisual, getDefaultAxleConfig } from './AxleGroupVisual';
-export { CaptureScreen } from './CaptureScreen';
 export { LocationConfigCard } from './LocationConfigCard';
 export { MiddlewarePrompt } from './MiddlewarePrompt';
 export { VehiclePlaceholderImage } from './VehiclePlaceholderImage';

@@ -11,13 +11,15 @@ import {
   clearSsoPkceSession,
   exchangeCodeForSSOToken,
   getPkceVerifier,
-  getSsoReturnTo,
   getSsoState,
   storeSsoExchangeToken,
 } from '@/lib/auth/sso';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+
+const SSO_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexitsolutions.com';
+
+type ErrorKind = 'org_mismatch' | 'general';
 
 function SsoCallbackContent() {
   const params = useParams();
@@ -26,6 +28,7 @@ function SsoCallbackContent() {
   const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : '';
 
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<ErrorKind>('general');
 
   useEffect(() => {
     if (!orgSlug) return;
@@ -52,7 +55,7 @@ function SsoCallbackContent() {
 
     const verifier = getPkceVerifier();
     if (!verifier) {
-      setError('Missing code verifier — please try logging in again.');
+      setError('Missing PKCE session — please try logging in again.');
       return;
     }
 
@@ -73,11 +76,18 @@ function SsoCallbackContent() {
         // 4. Redirect to station selection
         router.replace(`/${orgSlug}/auth`);
       } catch (err: any) {
-        // On 403 (org mismatch), show toast, clear SSO data, and redirect to login
+        clearSsoPkceSession();
+
         if (err?.status === 403 || err?.code === 'org_mismatch') {
-          clearSsoPkceSession();
-          toast.error(err.message || 'You do not have access to this organisation.');
-          router.replace(`/${orgSlug}/auth/login`);
+          // org_mismatch: user's email exists in TruLoad under a different organisation.
+          // Do NOT redirect to /auth/login — for commercial tenants that immediately
+          // re-triggers the SSO flow, causing an infinite redirect loop.
+          // Instead show an error with a SSO-logout link so the user can switch accounts.
+          setErrorKind('org_mismatch');
+          setError(
+            err.message ||
+              'Your account is registered under a different organisation. Contact your administrator or sign in with a different account.'
+          );
           return;
         }
         setError(err instanceof Error ? err.message : 'SSO login failed');
@@ -88,15 +98,44 @@ function SsoCallbackContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgSlug]);
 
+  // SSO logout URL: clears the SSO session cookie, then redirects back to the login page.
+  // This lets the user sign in with a different account and breaks any re-entry loop.
+  const ssoLogoutUrl = `${SSO_BASE_URL}/api/v1/auth/logout?post_logout_redirect_uri=${encodeURIComponent(
+    `${typeof window !== 'undefined' ? window.location.origin : ''}/${orgSlug}/auth/login`
+  )}`;
+
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="max-w-md rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
-          <h2 className="mb-2 text-lg font-semibold text-destructive">Login Failed</h2>
-          <p className="mb-4 text-sm text-muted-foreground">{error}</p>
-          <a href={`/${orgSlug}/auth/login`} className="text-sm underline">
-            Try again
-          </a>
+        <div className="max-w-md w-full rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center space-y-4">
+          <h2 className="text-lg font-semibold text-destructive">Sign-in Failed</h2>
+          <p className="text-sm text-muted-foreground">{error}</p>
+
+          {errorKind === 'org_mismatch' ? (
+            <div className="flex flex-col gap-2">
+              <a
+                href={ssoLogoutUrl}
+                className="inline-flex items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+              >
+                Sign out &amp; try a different account
+              </a>
+              <a href={`/${orgSlug}/auth`} className="text-sm text-muted-foreground underline">
+                Back to station select
+              </a>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <a
+                href={`/${orgSlug}/auth/login`}
+                className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                Try again
+              </a>
+              <a href={`/${orgSlug}/auth`} className="text-sm text-muted-foreground underline">
+                Back to station select
+              </a>
+            </div>
+          )}
         </div>
       </div>
     );
