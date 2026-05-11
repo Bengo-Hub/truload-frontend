@@ -24,6 +24,11 @@ import {
   CargoDetailsForm,
   CommercialTicketStep,
 } from '@/components/weighing/steps/CommercialTicketStep';
+import { CommercialEntitySelectors } from '@/components/weighing/CommercialEntitySelectors';
+import { CargoTypeModal } from '@/components/weighing/modals/CargoTypeModal';
+import { DriverModal } from '@/components/weighing/modals/DriverModal';
+import { OriginDestinationModal } from '@/components/weighing/modals/OriginDestinationModal';
+import { TransporterModal } from '@/components/weighing/modals/TransporterModal';
 import {
   useCreateVehicle,
   useMyScaleTestStatus,
@@ -150,6 +155,14 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     selectedCargoId, setSelectedCargoId,
     selectedOriginId, setSelectedOriginId,
     selectedDestinationId, setSelectedDestinationId,
+    drivers, transporters, cargoTypes, locations,
+    isDriverModalOpen, setIsDriverModalOpen,
+    isTransporterModalOpen, setIsTransporterModalOpen,
+    isCargoTypeModalOpen, setIsCargoTypeModalOpen,
+    isLocationModalOpen, setIsLocationModalOpen,
+    locationModalTarget, setLocationModalTarget,
+    isSavingEntity,
+    handleSaveDriver, handleSaveTransporter, handleSaveCargoType, handleSaveLocation,
   } = weighingUI;
 
   const createVehicleMutation = useCreateVehicle();
@@ -323,6 +336,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         cargoId: selectedCargoId || undefined,
         originId: selectedOriginId || undefined,
         destinationId: selectedDestinationId || undefined,
+        weighingScaleType: mode,
       });
 
       setTransactionId(txnResult.id);
@@ -627,7 +641,30 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
             onMoveBack={middleware.sendMoveBack}
             onStop={middleware.sendStop}
           >
-            {/* Vehicle tare info shown beneath the existing-vehicle indicator */}
+            {/* Entity selectors: driver, transporter, cargo type, origin, destination */}
+            <CommercialEntitySelectors
+              drivers={drivers.map((d) => ({ id: d.id, label: d.fullNames ?? d.id }))}
+              selectedDriverId={selectedDriverId}
+              onDriverIdChange={setSelectedDriverId}
+              onAddDriver={() => setIsDriverModalOpen(true)}
+              transporters={transporters.map((t) => ({ id: t.id, label: t.name ?? t.id }))}
+              selectedTransporterId={selectedTransporterId}
+              onTransporterIdChange={setSelectedTransporterId}
+              onAddTransporter={() => setIsTransporterModalOpen(true)}
+              cargoTypes={cargoTypes.map((c) => ({ id: c.id, label: c.name ?? c.id }))}
+              selectedCargoId={selectedCargoId}
+              onCargoIdChange={setSelectedCargoId}
+              onAddCargoType={() => setIsCargoTypeModalOpen(true)}
+              locations={locations.map((l) => ({ id: l.id, label: l.name ?? l.id }))}
+              selectedOriginId={selectedOriginId}
+              onOriginIdChange={setSelectedOriginId}
+              selectedDestinationId={selectedDestinationId}
+              onDestinationIdChange={setSelectedDestinationId}
+              onAddOrigin={() => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); }}
+              onAddDestination={() => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); }}
+            />
+
+            {/* Vehicle tare info shown beneath the entity selectors */}
             {existingVehicle && (
               <Card className="border-blue-200 bg-blue-50">
                 <CardContent className="p-3 text-xs space-y-1">
@@ -924,6 +961,36 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Entity CRUD modals */}
+      <DriverModal
+        open={isDriverModalOpen}
+        onOpenChange={setIsDriverModalOpen}
+        onSave={handleSaveDriver}
+        isSaving={isSavingEntity}
+        mode="create"
+      />
+      <TransporterModal
+        open={isTransporterModalOpen}
+        onOpenChange={setIsTransporterModalOpen}
+        onSave={handleSaveTransporter}
+        isSaving={isSavingEntity}
+        mode="create"
+      />
+      <CargoTypeModal
+        open={isCargoTypeModalOpen}
+        onOpenChange={setIsCargoTypeModalOpen}
+        onSave={handleSaveCargoType}
+        isSaving={isSavingEntity}
+        mode="create"
+      />
+      <OriginDestinationModal
+        open={isLocationModalOpen}
+        onOpenChange={setIsLocationModalOpen}
+        onSave={handleSaveLocation}
+        isSaving={isSavingEntity}
+        mode="create"
+      />
 
       {/* Treasury payment dialog — shown when Pay button clicked on ticket step */}
       {showPaymentModal && result?.treasuryPaymentUrl && (

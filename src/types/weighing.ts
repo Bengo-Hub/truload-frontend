@@ -701,6 +701,8 @@ export interface InitiateCommercialWeighingRequest {
   trailerRegNo?: string;
   remarks?: string;
   industryMetadata?: string;
+  /** 'multideck' = platform scale; 'mobile' = portable axle-by-axle */
+  weighingScaleType?: 'multideck' | 'mobile';
 }
 
 /** Request to capture the first weight */
