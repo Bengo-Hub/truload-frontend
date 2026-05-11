@@ -969,6 +969,8 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         onSave={handleSaveDriver}
         isSaving={isSavingEntity}
         mode="create"
+        transporters={transporters.map((t) => ({ id: t.id, name: t.name ?? t.id }))}
+        defaultTransporterId={selectedTransporterId}
       />
       <TransporterModal
         open={isTransporterModalOpen}
