@@ -14,6 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { WeighingPageHeader } from '@/components/weighing/WeighingPageHeader';
+import { WeighingStepperNav } from '@/components/weighing/WeighingStepperNav';
+import type { ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
+import { WeighingCaptureStep } from '@/components/weighing/steps/WeighingCaptureStep';
 import { WeightCaptureCard } from '@/components/weighing/WeightCaptureCard';
 import { CommercialFirstWeightStep } from '@/components/weighing/steps/CommercialFirstWeightStep';
 import { CommercialSecondWeightStep } from '@/components/weighing/steps/CommercialSecondWeightStep';
@@ -23,6 +26,7 @@ import {
 } from '@/components/weighing/steps/CommercialTicketStep';
 import {
   useCreateVehicle,
+  useMyScaleTestStatus,
   useMyStation,
   useVehicleByRegNo,
 } from '@/hooks/queries';
@@ -138,9 +142,9 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const {
     vehiclePlate, setVehiclePlate, debouncedPlate,
     isPlateDisabled, setIsPlateDisabled,
-    handleScanPlate,
-    setFrontViewImage,
-    setOverviewImage,
+    handleScanPlate, handleCaptureFront, handleCaptureOverview,
+    frontViewImage, setFrontViewImage,
+    overviewImage, setOverviewImage,
     selectedDriverId, setSelectedDriverId,
     selectedTransporterId, setSelectedTransporterId,
     selectedCargoId, setSelectedCargoId,
@@ -183,6 +187,30 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   useEffect(() => {
     setMiddlewareConnected(middleware.connected);
   }, [middleware.connected]);
+
+  // Scale test status — used by the shared capture step
+  const { data: scaleTestStatus } = useMyScaleTestStatus();
+  const isScaleTestCompleted = !!scaleTestStatus?.latestTest;
+  const lastScaleTestAt = scaleTestStatus?.latestTest?.carriedAt
+    ? new Date(scaleTestStatus.latestTest.carriedAt)
+    : undefined;
+
+  // Derive a single scale entry from middleware connection state for the capture step
+  const captureStepScales = useMemo<ScaleInfo[]>(() => [{
+    id: 'platform-scale',
+    name: mode === 'multideck' ? 'Platform Scale' : 'Portable Scale',
+    status: middlewareConnected ? ('connected' as const) : ('disconnected' as const),
+    weight: liveWeightKg,
+    temperature: 0,
+    battery: 100,
+    signalStrength: 100,
+    capacity: mode === 'multideck' ? 100000 : 30000,
+    lastReading: new Date(),
+    isActive: middlewareConnected,
+    make: '',
+    model: '',
+    syncType: 'API' as const,
+  }], [middlewareConnected, liveWeightKg, mode]);
 
   // Tare expiry computation
   useEffect(() => {
@@ -488,7 +516,13 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         scaleStatus={middlewareConnected ? 'connected' : 'disconnected'}
       />
 
-      <CommercialStepperNav currentStep={currentStep} completedSteps={completedSteps} onStepClick={setCurrentStep} />
+      <WeighingStepperNav
+        steps={COMMERCIAL_STEPS}
+        currentStep={currentStep}
+        completedSteps={completedSteps}
+        onStepClick={(id) => setCurrentStep(id as CommercialWeighingStep)}
+        label="Commercial weighing progress"
+      />
 
       {/* Tolerance exception banner */}
       {result?.toleranceExceeded && !result.toleranceExceptionApproved && result.netWeightKg != null && (
@@ -559,56 +593,56 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
         {/* ── CAPTURE STEP ─────────────────────────────────────────────────── */}
         {currentStep === 'capture' && (
-          <div className="rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5 space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Vehicle Identification</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Vehicle Plate Number</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={vehiclePlate}
-                      onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
-                      disabled={isPlateDisabled}
-                      placeholder="e.g. KAA 123A"
-                      className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                    />
-                    <Button variant="outline" size="sm" onClick={handleScanPlate}>Scan</Button>
-                  </div>
-                </div>
-
-                {existingVehicle && (
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <div className="font-medium text-gray-700">{existingVehicle.make} {existingVehicle.model}</div>
-                    {storedTareWeightKg && (
-                      <div className={cn('flex items-center gap-1', isTareExpired ? 'text-orange-600' : 'text-green-600')}>
-                        {isTareExpired ? <Clock className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                        Stored tare: {formatWeight(storedTareWeightKg)} kg
-                        {isTareExpired ? ' (EXPIRED)' : tareExpiryDaysLeft !== null ? ` (${tareExpiryDaysLeft}d left)` : ''}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 text-sm">
-                  <div className={cn('w-2 h-2 rounded-full', middlewareConnected ? 'bg-green-500' : 'bg-red-500')} />
-                  <span className="text-gray-600">Scale: {middlewareConnected ? 'Connected' : 'Disconnected'}</span>
-                  {!middlewareConnected && (
-                    <Button variant="ghost" size="sm" onClick={() => middleware.connect()}>Connect</Button>
+          <WeighingCaptureStep
+            isCommercial
+            stationId={currentStation?.id}
+            middlewareConnected={middlewareConnected}
+            scales={captureStepScales}
+            isScalesConnected={middlewareConnected}
+            isScaleTestCompleted={isScaleTestCompleted}
+            lastScaleTestAt={lastScaleTestAt}
+            weighingType={mode}
+            isSimulationMode={false}
+            handleConnectScales={() => middleware.connect()}
+            handleStartScaleTest={() => {}}
+            handleToggleScale={() => {}}
+            handleChangeWeighingType={() => {}}
+            frontViewImage={frontViewImage}
+            overviewImage={overviewImage}
+            setFrontViewImage={setFrontViewImage}
+            setOverviewImage={setOverviewImage}
+            handleCaptureFront={handleCaptureFront}
+            handleCaptureOverview={handleCaptureOverview}
+            vehiclePlate={vehiclePlate}
+            setVehiclePlate={setVehiclePlate}
+            isPlateDisabled={isPlateDisabled}
+            handleScanPlate={handleScanPlate}
+            handleEditPlate={() => setIsPlateDisabled(false)}
+            handleProceedToVehicle={handleProceedToFirstWeight}
+            canProceedFromCapture={canProceedFromCapture && !isLoading}
+            pendingTransactions={[]}
+            handleResumeTransaction={() => {}}
+            onEnter={middleware.sendEnter}
+            onMoveForward={middleware.sendMoveForward}
+            onMoveBack={middleware.sendMoveBack}
+            onStop={middleware.sendStop}
+          >
+            {/* Vehicle tare info shown beneath the existing-vehicle indicator */}
+            {existingVehicle && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="p-3 text-xs space-y-1">
+                  <div className="font-medium text-gray-800">{existingVehicle.make} {existingVehicle.model}</div>
+                  {storedTareWeightKg && (
+                    <div className={cn('flex items-center gap-1', isTareExpired ? 'text-orange-600' : 'text-green-600')}>
+                      {isTareExpired ? <Clock className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                      Stored tare: {formatWeight(storedTareWeightKg)} kg
+                      {isTareExpired ? ' (EXPIRED)' : tareExpiryDaysLeft !== null ? ` (${tareExpiryDaysLeft}d left)` : ''}
+                    </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="flex justify-end">
-              <Button size="lg" className="gap-2" disabled={!canProceedFromCapture || isLoading} onClick={handleProceedToFirstWeight}>
-                {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</> : <>Proceed to Weighing <ChevronRight className="h-4 w-4" /></>}
-              </Button>
-            </div>
-          </div>
+                </CardContent>
+              </Card>
+            )}
+          </WeighingCaptureStep>
         )}
 
         {/* ── FIRST WEIGHT STEP ────────────────────────────────────────────── */}
@@ -915,59 +949,3 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   );
 }
 
-// ============================================================================
-// Commercial Stepper Nav
-// ============================================================================
-
-function CommercialStepperNav({
-  currentStep,
-  completedSteps,
-  onStepClick,
-}: {
-  currentStep: CommercialWeighingStep;
-  completedSteps: CommercialWeighingStep[];
-  onStepClick?: (step: CommercialWeighingStep) => void;
-}) {
-  const currentIndex = COMMERCIAL_STEPS.findIndex((s) => s.id === currentStep);
-
-  return (
-    <nav aria-label="Commercial weighing progress">
-      <ol className="flex items-center justify-between">
-        {COMMERCIAL_STEPS.map((step, index) => {
-          const isCompleted = completedSteps.includes(step.id);
-          const isCurrent = step.id === currentStep;
-          const isClickable = onStepClick && (isCompleted || index === currentIndex + 1);
-
-          return (
-            <li key={step.id} className="relative flex-1">
-              {index > 0 && (
-                <div className={cn('absolute left-0 right-1/2 top-4 h-0.5 -translate-y-1/2', isCompleted || isCurrent ? 'bg-emerald-500' : 'bg-gray-200')} aria-hidden="true" />
-              )}
-              {index < COMMERCIAL_STEPS.length - 1 && (
-                <div className={cn('absolute left-1/2 right-0 top-4 h-0.5 -translate-y-1/2', completedSteps.includes(COMMERCIAL_STEPS[index + 1]?.id) ? 'bg-emerald-500' : 'bg-gray-200')} aria-hidden="true" />
-              )}
-              <div className="relative flex flex-col items-center">
-                <button
-                  type="button"
-                  disabled={!isClickable}
-                  onClick={() => isClickable && onStepClick?.(step.id)}
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold border-2 transition-colors z-10',
-                    isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : isCurrent ? 'bg-white border-emerald-500 text-emerald-600' : 'bg-white border-gray-300 text-gray-400',
-                    isClickable ? 'cursor-pointer hover:shadow-md' : 'cursor-default'
-                  )}
-                >
-                  {isCompleted ? <Check className="h-4 w-4" /> : index + 1}
-                </button>
-                <span className={cn('mt-1 text-xs font-medium', isCurrent ? 'text-emerald-600' : isCompleted ? 'text-emerald-500' : 'text-gray-400')}>
-                  {step.title}
-                </span>
-                <span className="text-[10px] text-gray-400 hidden sm:block">{step.description}</span>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}

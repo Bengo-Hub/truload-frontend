@@ -17,105 +17,107 @@ interface WeighingCaptureStepProps {
   // Setup & Connection
   stationId?: string;
   middlewareConnected: boolean;
-  scales: ScaleInfo[];
-  isScalesConnected: boolean;
-  isScaleTestCompleted: boolean;
+  scales?: ScaleInfo[];
+  isScalesConnected?: boolean;
+  isScaleTestCompleted?: boolean;
   lastScaleTestAt?: Date;
-  weighingType: string;
-  isSimulationMode: boolean;
-  
+  weighingType?: string;
+  isSimulationMode?: boolean;
+
   // Handlers
-  handleResumeTransaction: (tx: any) => void;
+  handleResumeTransaction?: (tx: any) => void;
   handleDiscardTransaction?: (tx: any) => void;
-  handleStartScaleTest: () => void;
-  handleConnectScales: () => void;
-  handleToggleScale: (scaleId: string, active: boolean) => void;
-  handleChangeWeighingType: () => void;
-  
-  // Location State
-  selectedCountyId: string;
-  setSelectedCountyId: (id: string) => void;
-  selectedSubcountyId: string;
-  setSelectedSubcountyId: (id: string) => void;
-  selectedRoadId: string;
-  setSelectedRoadId: (id: string) => void;
-  
+  handleStartScaleTest?: () => void;
+  handleConnectScales?: () => void;
+  handleToggleScale?: (scaleId: string, active: boolean) => void;
+  handleChangeWeighingType?: () => void;
+
+  // Location State (enforcement only — ignored when isCommercial=true)
+  selectedCountyId?: string;
+  setSelectedCountyId?: (id: string) => void;
+  selectedSubcountyId?: string;
+  setSelectedSubcountyId?: (id: string) => void;
+  selectedRoadId?: string;
+  setSelectedRoadId?: (id: string) => void;
+
   // Images
   frontViewImage?: string;
   overviewImage?: string;
-  setFrontViewImage: (img?: string) => void;
-  setOverviewImage: (img?: string) => void;
-  handleCaptureFront: () => void;
-  handleCaptureOverview: () => void;
-  
+  setFrontViewImage?: (img?: string) => void;
+  setOverviewImage?: (img?: string) => void;
+  handleCaptureFront?: () => void;
+  handleCaptureOverview?: () => void;
+
   // Plate & Actions
   vehiclePlate: string;
   setVehiclePlate: (plate: string) => void;
-  isPlateDisabled: boolean;
-  handleScanPlate: () => void;
-  handleEditPlate: () => void;
+  isPlateDisabled?: boolean;
+  handleScanPlate?: () => void;
+  handleEditPlate?: () => void;
   handleProceedToVehicle: () => void;
   canProceedFromCapture: boolean;
   isCommercial?: boolean;
-  
+
   // Middleware Handlers
   onEnter?: () => void;
   onMoveForward?: () => void;
   onMoveBack?: () => void;
   onStop?: () => void;
-  
+
   // Station Bounds
   currentStation?: StationDto | null;
   currentBound?: string;
-  handleBoundChange: (bound: string) => void;
-  
-  // Custom Content (e.g. weights display)
+  handleBoundChange?: (bound: string) => void;
+
+  // Custom Content (e.g. weights display or commercial extra fields)
   children?: React.ReactNode;
-  
+
   // Transactions
-  pendingTransactions: any[];
+  pendingTransactions?: any[];
 }
+
+const noop = () => {};
 
 export function WeighingCaptureStep({
   stationId,
   middlewareConnected,
-  scales,
-  isScalesConnected,
-  isScaleTestCompleted,
+  scales = [],
+  isScalesConnected = false,
+  isScaleTestCompleted = false,
   lastScaleTestAt,
-  weighingType,
-  isSimulationMode,
-  handleResumeTransaction,
+  weighingType = 'mobile',
+  isSimulationMode = false,
+  handleResumeTransaction = noop,
   handleDiscardTransaction,
-  handleStartScaleTest,
-  handleConnectScales,
-  handleToggleScale,
-  handleChangeWeighingType,
-  selectedCountyId,
-  setSelectedCountyId,
-  selectedSubcountyId,
-  setSelectedSubcountyId,
-  selectedRoadId,
-  setSelectedRoadId,
+  handleStartScaleTest = noop,
+  handleConnectScales = noop,
+  handleToggleScale = noop,
+  handleChangeWeighingType = noop,
+  selectedCountyId = '',
+  setSelectedCountyId = noop,
+  selectedSubcountyId = '',
+  setSelectedSubcountyId = noop,
+  selectedRoadId = '',
+  setSelectedRoadId = noop,
   frontViewImage,
   overviewImage,
-  setFrontViewImage,
-  setOverviewImage,
-  handleCaptureFront,
-  handleCaptureOverview,
+  setFrontViewImage = noop,
+  setOverviewImage = noop,
+  handleCaptureFront = noop,
+  handleCaptureOverview = noop,
   vehiclePlate,
   setVehiclePlate,
-  isPlateDisabled,
-  handleScanPlate,
-  handleEditPlate,
+  isPlateDisabled = false,
+  handleScanPlate = noop,
+  handleEditPlate = noop,
   handleProceedToVehicle,
   canProceedFromCapture,
   isCommercial = false,
   currentStation,
   currentBound,
-  handleBoundChange,
+  handleBoundChange = noop,
   children,
-  pendingTransactions,
+  pendingTransactions = [],
   onEnter,
   onMoveForward,
   onMoveBack,
