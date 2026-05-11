@@ -63,6 +63,7 @@ export { WeighingVehicleStep } from './steps/WeighingVehicleStep';
 
 // Commercial Weighing Components
 export { CommercialWeighingStepper } from './CommercialWeighingStepper';
+export { CommercialEntitySelectors } from './CommercialEntitySelectors';
 export { CommercialNetWeightDisplay } from './CommercialNetWeightDisplay';
 export { CommercialFirstWeightStep } from './steps/CommercialFirstWeightStep';
 export { CommercialSecondWeightStep } from './steps/CommercialSecondWeightStep';
