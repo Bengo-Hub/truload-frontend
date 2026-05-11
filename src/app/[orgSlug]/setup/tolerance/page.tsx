@@ -1,7 +1,6 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,8 +27,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   useCargoTypes,
-  useCreateToleranceSetting,
   useCommercialToleranceSettings,
+  useCreateToleranceSetting,
   useUpdateToleranceSetting,
 } from '@/hooks/queries';
 import type { CommercialToleranceSetting } from '@/lib/api/weighing';
@@ -254,7 +253,6 @@ export default function ToleranceSettingsPage() {
       : `${s.toleranceValue.toLocaleString()} kg`;
 
   return (
-    <AppShell title="Tolerance Settings" subtitle="Commercial weighing tolerance rules">
       <ProtectedRoute requiredPermissions={['config.read']} moduleKey="setup_tolerance">
         <div className="space-y-6">
           {/* Header */}
@@ -365,6 +363,5 @@ export default function ToleranceSettingsPage() {
           onClose={closeDialog}
         />
       </ProtectedRoute>
-    </AppShell>
   );
 }
