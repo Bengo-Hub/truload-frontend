@@ -12,6 +12,11 @@ import {
 import { Switch } from '@/components/ui/switch';
 import type { CreateDriverRequest } from '@/types/weighing';
 
+export interface TransporterOption {
+  id: string;
+  name: string;
+}
+
 const LICENSE_CLASSES = [
   { value: 'A', label: 'A - Motorcycles' },
   { value: 'B', label: 'B - Light Vehicles' },
@@ -45,6 +50,8 @@ export interface DriverFormFieldsProps {
   requiredFields?: (keyof CreateDriverRequest)[];
   /** Prefix for input ids to avoid collisions when multiple instances exist. */
   idPrefix?: string;
+  /** Optional transporter list for linking driver to their employer */
+  transporters?: TransporterOption[];
 }
 
 const defaultRequired: (keyof CreateDriverRequest)[] = ['fullNames', 'surname'];
@@ -56,6 +63,7 @@ export function DriverFormFields({
   disabled = false,
   requiredFields = defaultRequired,
   idPrefix = 'driver-form',
+  transporters,
 }: DriverFormFieldsProps) {
   const required = (k: keyof CreateDriverRequest) => requiredFields.includes(k);
 
@@ -181,6 +189,27 @@ export function DriverFormFields({
               disabled={disabled}
             />
           </div>
+          {transporters && transporters.length > 0 && (
+            <div className="space-y-2 md:col-span-2">
+              <Label className="text-sm font-medium">Transporter / Employer</Label>
+              <Select
+                value={values.transporterId ?? ''}
+                onValueChange={(v) => onChange('transporterId', v || undefined)}
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select transporter (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">— Independent / None —</SelectItem>
+                  {transporters.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">Link this driver to their employer. Owner-operators leave this blank.</p>
+            </div>
+          )}
         </div>
       </div>
 

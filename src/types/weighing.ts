@@ -265,6 +265,7 @@ export interface CreateDriverRequest {
   drivingLicenseNo?: string;
   fullNames: string;
   surname: string;
+  transporterId?: string;
   gender?: string;
   nationality?: string;
   dateOfBirth?: string;

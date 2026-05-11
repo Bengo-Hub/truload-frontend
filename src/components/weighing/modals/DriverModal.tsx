@@ -4,7 +4,7 @@ import { CreateDriverRequest, Driver } from '@/types/weighing';
 import { format } from 'date-fns';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { DriverFormFields } from './DriverFormFields';
+import { DriverFormFields, TransporterOption } from './DriverFormFields';
 import { EntityModal, ModalMode } from './EntityModal';
 import { Label } from '@/components/ui/label';
 
@@ -15,6 +15,10 @@ interface DriverModalProps {
   driver?: Driver | null;
   onSave: (data: CreateDriverRequest) => Promise<void>;
   isSaving?: boolean;
+  /** Optional list of transporters to show the employer selector */
+  transporters?: TransporterOption[];
+  /** Pre-select a transporter when opening in create mode */
+  defaultTransporterId?: string;
 }
 
 /**
@@ -29,6 +33,8 @@ export function DriverModal({
   driver,
   onSave,
   isSaving = false,
+  transporters,
+  defaultTransporterId,
 }: DriverModalProps) {
   const isViewMode = mode === 'view';
 
@@ -49,6 +55,7 @@ export function DriverModal({
       licenseIssueDate: '',
       licenseExpiryDate: '',
       isProfessionalDriver: false,
+      transporterId: defaultTransporterId,
     },
   });
 
@@ -131,6 +138,7 @@ export function DriverModal({
           errors={errorMap}
           disabled={isViewMode}
           requiredFields={['fullNames', 'surname']}
+          transporters={transporters}
         />
         {isViewMode && driver && (
           <div className="space-y-4">
