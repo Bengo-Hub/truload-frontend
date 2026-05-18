@@ -27,6 +27,7 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  Bell,
   SlidersHorizontal,
   Sliders,
   Users,
@@ -94,6 +95,7 @@ const menuSections: MenuSection[] = [
       { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
       { href: '/setup/tolerance', label: 'Tolerance Settings', icon: Sliders, permissions: ['config.read'], moduleKey: 'setup_tolerance', commercialOnly: true },
       { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['config.read'], moduleKey: 'setup_system_config' },
+      { href: '/setup/notifications', label: 'Notifications', icon: Bell, permissions: ['config.read'], moduleKey: 'setup_notifications' },
     ],
   },
   {

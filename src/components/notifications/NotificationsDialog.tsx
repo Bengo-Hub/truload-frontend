@@ -11,9 +11,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { notificationApi, UserNotification } from '@/lib/api/notificationApi';
+import { notificationApi, type UserNotification } from '@/lib/api/notificationApi';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle, ExternalLink, Info, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 interface NotificationsDialogProps {
   isOpen: boolean;
@@ -21,50 +21,39 @@ interface NotificationsDialogProps {
 }
 
 export default function NotificationsDialog({ isOpen, onClose }: NotificationsDialogProps) {
-  const [notifications, setNotifications] = useState<UserNotification[]>([]);
-  const [loading, setLoading] = useState(false);
-  const { toast } = { toast: (p: any) => console.log(p) }; // Mock toast if missing
+  const queryClient = useQueryClient();
 
-  const fetchNotifications = async () => {
-    if (!isOpen) return;
-    setLoading(true);
-    try {
-      const data = await notificationApi.getInbox();
-      setNotifications(data);
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [isOpen]);
+  const { data: notifications = [], isLoading: loading } = useQuery({
+    queryKey: ['notifications', 'inbox'],
+    queryFn: () => notificationApi.getInbox(),
+    enabled: isOpen,
+    refetchInterval: isOpen ? 30_000 : false,
+    staleTime: 15_000,
+  });
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const readNotifications = notifications.filter((n) => n.isRead);
   const unreadNotifications = notifications.filter((n) => !n.isRead);
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await notificationApi.delete(id);
-      setNotifications(notifications.filter((n) => n.id !== id));
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete notification',
-        variant: 'destructive',
-      });
+      invalidate();
+    } catch {
+      // silent — item will reappear on next poll
     }
   };
 
   const handleMarkAsRead = async (id: string) => {
     try {
       await notificationApi.markAsRead(id);
-      setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
-    } catch (error) {
-      console.error('Failed to mark as read:', error);
+      invalidate();
+    } catch {
+      // silent
     }
   };
 

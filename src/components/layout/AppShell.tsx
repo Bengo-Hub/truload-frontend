@@ -13,6 +13,7 @@ import { useStations } from '@/hooks/queries/useWeighingQueries';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { fetchOrganizationByCode } from '@/lib/api/public';
 import { getEffectiveStationId } from '@/lib/auth/token';
+import { notificationApi } from '@/lib/api/notificationApi';
 import { useAuthStore } from '@/stores/auth.store';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, Copy, MapPin, Menu } from 'lucide-react';
@@ -48,6 +49,14 @@ export function AppShell({ children, title, subtitle }: AppShellProps) {
   const { data: stations = [] } = useStations();
   const effectiveStationId = getEffectiveStationId();
   const currentStation = effectiveStationId ? stations.find((s) => s.id === effectiveStationId) : null;
+  const { data: unreadNotifications = [] } = useQuery({
+    queryKey: ['notifications', 'unread'],
+    queryFn: () => notificationApi.getInbox(false, 50),
+    enabled: !!user,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const unreadCount = unreadNotifications.length;
   const logoUrl = org?.logoUrl || LOGO_FALLBACK;
   const primaryColor = org?.primaryColor || '#5B1C4D';
 
@@ -109,12 +118,14 @@ export function AppShell({ children, title, subtitle }: AppShellProps) {
                 onClick={() => setNotificationsOpen(true)}
               >
                 <Bell className="h-[18px] w-[18px] text-gray-500" />
-                <span className="absolute top-1 right-1 flex h-4 w-4">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[10px] font-bold text-white leading-none">
-                    2
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-4 w-4">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[10px] font-bold text-white leading-none">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                   </span>
-                </span>
+                )}
               </Button>
 
               {/* Currency Switcher */}
