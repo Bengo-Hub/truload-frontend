@@ -61,6 +61,8 @@ interface AxleFormValues {
 	legalFramework?: string;
 	visualDiagramUrl?: string;
 	notes?: string;
+	/** GVW tolerance override in kg. 0 = use global Act tolerance. >=1000 overrides. */
+	toleranceKg: number;
 }
 
 interface WeightRefRow {
@@ -370,6 +372,7 @@ function AxleConfigurationsContent() {
 				legalFramework: editing.legalFramework ?? 'TrafficAct',
 				visualDiagramUrl: editing.visualDiagramUrl ?? '',
 				notes: editing.notes ?? '',
+				toleranceKg: editing.toleranceKg ?? 0,
 			});
 			// Load existing weight references
 			fetchAxleWeightReferencesByConfiguration(editing.id)
@@ -394,6 +397,7 @@ function AxleConfigurationsContent() {
 				legalFramework: 'TrafficAct',
 				visualDiagramUrl: '',
 				notes: '',
+				toleranceKg: 0,
 			});
 			initWeightRefRows(2);
 		}
@@ -428,6 +432,7 @@ function AxleConfigurationsContent() {
 				visualDiagramUrl: values.visualDiagramUrl,
 				notes: values.notes,
 				isActive: true,
+				toleranceKg: values.toleranceKg > 0 ? values.toleranceKg : 0,
 				weightReferences: weightRefs,
 			};
 			await updateMutation.mutateAsync({ id: editing.id, payload });
@@ -780,6 +785,7 @@ function AxleConfigurationsContent() {
 										<TableHead className="font-semibold min-w-[180px]">Name</TableHead>
 										<TableHead className="font-semibold text-center w-[80px]">Axles</TableHead>
 										<TableHead className="font-semibold text-right w-[120px]">GVW (kg)</TableHead>
+										<TableHead className="font-semibold text-right w-[110px]">Tolerance</TableHead>
 										<TableHead className="font-semibold text-center w-[120px]">Framework</TableHead>
 										<TableHead className="font-semibold text-center w-[90px]">Standard</TableHead>
 										<TableHead className="font-semibold text-right w-[100px]">Actions</TableHead>
@@ -846,6 +852,15 @@ function AxleConfigurationsContent() {
 												<span className={cfg.gvwPermissibleKg > MAX_LEGAL_GVW_KG ? 'text-red-600 font-semibold' : ''}>
 													{cfg.gvwPermissibleKg.toLocaleString()}
 												</span>
+											</TableCell>
+											<TableCell className="text-right font-mono">
+												{cfg.toleranceKg && cfg.toleranceKg >= 1000 ? (
+													<span className="text-amber-700 font-semibold" title="Config-specific tolerance overrides global Act tolerance">
+														{(cfg.toleranceKg / 1000).toLocaleString()}T
+													</span>
+												) : (
+													<span className="text-gray-400 text-xs">Global</span>
+												)}
 											</TableCell>
 											<TableCell className="text-center">
 												<Badge
@@ -1312,6 +1327,22 @@ function AxleConfigurationsContent() {
 										placeholder="Any additional notes..."
 										{...register('notes')}
 										rows={2}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="toleranceKg">
+										GVW Tolerance Override (kg)
+									</Label>
+									<p className="text-xs text-gray-500">
+										Set to 0 to use the global Act tolerance. Enter 1000 or more to override — e.g. 2000 for 2T, 3000 for 3T. This tolerance is applied first during compliance calculations.
+									</p>
+									<Input
+										id="toleranceKg"
+										type="number"
+										min={0}
+										step={500}
+										placeholder="0 (use global Act tolerance)"
+										{...register('toleranceKg', { valueAsNumber: true })}
 									/>
 								</div>
 							</div>

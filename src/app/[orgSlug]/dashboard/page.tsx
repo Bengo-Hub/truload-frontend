@@ -176,7 +176,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
         ) : (
           <>
             <PermissionGate permissions="weighing.read">
-              <StatCard title={isCommercial ? 'Vehicles Weighed Today' : "Today's Weighings"} value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Scale} color="bg-blue-500" />
+              <StatCard title="Total Weighings" value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Scale} color="bg-blue-500" />
             </PermissionGate>
             {isEnforcement && (
               <PermissionGate permissions="weighing.read">
