@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 /** Maps tenant-branded hostnames to their fixed org slugs. */
 const HOSTNAME_SLUG_MAP: Record<string, string> = {
   'kuraweigh.kura.go.ke': 'kura',
+  'kuraweightest.masterspace.co.ke': 'kura',
 };
 
 const publicPathSuffixes = ['/auth/login', '/auth/forgot-password', '/auth/reset-password', '/auth/change-expired-password'];
