@@ -352,6 +352,9 @@ export interface AxleConfigurationResponse {
   legalFramework: string;
   visualDiagramUrl?: string;
   notes?: string;
+  /** Per-config GVW tolerance override in kg. 0/null = use global Act tolerance. >=1000 overrides. */
+  toleranceKg?: number;
+  tolerancePercentage?: number;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -396,6 +399,8 @@ export interface UpdateAxleConfigurationRequest {
   visualDiagramUrl?: string;
   notes?: string;
   isActive: boolean;
+  /** Per-config GVW tolerance override in kg. 0 = use global Act tolerance. >=1000 overrides. */
+  toleranceKg?: number;
   weightReferences?: UpdateAxleWeightReferenceInline[];
 }
 
