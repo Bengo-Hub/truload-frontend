@@ -141,6 +141,10 @@ export const notificationApi = {
         await apiClient.post('/shared/notifications/providers/settings', request);
     },
 
+    sendTestEmail: async (recipient: string) => {
+        await apiClient.post('/shared/notifications/test-email', { recipient });
+    },
+
     // Workflow preferences
     getWorkflowPreferences: async () => {
         const res = await apiClient.get<WorkflowPreferencesDto>('/shared/notifications/workflow-preferences');

@@ -31,7 +31,6 @@ import {
     Bell,
     CalendarClock,
     CheckCircle2,
-    ChevronRight,
     FileBarChart2,
     Loader2,
     Mail,
@@ -78,7 +77,7 @@ function NotificationsSetupContent() {
                 <TabsList className="grid w-full grid-cols-4 max-w-3xl">
                     <TabsTrigger value="provider" className="gap-1.5">
                         <Mail className="h-4 w-4" />
-                        <span className="hidden sm:inline">Email Provider</span>
+                        <span className="hidden sm:inline">Email</span>
                     </TabsTrigger>
                     <TabsTrigger value="workflows" className="gap-1.5">
                         <Bell className="h-4 w-4" />
@@ -112,193 +111,100 @@ function NotificationsSetupContent() {
 }
 
 // ============================================================================
-// Tab 1 — Email Provider
+// Tab 1 — Email Integration (status + test)
 // ============================================================================
 
-const PROVIDER_LABELS: Record<string, string> = {
-    smtp: 'SMTP',
-    sendgrid: 'SendGrid',
-    brevo: 'Brevo (Sendinblue)',
-};
-
-const SMTP_FIELDS = [
-    { key: 'host', label: 'SMTP Host', placeholder: 'smtp.example.com' },
-    { key: 'port', label: 'Port', placeholder: '587' },
-    { key: 'username', label: 'Username / From Email', placeholder: 'noreply@example.com' },
-    { key: 'password', label: 'Password', placeholder: '••••••••', secret: true },
-    { key: 'from_name', label: 'From Name', placeholder: 'TruLoad Notifications' },
-];
-
-const SENDGRID_FIELDS = [
-    { key: 'api_key', label: 'API Key', placeholder: 'SG.••••••••', secret: true },
-    { key: 'from_email', label: 'From Email', placeholder: 'noreply@example.com' },
-    { key: 'from_name', label: 'From Name', placeholder: 'TruLoad Notifications' },
-];
-
-const BREVO_FIELDS = [
-    { key: 'api_key', label: 'API Key', placeholder: '••••••••', secret: true },
-    { key: 'from_email', label: 'From Email', placeholder: 'noreply@example.com' },
-    { key: 'from_name', label: 'From Name', placeholder: 'TruLoad Notifications' },
-];
-
-const PROVIDER_FIELDS: Record<string, typeof SMTP_FIELDS> = {
-    smtp: SMTP_FIELDS,
-    sendgrid: SENDGRID_FIELDS,
-    brevo: BREVO_FIELDS,
-};
-
 function EmailProviderTab() {
-    const qc = useQueryClient();
-    const [selectedType, setSelectedType] = useState<string>('smtp');
-    const [selectedName, setSelectedName] = useState<string>('smtp');
-    const [formValues, setFormValues] = useState<Record<string, string>>({});
-    const [isDirty, setIsDirty] = useState(false);
+    const [testRecipient, setTestRecipient] = useState('');
 
-    const { data: available = [], isLoading: loadingAvail } = useQuery({
-        queryKey: ['notif-providers-available'],
-        queryFn: () => notificationApi.getAvailableProviders(),
-    });
-
-    const { data: selected = [] } = useQuery({
+    const { data: selected = [], isLoading } = useQuery({
         queryKey: ['notif-providers-selected'],
         queryFn: () => notificationApi.getSelectedProviders(),
     });
 
-    const { data: settings, isLoading: loadingSettings } = useQuery({
-        queryKey: ['notif-provider-settings', selectedType, selectedName],
-        queryFn: () => notificationApi.getProviderSettings(selectedType, selectedName),
-        enabled: !!selectedType && !!selectedName,
+    const testMutation = useMutation({
+        mutationFn: () => notificationApi.sendTestEmail(testRecipient),
+        onSuccess: () => toast.success('Test email sent — check your inbox'),
+        onError: () => toast.error('Failed to send test email'),
     });
 
-    // Sync form values when settings load
-    const [syncedFor, setSyncedFor] = useState('');
-    const key = `${selectedType}:${selectedName}`;
-    if (settings && syncedFor !== key) {
-        setFormValues(settings.settings ?? {});
-        setSyncedFor(key);
-    }
-
-    const saveMutation = useMutation({
-        mutationFn: () => notificationApi.saveProviderSettings({
-            providerType: selectedType,
-            providerName: selectedName,
-            settings: formValues,
-        }),
-        onSuccess: () => {
-            toast.success('Provider settings saved');
-            setIsDirty(false);
-            qc.invalidateQueries({ queryKey: ['notif-provider-settings'] });
-        },
-        onError: () => toast.error('Failed to save provider settings'),
-    });
-
-    const selectMutation = useMutation({
-        mutationFn: (name: string) => notificationApi.selectProvider({ providerType: 'email', providerName: name }),
-        onSuccess: () => {
-            toast.success('Email provider selected');
-            qc.invalidateQueries({ queryKey: ['notif-providers-selected'] });
-        },
-        onError: () => toast.error('Failed to select provider'),
-    });
-
-    const emailProviders = ['smtp', 'sendgrid', 'brevo'];
-    const activeProvider = selected.find(s => s.providerType === 'email')?.providerName;
-    const fields = PROVIDER_FIELDS[selectedName] ?? SMTP_FIELDS;
-
-    const updateField = (k: string, v: string) => {
-        setFormValues(prev => ({ ...prev, [k]: v }));
-        setIsDirty(true);
-    };
+    const activeEmail = selected.find(s => s.providerType === 'email');
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Provider selector */}
-            <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Email Providers</h3>
-                {emailProviders.map(name => {
-                    const isActive = activeProvider === name;
-                    const isSelected = selectedName === name;
-                    return (
-                        <button
-                            key={name}
-                            type="button"
-                            onClick={() => { setSelectedName(name); setSelectedType('email'); setSyncedFor(''); }}
-                            className={`w-full rounded-xl border p-3 text-left transition-all ${isSelected
-                                ? 'border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm'
-                                : 'border-gray-200 bg-white hover:border-gray-300'}`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="font-medium text-sm">{PROVIDER_LABELS[name] ?? name}</span>
-                                <div className="flex items-center gap-2">
-                                    {isActive && (
-                                        <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-[10px]">
-                                            Active
-                                        </Badge>
-                                    )}
-                                    {isSelected && <ChevronRight className="h-4 w-4 text-primary" />}
+        <div className="max-w-2xl space-y-6">
+            <Card>
+                <CardHeader className="border-b bg-gray-50/50 py-4">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-primary" />
+                        Notifications Service Integration
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Email delivery is managed by the centralized <strong>notifications-api</strong> service.
+                        SMTP provider configuration, API keys, and sender identity are configured there and shared across all platform services.
+                    </p>
+
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50">
+                        {isLoading ? (
+                            <Skeleton className="h-5 w-48" />
+                        ) : activeEmail ? (
+                            <>
+                                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">Email provider active</p>
+                                    <p className="text-xs text-muted-foreground capitalize">
+                                        Using <strong>{activeEmail.providerName}</strong> via notifications-api
+                                    </p>
                                 </div>
-                            </div>
-                        </button>
-                    );
-                })}
-
-                <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full gap-1.5 mt-2"
-                    disabled={selectMutation.isPending || activeProvider === selectedName}
-                    onClick={() => selectMutation.mutate(selectedName)}
-                >
-                    {selectMutation.isPending
-                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                        : <CheckCircle2 className="h-4 w-4" />}
-                    {activeProvider === selectedName ? 'Currently Active' : `Use ${PROVIDER_LABELS[selectedName] ?? selectedName}`}
-                </Button>
-            </div>
-
-            {/* Settings form */}
-            <div className="lg:col-span-2">
-                <Card>
-                    <CardHeader className="border-b bg-gray-50/50 py-4">
-                        <CardTitle className="text-base">
-                            {PROVIDER_LABELS[selectedName] ?? selectedName} Settings
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-5 space-y-4">
-                        {loadingSettings ? (
-                            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)
+                            </>
                         ) : (
                             <>
-                                {fields.map(field => (
-                                    <div key={field.key} className="space-y-1.5">
-                                        <Label className="text-xs font-medium text-gray-700">{field.label}</Label>
-                                        <Input
-                                            type={field.secret ? 'password' : 'text'}
-                                            placeholder={field.placeholder}
-                                            value={formValues[field.key] ?? ''}
-                                            onChange={e => updateField(field.key, e.target.value)}
-                                        />
-                                    </div>
-                                ))}
-
-                                <div className="flex justify-end pt-2 border-t">
-                                    <Button
-                                        size="sm"
-                                        className="gap-1.5"
-                                        disabled={!isDirty || saveMutation.isPending}
-                                        onClick={() => saveMutation.mutate()}
-                                    >
-                                        {saveMutation.isPending
-                                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                                            : <Save className="h-4 w-4" />}
-                                        Save Settings
-                                    </Button>
+                                <XCircle className="h-5 w-5 text-amber-500 shrink-0" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">No active email provider</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Configure an email provider in the notifications-api admin panel.
+                                    </p>
                                 </div>
                             </>
                         )}
-                    </CardContent>
-                </Card>
-            </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader className="border-b bg-gray-50/50 py-4">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-primary" />
+                        Send Test Email
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                        Trigger a sample notification email to confirm the notifications-api integration is working correctly.
+                    </p>
+                    <div className="flex gap-2">
+                        <Input
+                            type="email"
+                            placeholder="recipient@example.com"
+                            value={testRecipient}
+                            onChange={e => setTestRecipient(e.target.value)}
+                        />
+                        <Button
+                            size="sm"
+                            className="shrink-0 gap-1.5"
+                            disabled={!testRecipient.trim() || testMutation.isPending}
+                            onClick={() => testMutation.mutate()}
+                        >
+                            {testMutation.isPending
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Mail className="h-4 w-4" />}
+                            Send Test
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
