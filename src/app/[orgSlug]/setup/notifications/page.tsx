@@ -16,11 +16,12 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -37,14 +38,12 @@ import {
     Plus,
     RefreshCcw,
     Save,
+    Send,
     Smartphone,
     Trash2,
     XCircle,
+    Zap,
 } from 'lucide-react';
-
-// ============================================================================
-// Page wrapper
-// ============================================================================
 
 export default function NotificationsSetupPage() {
     return (
@@ -54,40 +53,36 @@ export default function NotificationsSetupPage() {
     );
 }
 
-// ============================================================================
-// Main content
-// ============================================================================
-
 function NotificationsSetupContent() {
     const { isEnforcement, isCommercial } = useModuleAccess();
 
     return (
         <div className="space-y-6">
-            <header>
-                <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
+            <div>
+                <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
                     <Bell className="h-6 w-6 text-primary" />
                     Notifications
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Configure email provider, workflow triggers, scheduled reports, and push notifications
+                    Manage email delivery, workflow triggers, scheduled reports, and push notifications.
                 </p>
-            </header>
+            </div>
 
-            <Tabs defaultValue="provider" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4 max-w-3xl">
-                    <TabsTrigger value="provider" className="gap-1.5">
+            <Tabs defaultValue="provider" className="space-y-6">
+                <TabsList className="h-10">
+                    <TabsTrigger value="provider" className="gap-2 px-4">
                         <Mail className="h-4 w-4" />
                         <span className="hidden sm:inline">Email</span>
                     </TabsTrigger>
-                    <TabsTrigger value="workflows" className="gap-1.5">
-                        <Bell className="h-4 w-4" />
+                    <TabsTrigger value="workflows" className="gap-2 px-4">
+                        <Zap className="h-4 w-4" />
                         <span className="hidden sm:inline">Workflows</span>
                     </TabsTrigger>
-                    <TabsTrigger value="reports" className="gap-1.5">
+                    <TabsTrigger value="reports" className="gap-2 px-4">
                         <FileBarChart2 className="h-4 w-4" />
-                        <span className="hidden sm:inline">Scheduled Reports</span>
+                        <span className="hidden sm:inline">Reports</span>
                     </TabsTrigger>
-                    <TabsTrigger value="push" className="gap-1.5">
+                    <TabsTrigger value="push" className="gap-2 px-4">
                         <Smartphone className="h-4 w-4" />
                         <span className="hidden sm:inline">Push</span>
                     </TabsTrigger>
@@ -110,9 +105,7 @@ function NotificationsSetupContent() {
     );
 }
 
-// ============================================================================
-// Tab 1 — Email Integration (status + test)
-// ============================================================================
+// ── Email Tab ──────────────────────────────────────────────────────────────────
 
 function EmailProviderTab() {
     const [testRecipient, setTestRecipient] = useState('');
@@ -131,94 +124,101 @@ function EmailProviderTab() {
     const activeEmail = selected.find(s => s.providerType === 'email');
 
     return (
-        <div className="max-w-2xl space-y-6">
+        <div className="grid gap-6 lg:grid-cols-2">
+            {/* Status card */}
             <Card>
-                <CardHeader className="border-b bg-gray-50/50 py-4">
+                <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Mail className="h-4 w-4 text-primary" />
-                        Notifications Service Integration
+                        Email Provider
                     </CardTitle>
+                    <CardDescription>
+                        Delivery is routed through the centralized notifications-api. Configure
+                        SMTP credentials and sender identity in the notifications admin panel.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="p-5 space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                        Email delivery is managed by the centralized <strong>notifications-api</strong> service.
-                        SMTP provider configuration, API keys, and sender identity are configured there and shared across all platform services.
-                    </p>
-
-                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50">
-                        {isLoading ? (
-                            <Skeleton className="h-5 w-48" />
-                        ) : activeEmail ? (
-                            <>
-                                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">Email provider active</p>
-                                    <p className="text-xs text-muted-foreground capitalize">
-                                        Using <strong>{activeEmail.providerName}</strong> via notifications-api
-                                    </p>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <XCircle className="h-5 w-5 text-amber-500 shrink-0" />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">No active email provider</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Configure an email provider in the notifications-api admin panel.
-                                    </p>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                <CardContent>
+                    {isLoading ? (
+                        <div className="flex items-center gap-3 rounded-lg border p-4">
+                            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                            <div className="space-y-1.5 flex-1">
+                                <Skeleton className="h-4 w-36" />
+                                <Skeleton className="h-3 w-52" />
+                            </div>
+                        </div>
+                    ) : activeEmail ? (
+                        <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 shrink-0">
+                                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-900">Email provider active</p>
+                                <p className="text-xs text-muted-foreground capitalize">
+                                    Using <strong>{activeEmail.providerName}</strong> via notifications-api
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 shrink-0">
+                                <XCircle className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-900">No email provider configured</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Add an SMTP provider in the notifications-api admin panel.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
+            {/* Test email card */}
             <Card>
-                <CardHeader className="border-b bg-gray-50/50 py-4">
+                <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-primary" />
+                        <Send className="h-4 w-4 text-primary" />
                         Send Test Email
                     </CardTitle>
+                    <CardDescription>
+                        Send a sample email to verify end-to-end delivery. The email will use
+                        your tenant&apos;s brand colours and logo automatically.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="p-5 space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                        Trigger a sample notification email to confirm the notifications-api integration is working correctly.
-                    </p>
-                    <div className="flex gap-2">
+                <CardContent className="space-y-4">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="test-email" className="text-sm">Recipient address</Label>
                         <Input
+                            id="test-email"
                             type="email"
-                            placeholder="recipient@example.com"
+                            placeholder="you@example.com"
                             value={testRecipient}
                             onChange={e => setTestRecipient(e.target.value)}
                         />
-                        <Button
-                            size="sm"
-                            className="shrink-0 gap-1.5"
-                            disabled={!testRecipient.trim() || testMutation.isPending}
-                            onClick={() => testMutation.mutate()}
-                        >
-                            {testMutation.isPending
-                                ? <Loader2 className="h-4 w-4 animate-spin" />
-                                : <Mail className="h-4 w-4" />}
-                            Send Test
-                        </Button>
                     </div>
+                    <Button
+                        className="w-full gap-2"
+                        disabled={!testRecipient.trim() || testMutation.isPending}
+                        onClick={() => testMutation.mutate()}
+                    >
+                        {testMutation.isPending
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Send className="h-4 w-4" />}
+                        Send Test Email
+                    </Button>
                 </CardContent>
             </Card>
         </div>
     );
 }
 
-// ============================================================================
-// Tab 2 — Workflows
-// ============================================================================
+// ── Workflows Tab ──────────────────────────────────────────────────────────────
 
 interface WorkflowConfig {
     key: keyof WorkflowPreferencesDto;
     label: string;
     description: string;
-    enforcement?: boolean;
-    commercial?: boolean;
 }
 
 const ENFORCEMENT_WORKFLOWS: WorkflowConfig[] = [
@@ -244,26 +244,26 @@ function WorkflowToggle({
     onChange: (v: WorkflowPreferenceItem) => void;
 }) {
     return (
-        <div className="flex items-start justify-between py-3 border-b last:border-b-0">
-            <div className="flex-1 min-w-0 pr-4">
-                <p className="text-sm font-medium text-gray-900">{label}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        <div className="flex items-center justify-between py-3.5">
+            <div className="flex-1 min-w-0 pr-6">
+                <p className="text-sm font-medium leading-none">{label}</p>
+                <p className="text-xs text-muted-foreground mt-1">{description}</p>
             </div>
-            <div className="flex items-center gap-4 shrink-0">
-                <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-5 shrink-0">
+                <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
                         checked={value.emailEnabled}
                         onCheckedChange={v => onChange({ ...value, emailEnabled: v })}
                     />
-                    <span className="text-xs text-muted-foreground">Email</span>
-                </div>
-                <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground w-8">Email</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
                         checked={value.pushEnabled}
                         onCheckedChange={v => onChange({ ...value, pushEnabled: v })}
                     />
-                    <span className="text-xs text-muted-foreground">Push</span>
-                </div>
+                    <span className="text-xs text-muted-foreground w-8">Push</span>
+                </label>
             </div>
         </div>
     );
@@ -295,57 +295,68 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
     };
 
     if (isLoading || !active) {
-        return <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>;
+        return (
+            <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+            </div>
+        );
     }
 
     return (
         <div className="space-y-6">
-            {isEnforcement && (
-                <Card>
-                    <CardHeader className="border-b bg-gray-50/50 py-4">
+            <div className="grid gap-6 lg:grid-cols-2">
+                {isEnforcement && (
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                Enforcement Workflows
+                            </CardTitle>
+                            <CardDescription>Axle load enforcement event notifications</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <div className="divide-y">
+                                {ENFORCEMENT_WORKFLOWS.map(w => (
+                                    <WorkflowToggle
+                                        key={w.key}
+                                        label={w.label}
+                                        description={w.description}
+                                        value={active[w.key]}
+                                        onChange={v => update(w.key, v)}
+                                    />
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                <Card className={isEnforcement ? '' : 'lg:col-span-2'}>
+                    <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
-                            Enforcement Workflows
+                            <Bell className="h-4 w-4 text-primary" />
+                            General Workflows
                         </CardTitle>
+                        <CardDescription>Platform-wide event notifications for all tenants</CardDescription>
                     </CardHeader>
-                    <CardContent className="p-4">
-                        {ENFORCEMENT_WORKFLOWS.map(w => (
-                            <WorkflowToggle
-                                key={w.key}
-                                label={w.label}
-                                description={w.description}
-                                value={active[w.key]}
-                                onChange={v => update(w.key, v)}
-                            />
-                        ))}
+                    <CardContent className="pt-0">
+                        <div className="divide-y">
+                            {SHARED_WORKFLOWS.map(w => (
+                                <WorkflowToggle
+                                    key={w.key}
+                                    label={w.label}
+                                    description={w.description}
+                                    value={active[w.key]}
+                                    onChange={v => update(w.key, v)}
+                                />
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
-            )}
-
-            <Card>
-                <CardHeader className="border-b bg-gray-50/50 py-4">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Bell className="h-4 w-4 text-primary" />
-                        General Workflows
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                    {SHARED_WORKFLOWS.map(w => (
-                        <WorkflowToggle
-                            key={w.key}
-                            label={w.label}
-                            description={w.description}
-                            value={active[w.key]}
-                            onChange={v => update(w.key, v)}
-                        />
-                    ))}
-                </CardContent>
-            </Card>
+            </div>
 
             <div className="flex justify-end">
                 <Button
-                    size="sm"
-                    className="gap-1.5"
+                    className="gap-2"
                     disabled={!local || saveMutation.isPending}
                     onClick={() => local && saveMutation.mutate(local)}
                 >
@@ -357,9 +368,7 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
     );
 }
 
-// ============================================================================
-// Tab 3 — Scheduled Reports
-// ============================================================================
+// ── Scheduled Reports Tab ──────────────────────────────────────────────────────
 
 const CRON_PRESETS = [
     { label: 'Daily at 6 AM', value: '0 6 * * *' },
@@ -414,73 +423,92 @@ function ScheduledReportsTab() {
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="space-y-5">
+            <div className="flex items-center justify-between gap-4">
                 <p className="text-sm text-muted-foreground">
-                    Automatically generate and email reports on a schedule. Reports are sent to configured recipients.
+                    Automatically generate and email reports on a recurring schedule.
                 </p>
-                <Button size="sm" className="gap-1.5" onClick={() => { setEditing(null); setShowForm(true); }}>
+                <Button size="sm" className="gap-2 shrink-0" onClick={() => { setEditing(null); setShowForm(true); }}>
                     <Plus className="h-4 w-4" />
                     New Schedule
                 </Button>
             </div>
 
             {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)
+                <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+                </div>
             ) : reports.length === 0 ? (
-                <Card className="p-12 text-center border-dashed">
-                    <CalendarClock className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-sm font-medium text-gray-700">No scheduled reports</p>
-                    <p className="text-xs text-muted-foreground mt-1">Click "New Schedule" to create your first automated report.</p>
+                <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="rounded-full bg-muted p-3 mb-4">
+                            <CalendarClock className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm font-medium">No scheduled reports</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Create an automated report schedule to get started.
+                        </p>
+                    </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {reports.map(report => (
-                        <Card key={report.id} className={`p-4 ${!report.isActive ? 'opacity-60' : ''}`}>
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-semibold text-sm text-gray-900">{report.name}</span>
-                                        <Badge variant="outline" className="text-[10px]">{report.format}</Badge>
-                                        <Badge variant="outline" className="capitalize text-[10px]">{report.module}</Badge>
+                        <Card key={report.id} className={`transition-opacity ${!report.isActive ? 'opacity-55' : ''}`}>
+                            <CardContent className="p-4">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="font-semibold text-sm truncate">{report.name}</span>
                                         {statusIcon(report.lastRunStatus)}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        {report.scheduleDescription ?? report.cronSchedule} · {report.recipients.length} recipient(s)
-                                    </p>
-                                    {report.nextRunAt && (
-                                        <p className="text-[11px] text-blue-600 mt-0.5">
-                                            Next run: {new Date(report.nextRunAt).toLocaleString()}
-                                        </p>
-                                    )}
-                                    {report.lastRunError && (
-                                        <p className="text-[11px] text-red-500 mt-0.5 truncate">{report.lastRunError}</p>
-                                    )}
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                            onClick={() => { setEditing(report); setShowForm(true); }}
+                                        >
+                                            <RefreshCcw className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                            onClick={() => deleteMutation.mutate(report.id)}
+                                            disabled={deleteMutation.isPending}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
+
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                    <Badge variant="secondary" className="text-[10px]">{report.format}</Badge>
+                                    <Badge variant="outline" className="capitalize text-[10px]">{report.module}</Badge>
+                                </div>
+
+                                <p className="text-xs text-muted-foreground truncate">
+                                    {report.scheduleDescription ?? report.cronSchedule} · {report.recipients.length} recipient{report.recipients.length !== 1 ? 's' : ''}
+                                </p>
+
+                                {report.nextRunAt && (
+                                    <p className="text-[11px] text-blue-600 mt-1">
+                                        Next: {new Date(report.nextRunAt).toLocaleString()}
+                                    </p>
+                                )}
+                                {report.lastRunError && (
+                                    <p className="text-[11px] text-red-500 mt-1 truncate">{report.lastRunError}</p>
+                                )}
+
+                                <Separator className="my-3" />
+
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-muted-foreground">{report.isActive ? 'Active' : 'Paused'}</span>
                                     <Switch
                                         checked={report.isActive}
                                         onCheckedChange={() => toggleMutation.mutate(report.id)}
                                     />
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                        onClick={() => { setEditing(report); setShowForm(true); }}
-                                    >
-                                        <RefreshCcw className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                        onClick={() => deleteMutation.mutate(report.id)}
-                                        disabled={deleteMutation.isPending}
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
                                 </div>
-                            </div>
+                            </CardContent>
                         </Card>
                     ))}
                 </div>
@@ -559,14 +587,14 @@ function ScheduledReportForm({
     };
 
     return (
-        <Card className="border-primary/30 bg-primary/2">
-            <CardHeader className="border-b py-4">
+        <Card className="border-primary/20 bg-primary/[0.02]">
+            <CardHeader className="pb-4">
                 <CardTitle className="text-base">{initial ? 'Edit Schedule' : 'New Scheduled Report'}</CardTitle>
             </CardHeader>
-            <CardContent className="p-5 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                        <Label className="text-xs">Schedule Name *</Label>
+                        <Label className="text-xs">Name *</Label>
                         <Input value={name} onChange={e => setName(e.target.value)} placeholder="Weekly Weighing Summary" />
                     </div>
                     <div className="space-y-1.5">
@@ -583,7 +611,7 @@ function ScheduledReportForm({
                     <div className="space-y-1.5">
                         <Label className="text-xs">Report Type *</Label>
                         <Select value={reportType} onValueChange={setReportType} disabled={!module}>
-                            <SelectTrigger><SelectValue placeholder="Select report type" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                             <SelectContent>
                                 {moduleTypes.map(r => (
                                     <SelectItem key={r.reportType} value={r.reportType}>{r.displayName}</SelectItem>
@@ -605,9 +633,19 @@ function ScheduledReportForm({
                     <div className="space-y-1.5">
                         <Label className="text-xs">Schedule (Cron)</Label>
                         <div className="flex gap-2">
-                            <Input value={cronSchedule} onChange={e => setCronSchedule(e.target.value)} className="font-mono text-xs" />
-                            <Select value={cronSchedule} onValueChange={v => { setCronSchedule(v); setSchedDesc(CRON_PRESETS.find(p => p.value === v)?.label ?? ''); }}>
-                                <SelectTrigger className="w-32 shrink-0"><SelectValue placeholder="Preset" /></SelectTrigger>
+                            <Input
+                                value={cronSchedule}
+                                onChange={e => setCronSchedule(e.target.value)}
+                                className="font-mono text-xs flex-1"
+                            />
+                            <Select
+                                value={cronSchedule}
+                                onValueChange={v => {
+                                    setCronSchedule(v);
+                                    setSchedDesc(CRON_PRESETS.find(p => p.value === v)?.label ?? '');
+                                }}
+                            >
+                                <SelectTrigger className="w-28 shrink-0"><SelectValue placeholder="Preset" /></SelectTrigger>
                                 <SelectContent>
                                     {CRON_PRESETS.map(p => (
                                         <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
@@ -634,7 +672,7 @@ function ScheduledReportForm({
                     <Textarea
                         value={recipients}
                         onChange={e => setRecipients(e.target.value)}
-                        placeholder="admin@example.com&#10;manager@example.com"
+                        placeholder={"admin@example.com\nmanager@example.com"}
                         rows={3}
                         className="font-mono text-xs"
                     />
@@ -642,7 +680,7 @@ function ScheduledReportForm({
 
                 <div className="flex justify-end gap-3 pt-2 border-t">
                     <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-                    <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saveMutation.isPending}>
+                    <Button size="sm" className="gap-2" onClick={handleSave} disabled={saveMutation.isPending}>
                         {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         {initial ? 'Update' : 'Create Schedule'}
                     </Button>
@@ -652,9 +690,7 @@ function ScheduledReportForm({
     );
 }
 
-// ============================================================================
-// Tab 4 — Push Notifications
-// ============================================================================
+// ── Push Notifications Tab ─────────────────────────────────────────────────────
 
 function PushNotificationsTab() {
     const qc = useQueryClient();
@@ -685,72 +721,84 @@ function PushNotificationsTab() {
     });
 
     return (
-        <div className="space-y-6 max-w-2xl">
+        <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-                <CardHeader className="border-b bg-gray-50/50 py-4">
+                <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Smartphone className="h-4 w-4 text-primary" />
-                        FCM Device Tokens
+                        Register Device
                     </CardTitle>
+                    <CardDescription>
+                        Paste a Firebase Cloud Messaging (FCM) token to receive push notifications on this device.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="p-5 space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                        Register Firebase Cloud Messaging (FCM) tokens to receive push notifications on this device.
-                        The token is obtained from the Firebase SDK and tied to your account.
-                    </p>
-
-                    <div className="flex gap-2">
+                <CardContent className="space-y-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-xs">FCM Device Token</Label>
                         <Input
                             value={token}
                             onChange={e => setToken(e.target.value)}
-                            placeholder="Paste FCM device token..."
+                            placeholder="Paste FCM token..."
                             className="font-mono text-xs"
                         />
-                        <Button
-                            size="sm"
-                            className="shrink-0 gap-1.5"
-                            disabled={!token.trim() || registerMutation.isPending}
-                            onClick={() => registerMutation.mutate()}
-                        >
-                            {registerMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                            Register
-                        </Button>
                     </div>
+                    <Button
+                        className="w-full gap-2"
+                        disabled={!token.trim() || registerMutation.isPending}
+                        onClick={() => registerMutation.mutate()}
+                    >
+                        {registerMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        Register Token
+                    </Button>
+                </CardContent>
+            </Card>
 
-                    <div className="space-y-2">
-                        <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                            Registered Tokens ({tokens.length})
-                        </h4>
-                        {isLoading ? (
-                            Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
-                        ) : tokens.length === 0 ? (
-                            <p className="text-xs text-muted-foreground py-4 text-center">No registered tokens</p>
-                        ) : (
-                            <ScrollArea className="max-h-48">
-                                <div className="space-y-2">
-                                    {tokens.map(t => (
-                                        <div key={t.id} className="flex items-center justify-between p-2 border rounded-lg bg-gray-50/50">
-                                            <div>
-                                                <span className="text-xs font-medium capitalize">{t.platform}</span>
-                                                <span className="text-[10px] text-muted-foreground ml-2">
-                                                    {new Date(t.createdAt).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                onClick={() => deleteMutation.mutate(t.id)}
-                                                disabled={deleteMutation.isPending}
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </ScrollArea>
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-primary" />
+                        Registered Tokens
+                        {tokens.length > 0 && (
+                            <Badge variant="secondary" className="ml-auto">{tokens.length}</Badge>
                         )}
-                    </div>
+                    </CardTitle>
+                    <CardDescription>Active FCM tokens tied to your account.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? (
+                        <div className="space-y-2">
+                            {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                        </div>
+                    ) : tokens.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <Smartphone className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                            <p className="text-xs text-muted-foreground">No registered tokens</p>
+                        </div>
+                    ) : (
+                        <ScrollArea className="max-h-60">
+                            <div className="space-y-2">
+                                {tokens.map(t => (
+                                    <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                                        <div>
+                                            <p className="text-xs font-medium capitalize">{t.platform}</p>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                Added {new Date(t.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                                            onClick={() => deleteMutation.mutate(t.id)}
+                                            disabled={deleteMutation.isPending}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    )}
                 </CardContent>
             </Card>
         </div>
