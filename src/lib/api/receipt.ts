@@ -141,3 +141,10 @@ export async function downloadReceiptPdf(id: string): Promise<Blob> {
 export function generateIdempotencyKey(): string {
   return `payment_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 }
+
+/**
+ * Permanently delete a receipt from the database (superuser only).
+ */
+export async function hardDeleteReceipt(id: string): Promise<void> {
+  await apiClient.delete(`/receipts/${id}/hard`);
+}

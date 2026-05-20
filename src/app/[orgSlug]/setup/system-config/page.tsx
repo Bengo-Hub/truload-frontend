@@ -18,7 +18,7 @@ import {
 } from '@/hooks/queries/useSettingsQueries';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import type { ApplicationSettingDto, UpdateSettingsBatchRequest } from '@/lib/api/settings';
-import { Bell, Calculator, FileText, Gavel, Info, Loader2, RotateCcw, Save, Zap } from 'lucide-react';
+import { Calculator, FileText, Gavel, Info, Loader2, RotateCcw, Save, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -210,7 +210,7 @@ export default function SystemConfigPage() {
 
         {canReadConfig && (
         <Tabs defaultValue="weighing" className="w-full">
-          <TabsList className={`grid w-full ${isPlatformOwner ? 'grid-cols-2 lg:grid-cols-5' : 'grid-cols-1 max-w-xs'}`}>
+          <TabsList className={`grid w-full ${isPlatformOwner ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 max-w-xs'}`}>
             <TabsTrigger value="weighing" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
               Weighing
@@ -228,10 +228,6 @@ export default function SystemConfigPage() {
                 <TabsTrigger value="prosecution" className="flex items-center gap-2">
                   <Gavel className="h-4 w-4" />
                   Prosecution
-                </TabsTrigger>
-                <TabsTrigger value="notifications" className="flex items-center gap-2">
-                  <Bell className="h-4 w-4" />
-                  Notifications
                 </TabsTrigger>
               </>
             )}
@@ -270,13 +266,6 @@ export default function SystemConfigPage() {
 
               <TabsContent value="prosecution" className="mt-4">
                 <ProsecutionSettingsTab />
-              </TabsContent>
-
-              <TabsContent value="notifications" className="mt-4">
-                <CategorySettingsTab
-                  category="Notifications"
-                  description="Configure notification channels (email, SMS, push) and the centralized notifications service connection."
-                />
               </TabsContent>
             </>
           )}

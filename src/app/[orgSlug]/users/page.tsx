@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import {
   Building2,
+  Globe,
   Key,
   MapPin,
   Shield,
@@ -13,6 +14,8 @@ import {
 } from 'lucide-react';
 import AccountsTab from './modules/accounts/AccountsTab';
 import DepartmentsTab from './modules/departments/DepartmentsTab';
+import OrganizationsTab from './modules/organizations/OrganizationsTab';
+import PermissionsTab from './modules/permissions/PermissionsTab';
 import RolesTab from './modules/roles/RolesTab';
 import StationsTab from './modules/stations/StationsTab';
 
@@ -33,13 +36,12 @@ function UsersPageContent() {
 
   // Tenant users see: Accounts, Roles, Stations
   // Users with system.manage_departments also see: Departments
-  // Platform owners also see: Permissions
-  const tabCount = isPlatformOwner ? 5 : canManageDepartments ? 4 : 3;
+  // Platform owners also see: Permissions + Organizations (tenants)
 
   return (
     <div className="space-y-6 min-w-0">
       <Tabs defaultValue="accounts" className="w-full min-w-0">
-        <TabsList className={`grid w-full grid-cols-3 ${isPlatformOwner ? 'sm:grid-cols-5' : canManageDepartments ? 'sm:grid-cols-4' : ''} gap-1 overflow-x-auto`}>
+        <TabsList className={`grid w-full grid-cols-3 ${isPlatformOwner ? 'sm:grid-cols-6' : canManageDepartments ? 'sm:grid-cols-4' : ''} gap-1 overflow-x-auto`}>
           <TabsTrigger value="accounts" className="flex items-center gap-1.5">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Accounts</span>
@@ -63,11 +65,18 @@ function UsersPageContent() {
             </TabsTrigger>
           )}
           {isPlatformOwner && (
-            <TabsTrigger value="permissions" className="flex items-center gap-1.5">
-              <Key className="h-4 w-4" />
-              <span className="hidden sm:inline">Permissions</span>
-              <span className="sm:hidden text-xs">Perms</span>
-            </TabsTrigger>
+            <>
+              <TabsTrigger value="permissions" className="flex items-center gap-1.5">
+                <Key className="h-4 w-4" />
+                <span className="hidden sm:inline">Permissions</span>
+                <span className="sm:hidden text-xs">Perms</span>
+              </TabsTrigger>
+              <TabsTrigger value="organizations" className="flex items-center gap-1.5">
+                <Globe className="h-4 w-4" />
+                <span className="hidden sm:inline">Tenants</span>
+                <span className="sm:hidden text-xs">Orgs</span>
+              </TabsTrigger>
+            </>
           )}
         </TabsList>
 
@@ -75,7 +84,12 @@ function UsersPageContent() {
         <TabsContent value="roles"><RolesTab /></TabsContent>
         <TabsContent value="stations"><StationsTab /></TabsContent>
         {canManageDepartments && <TabsContent value="departments"><DepartmentsTab /></TabsContent>}
-        {isPlatformOwner && <TabsContent value="permissions"><RolesTab /></TabsContent>}
+        {isPlatformOwner && (
+          <>
+            <TabsContent value="permissions"><PermissionsTab /></TabsContent>
+            <TabsContent value="organizations"><OrganizationsTab /></TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );

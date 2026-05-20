@@ -5,10 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { WeighingTransaction } from '@/lib/api/weighing';
+import { hardDeleteWeighingTransaction } from '@/lib/api/weighing';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Camera, Eye, Loader2, MapPin, Printer, RotateCcw } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/useAuth';
+import { Camera, Eye, Loader2, MapPin, Printer, RotateCcw, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface TicketsListViewProps {
   tickets: WeighingTransaction[];
@@ -113,7 +117,21 @@ export default function TicketsListView({
   onView,
   onPrint,
 }: TicketsListViewProps) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isPlatformOwner = user?.isSuperUser === true;
   const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<WeighingTransaction | null>(null);
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: (id: string) => hardDeleteWeighingTransaction(id),
+    onSuccess: () => {
+      toast.success('Weight ticket permanently deleted');
+      setHardDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['weighing-transactions'] });
+    },
+    onError: () => toast.error('Failed to permanently delete ticket'),
+  });
 
   // Determine if we should show deck columns (static/multideck) or axle columns (mobile)
   const hasDeckTickets = useMemo(
@@ -446,6 +464,17 @@ export default function TicketsListView({
                             <Printer className="h-3.5 w-3.5" />
                           </Button>
                         )}
+                        {isPlatformOwner && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title="Permanently delete"
+                            onClick={() => setHardDeleteTarget(ticket)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -455,6 +484,28 @@ export default function TicketsListView({
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Hard Delete Dialog (superuser only) */}
+      <Dialog open={!!hardDeleteTarget} onOpenChange={(open) => !open && setHardDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Permanently Delete Weight Ticket</DialogTitle>
+            <DialogDescription>
+              This will permanently remove ticket <strong>{hardDeleteTarget?.ticketNumber}</strong> and all its related data from the database. <strong>This action cannot be undone.</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHardDeleteTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => hardDeleteTarget && hardDeleteMutation.mutate(hardDeleteTarget.id)}
+              disabled={hardDeleteMutation.isPending}
+            >
+              {hardDeleteMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Google Maps Modal */}
       <Dialog open={mapCoords !== null} onOpenChange={(open) => { if (!open) setMapCoords(null); }}>

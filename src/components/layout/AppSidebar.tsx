@@ -19,9 +19,11 @@ import {
   FileText,
   FolderOpen,
   Gavel,
+  Globe,
   LayoutDashboard,
   LayoutList,
   LogOut,
+  Plug,
   Receipt,
   Scale,
   Settings,
@@ -53,6 +55,8 @@ interface MenuItem {
   moduleKey: string;
   /** When true, item is only visible for CommercialWeighing tenants (even if no module filter is set). */
   commercialOnly?: boolean;
+  /** When true, item is only visible for superusers (isSuperUser === true). */
+  superuserOnly?: boolean;
 }
 
 interface MenuSection {
@@ -96,6 +100,8 @@ const menuSections: MenuSection[] = [
       { href: '/setup/tolerance', label: 'Tolerance Settings', icon: Sliders, permissions: ['config.read'], moduleKey: 'setup_tolerance', commercialOnly: true },
       { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['config.read'], moduleKey: 'setup_system_config' },
       { href: '/setup/notifications', label: 'Notifications', icon: Bell, permissions: ['config.read'], moduleKey: 'setup_notifications' },
+      { href: '/setup/integrations', label: 'Integrations', icon: Plug, permissions: ['config.read'], moduleKey: 'setup_integrations', superuserOnly: true },
+      { href: '/setup/tenants', label: 'Tenants', icon: Globe, permissions: ['config.read'], moduleKey: 'setup_tenants', superuserOnly: true },
     ],
   },
   {
@@ -149,6 +155,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
       .map((section) => ({
         ...section,
         items: section.items.filter((item) => {
+          // Superuser-only items: only show for platform owners
+          if (item.superuserOnly && !isSuperUser) return false;
           // Commercial-only items: never show for enforcement tenants (regardless of superuser status)
           if (item.commercialOnly && !isCommercial) return false;
           // Tenant module filter: if org has enabledModules and user is not superuser, hide items whose moduleKey is not enabled
@@ -224,19 +232,6 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
           </div>
         ))}
       </nav>
-
-      {/* Platform admin (superuser only) */}
-      {user?.isSuperUser && (
-        <div className="border-t border-gray-200 px-4 py-2">
-          <Link
-            href="/platform"
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-          >
-            <Shield className="h-5 w-5" />
-            Platform admin
-          </Link>
-        </div>
-      )}
 
       {/* Logout Button */}
       <div className="border-t border-gray-200 px-4 py-4">
