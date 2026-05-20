@@ -144,16 +144,19 @@ export default function BillingPage() {
   const { data: subscription, isLoading: subLoading } = useQuery<SubscriptionInfo>({
     queryKey: ['billing', 'subscription'],
     queryFn: getCurrentSubscription,
+    retry: false,
   });
 
   const { data: billing, isLoading: billingLoading } = useQuery<BillingInfo>({
     queryKey: ['billing', 'info'],
     queryFn: getBillingInfo,
+    retry: false,
   });
 
   const { data: plansData, isLoading: plansLoading } = useQuery({
     queryKey: ['billing', 'plans'],
     queryFn: getBillingPlans,
+    retry: false,
   });
 
   const changePlanMutation = useMutation({
@@ -176,7 +179,7 @@ export default function BillingPage() {
   const currentPlanCode = subscription?.plan_code ?? billing?.planCode;
 
   return (
-    <ProtectedRoute requiredPermissions={['invoice.read']}>
+    <ProtectedRoute moduleKey="billing">
       <AppShell
         title="Billing & Subscription"
         subtitle="Manage your TruLoad subscription plan, view billing details, and update your plan."
