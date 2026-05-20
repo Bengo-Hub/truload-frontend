@@ -15,7 +15,7 @@ import {
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { formatFee } from '@/lib/weighing-utils';
 import { cn } from '@/lib/utils';
-import { Printer } from 'lucide-react';
+import { CheckCircle2, Loader2, Printer } from 'lucide-react';
 
 interface TicketDetailSheetProps {
   ticket: WeighingTransaction | null;
@@ -24,6 +24,9 @@ interface TicketDetailSheetProps {
   onPrint?: (ticket: WeighingTransaction) => void;
   canPrint?: boolean;
   isCommercial?: boolean;
+  canApproveToleranceException?: boolean;
+  onApproveToleranceException?: (ticket: WeighingTransaction) => Promise<void>;
+  isApprovingTolerance?: boolean;
 }
 
 function formatDateTime(dateStr: string) {
@@ -76,6 +79,9 @@ export default function TicketDetailSheet({
   onPrint,
   canPrint,
   isCommercial = false,
+  canApproveToleranceException = false,
+  onApproveToleranceException,
+  isApprovingTolerance = false,
 }: TicketDetailSheetProps) {
   if (!ticket) return null;
 
@@ -312,14 +318,30 @@ export default function TicketDetailSheet({
           )}
         </SheetBody>
 
-        {canPrint && onPrint && (
-          <SheetFooter>
-            <Button variant="outline" onClick={() => onPrint(ticket)}>
-              <Printer className="h-4 w-4 mr-2" />
-              Print Ticket
-            </Button>
+        {(canPrint && onPrint) || (isCommercial && canApproveToleranceException && ticket.toleranceExceeded && !ticket.toleranceExceptionApproved) ? (
+          <SheetFooter className="gap-2">
+            {isCommercial && canApproveToleranceException && ticket.toleranceExceeded && !ticket.toleranceExceptionApproved && onApproveToleranceException && (
+              <Button
+                variant="default"
+                className="bg-amber-600 hover:bg-amber-700"
+                onClick={() => onApproveToleranceException(ticket)}
+                disabled={isApprovingTolerance}
+              >
+                {isApprovingTolerance ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Approving...</>
+                ) : (
+                  <><CheckCircle2 className="h-4 w-4 mr-2" />Approve Tolerance Exception</>
+                )}
+              </Button>
+            )}
+            {canPrint && onPrint && (
+              <Button variant="outline" onClick={() => onPrint(ticket)}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print Ticket
+              </Button>
+            )}
           </SheetFooter>
-        )}
+        ) : null}
       </SheetContent>
     </Sheet>
   );
