@@ -10,9 +10,9 @@ import {
   useWeighingStatistics,
   useDownloadWeightTicket,
 } from '@/hooks/queries/useWeighingQueries';
-import { getCommercialTicketPdf } from '@/lib/api/weighing';
+import { getCommercialTicketPdf, approveToleranceException } from '@/lib/api/weighing';
 import type { SearchWeighingParams, WeighingTransaction } from '@/lib/api/weighing';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query/config';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -59,6 +59,7 @@ export default function TicketsTab() {
   // Permissions
   const canExport = useHasPermission('weighing.export');
   const canRead = useHasPermission('weighing.read');
+  const canOverride = useHasPermission('weighing.override');
   const { isCommercial } = useModuleAccess();
 
   // Lookups
@@ -205,6 +206,23 @@ export default function TicketsTab() {
     setSelectedTicket(ticket);
   }, []);
 
+  const approveToleranceMutation = useMutation({
+    mutationFn: (ticketId: string) => approveToleranceException(ticketId),
+    onSuccess: (updated) => {
+      toast.success('Tolerance exception approved');
+      // Update the selected ticket in place
+      setSelectedTicket((prev) => prev ? { ...prev, toleranceExceptionApproved: updated.toleranceExceptionApproved ?? true } : prev);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
+    },
+    onError: () => {
+      toast.error('Failed to approve tolerance exception');
+    },
+  });
+
+  const handleApproveToleranceException = useCallback(async (ticket: WeighingTransaction) => {
+    await approveToleranceMutation.mutateAsync(ticket.id);
+  }, [approveToleranceMutation]);
+
   const handlePrint = useCallback(async (ticket: WeighingTransaction) => {
     try {
       setPreviewFileName(`WeightTicket_${ticket.ticketNumber ?? ticket.id}.pdf`);
@@ -324,6 +342,9 @@ export default function TicketsTab() {
         onPrint={handlePrint}
         canPrint={canExport}
         isCommercial={isCommercial}
+        canApproveToleranceException={isCommercial && canOverride}
+        onApproveToleranceException={handleApproveToleranceException}
+        isApprovingTolerance={approveToleranceMutation.isPending}
       />
 
       {/* PDF Preview Dialog */}
