@@ -458,3 +458,10 @@ export async function downloadSpecialReleaseCertificate(id: string): Promise<Blo
   });
   return data;
 }
+
+/**
+ * Permanently delete a case and all related records from the database (superuser only).
+ */
+export async function hardDeleteCase(id: string): Promise<void> {
+  await apiClient.delete(`/case/cases/${id}/hard`);
+}

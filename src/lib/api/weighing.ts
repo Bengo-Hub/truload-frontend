@@ -1354,6 +1354,7 @@ export interface VehicleListParams {
   page?: number;
   pageSize?: number;
   transporterId?: string;
+  scopeToOrg?: boolean;
 }
 
 export interface PagedVehicles {
@@ -1413,4 +1414,18 @@ export async function updateToleranceSetting(
     payload
   );
   return data;
+}
+
+/**
+ * Permanently delete a weighing transaction from the database (superuser only).
+ */
+export async function hardDeleteWeighingTransaction(id: string): Promise<void> {
+  await apiClient.delete(`/weighing-transactions/${id}/hard`);
+}
+
+/**
+ * Permanently delete a tare record from the database (superuser only).
+ */
+export async function hardDeleteTare(id: string): Promise<void> {
+  await apiClient.delete(`/weighing-transactions/tares/${id}/hard`);
 }

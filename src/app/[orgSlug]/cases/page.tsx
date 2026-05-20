@@ -6,6 +6,14 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -31,8 +39,10 @@ import {
     useCaseStatuses,
     useViolationTypes,
 } from '@/hooks/queries';
+import { useAuth } from '@/hooks/useAuth';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
-import { CaseRegisterDto, CaseSearchParams } from '@/lib/api/caseRegister';
+import { CaseRegisterDto, CaseSearchParams, hardDeleteCase } from '@/lib/api/caseRegister';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     AlertCircle,
     ArrowUpRight,
@@ -42,11 +52,13 @@ import {
     Loader2,
     RefreshCcw,
     Search,
+    Trash2,
     TrendingUp,
     XCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 
 /**
  * Case Register List Page
@@ -60,6 +72,20 @@ import { useCallback, useState } from 'react';
 export default function CaseRegisterPage() {
   const router = useRouter();
   const orgSlug = useOrgSlug();
+  const { user } = useAuth();
+  const isPlatformOwner = user?.isSuperUser === true;
+  const queryClient = useQueryClient();
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<CaseRegisterDto | null>(null);
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: (id: string) => hardDeleteCase(id),
+    onSuccess: () => {
+      toast.success('Case permanently deleted');
+      setHardDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+    },
+    onError: () => toast.error('Failed to permanently delete case'),
+  });
 
   // Search filters state
   const [filters, setFilters] = useState<CaseSearchParams>({
@@ -438,6 +464,17 @@ export default function CaseRegisterPage() {
                                 onClick={() => router.push(`/${orgSlug}/cases/${caseItem.id}?tab=prosecution`)}
                                 condition={!caseItem.escalatedToCaseManager && caseItem.caseStatus !== 'closed'}
                               />
+                              {isPlatformOwner && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  title="Permanently delete"
+                                  onClick={() => setHardDeleteTarget(caseItem)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -462,6 +499,27 @@ export default function CaseRegisterPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Dialog open={!!hardDeleteTarget} onOpenChange={(open) => !open && setHardDeleteTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Permanently Delete Case</DialogTitle>
+              <DialogDescription>
+                This will permanently remove case <strong>{hardDeleteTarget?.caseNo}</strong> and all its related data from the database. <strong>This action cannot be undone.</strong>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setHardDeleteTarget(null)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                onClick={() => hardDeleteTarget && hardDeleteMutation.mutate(hardDeleteTarget.id)}
+                disabled={hardDeleteMutation.isPending}
+              >
+                {hardDeleteMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </ProtectedRoute>
     </AppShell>
   );

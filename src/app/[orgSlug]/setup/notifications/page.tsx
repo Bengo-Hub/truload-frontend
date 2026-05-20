@@ -1,11 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
+import { useAuth } from '@/hooks/useAuth';
+import {
+    useRestoreCategoryDefaults,
+    useSettingsByCategory,
+    useUpdateSettingsBatch,
+} from '@/hooks/queries/useSettingsQueries';
 import {
     notificationApi,
     type CreateScheduledReportRequest,
@@ -13,6 +19,7 @@ import {
     type WorkflowPreferencesDto,
     type WorkflowPreferenceItem,
 } from '@/lib/api/notification';
+import type { ApplicationSettingDto, UpdateSettingsBatchRequest } from '@/lib/api/settings';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,12 +40,15 @@ import {
     CalendarClock,
     CheckCircle2,
     FileBarChart2,
+    Info,
     Loader2,
     Mail,
     Plus,
     RefreshCcw,
+    RotateCcw,
     Save,
     Send,
+    SlidersHorizontal,
     Smartphone,
     Trash2,
     XCircle,
@@ -55,6 +65,8 @@ export default function NotificationsSetupPage() {
 
 function NotificationsSetupContent() {
     const { isEnforcement, isCommercial } = useModuleAccess();
+    const { user } = useAuth();
+    const isPlatformOwner = user?.isSuperUser === true;
 
     return (
         <div className="space-y-6">
@@ -68,8 +80,14 @@ function NotificationsSetupContent() {
                 </p>
             </div>
 
-            <Tabs defaultValue="provider" className="space-y-6">
+            <Tabs defaultValue={isPlatformOwner ? 'channels' : 'provider'} className="space-y-6">
                 <TabsList className="h-10">
+                    {isPlatformOwner && (
+                        <TabsTrigger value="channels" className="gap-2 px-4">
+                            <SlidersHorizontal className="h-4 w-4" />
+                            <span className="hidden sm:inline">Channel Settings</span>
+                        </TabsTrigger>
+                    )}
                     <TabsTrigger value="provider" className="gap-2 px-4">
                         <Mail className="h-4 w-4" />
                         <span className="hidden sm:inline">Email</span>
@@ -88,6 +106,11 @@ function NotificationsSetupContent() {
                     </TabsTrigger>
                 </TabsList>
 
+                {isPlatformOwner && (
+                    <TabsContent value="channels">
+                        <ChannelSettingsTab />
+                    </TabsContent>
+                )}
                 <TabsContent value="provider">
                     <EmailProviderTab />
                 </TabsContent>
@@ -101,6 +124,131 @@ function NotificationsSetupContent() {
                     <PushNotificationsTab />
                 </TabsContent>
             </Tabs>
+        </div>
+    );
+}
+
+// ── Channel Settings Tab (platform owner only) ────────────────────────────────
+
+function ChannelSettingsTab() {
+    const { data: settings, isLoading, refetch } = useSettingsByCategory('Notifications');
+    const updateBatch = useUpdateSettingsBatch();
+    const restoreDefaults = useRestoreCategoryDefaults();
+    const [editValues, setEditValues] = useState<Record<string, string>>({});
+    const [hasChanges, setHasChanges] = useState(false);
+
+    useEffect(() => {
+        if (settings) {
+            const values: Record<string, string> = {};
+            settings.forEach((s: ApplicationSettingDto) => {
+                values[s.settingKey] = s.settingValue;
+            });
+            setEditValues(values);
+            setHasChanges(false);
+        }
+    }, [settings]);
+
+    const handleChange = (key: string, value: string) => {
+        setEditValues(prev => ({ ...prev, [key]: value }));
+        setHasChanges(true);
+    };
+
+    const handleSave = async () => {
+        if (!settings) return;
+        const changed = settings
+            .filter((s: ApplicationSettingDto) => editValues[s.settingKey] !== s.settingValue)
+            .map((s: ApplicationSettingDto) => ({ settingKey: s.settingKey, settingValue: editValues[s.settingKey] }));
+        if (changed.length === 0) { toast.info('No changes to save'); return; }
+        try {
+            await updateBatch.mutateAsync({ settings: changed } as UpdateSettingsBatchRequest);
+            toast.success(`${changed.length} setting(s) updated`);
+            setHasChanges(false);
+            refetch();
+        } catch { toast.error('Failed to save settings'); }
+    };
+
+    const handleRestoreDefaults = async () => {
+        try {
+            await restoreDefaults.mutateAsync('Notifications');
+            toast.success('Notification settings restored to defaults');
+            refetch();
+        } catch { toast.error('Failed to restore defaults'); }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+            </div>
+        );
+    }
+
+    if (!settings || settings.length === 0) {
+        return (
+            <Card className="p-6">
+                <p className="text-sm text-gray-500">No notification settings found. Run database seeding to initialize.</p>
+            </Card>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                <Info className="mt-0.5 h-4 w-4 text-blue-600 shrink-0" />
+                <p className="text-sm text-blue-700">
+                    Configure notification channels (email, SMS, push) and the centralized notifications service connection.
+                </p>
+            </div>
+
+            <Card className="divide-y">
+                {settings.map((setting: ApplicationSettingDto) => {
+                    const isBoolean = setting.settingType === 'Boolean';
+                    const currentValue = editValues[setting.settingKey] ?? setting.settingValue;
+
+                    return (
+                        <div key={setting.settingKey} className="flex items-center justify-between gap-4 p-4">
+                            <div className="flex-1 min-w-0">
+                                <Label className="text-sm font-medium text-gray-900">
+                                    {setting.displayName || setting.settingKey}
+                                </Label>
+                                {setting.description && (
+                                    <p className="text-xs text-gray-500 mt-0.5">{setting.description}</p>
+                                )}
+                                {!isBoolean && setting.defaultValue && currentValue !== setting.defaultValue && (
+                                    <p className="text-xs text-amber-600 mt-0.5">Default: {setting.defaultValue}</p>
+                                )}
+                            </div>
+                            <div className="shrink-0">
+                                {isBoolean ? (
+                                    <Switch
+                                        checked={currentValue === 'true'}
+                                        onCheckedChange={v => handleChange(setting.settingKey, v ? 'true' : 'false')}
+                                        disabled={!setting.isEditable}
+                                    />
+                                ) : (
+                                    <Input
+                                        className="w-56 text-sm"
+                                        value={currentValue}
+                                        onChange={e => handleChange(setting.settingKey, e.target.value)}
+                                        disabled={!setting.isEditable}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </Card>
+
+            <div className="flex items-center justify-between">
+                <Button variant="outline" size="sm" onClick={handleRestoreDefaults} disabled={restoreDefaults.isPending}>
+                    {restoreDefaults.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                    Restore Defaults
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={!hasChanges || updateBatch.isPending}>
+                    {updateBatch.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Changes
+                </Button>
+            </div>
         </div>
     );
 }

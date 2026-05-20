@@ -55,10 +55,11 @@ import {
     useUpdateInvoiceStatus,
     useVoidInvoice,
 } from '@/hooks/queries/useInvoiceQueries';
-import { useHasPermission } from '@/hooks/useAuth';
+import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { createPesaflowInvoice } from '@/lib/api/integration';
 import type { InvoiceDto, InvoiceSearchCriteria } from '@/lib/api/invoice';
+import { hardDeleteInvoice } from '@/lib/api/invoice';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     AlertCircle,
@@ -71,12 +72,16 @@ import {
     Eye,
     FileText,
     Search,
+    Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isPlatformOwner = user?.isSuperUser === true;
   const canRead = useHasPermission('invoice.read');
   const canUpdate = useHasPermission('invoice.update');
   const canVoid = useHasPermission('invoice.void');
@@ -92,6 +97,7 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDto | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [showHardDeleteDialog, setShowHardDeleteDialog] = useState(false);
   const [showReconcileDialog, setShowReconcileDialog] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [showTreasuryCheckout, setShowTreasuryCheckout] = useState(false);
@@ -107,6 +113,16 @@ export default function InvoicesPage() {
   const updateStatusMutation = useUpdateInvoiceStatus();
   const voidInvoiceMutation = useVoidInvoice();
   const downloadPdfMutation = useDownloadInvoice();
+  const hardDeleteMutation = useMutation({
+    mutationFn: (id: string) => hardDeleteInvoice(id),
+    onSuccess: () => {
+      toast.success('Invoice permanently deleted');
+      setShowHardDeleteDialog(false);
+      setSelectedInvoice(null);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+    onError: () => toast.error('Failed to permanently delete invoice'),
+  });
 
   // Handlers
   const handleSearch = (field: keyof InvoiceSearchCriteria, value: string | number | undefined) => {
@@ -508,6 +524,17 @@ export default function InvoicesPage() {
                                   condition={invoice.status.toLowerCase() !== 'voided'}
                                   size="sm"
                                 />
+                                {isPlatformOwner && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    title="Permanently delete"
+                                    onClick={() => { setSelectedInvoice(invoice); setShowHardDeleteDialog(true); }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -659,6 +686,28 @@ export default function InvoicesPage() {
               </SheetFooter>
             </SheetContent>
           </Sheet>
+
+          {/* Hard Delete Dialog (superuser only) */}
+          <Dialog open={showHardDeleteDialog} onOpenChange={setShowHardDeleteDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="text-destructive">Permanently Delete Invoice</DialogTitle>
+                <DialogDescription>
+                  This will permanently remove invoice <strong>{selectedInvoice?.invoiceNo}</strong> and all its related data (receipts, payment records) from the database. <strong>This action cannot be undone.</strong>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowHardDeleteDialog(false)}>Cancel</Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => selectedInvoice && hardDeleteMutation.mutate(selectedInvoice.id)}
+                  disabled={hardDeleteMutation.isPending}
+                >
+                  {hardDeleteMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Void Dialog */}
           <Dialog open={showVoidDialog} onOpenChange={setShowVoidDialog}>

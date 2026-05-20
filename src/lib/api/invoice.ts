@@ -164,3 +164,10 @@ export async function manualReconcileInvoice(
   const { data } = await apiClient.post<InvoiceDto>(`/invoices/${id}/reconcile`, payload);
   return data;
 }
+
+/**
+ * Permanently delete an invoice from the database (superuser only).
+ */
+export async function hardDeleteInvoice(id: string): Promise<void> {
+  await apiClient.delete(`/invoices/${id}/hard`);
+}

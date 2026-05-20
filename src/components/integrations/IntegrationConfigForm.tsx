@@ -42,6 +42,7 @@ const ECITIZEN_CREDENTIALS: CredentialFieldDef[] = [
   { key: 'ApiKey', label: 'API Key', placeholder: 'Your Pesaflow API Key', sensitive: true },
   { key: 'ApiSecret', label: 'API Secret', placeholder: 'Your Pesaflow API Secret', sensitive: true },
   { key: 'ApiClientId', label: 'API Client ID', placeholder: 'e.g. 588' },
+  { key: 'ServiceId', label: 'Service ID', placeholder: 'e.g. 235330' },
 ];
 
 const TWILIO_CREDENTIALS: CredentialFieldDef[] = [

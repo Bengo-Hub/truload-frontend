@@ -1,6 +1,7 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,8 +33,11 @@ import {
   useVehiclesPaged,
   useVehicleTareHistory,
 } from '@/hooks/queries';
-import type { Vehicle } from '@/types/weighing';
-import { AlertTriangle, CheckCircle2, Clock, History, Plus, Search, Truck, X } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { hardDeleteTare } from '@/lib/api/weighing';
+import type { Vehicle, VehicleTareHistory } from '@/types/weighing';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, CheckCircle2, Clock, History, Plus, Search, Trash2, Truck, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -178,6 +182,20 @@ interface TareHistoryDialogProps {
 
 function TareHistoryDialog({ vehicle, open, onClose }: TareHistoryDialogProps) {
   const { data: history, isLoading } = useVehicleTareHistory(vehicle?.id);
+  const { user } = useAuth();
+  const isPlatformOwner = user?.isSuperUser === true;
+  const queryClient = useQueryClient();
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<VehicleTareHistory | null>(null);
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: (id: string) => hardDeleteTare(id),
+    onSuccess: () => {
+      toast.success('Tare record permanently deleted');
+      setConfirmDeleteEntry(null);
+      queryClient.invalidateQueries({ queryKey: ['vehicleTareHistory', vehicle?.id] });
+    },
+    onError: () => toast.error('Failed to delete tare record'),
+  });
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -195,17 +213,50 @@ function TareHistoryDialog({ vehicle, open, onClose }: TareHistoryDialogProps) {
           )}
           {!isLoading && history?.map((entry) => (
             <div key={entry.id} className="rounded-lg border p-3 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-base">{entry.tareWeightKg.toLocaleString()} kg</span>
-                <Badge variant={entry.source === 'measured' ? 'default' : 'secondary'}>
-                  {entry.source === 'measured' ? 'Scale' : 'Manual'}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">{formatDateTime(entry.weighedAt)}</p>
-              {entry.stationName && (
-                <p className="text-xs text-muted-foreground">Station: {entry.stationName}</p>
+              {confirmDeleteEntry?.id === entry.id ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-destructive">Permanently delete this tare record?</p>
+                  <p className="text-xs text-muted-foreground">This cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => hardDeleteMutation.mutate(entry.id)}
+                      disabled={hardDeleteMutation.isPending}
+                    >
+                      {hardDeleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDeleteEntry(null)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-base">{entry.tareWeightKg.toLocaleString()} kg</span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={entry.source === 'measured' ? 'default' : 'secondary'}>
+                        {entry.source === 'measured' ? 'Scale' : 'Manual'}
+                      </Badge>
+                      {isPlatformOwner && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Permanently delete"
+                          onClick={() => setConfirmDeleteEntry(entry)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(entry.weighedAt)}</p>
+                  {entry.stationName && (
+                    <p className="text-xs text-muted-foreground">Station: {entry.stationName}</p>
+                  )}
+                  {entry.notes && <p className="text-xs text-gray-600 italic">{entry.notes}</p>}
+                </>
               )}
-              {entry.notes && <p className="text-xs text-gray-600 italic">{entry.notes}</p>}
             </div>
           ))}
         </div>
@@ -225,6 +276,7 @@ function TareHistoryDialog({ vehicle, open, onClose }: TareHistoryDialogProps) {
 export default function TareRegisterPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [stationId, setStationId] = useState<string | undefined>(undefined);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { pageNumber, pageSize, setPage } = usePagination(20);
 
@@ -238,6 +290,7 @@ export default function TareRegisterPage() {
     search: debouncedSearch || undefined,
     page: pageNumber,
     pageSize,
+    scopeToOrg: true,
   });
 
   const [recordTarget, setRecordTarget] = useState<Vehicle | null>(null);
@@ -304,14 +357,21 @@ export default function TareRegisterPage() {
           {/* Table Card */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1 max-w-xs">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[180px] max-w-xs">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     className="pl-9"
                     placeholder="Search by reg, transporter…"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  />
+                </div>
+                <div className="min-w-[200px]">
+                  <StationSelectFilter
+                    value={stationId}
+                    onValueChange={(v) => { setStationId(v === 'all' ? undefined : v); setPage(1); }}
+                    placeholder="All Stations"
                   />
                 </div>
               </div>

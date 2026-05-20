@@ -48,9 +48,10 @@ import {
     useReceiptStatistics,
     useVoidReceipt,
 } from '@/hooks/queries/useReceiptQueries';
-import { useHasPermission } from '@/hooks/useAuth';
+import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { ReceiptDto, ReceiptSearchCriteria } from '@/lib/api/receipt';
+import { hardDeleteReceipt } from '@/lib/api/receipt';
 import {
     AlertCircle,
     CreditCard,
@@ -58,11 +59,16 @@ import {
     Download,
     FileText,
     Search,
+    Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 export default function ReceiptsPage() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isPlatformOwner = user?.isSuperUser === true;
   const canRead = useHasPermission('receipt.read');
   const canVoid = useHasPermission('receipt.void');
 
@@ -76,6 +82,7 @@ export default function ReceiptsPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptDto | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [showHardDeleteDialog, setShowHardDeleteDialog] = useState(false);
   const [voidReason, setVoidReason] = useState('');
 
   // Queries
@@ -85,6 +92,16 @@ export default function ReceiptsPage() {
   // Mutations
   const voidReceiptMutation = useVoidReceipt();
   const downloadPdfMutation = useDownloadReceipt();
+  const hardDeleteMutation = useMutation({
+    mutationFn: (id: string) => hardDeleteReceipt(id),
+    onSuccess: () => {
+      toast.success('Receipt permanently deleted');
+      setShowHardDeleteDialog(false);
+      setSelectedReceipt(null);
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+    },
+    onError: () => toast.error('Failed to permanently delete receipt'),
+  });
 
   // Handlers
   const handleSearch = (field: keyof ReceiptSearchCriteria, value: string | number | undefined) => {
@@ -422,6 +439,17 @@ export default function ReceiptsPage() {
                                     Void
                                   </Button>
                                 )}
+                                {isPlatformOwner && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    title="Permanently delete"
+                                    onClick={() => { setSelectedReceipt(receipt); setShowHardDeleteDialog(true); }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -507,6 +535,28 @@ export default function ReceiptsPage() {
               </SheetFooter>
             </SheetContent>
           </Sheet>
+
+          {/* Hard Delete Dialog (superuser only) */}
+          <Dialog open={showHardDeleteDialog} onOpenChange={setShowHardDeleteDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="text-destructive">Permanently Delete Receipt</DialogTitle>
+                <DialogDescription>
+                  This will permanently remove receipt <strong>{selectedReceipt?.receiptNo}</strong> and all its related data from the database. <strong>This action cannot be undone.</strong>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowHardDeleteDialog(false)}>Cancel</Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => selectedReceipt && hardDeleteMutation.mutate(selectedReceipt.id)}
+                  disabled={hardDeleteMutation.isPending}
+                >
+                  {hardDeleteMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Void Dialog */}
           <Dialog open={showVoidDialog} onOpenChange={setShowVoidDialog}>
