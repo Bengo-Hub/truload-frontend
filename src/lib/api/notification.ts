@@ -55,6 +55,11 @@ export interface WorkflowPreferencesDto {
     scheduledReport: WorkflowPreferenceItem;
     userRegistered: WorkflowPreferenceItem;
     passwordChanged: WorkflowPreferenceItem;
+    // Commercial weighing events
+    toleranceExceptionRaised: WorkflowPreferenceItem;
+    weighingTicketReady: WorkflowPreferenceItem;
+    staleWeighingAlert: WorkflowPreferenceItem;
+    qualityDeductionApplied: WorkflowPreferenceItem;
 }
 
 // ── Scheduled report DTOs ────────────────────────────────────────────────────

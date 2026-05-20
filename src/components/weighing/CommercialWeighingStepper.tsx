@@ -143,7 +143,8 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     queryFn: getCurrentOrganization,
     staleTime: 5 * 60 * 1000,
   });
-  const feeIsConfigured = (orgData?.commercialWeighingFeeKes ?? 0) > 0 && !!orgData?.paymentGateway;
+  const isFacilityOwned = orgData?.weighingBusinessModel === 'FacilityOwnedScale';
+  const feeIsConfigured = !isFacilityOwned && (orgData?.commercialWeighingFeeKes ?? 0) > 0 && !!orgData?.paymentGateway;
   const tenantSlug = orgData?.ssoTenantSlug ?? '';
 
   const weighingUI = useWeighingUI({ stationId: currentStation?.id });
@@ -400,7 +401,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     }
   }, [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights]);
 
-  const handleCaptureSecondWeight = useCallback(async () => {
+  const handleCaptureSecondWeight = useCallback(async (expectedNetWeightKg?: number | null) => {
     if (!transactionId) return;
     const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
     if (weightKg <= 0) { toast.error('No weight to capture.'); return; }
@@ -411,7 +412,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         ? capturedAxleWeights
         : deckWeights.length > 0 ? deckWeights.map((d) => d.weight) : undefined;
 
-      const updated = await captureSecondWeight(transactionId, { weightKg, axleWeights });
+      const updated = await captureSecondWeight(transactionId, { weightKg, axleWeights, expectedNetWeightKg });
       setResult(updated);
       toast.success(`Second weight captured. Net weight: ${formatWeight(updated.netWeightKg ?? 0)} kg`);
       if (mode === 'mobile') { setCapturedAxleWeights([]); setCurrentAxle(1); }

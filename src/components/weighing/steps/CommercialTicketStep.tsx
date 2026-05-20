@@ -159,18 +159,18 @@ export function CommercialTicketStep({
           )}
 
           {/* Quality deduction */}
-          {!showDeductionForm && !result.qualityDeductionKg && (
+          {!showDeductionForm && (
             <Button
               variant="outline"
               size="sm"
               className="mt-3"
               onClick={() => setShowDeductionForm(true)}
             >
-              Add Quality Deduction
+              {result.qualityDeductionKg ? 'Edit Quality Deduction' : 'Add Quality Deduction'}
             </Button>
           )}
 
-          {showDeductionForm && !result.qualityDeductionKg && (
+          {showDeductionForm && (
             <div className="mt-4 p-3 border border-gray-200 rounded-lg space-y-3">
               <Label className="text-sm font-medium">Quality Deduction</Label>
               <div className="grid grid-cols-2 gap-3">

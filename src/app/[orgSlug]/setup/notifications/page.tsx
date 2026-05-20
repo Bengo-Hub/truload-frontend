@@ -53,6 +53,7 @@ import {
     Trash2,
     XCircle,
     Zap,
+    Scale,
 } from 'lucide-react';
 
 export default function NotificationsSetupPage() {
@@ -383,6 +384,13 @@ const SHARED_WORKFLOWS: WorkflowConfig[] = [
     { key: 'passwordChanged', label: 'Password Changed', description: 'Confirmation email after a password change' },
 ];
 
+const COMMERCIAL_WORKFLOWS: WorkflowConfig[] = [
+    { key: 'weighingTicketReady', label: 'Ticket Ready', description: 'Notify transporter/driver when their weight ticket is complete and net weight is calculated' },
+    { key: 'toleranceExceptionRaised', label: 'Tolerance Exception', description: 'Alert station manager when net weight discrepancy exceeds the configured tolerance band' },
+    { key: 'staleWeighingAlert', label: 'Stale Weighing Alert', description: 'Warn manager when a first-weight transaction has been open beyond the pending threshold without a second weight' },
+    { key: 'qualityDeductionApplied', label: 'Quality Deduction Applied', description: 'Notify transporter when a quality deduction (moisture, grade, etc.) is applied to their load' },
+];
+
 function WorkflowToggle({
     label, description, value, onChange,
 }: {
@@ -469,8 +477,8 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
                                         key={w.key}
                                         label={w.label}
                                         description={w.description}
-                                        value={active[w.key]}
-                                        onChange={v => update(w.key, v)}
+                                        value={active[w.key as keyof WorkflowPreferencesDto]}
+                                        onChange={v => update(w.key as keyof WorkflowPreferencesDto, v)}
                                     />
                                 ))}
                             </div>
@@ -478,7 +486,32 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
                     </Card>
                 )}
 
-                <Card className={isEnforcement ? '' : 'lg:col-span-2'}>
+                {isCommercial && (
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <Scale className="h-4 w-4 text-blue-600" />
+                                Commercial Weighing Workflows
+                            </CardTitle>
+                            <CardDescription>Two-pass commercial weighing event notifications</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <div className="divide-y">
+                                {COMMERCIAL_WORKFLOWS.map(w => (
+                                    <WorkflowToggle
+                                        key={w.key}
+                                        label={w.label}
+                                        description={w.description}
+                                        value={active[w.key as keyof WorkflowPreferencesDto]}
+                                        onChange={v => update(w.key as keyof WorkflowPreferencesDto, v)}
+                                    />
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                <Card className={!isEnforcement && !isCommercial ? 'lg:col-span-2' : ''}>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <Bell className="h-4 w-4 text-primary" />
@@ -493,8 +526,8 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
                                     key={w.key}
                                     label={w.label}
                                     description={w.description}
-                                    value={active[w.key]}
-                                    onChange={v => update(w.key, v)}
+                                    value={active[w.key as keyof WorkflowPreferencesDto]}
+                                    onChange={v => update(w.key as keyof WorkflowPreferencesDto, v)}
                                 />
                             ))}
                         </div>

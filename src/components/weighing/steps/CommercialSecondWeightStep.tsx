@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { CommercialNetWeightDisplay } from '@/components/weighing/CommercialNetWeightDisplay';
 import { cn } from '@/lib/utils';
 import { formatWeight } from '@/lib/weighing-utils';
@@ -23,7 +26,7 @@ interface CommercialSecondWeightStepProps {
   /** Whether a capture is in progress */
   isCapturing: boolean;
   /** Callback when user captures the second weight from scale */
-  onCaptureSecondWeight: () => void;
+  onCaptureSecondWeight: (expectedNetWeightKg?: number | null) => void;
   /** Callback when user opts to use stored tare weight */
   onUseStoredTare: (overrideTareKg?: number) => void;
   className?: string;
@@ -47,6 +50,9 @@ export function CommercialSecondWeightStep({
   onUseStoredTare,
   className,
 }: CommercialSecondWeightStepProps) {
+  const [expectedNetInput, setExpectedNetInput] = useState<string>(
+    result?.expectedNetWeightKg ? String(result.expectedNetWeightKg) : ''
+  );
   const isAlreadyCaptured = result?.secondWeightKg != null || result?.netWeightKg != null;
   const firstWeightType = result?.firstWeightType;
   const secondWeightType = firstWeightType === 'gross' ? 'tare' : 'gross';
@@ -150,6 +156,27 @@ export function CommercialSecondWeightStep({
                   : 'Weigh the loaded vehicle to determine gross weight.'}
               </p>
 
+              {/* Expected net weight (optional) */}
+              <div className="space-y-1 mb-4">
+                <Label htmlFor="expected-net" className="text-sm text-gray-600">
+                  Expected net weight (kg) <span className="text-gray-400 font-normal">— optional</span>
+                </Label>
+                <Input
+                  id="expected-net"
+                  type="number"
+                  min="0"
+                  step="100"
+                  placeholder="e.g. 12000"
+                  value={expectedNetInput}
+                  onChange={(e) => setExpectedNetInput(e.target.value)}
+                  className="max-w-[200px]"
+                  disabled={isCapturing}
+                />
+                <p className="text-xs text-gray-400">
+                  From dispatch order. Used for discrepancy &amp; tolerance check.
+                </p>
+              </div>
+
               <div className={cn('grid gap-3', canUseStoredTare ? 'grid-cols-2' : 'grid-cols-1')}>
                 {/* Capture from scale */}
                 <Button
@@ -161,7 +188,10 @@ export function CommercialSecondWeightStep({
                       : 'bg-amber-600 hover:bg-amber-700'
                   )}
                   disabled={isCapturing || liveWeightKg <= 0 || !isConnected}
-                  onClick={onCaptureSecondWeight}
+                  onClick={() => {
+                    const parsed = expectedNetInput ? parseInt(expectedNetInput, 10) : null;
+                    onCaptureSecondWeight(parsed && !isNaN(parsed) ? parsed : null);
+                  }}
                 >
                   <Scale className="h-5 w-5" />
                   <span className="text-sm font-semibold">

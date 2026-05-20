@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Info, Loader2, Save, Scale, CreditCard, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Info, Loader2, Save, Scale, CreditCard, Clock, Building2 } from 'lucide-react';
 
 interface CommercialSettingsTabProps {
   canEdit: boolean;
@@ -27,18 +28,23 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
 
   const [feeKes, setFeeKes] = useState<string>('');
   const [tareExpiryDays, setTareExpiryDays] = useState<string>('');
+  const [businessModel, setBusinessModel] = useState<string>('ThirdPartyWeighbridge');
 
   useEffect(() => {
     if (org) {
       setFeeKes(org.commercialWeighingFeeKes != null ? String(org.commercialWeighingFeeKes) : '');
       setTareExpiryDays(org.defaultTareExpiryDays != null ? String(org.defaultTareExpiryDays) : '');
+      setBusinessModel(org.weighingBusinessModel ?? 'ThirdPartyWeighbridge');
     }
   }, [org]);
+
+  const isFacilityOwned = businessModel === 'FacilityOwnedScale';
 
   const hasChanges =
     org != null &&
     (String(org.commercialWeighingFeeKes ?? '') !== feeKes ||
-      String(org.defaultTareExpiryDays ?? '') !== tareExpiryDays);
+      String(org.defaultTareExpiryDays ?? '') !== tareExpiryDays ||
+      (org.weighingBusinessModel ?? 'ThirdPartyWeighbridge') !== businessModel);
 
   const updateMutation = useMutation({
     mutationFn: updateCurrentCommercialSettings,
@@ -65,6 +71,7 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
     updateMutation.mutate({
       commercialWeighingFeeKes: feeValue,
       defaultTareExpiryDays: expiryValue,
+      weighingBusinessModel: businessModel,
     });
   };
 
@@ -94,7 +101,30 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
       </div>
 
       <Card className="p-6 space-y-6">
-        {/* Weighing Fee */}
+        {/* Business Model */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="business-model">Weighing business model</Label>
+          </div>
+          <Select value={businessModel} onValueChange={setBusinessModel} disabled={!canEdit}>
+            <SelectTrigger className="max-w-[320px]" id="business-model">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ThirdPartyWeighbridge">Third-Party Weighbridge</SelectItem>
+              <SelectItem value="FacilityOwnedScale">Facility-Owned Scale</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {isFacilityOwned
+              ? 'Factory, quarry, or farm that owns their weighbridge. Weighs own fleet — no per-transaction fee is charged to transporters. TruLoad subscription still applies.'
+              : 'Public or private commercial weighbridge that charges transporters per session.'}
+          </p>
+        </div>
+
+        {/* Weighing Fee — hidden for FacilityOwnedScale */}
+        {!isFacilityOwned && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -116,6 +146,7 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
             Currently: <span className="font-medium">KES {org?.commercialWeighingFeeKes?.toLocaleString() ?? '—'}</span>
           </p>
         </div>
+        )}
 
         {/* Tare Expiry */}
         <div className="space-y-2">
