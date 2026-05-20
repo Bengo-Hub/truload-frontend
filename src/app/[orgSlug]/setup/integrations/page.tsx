@@ -1,6 +1,5 @@
 'use client';
 
-import { AppShell } from '@/components/layout/AppShell';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
@@ -16,7 +15,7 @@ import { testIntegrationConnectivity, reconcilePayments } from '@/lib/api/integr
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMutation } from '@tanstack/react-query';
-import { Bell, CreditCard, Globe, Lock } from 'lucide-react';
+import { CreditCard, Globe, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -35,27 +34,6 @@ const PAYMENT_PROVIDERS: ProviderMeta[] = [
     displayName: 'Treasury Service',
     description: 'Commercial weighing fee payment via treasury',
     color: 'bg-green-50 text-green-700',
-  },
-];
-
-const NOTIFICATION_PROVIDERS: ProviderMeta[] = [
-  {
-    providerName: 'sms_twilio',
-    displayName: 'Twilio SMS',
-    description: 'Cloud SMS platform for alerts and OTP delivery',
-    color: 'bg-red-50 text-red-700',
-  },
-  {
-    providerName: 'sms_africastalking',
-    displayName: "Africa's Talking",
-    description: 'Bulk SMS for African markets',
-    color: 'bg-blue-50 text-blue-700',
-  },
-  {
-    providerName: 'email_smtp',
-    displayName: 'SMTP Email',
-    description: 'Standard email protocol for notification delivery',
-    color: 'bg-gray-50 text-gray-700',
   },
 ];
 
@@ -80,11 +58,9 @@ const API_SERVICES: ProviderMeta[] = [
 
 export default function IntegrationsPage() {
   return (
-    <AppShell title="Integrations" subtitle="Payment gateways, notification channels, and government API services">
       <ProtectedRoute requiredPermissions={['config.read']}>
         <IntegrationsContent />
       </ProtectedRoute>
-    </AppShell>
   );
 }
 
@@ -164,14 +140,10 @@ function IntegrationsManager() {
         {/* Left: grouped provider list */}
         <div className="space-y-4">
           <Tabs defaultValue="payments" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="payments" className="gap-1 text-xs">
                 <CreditCard className="h-3.5 w-3.5" />
                 Payments
-              </TabsTrigger>
-              <TabsTrigger value="channels" className="gap-1 text-xs">
-                <Bell className="h-3.5 w-3.5" />
-                Channels
               </TabsTrigger>
               <TabsTrigger value="apis" className="gap-1 text-xs">
                 <Globe className="h-3.5 w-3.5" />
@@ -184,13 +156,6 @@ function IntegrationsManager() {
                 Payment gateways used for enforcement fines and commercial weighing fees.
               </p>
               {renderProviders(PAYMENT_PROVIDERS)}
-            </TabsContent>
-
-            <TabsContent value="channels" className="mt-4 space-y-3">
-              <p className="text-xs text-muted-foreground px-1">
-                SMS and email providers for notification delivery and OTP.
-              </p>
-              {renderProviders(NOTIFICATION_PROVIDERS)}
             </TabsContent>
 
             <TabsContent value="apis" className="mt-4 space-y-3">
