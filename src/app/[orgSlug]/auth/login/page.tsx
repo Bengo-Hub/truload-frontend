@@ -35,6 +35,8 @@ function TenantAuthLoginContent() {
   const stationCode = searchParams?.get('station') ?? 'Truload';
   const [org, setOrg] = useState<PublicOrganization | null>(null);
   const [ssoChecking, setSsoChecking] = useState(true);
+  const [ssoAvailable, setSsoAvailable] = useState(false);
+  const [ssoSlug, setSsoSlug] = useState('');
 
   useEffect(() => {
     if (!orgSlug) {
@@ -44,7 +46,7 @@ function TenantAuthLoginContent() {
 
     let cancelled = false;
 
-    async function checkTenantAndMaybeRedirectToSSO() {
+    async function checkTenant() {
       try {
         const [orgData, tenantInfo] = await Promise.all([
           fetchOrganizationByCode(orgSlug).catch(() => null),
@@ -55,21 +57,9 @@ function TenantAuthLoginContent() {
         if (orgData) setOrg(orgData);
 
         if (tenantInfo?.tenantType === 'CommercialWeighing') {
-          // Commercial tenant — redirect to SSO using the auth-api SSO tenant slug
-          // ssoTenantSlug (e.g. "truload") maps to the auth-api tenant, NOT the org code ("truload-demo")
-          const ssoSlug = tenantInfo.ssoTenantSlug || orgSlug;
-          const verifier = generateCodeVerifier();
-          const challenge = await generateCodeChallenge(verifier);
-          const state = generateState();
-          const callbackUrl = `${window.location.origin}/${orgSlug}/auth/callback`;
-
-          storePkceVerifier(verifier);
-          storeSsoState(state);
-          storeSsoReturnTo(`/${orgSlug}/dashboard`);
-
-          const authorizeUrl = buildAuthorizeUrl(ssoSlug, challenge, state, callbackUrl);
-          window.location.href = authorizeUrl;
-          return; // navigation in progress
+          // Commercial tenant — offer SSO as an option (not auto-redirect)
+          setSsoAvailable(true);
+          setSsoSlug(tenantInfo.ssoTenantSlug || orgSlug);
         }
       } catch {
         // Ignore errors — fall through to show local login form
@@ -78,11 +68,25 @@ function TenantAuthLoginContent() {
       }
     }
 
-    checkTenantAndMaybeRedirectToSSO();
+    checkTenant();
     return () => {
       cancelled = true;
     };
   }, [orgSlug, router]);
+
+  const handleSsoLogin = async () => {
+    const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+    const state = generateState();
+    const callbackUrl = `${window.location.origin}/${orgSlug}/auth/callback`;
+
+    storePkceVerifier(verifier);
+    storeSsoState(state);
+    storeSsoReturnTo(`/${orgSlug}/dashboard`);
+
+    const authorizeUrl = buildAuthorizeUrl(ssoSlug, challenge, state, callbackUrl);
+    window.location.href = authorizeUrl;
+  };
 
   const primaryColor = org?.primaryColor || '#5B1C4D';
   const orgDisplayName = org?.name ?? (orgSlug ? formatOrgDisplay(orgSlug) : 'Truload');
@@ -93,7 +97,7 @@ function TenantAuthLoginContent() {
     </p>
   ) : null;
 
-  // Show spinner while checking tenant type (SSO redirect may be in progress)
+  // Show spinner while checking tenant type
   if (ssoChecking) {
     return (
       <LoginPageLayout org={org} primaryColor={primaryColor}>
@@ -112,6 +116,30 @@ function TenantAuthLoginContent() {
         stationCode={stationCode}
         primaryColor={primaryColor}
       />
+
+      {ssoAvailable && (
+        <div className="mt-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-400">or</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleSsoLogin}
+            className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            Login with SSO
+          </button>
+        </div>
+      )}
+
       <p className="mt-4 text-center text-xs text-gray-500">
         <Link href={`/${orgSlug}/auth`} className="font-large text-lg hover:underline" style={{ color: primaryColor }}>
           Choose a different station
