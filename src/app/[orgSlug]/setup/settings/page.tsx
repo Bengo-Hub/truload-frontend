@@ -230,7 +230,7 @@ function IntegrationSettingsContent() {
           <ExchangeRateSettings />
         </TabsContent>
         <TabsContent value="weighing">
-          <WeighingSettingsTab />
+          <WeighingSettingsTab isCommercial={isCommercial} />
         </TabsContent>
         {isCommercial && (
           <TabsContent value="commercial">

@@ -109,7 +109,6 @@ const menuSections: MenuSection[] = [
     title: 'Security & Data',
     items: [
       { href: '/setup/security?tab=password', label: 'Security & Policy', icon: Shield, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
-      { href: '/setup/security?tab=backup', label: 'Backup & Restore', icon: Database, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
       { href: '/setup/security?tab=audit', label: 'Audit Logs', icon: FileText, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
     ],
   },

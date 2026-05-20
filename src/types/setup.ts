@@ -84,12 +84,14 @@ export interface OrganizationDto {
   commercialWeighingFeeKes?: number | null;
   defaultTareExpiryDays?: number | null;
   paymentGateway?: string | null;
+  weighingBusinessModel?: string | null;
   ssoTenantSlug?: string | null;
 }
 
 export interface UpdateCommercialSettingsRequest {
   commercialWeighingFeeKes?: number | null;
   defaultTareExpiryDays?: number | null;
+  weighingBusinessModel?: string | null;
 }
 
 export interface UpdateOrganizationModulesRequest {

@@ -1,18 +1,15 @@
 'use client';
 
-import { AppShell } from '@/components/layout/AppShell';
+import OrganizationsTab from '@/app/[orgSlug]/users/modules/organizations/OrganizationsTab';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
-import OrganizationsTab from '@/app/[orgSlug]/users/modules/organizations/OrganizationsTab';
 import { Lock } from 'lucide-react';
 
 export default function TenantsPage() {
   return (
-    <AppShell title="Tenants" subtitle="Register and manage tenant organisations">
       <ProtectedRoute requiredPermissions={['config.read']}>
         <TenantsContent />
       </ProtectedRoute>
-    </AppShell>
   );
 }
 

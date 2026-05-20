@@ -23,7 +23,7 @@ import { useQueryClient } from '@tanstack/react-query';
 const KEY_SCALE_TEST_REQUIRED = 'weighing.scale_test_required';
 const KEY_MAX_REWEIGH_CYCLES = 'weighing.max_reweigh_cycles';
 
-export function WeighingSettingsTab() {
+export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: boolean }) {
   const { data: settings, isLoading } = useSettingsByCategory('Weighing');
   const { data: toleranceSettings = [], isLoading: isLoadingTolerances } = useToleranceSettings('TRAFFIC_ACT');
   const updateBatch = useUpdateSettingsBatch();
@@ -124,33 +124,37 @@ export function WeighingSettingsTab() {
       </div>
 
       <Card className="p-6 space-y-6">
-        <div className="flex items-center justify-between space-x-2">
-          <div className="space-y-0.5">
-            <Label htmlFor="scale-test-required">Scale test required before weighing</Label>
-            <p className="text-xs text-muted-foreground">
-              If enabled, operators must complete a passing scale test before performing any weights for the day.
-            </p>
-          </div>
-          <Switch
-            id="scale-test-required"
-            checked={scaleTestRequired}
-            onCheckedChange={setScaleTestRequired}
-          />
-        </div>
+        {!isCommercial && (
+          <>
+            <div className="flex items-center justify-between space-x-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="scale-test-required">Scale test required before weighing</Label>
+                <p className="text-xs text-muted-foreground">
+                  If enabled, operators must complete a passing scale test before performing any weights for the day.
+                </p>
+              </div>
+              <Switch
+                id="scale-test-required"
+                checked={scaleTestRequired}
+                onCheckedChange={setScaleTestRequired}
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="max-reweigh-cycles">Maximum re-weigh cycles</Label>
-          <Input
-            id="max-reweigh-cycles"
-            type="number"
-            value={maxReweighCycles}
-            onChange={(e) => setMaxReweighCycles(e.target.value)}
-            className="max-w-[200px]"
-          />
-          <p className="text-xs text-muted-foreground">
-            The number of times a vehicle can be re-weighed if it fails compliance.
-          </p>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="max-reweigh-cycles">Maximum re-weigh cycles</Label>
+              <Input
+                id="max-reweigh-cycles"
+                type="number"
+                value={maxReweighCycles}
+                onChange={(e) => setMaxReweighCycles(e.target.value)}
+                className="max-w-[200px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                The number of times a vehicle can be re-weighed if it fails compliance.
+              </p>
+            </div>
+          </>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="operational-tolerance">Operational allowance (kg)</Label>

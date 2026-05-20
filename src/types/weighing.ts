@@ -719,6 +719,8 @@ export interface CaptureSecondWeightRequest {
   weightKg: number;
   /** Per-axle (mobile) or per-deck (multideck) weights for second pass. Optional. */
   axleWeights?: number[];
+  /** Expected net weight from order/dispatch for immediate tolerance evaluation. */
+  expectedNetWeightKg?: number | null;
 }
 
 /** Request to use stored tare weight */
