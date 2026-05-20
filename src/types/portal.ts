@@ -143,17 +143,30 @@ export interface PortalConsignment {
 
 export type SubscriptionTier = 'basic' | 'standard' | 'premium';
 
+export interface PortalFeatureAccess {
+  multiSiteAccess: boolean;
+  dataExport: boolean;
+  driverReports: boolean;
+  vehicleTrends: boolean;
+  apiAccess: boolean;
+  analytics: boolean;
+  consignmentTracking: boolean;
+}
+
+/** Matches the backend PortalSubscriptionDto exactly. */
 export interface PortalSubscription {
-  id: string;
-  planName: string;
+  status: string;
+  planName: string | null;
+  /** Resolved tier derived from plan name: basic | standard | premium */
   tier: SubscriptionTier;
-  status: 'active' | 'expired' | 'cancelled' | 'trial';
-  startDate: string;
-  endDate?: string;
-  features: string[];
-  maxVehicles?: number;
-  maxDrivers?: number;
-  reportsAccess: string[];
+  /** How many months back the transporter can view weighings. */
+  historyMonths: number;
+  /** Max active vehicles; -1 = unlimited */
+  maxVehicles: number;
+  /** Max active drivers; -1 = unlimited */
+  maxDrivers: number;
+  expiresAt?: string | null;
+  features: PortalFeatureAccess;
 }
 
 export interface SubscriptionPlan {
@@ -163,7 +176,6 @@ export interface SubscriptionPlan {
   features: string[];
   maxVehicles: number | 'Unlimited';
   maxDrivers: number | 'Unlimited';
-  reportsAccess: string[];
 }
 
 // ============================================================================

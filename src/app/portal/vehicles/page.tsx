@@ -20,9 +20,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ChartWrapper } from '@/components/charts';
-import { usePortalVehicles, usePortalVehicleTrends } from '@/hooks/queries/usePortalQueries';
+import { usePortalVehicles, usePortalVehicleTrends, usePortalSubscription } from '@/hooks/queries/usePortalQueries';
 import type { PortalVehicle } from '@/types/portal';
-import { Eye, Truck } from 'lucide-react';
+import { Eye, Lock, Truck } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 function VehicleTrendDialog({
@@ -68,13 +69,32 @@ function VehicleTrendDialog({
 
 export default function PortalVehiclesPage() {
   const { data: vehicles, isLoading } = usePortalVehicles();
+  const { data: subscription } = usePortalSubscription();
   const [selectedVehicle, setSelectedVehicle] = useState<PortalVehicle | null>(null);
+
+  const maxVehicles = subscription?.maxVehicles ?? 10;
+  const vehicleCount = vehicles?.length ?? 0;
+  const vehicleTrendsLocked = !subscription?.features?.vehicleTrends;
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Vehicle Fleet</h2>
-        <p className="text-sm text-gray-500">Your registered vehicles and their weight data</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Vehicle Fleet</h2>
+          <p className="text-sm text-gray-500">Your registered vehicles and their weight data</p>
+        </div>
+        {!isLoading && (
+          <div className="text-right">
+            <Badge variant={maxVehicles !== -1 && vehicleCount >= maxVehicles ? 'destructive' : 'secondary'} className="text-xs">
+              {vehicleCount}{maxVehicles === -1 ? '' : ` / ${maxVehicles}`} vehicles
+            </Badge>
+            {maxVehicles !== -1 && vehicleCount >= maxVehicles && (
+              <p className="text-[10px] text-red-600 mt-0.5">
+                <Link href="/portal/subscription" className="underline">Upgrade</Link> to add more
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <Card className="border border-gray-200 rounded-xl">
@@ -135,15 +155,23 @@ export default function PortalVehiclesPage() {
                       {v.totalTrips.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        title="View Weight Trends"
-                        onClick={() => setSelectedVehicle(v)}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
+                      {vehicleTrendsLocked ? (
+                        <Link href="/portal/subscription" title="Upgrade to view trends">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-300" disabled>
+                            <Lock className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="View Weight Trends"
+                          onClick={() => setSelectedVehicle(v)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

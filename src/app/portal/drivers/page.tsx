@@ -19,9 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { usePortalDrivers, usePortalDriverPerformance } from '@/hooks/queries/usePortalQueries';
+import { usePortalDrivers, usePortalDriverPerformance, usePortalSubscription } from '@/hooks/queries/usePortalQueries';
 import type { PortalDriver } from '@/types/portal';
-import { Eye, Users } from 'lucide-react';
+import { Eye, Lock, Users } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -102,13 +103,32 @@ function DriverPerformanceDialog({
 
 export default function PortalDriversPage() {
   const { data: drivers, isLoading } = usePortalDrivers();
+  const { data: subscription } = usePortalSubscription();
   const [selectedDriver, setSelectedDriver] = useState<PortalDriver | null>(null);
+
+  const maxDrivers = subscription?.maxDrivers ?? 5;
+  const driverCount = drivers?.length ?? 0;
+  const driverReportsLocked = !subscription?.features?.driverReports;
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Drivers</h2>
-        <p className="text-sm text-gray-500">Your drivers and their performance</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Drivers</h2>
+          <p className="text-sm text-gray-500">Your drivers and their performance</p>
+        </div>
+        {!isLoading && (
+          <div className="text-right">
+            <Badge variant={maxDrivers !== -1 && driverCount >= maxDrivers ? 'destructive' : 'secondary'} className="text-xs">
+              {driverCount}{maxDrivers === -1 ? '' : ` / ${maxDrivers}`} drivers
+            </Badge>
+            {maxDrivers !== -1 && driverCount >= maxDrivers && (
+              <p className="text-[10px] text-red-600 mt-0.5">
+                <Link href="/portal/subscription" className="underline">Upgrade</Link> to add more
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <Card className="border border-gray-200 rounded-xl">
@@ -159,15 +179,23 @@ export default function PortalDriversPage() {
                     <TableCell className="text-xs text-right font-mono font-semibold">{d.tripCount.toLocaleString()}</TableCell>
                     <TableCell className="text-xs text-right font-mono hidden lg:table-cell">{d.avgPayloadKg.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        title="View Performance"
-                        onClick={() => setSelectedDriver(d)}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
+                      {driverReportsLocked ? (
+                        <Link href="/portal/subscription" title="Upgrade to view driver performance">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-300" disabled>
+                            <Lock className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="View Performance"
+                          onClick={() => setSelectedDriver(d)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
