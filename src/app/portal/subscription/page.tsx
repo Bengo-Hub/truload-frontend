@@ -110,31 +110,29 @@ export default function PortalSubscriptionPage() {
               <p className="text-sm font-semibold">{PLAN_PRICES[currentTier]}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Start Date</p>
-              <p className="text-sm font-semibold">
-                {subscription?.startDate
-                  ? new Date(subscription.startDate).toLocaleDateString('en-KE')
-                  : '--'}
-              </p>
+              <p className="text-xs text-gray-500">History Window</p>
+              <p className="text-sm font-semibold">{subscription?.historyMonths ?? 3} months</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">End Date</p>
+              <p className="text-xs text-gray-500">Expires</p>
               <p className="text-sm font-semibold">
-                {subscription?.endDate
-                  ? new Date(subscription.endDate).toLocaleDateString('en-KE')
+                {subscription?.expiresAt
+                  ? new Date(subscription.expiresAt).toLocaleDateString('en-KE')
                   : 'Ongoing'}
               </p>
             </div>
           </div>
-          {subscription?.features && subscription.features.length > 0 && (
+          {subscription?.features && (
             <div className="mt-4">
-              <p className="text-xs text-gray-500 mb-2">Included Features</p>
+              <p className="text-xs text-gray-500 mb-2">Feature Access</p>
               <div className="flex flex-wrap gap-1.5">
-                {subscription.features.map((f) => (
-                  <Badge key={f} variant="secondary" className="text-[10px]">
-                    {f}
-                  </Badge>
-                ))}
+                {Object.entries(subscription.features)
+                  .filter(([, enabled]) => enabled)
+                  .map(([key]) => (
+                    <Badge key={key} variant="secondary" className="text-[10px] capitalize">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </Badge>
+                  ))}
               </div>
             </div>
           )}

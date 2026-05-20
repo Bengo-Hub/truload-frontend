@@ -26,9 +26,11 @@ import {
 import { Pagination, usePagination } from '@/components/ui/pagination';
 import { usePortalWeighings, useDownloadPortalTicket } from '@/hooks/queries/usePortalQueries';
 import type { PortalWeighing, PortalWeighingFilters } from '@/types/portal';
-import { Download, Eye, FileText, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, Download, Eye, FileText, Loader2, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import Link from 'next/link';
+import { usePortalSubscription } from '@/hooks/queries/usePortalQueries';
 
 function formatDateTime(dateStr: string) {
   return new Date(dateStr).toLocaleString('en-KE', {
@@ -85,6 +87,7 @@ export default function PortalWeighingsPage() {
   );
 
   const { data, isLoading } = usePortalWeighings(filters);
+  const { data: subscription } = usePortalSubscription();
   const downloadMutation = useDownloadPortalTicket();
   const [selectedWeighing, setSelectedWeighing] = useState<PortalWeighing | null>(null);
 
@@ -128,6 +131,28 @@ export default function PortalWeighingsPage() {
         <h2 className="text-lg font-semibold text-gray-900">Weighing History</h2>
         <p className="text-sm text-gray-500">All your weighing tickets across organizations</p>
       </div>
+
+      {/* Subscription history limit notice */}
+      {subscription && subscription.historyMonths < 24 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-600" />
+          <span>
+            Showing weighings from the last <strong>{subscription.historyMonths} months</strong> on
+            your <strong className="capitalize">{subscription.tier}</strong> plan.{' '}
+            {subscription.tier === 'basic' && (
+              <Link href="/portal/subscription" className="underline font-medium hover:text-amber-900">
+                Upgrade to Standard
+              </Link>
+            )}{' '}
+            {subscription.tier === 'standard' && (
+              <Link href="/portal/subscription" className="underline font-medium hover:text-amber-900">
+                Upgrade to Premium
+              </Link>
+            )}{' '}
+            for full history access.
+          </span>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
