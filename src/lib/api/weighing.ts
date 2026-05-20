@@ -1303,6 +1303,21 @@ export async function approveToleranceException(id: string): Promise<CommercialW
 }
 
 /**
+ * Find open (first-weight-only) commercial transactions for a vehicle plate.
+ * Returns transactions where first weight was captured within the configured threshold.
+ */
+export async function getPendingCommercialByPlate(
+  regNo: string,
+  thresholdHours: number = 8
+): Promise<CommercialWeighingResult[]> {
+  const { data } = await apiClient.get<CommercialWeighingResult[]>(
+    `/commercial-weighing/pending-by-plate/${encodeURIComponent(regNo)}`,
+    { params: { thresholdHours } }
+  );
+  return data;
+}
+
+/**
  * Update quality deduction and recalculate adjusted net weight.
  */
 export async function updateQualityDeduction(

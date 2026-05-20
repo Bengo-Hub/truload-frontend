@@ -47,11 +47,13 @@ import {
   getCommercialResult,
   getCommercialTicketPdf,
   getInterimTicketPdf,
+  getPendingCommercialByPlate,
   getVehicleTareHistory,
   initiateCommercialWeighing,
   updateQualityDeduction,
   useStoredTare,
 } from '@/lib/api/weighing';
+import { ResumeWeighingDialog } from '@/components/weighing/ResumeWeighingDialog';
 import { getCurrentOrganization } from '@/lib/api/setup';
 import { TreasuryCheckoutDialog } from '@/components/payments/TreasuryCheckoutDialog';
 import type {
@@ -94,6 +96,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const [isLoading, setIsLoading] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showToleranceDialog, setShowToleranceDialog] = useState(false);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
 
   // Live weight from middleware
   const [liveWeightKg, setLiveWeightKg] = useState(0);
@@ -167,6 +170,21 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
   const createVehicleMutation = useCreateVehicle();
   const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
+
+  // Check for open (first-weight-only) transactions when plate is entered on the capture step
+  const { data: pendingTransactions } = useQuery({
+    queryKey: ['commercial-pending-by-plate', debouncedPlate],
+    queryFn: () => getPendingCommercialByPlate(debouncedPlate),
+    enabled: debouncedPlate.length >= 5 && currentStep === 'capture' && !transactionId,
+    staleTime: 10_000,
+  });
+
+  // Show the resume dialog as soon as pending transactions are found
+  useEffect(() => {
+    if (pendingTransactions && pendingTransactions.length > 0 && currentStep === 'capture' && !transactionId) {
+      setShowResumeDialog(true);
+    }
+  }, [pendingTransactions?.length, currentStep, transactionId]);
 
   const middleware = useMiddleware({
     stationCode: currentStation?.code || 'DEFAULT',
@@ -342,13 +360,20 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       setTransactionId(txnResult.id);
       setResult(txnResult);
       goToNextStep();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to initiate commercial weighing:', err);
+      const status = err?.response?.status ?? err?.status;
+      const code = err?.response?.data?.code ?? err?.code;
+      if (status === 402 || code === 'subscription_inactive') {
+        toast.error('Your subscription is inactive. Please renew to continue weighing.');
+        if (orgSlug) window.location.href = `/${orgSlug}/billing`;
+        return;
+      }
       toast.error('Failed to create transaction. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentStation, vehiclePlate, existingVehicle, createVehicleMutation, middleware,
+  }, [currentStation, vehiclePlate, existingVehicle, createVehicleMutation, middleware, orgSlug,
       selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId]);
 
   const handleCaptureFirstWeight = useCallback(async (weightType: 'tare' | 'gross') => {
@@ -509,6 +534,21 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     resetSession();
     toast.success('Weighing cancelled.');
   }, [resetSession]);
+
+  const handleResumeTransaction = useCallback((transaction: CommercialWeighingResult) => {
+    setShowResumeDialog(false);
+    setTransactionId(transaction.id);
+    setResult(transaction);
+    setVehiclePlate(transaction.vehicleRegNumber);
+    setIsPlateDisabled(true);
+    setCurrentStep('second-weight');
+    setCompletedSteps(['capture', 'first-weight']);
+    toast.info(`Resuming transaction — first weight captured ${transaction.firstWeightKg ?? 0} kg (${transaction.firstWeightType ?? ''})`);
+  }, [setVehiclePlate, setIsPlateDisabled]);
+
+  const handleStartNewFromResume = useCallback(() => {
+    setShowResumeDialog(false);
+  }, []);
 
   const stationDisplayName = currentStation?.name ?? 'Loading...';
   const canProceedFromCapture = vehiclePlate.length >= 5;
@@ -992,6 +1032,14 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         onSave={handleSaveLocation}
         isSaving={isSavingEntity}
         mode="create"
+      />
+
+      {/* Resume open transaction dialog — shown when a pending first-weight transaction is found for the entered plate */}
+      <ResumeWeighingDialog
+        open={showResumeDialog}
+        transactions={pendingTransactions ?? []}
+        onResume={handleResumeTransaction}
+        onStartNew={handleStartNewFromResume}
       />
 
       {/* Treasury payment dialog — shown when Pay button clicked on ticket step */}
