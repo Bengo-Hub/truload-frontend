@@ -179,6 +179,29 @@ export interface SubscriptionPlan {
 }
 
 // ============================================================================
+// Portal Team Management
+// ============================================================================
+
+export interface PortalTeamMember {
+  userId: string;
+  userEmail: string;
+  userName: string;
+  role: 'admin' | 'manager' | 'viewer';
+  joinedAt: string;
+  isOwner: boolean;
+}
+
+export interface InviteTeamMemberRequest {
+  email: string;
+  role: 'manager' | 'viewer';
+}
+
+export interface AcceptPortalInviteRequest {
+  token: string;
+  userName: string;
+}
+
+// ============================================================================
 // Portal Dashboard
 // ============================================================================
 
