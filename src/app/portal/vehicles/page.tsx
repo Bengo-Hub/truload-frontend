@@ -20,11 +20,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ChartWrapper } from '@/components/charts';
-import { usePortalVehicles, usePortalVehicleTrends, usePortalSubscription } from '@/hooks/queries/usePortalQueries';
+import { usePortalVehicles, usePortalVehicleTrends, usePortalSubscription, useImportVehiclesCsv } from '@/hooks/queries/usePortalQueries';
 import type { PortalVehicle } from '@/types/portal';
-import { Eye, Lock, Truck } from 'lucide-react';
+import { Eye, Lock, Loader2, Upload, Truck } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { PORTAL_QUERY_KEYS } from '@/hooks/queries/usePortalQueries';
 
 function VehicleTrendDialog({
   vehicle,
@@ -68,9 +71,36 @@ function VehicleTrendDialog({
 }
 
 export default function PortalVehiclesPage() {
+  const queryClient = useQueryClient();
   const { data: vehicles, isLoading } = usePortalVehicles();
   const { data: subscription } = usePortalSubscription();
+  const importMutation = useImportVehiclesCsv();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<PortalVehicle | null>(null);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset so the same file can be re-selected
+    e.target.value = '';
+    try {
+      const result = await importMutation.mutateAsync(file);
+      const summary = `Imported ${result.imported} vehicle(s), skipped ${result.skipped}.`;
+      if (result.errors.length > 0) {
+        toast.warning(`${summary} ${result.errors.length} row error(s) — check console.`);
+        console.warn('[Vehicle Import] Row errors:', result.errors);
+      } else {
+        toast.success(summary);
+      }
+      await queryClient.invalidateQueries({ queryKey: PORTAL_QUERY_KEYS.vehicles });
+    } catch {
+      toast.error('Failed to import vehicles. Please check the file format and try again.');
+    }
+  };
 
   const maxVehicles = subscription?.maxVehicles ?? 10;
   const vehicleCount = vehicles?.length ?? 0;
@@ -78,23 +108,49 @@ export default function PortalVehiclesPage() {
 
   return (
     <div className="space-y-4">
+      {/* Hidden file input for CSV import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Vehicle Fleet</h2>
           <p className="text-sm text-gray-500">Your registered vehicles and their weight data</p>
         </div>
-        {!isLoading && (
-          <div className="text-right">
-            <Badge variant={maxVehicles !== -1 && vehicleCount >= maxVehicles ? 'destructive' : 'secondary'} className="text-xs">
-              {vehicleCount}{maxVehicles === -1 ? '' : ` / ${maxVehicles}`} vehicles
-            </Badge>
-            {maxVehicles !== -1 && vehicleCount >= maxVehicles && (
-              <p className="text-[10px] text-red-600 mt-0.5">
-                <Link href="/portal/subscription" className="underline">Upgrade</Link> to add more
-              </p>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleImportClick}
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={importMutation.isPending}
+            title="Import vehicles from CSV (registration, make, model, axle_count, tare_weight_kg)"
+          >
+            {importMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-1" />
             )}
-          </div>
-        )}
+            Import CSV
+          </Button>
+          {!isLoading && (
+            <div className="text-right">
+              <Badge variant={maxVehicles !== -1 && vehicleCount >= maxVehicles ? 'destructive' : 'secondary'} className="text-xs">
+                {vehicleCount}{maxVehicles === -1 ? '' : ` / ${maxVehicles}`} vehicles
+              </Badge>
+              {maxVehicles !== -1 && vehicleCount >= maxVehicles && (
+                <p className="text-[10px] text-red-600 mt-0.5">
+                  <Link href="/portal/subscription" className="underline">Upgrade</Link> to add more
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <Card className="border border-gray-200 rounded-xl">

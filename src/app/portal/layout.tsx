@@ -19,7 +19,9 @@ import {
   LogOut,
   Menu,
   Scale,
+  Settings,
   Truck,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react';
@@ -42,6 +44,7 @@ const portalMenuItems: PortalMenuItem[] = [
   { href: '/portal/drivers', label: 'Drivers', icon: Users },
   { href: '/portal/reports', label: 'Reports', icon: BarChart3 },
   { href: '/portal/subscription', label: 'Subscription', icon: CreditCard },
+  { href: '/portal/settings/team', label: 'Team', icon: UserPlus },
 ];
 
 function PortalSidebar({

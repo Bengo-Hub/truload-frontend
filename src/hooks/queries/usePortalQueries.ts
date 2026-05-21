@@ -3,7 +3,9 @@
  */
 
 import {
+  acceptPortalInvite,
   getPortalDashboard,
+  getPortalTeam,
   getPortalWeighings,
   getPortalWeighingDetail,
   getPortalVehicles,
@@ -13,9 +15,17 @@ import {
   getPortalConsignments,
   getPortalSubscription,
   downloadPortalTicketPdf,
+  bulkDownloadTickets,
+  importVehiclesCsv,
+  inviteTeamMember,
+  removeTeamMember,
 } from '@/lib/api/portal';
-import type { PortalWeighingFilters } from '@/types/portal';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import type {
+  AcceptPortalInviteRequest,
+  InviteTeamMemberRequest,
+  PortalWeighingFilters,
+} from '@/types/portal';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export const PORTAL_QUERY_KEYS = {
   all: ['portal'] as const,
@@ -28,6 +38,7 @@ export const PORTAL_QUERY_KEYS = {
   driverPerformance: (id: string) => ['portal', 'drivers', id, 'performance'] as const,
   consignments: ['portal', 'consignments'] as const,
   subscription: ['portal', 'subscription'] as const,
+  team: ['portal', 'team'] as const,
 };
 
 export function usePortalDashboard() {
@@ -105,5 +116,52 @@ export function usePortalSubscription() {
 export function useDownloadPortalTicket() {
   return useMutation({
     mutationFn: (weighingId: string) => downloadPortalTicketPdf(weighingId),
+  });
+}
+
+export function useBulkDownloadTickets() {
+  return useMutation({
+    mutationFn: ({ fromDate, toDate }: { fromDate: string; toDate: string }) =>
+      bulkDownloadTickets(fromDate, toDate),
+  });
+}
+
+export function useImportVehiclesCsv() {
+  return useMutation({
+    mutationFn: (file: File) => importVehiclesCsv(file),
+  });
+}
+
+export function usePortalTeam() {
+  return useQuery({
+    queryKey: PORTAL_QUERY_KEYS.team,
+    queryFn: getPortalTeam,
+    staleTime: 60_000,
+  });
+}
+
+export function useInviteTeamMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: InviteTeamMemberRequest) => inviteTeamMember(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PORTAL_QUERY_KEYS.team });
+    },
+  });
+}
+
+export function useRemoveTeamMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => removeTeamMember(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PORTAL_QUERY_KEYS.team });
+    },
+  });
+}
+
+export function useAcceptPortalInvite() {
+  return useMutation({
+    mutationFn: (request: AcceptPortalInviteRequest) => acceptPortalInvite(request),
   });
 }

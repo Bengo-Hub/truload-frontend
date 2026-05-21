@@ -7,6 +7,8 @@
 
 import { apiClient } from './client';
 import type {
+  AcceptPortalInviteRequest,
+  InviteTeamMemberRequest,
   PortalConsignment,
   PortalDashboardStats,
   PortalDriver,
@@ -14,6 +16,7 @@ import type {
   PortalRegistrationRequest,
   PortalRegistrationResponse,
   PortalSubscription,
+  PortalTeamMember,
   PortalVehicle,
   PortalVehicleWeightTrend,
   PortalWeighingDetail,
@@ -125,5 +128,75 @@ export async function getPortalConsignments(): Promise<PortalConsignment[]> {
 
 export async function getPortalSubscription(): Promise<PortalSubscription> {
   const { data } = await apiClient.get<PortalSubscription>('/portal/subscription');
+  return data;
+}
+
+// ============================================================================
+// Team Management
+// ============================================================================
+
+export async function getPortalTeam(): Promise<PortalTeamMember[]> {
+  const { data } = await apiClient.get<PortalTeamMember[]>('/portal/team');
+  return data;
+}
+
+export async function inviteTeamMember(
+  request: InviteTeamMemberRequest
+): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>('/portal/team/invite', request);
+  return data;
+}
+
+export async function removeTeamMember(userId: string): Promise<{ message: string }> {
+  const { data } = await apiClient.delete<{ message: string }>(`/portal/team/${userId}`);
+  return data;
+}
+
+export async function acceptPortalInvite(
+  request: AcceptPortalInviteRequest
+): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>('/portal/team/accept', request);
+  return data;
+}
+
+// ============================================================================
+// Bulk Download
+// ============================================================================
+
+export async function bulkDownloadTickets(
+  fromDate: string,
+  toDate: string
+): Promise<{ blob: Blob; fileName: string }> {
+  const response = await apiClient.get('/portal/weighings/bulk-download', {
+    params: { fromDate, toDate },
+    responseType: 'blob',
+  });
+  const contentDisposition = response.headers['content-disposition'];
+  let fileName = `tickets_${fromDate}_${toDate}.zip`;
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (match?.[1]) {
+      fileName = match[1].replace(/['"]/g, '');
+    }
+  }
+  return { blob: response.data as Blob, fileName };
+}
+
+// ============================================================================
+// Vehicle Import
+// ============================================================================
+
+export interface VehicleImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function importVehiclesCsv(file: File): Promise<VehicleImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await apiClient.post<VehicleImportResult>('/portal/vehicles/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }

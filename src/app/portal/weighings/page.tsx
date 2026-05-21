@@ -24,9 +24,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Pagination, usePagination } from '@/components/ui/pagination';
-import { usePortalWeighings, useDownloadPortalTicket } from '@/hooks/queries/usePortalQueries';
+import { usePortalWeighings, useDownloadPortalTicket, useBulkDownloadTickets } from '@/hooks/queries/usePortalQueries';
 import type { PortalWeighing, PortalWeighingFilters } from '@/types/portal';
-import { AlertTriangle, Download, Eye, FileText, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, Archive, Download, Eye, FileText, Loader2, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -89,6 +89,7 @@ export default function PortalWeighingsPage() {
   const { data, isLoading } = usePortalWeighings(filters);
   const { data: subscription } = usePortalSubscription();
   const downloadMutation = useDownloadPortalTicket();
+  const bulkDownloadMutation = useBulkDownloadTickets();
   const [selectedWeighing, setSelectedWeighing] = useState<PortalWeighing | null>(null);
 
   const handleSearch = useCallback(() => {
@@ -101,6 +102,27 @@ export default function PortalWeighingsPage() {
     setVehicleSearch('');
     setAppliedVehicle('');
   }, []);
+
+  const handleBulkDownload = useCallback(async () => {
+    if (!dateFrom || !dateTo) {
+      toast.error('Please select both a From Date and To Date before downloading a ZIP');
+      return;
+    }
+    try {
+      const result = await bulkDownloadMutation.mutateAsync({ fromDate: dateFrom, toDate: dateTo });
+      const url = window.URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = result.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Ticket ZIP downloaded');
+    } catch {
+      toast.error('Failed to download ticket ZIP — check your subscription or try a smaller date range');
+    }
+  }, [bulkDownloadMutation, dateFrom, dateTo]);
 
   const handleDownloadPdf = useCallback(
     async (weighingId: string) => {
@@ -184,6 +206,23 @@ export default function PortalWeighingsPage() {
                 <X className="h-4 w-4 mr-1" />
                 Clear
               </Button>
+              {subscription?.features?.dataExport && (
+                <Button
+                  onClick={handleBulkDownload}
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  disabled={bulkDownloadMutation.isPending}
+                  title="Download all tickets in date range as ZIP"
+                >
+                  {bulkDownloadMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Archive className="h-4 w-4 mr-1" />
+                  )}
+                  Download ZIP
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
