@@ -9,6 +9,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { SubscriptionBanner } from '@/components/subscription/subscription-banner';
 import { UserProfileDropdown } from '@/components/auth/UserProfileDropdown';
 import { usePortalAuth } from '@/hooks/usePortalAuth';
 import type { LucideIcon } from 'lucide-react';
@@ -223,6 +224,8 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
+
+        <SubscriptionBanner />
 
         {/* Main content */}
         <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 lg:py-8 lg:px-8">

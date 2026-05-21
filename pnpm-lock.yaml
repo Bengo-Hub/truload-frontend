@@ -29,8 +29,8 @@ importers:
   .:
     dependencies:
       '@bengo-hub/shared-ui-lib':
-        specifier: github:Bengo-Hub/shared-ui-lib#v0.1.4
-        version: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/eabe5ade7f562a98b06e601eeb6449c425423108(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: github:Bengo-Hub/shared-ui-lib#v0.1.8
+        version: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/38616907437868a5397217049da06b631f93ee45(lucide-react@0.454.0(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.71.1(react@19.2.4))
@@ -832,12 +832,16 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
-  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/eabe5ade7f562a98b06e601eeb6449c425423108':
-    resolution: {tarball: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/eabe5ade7f562a98b06e601eeb6449c425423108}
-    version: 0.1.1
+  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/38616907437868a5397217049da06b631f93ee45':
+    resolution: {tarball: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/38616907437868a5397217049da06b631f93ee45}
+    version: 0.1.8
     peerDependencies:
+      lucide-react: '>=0.400.0'
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
+    peerDependenciesMeta:
+      lucide-react:
+        optional: true
 
   '@ducanh2912/next-pwa@10.2.9':
     resolution: {integrity: sha512-Wtu823+0Ga1owqSu1I4HqKgeRYarduCCKwsh1EJmJiJqgbt+gvVf5cFwFH8NigxYyyEvriAro4hzm0pMSrXdRQ==}
@@ -6304,10 +6308,12 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/eabe5ade7f562a98b06e601eeb6449c425423108(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/38616907437868a5397217049da06b631f93ee45(lucide-react@0.454.0(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+    optionalDependencies:
+      lucide-react: 0.454.0(react@19.2.4)
 
   '@ducanh2912/next-pwa@10.2.9(@types/babel__core@7.20.5)(next@16.2.3(@babel/core@7.29.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(webpack@5.105.2)':
     dependencies:
