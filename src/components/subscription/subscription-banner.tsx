@@ -22,6 +22,8 @@ export function SubscriptionBanner() {
       daysUntilExpiry={sub.store.daysUntilExpiry}
       needsSubscription={sub.needsSubscription}
       isPlatformOwner={sub.isPlatformOwner}
+      isServiceCharge={sub.isServiceCharge}
+      isDemo={sub.isDemo}
       isCommercialTenant={sub.isCommercialTenant}
       isLoading={sub.isLoading}
       isHydrated={sub.store.hydrated}

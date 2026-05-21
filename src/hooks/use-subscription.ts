@@ -17,6 +17,8 @@ export function useSubscription() {
   // Commercial tenants have paid subscriptions; enforcement orgs are free
   const isCommercialTenant = user?.isCommercialTenant ?? false;
   const isPlatformOwner = user?.organizationCode?.toUpperCase() === 'CODEVERTEX';
+  const isServiceCharge = (user as any)?.billing_mode === 'service_charge';
+  const isDemo = !!(user as any)?.is_demo || tenantSlug?.toUpperCase() === 'CODEVERTEX-DEMO';
 
   // Hydrate from IndexedDB on auth for offline gating
   useEffect(() => {
@@ -84,13 +86,15 @@ export function useSubscription() {
     store,
     status: subStatus,
     plan: store.plan,
-    isActive: subStatus === 'active' || subStatus === 'trial',
+    isActive: subStatus === 'active' || subStatus === 'trial' || isServiceCharge || isDemo,
     isPastDue: subStatus === 'suspended',
     isExpired: store.isExpired,
     isInGracePeriod: store.isInGracePeriod,
-    needsSubscription: subStatus === 'none' && isCommercialTenant,
+    needsSubscription: subStatus === 'none' && isCommercialTenant && !isServiceCharge && !isDemo,
     isLoading: !store.hydrated,
     isPlatformOwner,
+    isServiceCharge,
+    isDemo,
     isCommercialTenant,
     hasFeature: (code: string) => store.features.includes(code),
     getLimit: (key: string) => (store.limits[key] ?? Infinity) as number,
