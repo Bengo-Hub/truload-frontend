@@ -9,7 +9,22 @@ const ACCESS_TOKEN_KEY = 'truload_access_token';
 
 // Multi-tenant header names (must match backend TenantContextMiddleware)
 const ORG_ID_HEADER = 'X-Org-ID';
+const ORG_SLUG_HEADER = 'X-Org-Slug';
 const STATION_ID_HEADER = 'X-Station-ID';
+
+// Path segments that are never org slugs (Next.js internals, auth routes, etc.)
+const NON_ORG_PATH_SEGMENTS = new Set([
+  'auth', 'login', 'logout', 'register', 'forgot-password', 'reset-password',
+  'verify-email', 'sso', 'api', '_next', 'portal', 'favicon.ico',
+]);
+
+/** Extract the org slug from the current URL path (first segment in /[orgSlug]/...). */
+function getOrgSlugFromPath(): string | null {
+  if (typeof window === 'undefined') return null;
+  const firstSegment = window.location.pathname.split('/').filter(Boolean)[0];
+  if (!firstSegment || NON_ORG_PATH_SEGMENTS.has(firstSegment.toLowerCase())) return null;
+  return firstSegment;
+}
 
 // ============================================================================
 // Request Concurrency Limiter
@@ -105,10 +120,9 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
 
-      // Platform owners (CODEVERTEX org) do NOT send tenant headers — they have cross-tenant access.
-      // This matches the ordering-frontend pattern where platform owners bypass tenant slug routing.
       if (!getIsPlatformOwner()) {
-        // Add multi-tenant headers. For HQ users, station is only sent when they select one for drill-down.
+        // Regular users: send tenant headers from stored context.
+        // HQ users: station is only sent when they select one for drill-down.
         const orgId = getOrganizationId();
         const stationId = getEffectiveStationId();
 
@@ -117,6 +131,15 @@ apiClient.interceptors.request.use(
         }
         if (stationId) {
           config.headers[STATION_ID_HEADER] = stationId;
+        }
+      } else {
+        // Platform owners (CODEVERTEX superusers): send X-Org-Slug derived from the current URL
+        // so the backend routes to the correct tenant DB even in superuser mode.
+        // Without this, superuser requests hit the default truload DB regardless of which
+        // tenant page they are managing.
+        const orgSlug = getOrgSlugFromPath();
+        if (orgSlug) {
+          config.headers[ORG_SLUG_HEADER] = orgSlug;
         }
       }
     }
