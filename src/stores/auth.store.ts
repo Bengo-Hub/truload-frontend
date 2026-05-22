@@ -4,7 +4,7 @@
  */
 
 import * as authApi from '@/lib/auth/api';
-import { clearTokens, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext } from '@/lib/auth/token';
+import { clearTokens, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext, setTokens } from '@/lib/auth/token';
 import { clearAllScaleTestCaches } from '@/lib/scale-test-cache';
 import type { User } from '@/types/auth/types';
 import { create } from 'zustand';
@@ -45,6 +45,8 @@ interface AuthState {
   checkAuth: () => void;
   /** Directly set the user (used after SSO select-station completes). */
   setUser: (user: User) => void;
+  /** Hydrate session from WebAuthn biometric tokens. Stores tokens and fetches user profile. */
+  hydrateFromWebAuthn: (tokens: { accessToken: string; refreshToken: string; expiresIn: number }) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -194,6 +196,12 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
 
       setUser: (user: User) => set({ user, isAuthenticated: true, error: null }),
+
+      hydrateFromWebAuthn: (tokens) => {
+        setTokens(tokens);
+        set({ isLoading: true });
+        get().fetchUser();
+      },
 
       /**
        * Check authentication status on app load.

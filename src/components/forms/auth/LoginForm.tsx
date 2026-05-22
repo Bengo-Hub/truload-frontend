@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import { useBiometric } from '@/hooks/use-biometric';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { setLastLoginStation } from '@/lib/auth/lastLoginStation';
 import { useAuthStore } from '@/stores/auth.store';
@@ -83,8 +84,19 @@ export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, prima
   const pending2FA = useAuthStore((s) => s.pending2FA);
   const loginVerify2FA = useAuthStore((s) => s.loginVerify2FA);
   const clearPending2FA = useAuthStore((s) => s.clearPending2FA);
+  const hydrateFromWebAuthn = useAuthStore((s) => s.hydrateFromWebAuthn);
   const [showPassword, setShowPassword] = useState(false);
   const [isVerifying2FA, setIsVerifying2FA] = useState(false);
+  const [emailValue, setEmailValue] = useState('');
+
+  const { authenticate, isSupported, hasRegisteredCredential, isLoading: biometricLoading, error: biometricError } = useBiometric({
+    onAuthSuccess: (tokens) => {
+      hydrateFromWebAuthn(tokens);
+      const slug = orgSlug || 'kura';
+      router.push(fromParam || `/${slug}/dashboard`);
+    },
+    onError: (err) => toast.error(err),
+  });
 
   const fromParam = searchParams?.get('from');
 
@@ -243,7 +255,9 @@ export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, prima
                 id="email"
                 type="text"
                 placeholder="Enter your email address"
-                {...register('email')}
+                {...register('email', {
+                  onChange: (e) => setEmailValue(e.target.value),
+                })}
                 disabled={isLoading}
                 suppressHydrationWarning
                 className={`h-11 rounded-md border ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : 'border-[#e5e8ec] focus-visible:ring-[#0a9f3d]'} bg-[#f2f3f5] pl-10 text-gray-900 placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-offset-0`}
@@ -343,6 +357,31 @@ export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, prima
               Microsoft
             </Button>
           </div>
+
+          {isSupported && hasRegisteredCredential && (
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full rounded-md border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                onClick={() => authenticate(emailValue, orgSlug ?? undefined)}
+                disabled={biometricLoading || !emailValue}
+              >
+                {biometricLoading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent mr-2" />
+                ) : (
+                  <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M12 1C6.48 1 2 5.48 2 11c0 3.27 1.5 6.18 3.84 8.12M12 1c5.52 0 10 4.48 10 10 0 3.27-1.5 6.18-3.84 8.12M12 1v1m0 21v-1" />
+                    <path d="M8 11c0-2.21 1.79-4 4-4s4 1.79 4 4c0 1.5-.82 2.8-2 3.54M8 11c0 2.21 1.79 4 4 4" />
+                  </svg>
+                )}
+                Sign in with fingerprint
+              </Button>
+              {biometricError && (
+                <p className="text-xs text-red-500 text-center">{biometricError}</p>
+              )}
+            </div>
+          )}
         </form>
       </CardContent>
     </Card>
