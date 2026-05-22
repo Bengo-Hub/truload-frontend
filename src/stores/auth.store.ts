@@ -197,11 +197,12 @@ export const useAuthStore = create<AuthState>()(
 
       /**
        * Check authentication status on app load.
-       * Always rehydrate from backend to ensure fresh user data and permissions.
+       * Skips backend call if stored token is still valid; fetches fresh user data only when expired.
        */
       checkAuth: () => {
-        // Always attempt to rehydrate user from backend even if localStorage has user
-        // This ensures permissions and roles are current after page refresh
+        if (hasValidToken()) {
+          return;
+        }
         get().fetchUser();
       },
     }),

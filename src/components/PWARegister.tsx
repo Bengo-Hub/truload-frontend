@@ -3,6 +3,7 @@
 import { pushNotificationService } from '@/lib/pushNotification';
 import { useEffect } from 'react';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
+import { PWAUpdateBanner } from './PWAUpdateBanner';
 
 // Guard for debug logging - only emit console.log in development builds
 const isDev = process.env.NODE_ENV === 'development';
@@ -60,5 +61,10 @@ export function PWARegister() {
     };
   }, []);
 
-  return <PWAInstallPrompt />;
+  return (
+    <>
+      <PWAUpdateBanner />
+      <PWAInstallPrompt />
+    </>
+  );
 }
