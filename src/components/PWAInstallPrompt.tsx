@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, X, Smartphone, Share } from 'lucide-react';
+import { requestAppPermissions } from '@/hooks/use-app-permissions';
 
 // localStorage keys
 const DISMISS_KEY = 'truload-pwa-dismiss-time';
@@ -71,11 +72,8 @@ export function PWAInstallPrompt() {
     if (isRunningStandalone()) return false;
 
     // Dismissed recently — respect the 24-hour cooldown
-    const dismissedAt = localStorage.getItem(DISMISS_KEY);
-    if (dismissedAt) {
-      const elapsed = Date.now() - Number(dismissedAt);
-      if (elapsed < DISMISS_COOLDOWN) return false;
-    }
+    const dismissedUntil = localStorage.getItem(DISMISS_KEY);
+    if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) return false;
 
     return true;
   }, []);
@@ -136,6 +134,7 @@ export function PWAInstallPrompt() {
     if (outcome === 'accepted') {
       localStorage.setItem(INSTALLED_KEY, 'true');
       setShowBanner(false);
+      requestAppPermissions();
     }
 
     // The prompt can only be used once
@@ -143,7 +142,7 @@ export function PWAInstallPrompt() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_COOLDOWN));
     setShowBanner(false);
     setShowIOSInstructions(false);
   };
