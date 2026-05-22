@@ -101,12 +101,18 @@ export const apiClient: AxiosInstance = axios.create({
 // Request interceptor - attach token, tenant headers, and apply concurrency limit
 apiClient.interceptors.request.use(
   async (config) => {
-    // Skip refresh for auth endpoints
-    if (
-      config.url?.includes('/auth/login') ||
-      config.url?.includes('/auth/refresh') ||
-      config.url?.includes('/auth/logout')
-    ) {
+    // Auth endpoints must not receive tenant routing headers or be subject to concurrency limits.
+    // /auth/profile looks up the user in their OWN db — sending X-Org-Slug/X-Org-ID would
+    // route the lookup to the wrong tenant DB and cause 404 → logout loop for cross-tenant users.
+    const isAuthEndpoint = config.url?.includes('/auth/');
+    if (isAuthEndpoint) {
+      // Still attach the access token for authenticated auth endpoints (profile, logout, refresh)
+      if (typeof window !== 'undefined') {
+        const accessToken = getAccessToken();
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+        }
+      }
       return config;
     }
 
