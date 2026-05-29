@@ -140,6 +140,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [showReconcileDialog, setShowReconcileDialog] = useState(false);
   const [checkoutPaymentLink, setCheckoutPaymentLink] = useState<string | null>(null);
+  const [checkoutMode, setCheckoutMode] = useState<'iframe' | 'redirect'>('iframe');
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDto | null>(null);
 
   // Payment form states
@@ -201,8 +202,9 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
       await generateInvoiceMutation.mutateAsync(prosecution.id);
       toast.success('Invoice generated successfully');
       refetch();
-    } catch (_error) {
-      toast.error('Failed to generate invoice');
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Failed to generate invoice');
     }
   }, [prosecution, generateInvoiceMutation, refetch]);
 
@@ -277,6 +279,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
 
       if (result.paymentLink) {
         setCheckoutPaymentLink(result.paymentLink);
+        setCheckoutMode(result.checkoutMode ?? 'iframe');
         setShowPesaflowModal(false);
         setShowCheckoutDialog(true);
       } else {
@@ -654,6 +657,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
                               onClick={() => {
                                 setSelectedInvoice(invoice);
                                 setCheckoutPaymentLink(invoice.pesaflowPaymentLink!);
+                                setCheckoutMode(invoice.pesaflowCheckoutMode ?? 'iframe');
                                 setShowCheckoutDialog(true);
                               }}
                             >
@@ -935,6 +939,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
         invoiceId={selectedInvoice?.id || ''}
         invoiceNo={selectedInvoice?.invoiceNo || ''}
         pesaflowInvoiceNumber={selectedInvoice?.pesaflowInvoiceNumber}
+        checkoutMode={checkoutMode}
         onPaymentConfirmed={() => {
           refetch();
         }}

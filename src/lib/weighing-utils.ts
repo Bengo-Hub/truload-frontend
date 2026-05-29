@@ -247,6 +247,7 @@ export interface WeighingValidationResult {
  * Validate required fields before taking a decision action.
  * Returns which fields are missing so the UI can highlight them.
  * Mandatory per FRD: Driver, Transporter, Origin, Destination, Cargo.
+ * For overloaded vehicles only: Driver National ID is also required (eCitizen invoice generation).
  */
 export function validateRequiredFields(params: {
   driverId?: string;
@@ -256,6 +257,10 @@ export function validateRequiredFields(params: {
   cargoId?: string;
   roadId?: string;
   subcountyId?: string;
+  /** Driver has a national ID number — only enforced when isOverloaded is true */
+  driverHasIdNumber?: boolean;
+  /** Whether the vehicle is overloaded (triggers eCitizen invoice generation) */
+  isOverloaded?: boolean;
 }): WeighingValidationResult {
   const missingFields: string[] = [];
   if (!params.driverId) missingFields.push('Driver');
@@ -263,8 +268,9 @@ export function validateRequiredFields(params: {
   if (!params.originId) missingFields.push('Origin');
   if (!params.destinationId) missingFields.push('Destination');
   if (!params.cargoId) missingFields.push('Cargo');
-  // Road and Subcounty are recommended but maybe not strictly mandatory in all cases,
-  // but let's include them if we want to enforce full location tracking.
-  // For now, let's keep it consistent with the frontend usage.
+  // Driver National ID is required only for overloaded vehicles (eCitizen invoice generation)
+  if (params.isOverloaded && params.driverId && params.driverHasIdNumber === false) {
+    missingFields.push('Driver National ID');
+  }
   return { isValid: missingFields.length === 0, missingFields };
 }

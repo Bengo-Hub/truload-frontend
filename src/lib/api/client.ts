@@ -126,6 +126,11 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
 
+      // Env routing: test domains always hit the truload DB; live domains hit the tenant DB.
+      const hostname = window.location.hostname;
+      const isTestDomain = hostname.includes('kuraweightest') || hostname.includes('localhost') || hostname.includes('truload.codevertex');
+      config.headers['X-Env'] = isTestDomain ? 'test' : 'live';
+
       if (!getIsPlatformOwner()) {
         // Regular users: send tenant headers from stored context.
         // HQ users: station is only sent when they select one for drill-down.

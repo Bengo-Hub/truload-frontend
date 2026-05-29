@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Globe, Loader2, RefreshCcw, CheckCircle2, XCircle } from 'lucide-react';
+import { ExternalLink, Globe, Loader2, RefreshCcw, CheckCircle2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PesaflowPaymentStatusResponse } from '@/lib/api/integration';
 import { queryPaymentStatus } from '@/lib/api/integration';
@@ -16,6 +16,8 @@ interface PesaflowCheckoutDialogProps {
   invoiceId: string;
   invoiceNo: string;
   pesaflowInvoiceNumber?: string;
+  /** "iframe" = embedded checkout (test env); "redirect" = new-tab button (live env, X-Frame-Options: DENY) */
+  checkoutMode?: 'iframe' | 'redirect';
   onPaymentConfirmed?: () => void;
 }
 
@@ -28,6 +30,7 @@ export function PesaflowCheckoutDialog({
   invoiceId,
   invoiceNo,
   pesaflowInvoiceNumber,
+  checkoutMode = 'iframe',
   onPaymentConfirmed,
 }: PesaflowCheckoutDialogProps) {
   const [paymentState, setPaymentState] = useState<PaymentState>('loading');
@@ -81,7 +84,8 @@ export function PesaflowCheckoutDialog({
 
   useEffect(() => {
     if (open && paymentLink) {
-      setPaymentState('loading');
+      // In redirect mode, go straight to "checkout" state (no loading spinner for iframe)
+      setPaymentState(checkoutMode === 'redirect' ? 'checkout' : 'loading');
       setPaymentStatus(null);
       startStatusPolling();
     }
@@ -91,7 +95,7 @@ export function PesaflowCheckoutDialog({
         pollingRef.current = null;
       }
     };
-  }, [open, paymentLink, startStatusPolling]);
+  }, [open, paymentLink, checkoutMode, startStatusPolling]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,10 +158,7 @@ export function PesaflowCheckoutDialog({
                   <p>Channel: <span className="text-gray-900">{paymentStatus.paymentChannel}</span></p>
                 )}
               </div>
-              <Button
-                className="mt-6"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button className="mt-6" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
             </div>
@@ -166,7 +167,33 @@ export function PesaflowCheckoutDialog({
               <XCircle className="h-8 w-8 text-red-400 mr-2" />
               <span className="text-gray-600">No payment link available</span>
             </div>
+          ) : checkoutMode === 'redirect' ? (
+            /* Redirect mode — live eCitizen blocks iframe embedding (X-Frame-Options: DENY) */
+            <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-5">
+              <Globe className="h-14 w-14 text-purple-500" />
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold text-gray-900">Complete Payment on eCitizen</h3>
+                <p className="text-sm text-gray-500 max-w-sm">
+                  Click below to open the eCitizen payment page in a new tab. After completing
+                  payment, return here and click <strong>Check Status</strong>.
+                </p>
+              </div>
+              <Button
+                size="lg"
+                onClick={() => window.open(paymentLink, '_blank', 'noopener,noreferrer')}
+                className="gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open Payment Page
+              </Button>
+              {pesaflowInvoiceNumber && (
+                <p className="text-xs text-gray-400 font-mono">
+                  Payment Ref: {pesaflowInvoiceNumber}
+                </p>
+              )}
+            </div>
           ) : (
+            /* Iframe mode — test/sandbox eCitizen allows embedding */
             <>
               {paymentState === 'loading' && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
@@ -184,6 +211,17 @@ export function PesaflowCheckoutDialog({
                 onLoad={handleIframeLoad}
                 sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-top-navigation"
               />
+              {/* Fallback link in case iframe fails */}
+              <div className="px-4 pb-2 text-center border-t bg-gray-50">
+                <a
+                  href={paymentLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Having trouble? Open payment page directly →
+                </a>
+              </div>
             </>
           )}
         </div>

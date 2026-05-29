@@ -63,6 +63,8 @@ export interface PesaflowInvoiceResponse {
   totalAmount: number | null;
   currency: string | null;
   message: string | null;
+  /** "iframe" for test/sandbox; "redirect" for live (eCitizen blocks iframe embedding) */
+  checkoutMode: 'iframe' | 'redirect';
 }
 
 export interface PesaflowPaymentStatusResponse {
@@ -79,8 +81,15 @@ export interface ReconcileResult {
 }
 
 export interface ReconcileRequest {
+  /** Primary transaction reference (the M-Pesa or Pesaflow ref on the original invoice) */
   transactionReference?: string;
   amountPaid?: number;
+  /** Alternate eCitizen/Pesaflow reference — used when payment went to a different ref.
+   *  Pesaflow is queried with this ref; amount must be within 10% of the invoice amount.
+   *  Notes is required on the frontend when this is provided. */
+  alternateReference?: string;
+  /** Required when alternateReference differs from the original invoice reference */
+  notes?: string;
 }
 
 // ============================================================================
@@ -157,7 +166,7 @@ export async function reconcileInvoice(
   request: ReconcileRequest
 ): Promise<{ success: boolean; message: string }> {
   const { data } = await apiClient.post<{ success: boolean; message: string }>(
-    `/invoices/${invoiceId}/reconcile`,
+    `/invoices/${invoiceId}/pesaflow-reconcile`,
     request
   );
   return data;

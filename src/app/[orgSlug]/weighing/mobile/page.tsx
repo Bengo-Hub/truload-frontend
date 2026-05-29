@@ -880,13 +880,19 @@ export default function MobileWeighingPage() {
   const allAxlesCaptured = hookAllAxlesCaptured || capturedAxles.length === totalAxles;
 
   // Required field validation for decision actions (Driver, Transporter, Origin, Destination, Cargo)
+  const selectedDriver = useMemo(
+    () => drivers.find((d) => d.id === selectedDriverId),
+    [drivers, selectedDriverId]
+  );
   const validationResult = useMemo(() => validateRequiredFields({
     driverId: selectedDriverId,
     transporterId: selectedTransporterId,
     originId: selectedOriginId,
     destinationId: selectedDestinationId,
     cargoId: selectedCargoId,
-  }), [selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId, selectedCargoId]);
+    isOverloaded: overallStatus === 'OVERLOAD',
+    driverHasIdNumber: selectedDriver ? !!selectedDriver.idNumber : undefined,
+  }), [selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId, selectedCargoId, overallStatus, selectedDriver]);
 
   const hasShownSentToYardToast = useRef(false);
 

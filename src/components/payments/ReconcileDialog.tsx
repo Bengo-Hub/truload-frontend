@@ -1,12 +1,13 @@
 /**
- * ReconcileDialog — allows an officer to reconcile an offline-created
- * invoice against a real Pesaflow transaction once back online.
+ * ReconcileDialog — allows an officer to reconcile an invoice against a
+ * real Pesaflow transaction once back online.
  *
  * Flow:
- * 1. User inputs the amount paid and Pesaflow transaction reference
- * 2. "Verify" queries the Pesaflow payment status endpoint
- * 3. Shows transaction details for confirmation
- * 4. "Reconcile" updates the invoice status + generates a receipt
+ * 1. Original Pesaflow ref is shown read-only (audit trail)
+ * 2. Officer may enter an Alternate Reference if payment went to a different eCitizen ref
+ * 3. "Verify" queries Pesaflow using the alternate ref (if given) or the original ref
+ * 4. Shows transaction details; Notes become required when alternate ref differs from original
+ * 5. "Reconcile" updates the invoice status + generates a receipt with notes + alternate ref
  */
 
 'use client';
@@ -23,8 +24,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { queryPaymentStatus, reconcileInvoice, type PesaflowPaymentStatusResponse } from '@/lib/api/integration';
-import { AlertTriangle, CheckCircle2, Loader2, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Loader2, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -52,24 +54,37 @@ export function ReconcileDialog({
   onReconciled,
 }: ReconcileDialogProps) {
   const [step, setStep] = useState<Step>('input');
-  const [transactionRef, setTransactionRef] = useState('');
+  const [alternateRef, setAlternateRef] = useState('');
   const [amount, setAmount] = useState(amountDue.toString());
+  const [notes, setNotes] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<PesaflowPaymentStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const invoiceReference = pesaflowInvoiceNumber?.trim() || '';
+
+  const originalRef = pesaflowInvoiceNumber?.trim() || '';
+  // Alternate ref is "active" when provided and different from the original
+  const isUsingAlternateRef =
+    alternateRef.trim() !== '' &&
+    alternateRef.trim().toUpperCase() !== originalRef.toUpperCase();
+  // Notes are required when reconciling under a different reference
+  const notesRequired = isUsingAlternateRef;
 
   useEffect(() => {
     if (!open) return;
-    setTransactionRef(invoiceReference);
+    setAlternateRef('');
     setAmount(amountDue.toString());
-  }, [open, invoiceReference, amountDue]);
+    setNotes('');
+    setPaymentStatus(null);
+    setError(null);
+    setStep('input');
+  }, [open, amountDue]);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: currency || 'KES' }).format(val);
 
   const handleVerify = async () => {
-    if (!invoiceReference.trim() && !transactionRef.trim()) {
-      setError('Invoice reference is required for verification');
+    const refToQuery = alternateRef.trim() || originalRef;
+    if (!refToQuery) {
+      setError('A Pesaflow reference is required for verification');
       return;
     }
 
@@ -77,17 +92,27 @@ export function ReconcileDialog({
     setStep('verifying');
 
     try {
-      const refNo = invoiceReference || transactionRef.trim();
-      const status = await queryPaymentStatus(invoiceId, refNo);
+      const status = await queryPaymentStatus(invoiceId, refToQuery);
 
       if (status.status === 'PAID' || status.amountPaid > 0) {
         setPaymentStatus(status);
         setAmount(status.amountPaid.toString());
+
+        // Auto-suggest notes when using an alternate reference
+        if (isUsingAlternateRef && !notes.trim()) {
+          const mpesaRef = status.paymentReference || '';
+          setNotes(
+            `eCitizen ref ${alternateRef.trim()} confirmed paid${mpesaRef ? ` via M-Pesa ${mpesaRef}` : ''}; ` +
+            `original invoice ref ${originalRef} could not be used for payment ` +
+            `(please explain reason — e.g. iframe blocked on live eCitizen).`
+          );
+        }
+
         setStep('confirmed');
       } else {
         setError(
           `Transaction not found or not yet paid. Status: ${status.status || 'UNKNOWN'}. ` +
-          'Please verify the transaction reference and try again.'
+          'Please verify the reference and try again.'
         );
         setStep('input');
       }
@@ -98,28 +123,29 @@ export function ReconcileDialog({
   };
 
   const handleReconcile = async () => {
+    if (notesRequired && !notes.trim()) {
+      setError('Notes are required when reconciling under a different reference — please explain why.');
+      return;
+    }
+
+    setError(null);
     setStep('reconciling');
 
     try {
-      // Use the new unified backend reconciliation endpoint
       const result = await reconcileInvoice(invoiceId, {
+        transactionReference: paymentStatus?.paymentReference || alternateRef.trim() || originalRef,
         amountPaid: parseFloat(amount),
-        transactionReference: paymentStatus?.paymentReference || transactionRef,
+        alternateReference: isUsingAlternateRef ? alternateRef.trim() : undefined,
+        notes: notes.trim() || undefined,
       });
 
       if (result.success) {
         setStep('done');
         toast.success(`Invoice ${invoiceNo} reconciled successfully`);
 
-        // Notify parent after short delay so user sees success state
         setTimeout(() => {
           onReconciled?.();
           onOpenChange(false);
-          // Reset state
-          setStep('input');
-          setTransactionRef('');
-          setPaymentStatus(null);
-          setError(null);
         }, 1500);
       } else {
         setError(result.message || 'Failed to reconcile invoice. Please try again.');
@@ -133,15 +159,8 @@ export function ReconcileDialog({
   };
 
   const handleClose = () => {
-    if (step === 'verifying' || step === 'reconciling') return; // prevent close during async ops
+    if (step === 'verifying' || step === 'reconciling') return;
     onOpenChange(false);
-    // Reset after animation
-    setTimeout(() => {
-      setStep('input');
-      setTransactionRef('');
-      setPaymentStatus(null);
-      setError(null);
-    }, 200);
   };
 
   return (
@@ -150,7 +169,7 @@ export function ReconcileDialog({
         <DialogHeader>
           <DialogTitle>Reconcile Invoice</DialogTitle>
           <DialogDescription>
-            Verify and reconcile offline invoice <strong>{invoiceNo}</strong> against Pesaflow payment records.
+            Verify and reconcile <strong>{invoiceNo}</strong> against Pesaflow payment records.
           </DialogDescription>
         </DialogHeader>
 
@@ -169,15 +188,41 @@ export function ReconcileDialog({
               />
             </div>
 
+            {/* Original reference — read-only, preserved for audit trail */}
             <div className="space-y-2">
-              <Label htmlFor="reconcile-ref">Pesaflow Transaction Reference</Label>
+              <Label htmlFor="original-ref" className="flex items-center gap-1.5">
+                Original Pesaflow Reference
+                <span className="text-xs text-muted-foreground font-normal">(read-only)</span>
+              </Label>
               <Input
-                id="reconcile-ref"
-                value={transactionRef}
-                onChange={(e) => setTransactionRef(e.target.value)}
-                placeholder="e.g. PJLVXY or UDDEQ11M54"
-                disabled={step === 'verifying'}
+                id="original-ref"
+                value={originalRef || '—'}
+                readOnly
+                disabled
+                className="bg-muted text-muted-foreground font-mono text-sm"
               />
+            </div>
+
+            {/* Alternate reference — for when payment went to a different eCitizen ref */}
+            <div className="space-y-2">
+              <Label htmlFor="alternate-ref">
+                Alternate Reference
+                <span className="text-xs text-muted-foreground font-normal ml-1.5">(optional)</span>
+              </Label>
+              <Input
+                id="alternate-ref"
+                value={alternateRef}
+                onChange={(e) => setAlternateRef(e.target.value)}
+                placeholder="e.g. BVXAJQVX — if payment went to a different eCitizen ref"
+                disabled={step === 'verifying'}
+                className="font-mono"
+              />
+              {isUsingAlternateRef && (
+                <p className="flex items-center gap-1.5 text-xs text-amber-600">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  Pesaflow will be queried using this reference. Notes will be required.
+                </p>
+              )}
             </div>
 
             {error && (
@@ -189,7 +234,7 @@ export function ReconcileDialog({
           </div>
         )}
 
-        {/* Step: Confirmed — show verified payment details */}
+        {/* Step: Confirmed — show verified payment details + notes */}
         {step === 'confirmed' && paymentStatus && (
           <div className="space-y-4">
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-3">
@@ -208,8 +253,8 @@ export function ReconcileDialog({
                   <p className="font-semibold">{paymentStatus.paymentChannel || 'N/A'}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Reference</span>
-                  <p className="font-mono text-xs">{paymentStatus.paymentReference || transactionRef}</p>
+                  <span className="text-muted-foreground">M-Pesa / Payment Ref</span>
+                  <p className="font-mono text-xs">{paymentStatus.paymentReference || '—'}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Date</span>
@@ -220,6 +265,39 @@ export function ReconcileDialog({
                   </p>
                 </div>
               </div>
+
+              {isUsingAlternateRef && (
+                <div className="border-t border-emerald-200 pt-2 text-xs text-emerald-700 space-y-0.5">
+                  <p><span className="font-medium">Queried via alternate ref:</span> {alternateRef.trim()}</p>
+                  <p><span className="font-medium">Original invoice ref:</span> {originalRef} (preserved)</p>
+                </div>
+              )}
+            </div>
+
+            {/* Notes — required when alternate ref was used */}
+            <div className="space-y-2">
+              <Label htmlFor="reconcile-notes" className="flex items-center gap-1">
+                Reconciliation Notes
+                {notesRequired && <span className="text-red-500 text-xs ml-1">* required</span>}
+              </Label>
+              <Textarea
+                id="reconcile-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={
+                  notesRequired
+                    ? 'Required: explain why payment was made under a different reference...'
+                    : 'Optional: add any notes about this reconciliation...'
+                }
+                rows={4}
+                className={notesRequired && !notes.trim() ? 'border-amber-400 focus:border-amber-500' : ''}
+              />
+              {notesRequired && !notes.trim() && (
+                <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  Notes are required when reconciling under a different reference.
+                </p>
+              )}
             </div>
 
             {error && (
@@ -275,7 +353,11 @@ export function ReconcileDialog({
               <Button variant="outline" onClick={() => { setStep('input'); setError(null); }}>
                 Back
               </Button>
-              <Button onClick={handleReconcile} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+              <Button
+                onClick={handleReconcile}
+                disabled={notesRequired && !notes.trim()}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+              >
                 <CheckCircle2 className="h-4 w-4" />
                 Reconcile
               </Button>
