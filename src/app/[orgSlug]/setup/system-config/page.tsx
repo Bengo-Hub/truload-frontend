@@ -26,6 +26,8 @@ import { toast } from 'sonner';
 // Category Settings Tab Component
 // ============================================================================
 
+const HIDDEN_SETTING_KEYS = new Set(['notification.workflow.preferences']);
+
 interface CategoryTabProps {
   category: string;
   description: string;
@@ -116,7 +118,7 @@ function CategorySettingsTab({ category, description }: CategoryTabProps) {
       </div>
 
       <Card className="divide-y">
-        {settings.map((setting: ApplicationSettingDto) => (
+        {settings.filter((s: ApplicationSettingDto) => !HIDDEN_SETTING_KEYS.has(s.settingKey)).map((setting: ApplicationSettingDto) => (
           <div key={setting.settingKey} className="flex items-center justify-between gap-4 p-4">
             <div className="flex-1 min-w-0">
               <Label className="text-sm font-medium text-gray-900">

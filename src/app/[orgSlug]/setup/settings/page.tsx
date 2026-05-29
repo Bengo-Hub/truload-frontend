@@ -73,6 +73,14 @@ const PAYMENT_PROVIDERS: ProviderMeta[] = [
     logo: '/images/logos/ecitizen-logo.svg',
     color: 'bg-purple-100',
   },
+  {
+    providerName: 'treasury_service',
+    displayName: 'Treasury Service',
+    description: 'Commercial weighing fee payment via treasury API',
+    logo: '/images/logos/codevertex-logo.svg',
+    color: 'bg-violet-100',
+    commercialOnly: true,
+  },
 ];
 
 interface ApiServiceDef {
@@ -242,7 +250,7 @@ function IntegrationSettingsContent() {
 
         {/* Content area */}
         <div className="flex-1 min-w-0">
-          {activeTab === 'payment-gateways' && isPlatformOwner && <PaymentGatewaysTab canEdit={canEdit} />}
+          {activeTab === 'payment-gateways' && isPlatformOwner && <PaymentGatewaysTab canEdit={canEdit} isCommercial={isCommercial} />}
           {activeTab === 'api-settings'     && isPlatformOwner && <ApiSettingsTab canEdit={canEdit} />}
           {activeTab === 'exchange-rates'   && <ExchangeRateSettings />}
           {activeTab === 'weighing'         && <WeighingSettingsTab isCommercial={isCommercial} />}
@@ -259,11 +267,12 @@ function IntegrationSettingsContent() {
 // Payment Gateways Tab
 // ============================================================================
 
-function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
+function PaymentGatewaysTab({ canEdit, isCommercial }: { canEdit: boolean; isCommercial: boolean }) {
   const { data: integrations, isLoading } = useIntegrations();
   const upsertMutation = useUpsertIntegration();
+  const visibleProviders = PAYMENT_PROVIDERS.filter(p => !p.commercialOnly || isCommercial);
   const [selectedProvider, setSelectedProvider] = useState<string>(
-    PAYMENT_PROVIDERS[0].providerName
+    visibleProviders[0].providerName
   );
 
   // Find the config for the selected provider
@@ -303,7 +312,7 @@ function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
       {/* Provider Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading
-          ? Array.from({ length: 1 }).map((_, i) => (
+          ? Array.from({ length: visibleProviders.length }).map((_, i) => (
             <Card key={i} className="p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-lg" />
@@ -318,7 +327,7 @@ function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
               </div>
             </Card>
           ))
-          : PAYMENT_PROVIDERS.map((provider) => {
+          : visibleProviders.map((provider) => {
             const config = integrations?.find(
               (c) => c.providerName === provider.providerName
             );
@@ -340,7 +349,7 @@ function PaymentGatewaysTab({ canEdit }: { canEdit: boolean }) {
       <Card className="overflow-hidden">
         <div className="border-b bg-gray-50/50 px-4 sm:px-6 py-4 flex items-center gap-3">
           {(() => {
-            const meta = PAYMENT_PROVIDERS.find((p) => p.providerName === selectedProvider);
+            const meta = visibleProviders.find((p) => p.providerName === selectedProvider);
             return (
               <>
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${meta?.color ?? 'bg-gray-100'}`}>
