@@ -396,23 +396,27 @@ function EmailChipInput({
     };
 
     return (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 w-full min-w-0">
             {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
-            <div className="min-h-10 flex flex-wrap gap-1.5 rounded-lg border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 transition-shadow">
+            <div className="w-full min-h-10 flex flex-wrap gap-1.5 rounded-lg border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 transition-shadow">
                 {value.map(email => (
-                    <span key={email} className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
-                        {email}
+                    <span
+                        key={email}
+                        title={email}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium max-w-full shrink-0"
+                    >
+                        <span className="truncate max-w-[200px] sm:max-w-[260px]">{email}</span>
                         <button
                             type="button"
                             onClick={() => onChange(value.filter(e => e !== email))}
-                            className="hover:text-primary/60 transition-colors"
+                            className="shrink-0 hover:text-primary/60 transition-colors"
                         >
                             <X className="h-2.5 w-2.5" />
                         </button>
                     </span>
                 ))}
                 <input
-                    className="flex-1 min-w-[140px] bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                    className="flex-1 min-w-[120px] bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -632,9 +636,9 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
                             </p>
                         </div>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-2 min-w-0">
                         {pools.map(pool => (
-                            <div key={pool.key} className="rounded-xl border bg-card p-4 space-y-3 hover:shadow-sm transition-shadow">
+                            <div key={pool.key} className="rounded-xl border bg-card p-4 space-y-3 hover:shadow-sm transition-shadow min-w-0 overflow-hidden">
                                 <div className="flex items-center gap-2.5">
                                     <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${pool.bgClass} shrink-0`}>
                                         <Users className={`h-3.5 w-3.5 ${pool.iconClass}`} />
