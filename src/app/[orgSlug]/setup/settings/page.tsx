@@ -20,6 +20,7 @@ import {
   saveApiSettings,
   type KeyValueEntry,
 } from '@/lib/api/setup';
+import { cn } from '@/lib/utils';
 
 // Layout & UI
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Modular integration components
 import {
@@ -53,11 +53,9 @@ import {
   Save,
   Settings2,
   Trash2,
-  Activity,
   Cpu,
   Download,
   ExternalLink,
-  Search,
   Scale,
   Info
 } from 'lucide-react';
@@ -148,107 +146,142 @@ export default function IntegrationSettingsPage() {
 // Content
 // ============================================================================
 
+type TabId =
+  | 'payment-gateways'
+  | 'notifications'
+  | 'api-settings'
+  | 'exchange-rates'
+  | 'weighing'
+  | 'commercial'
+  | 'invoice-payment'
+  | 'middleware';
+
+interface NavItem {
+  id: TabId;
+  label: string;
+  icon: React.ReactNode;
+  group: string;
+  ownerOnly?: boolean;
+  commercialOnly?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'payment-gateways', label: 'Payments',      icon: <CreditCard className="h-4 w-4" />, group: 'Integrations', ownerOnly: true },
+  { id: 'notifications',    label: 'Notifications', icon: <Bell className="h-4 w-4" />,       group: 'Integrations', ownerOnly: true },
+  { id: 'api-settings',     label: 'APIs',          icon: <Settings2 className="h-4 w-4" />,  group: 'Integrations', ownerOnly: true },
+  { id: 'exchange-rates',   label: 'Rates',         icon: <DollarSign className="h-4 w-4" />, group: 'Settings' },
+  { id: 'weighing',         label: 'Weighing',      icon: <Scale className="h-4 w-4" />,      group: 'Settings' },
+  { id: 'commercial',       label: 'Commercial',    icon: <Globe className="h-4 w-4" />,      group: 'Settings', commercialOnly: true },
+  { id: 'invoice-payment',  label: 'Invoice',       icon: <FileText className="h-4 w-4" />,   group: 'Settings' },
+  { id: 'middleware',       label: 'Middleware',    icon: <Cpu className="h-4 w-4" />,        group: 'System' },
+];
+
 function IntegrationSettingsContent() {
   const { user } = useAuth();
   const canEdit = useHasPermission(['config.read', 'config.update'], 'any');
   const isPlatformOwner = user?.isSuperUser === true;
   const { isCommercial } = useModuleAccess();
 
-  // Tab visibility:
-  // Platform owners: Payments, Notifications, APIs, Rates, Weighing, Middleware [+ Commercial if commercial tenant]
-  // Tenant users: Exchange Rates, Weighing, Middleware [+ Commercial if commercial tenant]
+  const visibleItems = NAV_ITEMS.filter(
+    (item) =>
+      (!item.ownerOnly || isPlatformOwner) &&
+      (!item.commercialOnly || isCommercial)
+  );
+
   const defaultTab = isPlatformOwner ? 'payment-gateways' : isCommercial ? 'commercial' : 'exchange-rates';
-  const tabCount = isPlatformOwner ? (isCommercial ? 8 : 7) : (isCommercial ? 5 : 4);
+  const [activeTab, setActiveTab] = useState<TabId>(defaultTab as TabId);
+
+  // Group items for sidebar
+  const groups = useMemo(() => {
+    const map: Record<string, NavItem[]> = {};
+    for (const item of visibleItems) {
+      if (!map[item.group]) map[item.group] = [];
+      map[item.group].push(item);
+    }
+    return map;
+  }, [visibleItems]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
-            <Globe className="h-6 w-6 text-primary" />
-            Integrations
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage payment gateways and external API connections
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* Page Header */}
+      <header>
+        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+          <Settings2 className="h-5 w-5 text-primary" />
+          Settings
+        </h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Manage integrations, payment details, and system configuration
+        </p>
       </header>
 
-      {/* Tabs */}
-      <Tabs defaultValue={defaultTab} className="space-y-4">
-        <TabsList className={`grid w-full grid-cols-${tabCount} max-w-5xl`}>
-          {isPlatformOwner && (
-            <>
-              <TabsTrigger value="payment-gateways" className="gap-1.5">
-                <CreditCard className="h-4 w-4" />
-                <span className="hidden sm:inline">Payments</span>
-              </TabsTrigger>
-              <TabsTrigger value="notifications" className="gap-1.5">
-                <Bell className="h-4 w-4" />
-                <span className="hidden sm:inline">Notifications</span>
-              </TabsTrigger>
-              <TabsTrigger value="api-settings" className="gap-1.5">
-                <Settings2 className="h-4 w-4" />
-                <span className="hidden sm:inline">APIs</span>
-              </TabsTrigger>
-            </>
-          )}
-          <TabsTrigger value="exchange-rates" className="gap-1.5">
-            <DollarSign className="h-4 w-4" />
-            <span className="hidden sm:inline">Rates</span>
-          </TabsTrigger>
-          <TabsTrigger value="weighing" className="gap-1.5">
-            <Scale className="h-4 w-4" />
-            <span className="hidden sm:inline">Weighing</span>
-          </TabsTrigger>
-          {isCommercial && (
-            <TabsTrigger value="commercial" className="gap-1.5">
-              <Scale className="h-4 w-4" />
-              <span className="hidden sm:inline">Commercial</span>
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="invoice-payment" className="gap-1.5">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Invoice</span>
-          </TabsTrigger>
-          <TabsTrigger value="middleware" className="gap-1.5">
-            <Cpu className="h-4 w-4" />
-            <span className="hidden sm:inline">Middleware</span>
-          </TabsTrigger>
-        </TabsList>
+      {/* Mobile: horizontally scrollable tab strip */}
+      <div className="lg:hidden -mx-4 px-4 border-b overflow-x-auto">
+        <div className="flex gap-1 pb-0 min-w-max">
+          {visibleItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
+                activeTab === item.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-gray-700 hover:border-gray-300'
+              )}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {isPlatformOwner && (
-          <>
-            <TabsContent value="payment-gateways">
-              <PaymentGatewaysTab canEdit={canEdit} />
-            </TabsContent>
-            <TabsContent value="notifications">
-              <NotificationsTab canEdit={canEdit} />
-            </TabsContent>
-            <TabsContent value="api-settings">
-              <ApiSettingsTab canEdit={canEdit} />
-            </TabsContent>
-          </>
-        )}
-        <TabsContent value="exchange-rates">
-          <ExchangeRateSettings />
-        </TabsContent>
-        <TabsContent value="weighing">
-          <WeighingSettingsTab isCommercial={isCommercial} />
-        </TabsContent>
-        {isCommercial && (
-          <TabsContent value="commercial">
-            <CommercialSettingsTab canEdit={canEdit} />
-          </TabsContent>
-        )}
-        <TabsContent value="invoice-payment">
-          <InvoicePaymentSettingsTab canEdit={canEdit} />
-        </TabsContent>
-        <TabsContent value="middleware">
-          <MiddlewareTab />
-        </TabsContent>
-      </Tabs>
+      {/* Desktop: sidebar + content */}
+      <div className="flex gap-6 items-start">
+        {/* Left sidebar — desktop only */}
+        <aside className="hidden lg:block w-48 shrink-0">
+          <nav className="space-y-5 sticky top-4">
+            {Object.entries(groups).map(([group, items]) => (
+              <div key={group}>
+                <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group}
+                </p>
+                <ul className="space-y-0.5">
+                  {items.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(item.id)}
+                        className={cn(
+                          'w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                          activeTab === item.id
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Content area */}
+        <div className="flex-1 min-w-0">
+          {activeTab === 'payment-gateways' && isPlatformOwner && <PaymentGatewaysTab canEdit={canEdit} />}
+          {activeTab === 'notifications'    && isPlatformOwner && <NotificationsTab canEdit={canEdit} />}
+          {activeTab === 'api-settings'     && isPlatformOwner && <ApiSettingsTab canEdit={canEdit} />}
+          {activeTab === 'exchange-rates'   && <ExchangeRateSettings />}
+          {activeTab === 'weighing'         && <WeighingSettingsTab isCommercial={isCommercial} />}
+          {activeTab === 'commercial'       && isCommercial     && <CommercialSettingsTab canEdit={canEdit} />}
+          {activeTab === 'invoice-payment'  && <InvoicePaymentSettingsTab canEdit={canEdit} />}
+          {activeTab === 'middleware'       && <MiddlewareTab />}
+        </div>
+      </div>
     </div>
   );
 }
@@ -956,18 +989,21 @@ function InvoicePaymentSettingsTab({ canEdit }: { canEdit: boolean }) {
   if (isLoading) return <Skeleton className="h-48 rounded-xl" />;
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 max-w-2xl">
       <div>
-        <h3 className="text-base font-semibold">Invoice Payment Details</h3>
+        <h3 className="text-base font-semibold text-gray-900">Invoice Payment Details</h3>
         <p className="text-sm text-muted-foreground mt-1">
           These details appear on invoice PDFs under &quot;Payment Instructions&quot;. Leave blank to omit a section.
         </p>
       </div>
 
-      <Card className="p-5 space-y-4">
-        <p className="text-sm font-medium text-gray-700">Bank Transfer</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
+      <Card className="overflow-hidden">
+        <div className="border-b bg-gray-50/50 px-5 py-3 flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold text-gray-900">Bank Transfer</span>
+        </div>
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
             <Label>Bank Name</Label>
             <Input
               value={form.bankName}
@@ -976,7 +1012,7 @@ function InvoicePaymentSettingsTab({ canEdit }: { canEdit: boolean }) {
               disabled={!canEdit}
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label>Branch</Label>
             <Input
               value={form.bankBranch}
@@ -985,7 +1021,7 @@ function InvoicePaymentSettingsTab({ canEdit }: { canEdit: boolean }) {
               disabled={!canEdit}
             />
           </div>
-          <div className="space-y-1 sm:col-span-2">
+          <div className="space-y-1.5 sm:col-span-2">
             <Label>Account Number</Label>
             <Input
               value={form.bankAccountNumber}
@@ -997,10 +1033,13 @@ function InvoicePaymentSettingsTab({ canEdit }: { canEdit: boolean }) {
         </div>
       </Card>
 
-      <Card className="p-5 space-y-4">
-        <p className="text-sm font-medium text-gray-700">M-Pesa</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
+      <Card className="overflow-hidden">
+        <div className="border-b bg-gray-50/50 px-5 py-3 flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-green-600" />
+          <span className="text-sm font-semibold text-gray-900">M-Pesa</span>
+        </div>
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
             <Label>Paybill Business No</Label>
             <Input
               value={form.mpesaPaybillNumber}
@@ -1009,7 +1048,7 @@ function InvoicePaymentSettingsTab({ canEdit }: { canEdit: boolean }) {
               disabled={!canEdit}
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label>Till Number</Label>
             <Input
               value={form.mpesaTillNumber}
@@ -1022,11 +1061,11 @@ function InvoicePaymentSettingsTab({ canEdit }: { canEdit: boolean }) {
       </Card>
 
       {canEdit && (
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+        <Button onClick={handleSave} disabled={updateMutation.isPending} className="gap-2">
           {updateMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="h-4 w-4" />
           )}
           Save Payment Details
         </Button>
