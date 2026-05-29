@@ -511,6 +511,7 @@ function ProsecutionTab({ filters }: TabProps) {
 
 function FinancialTab({ filters, isCommercial }: TabProps) {
   const { formatAmount, selectedCurrency, convert } = useCurrency();
+  const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const formatRevenue = useCallback((v: number) => formatAmount(v, selectedCurrency), [formatAmount, selectedCurrency]);
   const toDisplayCurrency = useCallback((kes: number, usd: number) =>
     convert(kes, 'KES', selectedCurrency) + convert(usd, 'USD', selectedCurrency),
