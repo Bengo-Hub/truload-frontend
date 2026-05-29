@@ -39,8 +39,6 @@ import {
     Bell,
     CalendarClock,
     CheckCircle2,
-    ChevronDown,
-    ChevronUp,
     FileBarChart2,
     Info,
     Loader2,
@@ -368,14 +366,13 @@ function EmailProviderTab() {
 
 // ── Workflows Tab ──────────────────────────────────────────────────────────────
 
-/** Inline chip-style email address input. */
 function EmailChipInput({
     label,
     value,
     onChange,
-    placeholder = 'Enter email and press Enter',
+    placeholder = 'Add email address...',
 }: {
-    label: string;
+    label?: string;
     value: string[];
     onChange: (v: string[]) => void;
     placeholder?: string;
@@ -400,21 +397,22 @@ function EmailChipInput({
 
     return (
         <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Users className="h-3 w-3" />
-                <span>{label}</span>
-            </div>
-            <div className="min-h-9 flex flex-wrap gap-1.5 rounded-md border border-input bg-background px-2 py-1.5 focus-within:ring-1 focus-within:ring-ring">
+            {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
+            <div className="min-h-10 flex flex-wrap gap-1.5 rounded-lg border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 transition-shadow">
                 {value.map(email => (
-                    <span key={email} className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs font-medium">
+                    <span key={email} className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
                         {email}
-                        <button type="button" onClick={() => onChange(value.filter(e => e !== email))} className="text-muted-foreground hover:text-foreground">
+                        <button
+                            type="button"
+                            onClick={() => onChange(value.filter(e => e !== email))}
+                            className="hover:text-primary/60 transition-colors"
+                        >
                             <X className="h-2.5 w-2.5" />
                         </button>
                     </span>
                 ))}
                 <input
-                    className="flex-1 min-w-32 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                    className="flex-1 min-w-[140px] bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -422,7 +420,9 @@ function EmailChipInput({
                     placeholder={value.length === 0 ? placeholder : ''}
                 />
             </div>
-            <p className="text-[10px] text-muted-foreground">Press Enter or comma to add. Click × to remove.</p>
+            {value.length === 0 && (
+                <p className="text-[11px] text-muted-foreground/70">Press Enter or comma to add multiple addresses.</p>
+            )}
         </div>
     );
 }
@@ -431,7 +431,6 @@ interface WorkflowConfig {
     key: keyof WorkflowPreferencesDto;
     label: string;
     description: string;
-    /** Whether this workflow sends to a system-resolved user (false = user-targeted only, no CC section). */
     userTargetedOnly?: boolean;
 }
 
@@ -450,73 +449,103 @@ const SHARED_WORKFLOWS: WorkflowConfig[] = [
 ];
 
 const COMMERCIAL_WORKFLOWS: WorkflowConfig[] = [
-    { key: 'weighingTicketReady', label: 'Ticket Ready', description: 'Notify transporter/driver when their weight ticket is complete and net weight is calculated' },
+    { key: 'weighingTicketReady', label: 'Ticket Ready', description: 'Notify transporter when their weight ticket is complete and net weight is calculated' },
     { key: 'toleranceExceptionRaised', label: 'Tolerance Exception', description: 'Alert station manager when net weight discrepancy exceeds the configured tolerance band' },
-    { key: 'staleWeighingAlert', label: 'Stale Weighing Alert', description: 'Warn manager when a first-weight transaction has been open beyond the pending threshold without a second weight' },
-    { key: 'qualityDeductionApplied', label: 'Quality Deduction Applied', description: 'Notify transporter when a quality deduction (moisture, grade, etc.) is applied to their load' },
+    { key: 'staleWeighingAlert', label: 'Stale Weighing', description: 'Warn manager when a first-weight transaction has been open beyond the pending threshold' },
+    { key: 'qualityDeductionApplied', label: 'Quality Deduction', description: 'Notify transporter when a quality deduction (moisture, grade, etc.) is applied to their load' },
 ];
 
-function WorkflowToggle({
-    label, description, value, onChange, showCc = true,
+function WorkflowRow({
+    label,
+    description,
+    value,
+    onChange,
+    showCc = true,
+    accentClass = 'bg-primary/60',
 }: {
     label: string;
     description: string;
     value: WorkflowPreferenceItem;
     onChange: (v: WorkflowPreferenceItem) => void;
     showCc?: boolean;
+    accentClass?: string;
 }) {
     const [ccOpen, setCcOpen] = useState(false);
-    const hasCc = value.ccRecipients?.length > 0;
+    const ccCount = value.ccRecipients?.length ?? 0;
 
     return (
-        <div className="py-3">
-            <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0 pr-4">
-                    <p className="text-sm font-medium leading-none">{label}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{description}</p>
-                </div>
-                <div className="flex items-center gap-4 shrink-0">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <Switch
-                            checked={value.emailEnabled}
-                            onCheckedChange={v => onChange({ ...value, emailEnabled: v })}
-                        />
-                        <span className="text-xs text-muted-foreground w-8">Email</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <Switch
-                            checked={value.pushEnabled}
-                            onCheckedChange={v => onChange({ ...value, pushEnabled: v })}
-                        />
-                        <span className="text-xs text-muted-foreground w-8">Push</span>
-                    </label>
-                    {showCc && value.emailEnabled && (
+        <div className="group relative rounded-xl border bg-card shadow-xs hover:shadow-sm transition-all overflow-hidden">
+            <div className={`absolute left-0 inset-y-0 w-[3px] ${accentClass} opacity-50 group-hover:opacity-100 transition-opacity`} />
+            <div className="pl-4 pr-4 py-3.5">
+                <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold leading-tight">{label}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5 flex-wrap justify-end">
                         <button
                             type="button"
-                            onClick={() => setCcOpen(o => !o)}
-                            className="text-muted-foreground hover:text-foreground"
-                            title="Configure CC recipients"
+                            onClick={() => onChange({ ...value, emailEnabled: !value.emailEnabled })}
+                            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border transition-all ${
+                                value.emailEnabled
+                                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                    : 'bg-transparent text-muted-foreground border-border/60 hover:border-border hover:bg-muted/40'
+                            }`}
                         >
-                            {ccOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            {hasCc && !ccOpen && (
-                                <span className="ml-0.5 text-[10px] text-primary font-medium">{value.ccRecipients.length}</span>
-                            )}
+                            <Mail className="h-3 w-3" />
+                            Email
                         </button>
-                    )}
+                        <button
+                            type="button"
+                            onClick={() => onChange({ ...value, pushEnabled: !value.pushEnabled })}
+                            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border transition-all ${
+                                value.pushEnabled
+                                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                    : 'bg-transparent text-muted-foreground border-border/60 hover:border-border hover:bg-muted/40'
+                            }`}
+                        >
+                            <Smartphone className="h-3 w-3" />
+                            Push
+                        </button>
+                        {showCc && value.emailEnabled && (
+                            <button
+                                type="button"
+                                onClick={() => setCcOpen(o => !o)}
+                                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border transition-all ${
+                                    ccCount > 0
+                                        ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                        : 'bg-transparent text-muted-foreground border-border/60 hover:border-border hover:bg-muted/40'
+                                }`}
+                            >
+                                <Users className="h-3 w-3" />
+                                {ccCount > 0 ? `${ccCount} CC` : 'CC'}
+                            </button>
+                        )}
+                    </div>
                 </div>
+                {showCc && value.emailEnabled && ccOpen && (
+                    <div className="mt-3 pt-3 border-t border-dashed">
+                        <EmailChipInput
+                            label="Copy recipients — receive a copy of this workflow email"
+                            value={value.ccRecipients ?? []}
+                            onChange={cc => onChange({ ...value, ccRecipients: cc })}
+                            placeholder="accounts@company.com"
+                        />
+                    </div>
+                )}
             </div>
-            {showCc && value.emailEnabled && ccOpen && (
-                <div className="mt-3 pl-1">
-                    <EmailChipInput
-                        label="Additional CC recipients (copy of this workflow email)"
-                        value={value.ccRecipients ?? []}
-                        onChange={cc => onChange({ ...value, ccRecipients: cc })}
-                        placeholder="accounts@company.com, press Enter"
-                    />
-                </div>
-            )}
         </div>
     );
+}
+
+type PoolKey = 'weighingGroup' | 'casesGroup' | 'invoicesGroup' | 'receiptsGroup';
+
+interface PoolConfig {
+    key: PoolKey;
+    label: string;
+    description: string;
+    iconClass: string;
+    bgClass: string;
 }
 
 function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean; isCommercial: boolean }) {
@@ -544,7 +573,7 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
         setLocal(prev => ({ ...(prev ?? prefs!), [key]: v }));
     };
 
-    const updateGroup = (groupKey: 'weighingGroup' | 'casesGroup' | 'invoicesGroup' | 'receiptsGroup', recipients: string[]) => {
+    const updateGroup = (groupKey: PoolKey, recipients: string[]) => {
         setLocal(prev => ({
             ...(prev ?? prefs!),
             [groupKey]: { defaultRecipients: recipients },
@@ -553,137 +582,175 @@ function WorkflowsTab({ isEnforcement, isCommercial }: { isEnforcement: boolean;
 
     if (isLoading || !active) {
         return (
-            <div className="space-y-3">
-                {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+            <div className="space-y-6">
+                <div className="grid gap-3 sm:grid-cols-2">
+                    {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+                </div>
+                <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[68px] rounded-xl" />)}
+                </div>
             </div>
         );
     }
 
+    const enforcementPools: PoolConfig[] = [
+        { key: 'weighingGroup', label: 'Weighing Pool', description: 'Overload alerts & weighing events', iconClass: 'text-amber-600', bgClass: 'bg-amber-50' },
+        { key: 'casesGroup', label: 'Cases Pool', description: 'Case created & escalated events', iconClass: 'text-orange-600', bgClass: 'bg-orange-50' },
+        { key: 'invoicesGroup', label: 'Invoices Pool', description: 'Invoice issued & overdue events', iconClass: 'text-red-600', bgClass: 'bg-red-50' },
+    ];
+
+    const commercialPools: PoolConfig[] = [
+        { key: 'weighingGroup', label: 'Weighing Pool', description: 'Commercial weighing & stale alerts', iconClass: 'text-blue-600', bgClass: 'bg-blue-50' },
+        { key: 'receiptsGroup', label: 'Receipts Pool', description: 'Weight tickets & quality deductions', iconClass: 'text-teal-600', bgClass: 'bg-teal-50' },
+    ];
+
+    const rawPools = [
+        ...(isEnforcement ? enforcementPools : []),
+        ...(isCommercial ? commercialPools : []),
+    ];
+    const seenKeys = new Set<string>();
+    const pools = rawPools.filter(p => {
+        if (seenKeys.has(p.key)) return false;
+        seenKeys.add(p.key);
+        return true;
+    });
+
     return (
-        <div className="space-y-6">
-            <div className="flex items-start gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2.5">
-                <Info className="mt-0.5 h-3.5 w-3.5 text-blue-500 shrink-0" />
-                <p className="text-xs text-blue-700">
-                    <strong>Group default recipients</strong> always receive every email in that group. <strong>Per-workflow CC</strong> (▼ toggle) adds copy recipients to that specific workflow only. Individual user events (User Registered, Password Changed) send only to the target user's account.
-                </p>
-            </div>
+        <div className="space-y-8">
 
-            <div className="grid gap-6 lg:grid-cols-2">
-                {isEnforcement && (
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                Enforcement Workflows
-                            </CardTitle>
-                            <CardDescription>Axle load enforcement event notifications</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4 pt-2">
-                            <div className="rounded-md bg-muted/40 p-3 space-y-2">
-                                <EmailChipInput
-                                    label="Weighing group default recipients (overload alerts)"
-                                    value={active.weighingGroup?.defaultRecipients ?? []}
-                                    onChange={r => updateGroup('weighingGroup', r)}
-                                />
-                            </div>
-                            <div className="rounded-md bg-muted/40 p-3 space-y-2">
-                                <EmailChipInput
-                                    label="Cases group default recipients (case created, escalated)"
-                                    value={active.casesGroup?.defaultRecipients ?? []}
-                                    onChange={r => updateGroup('casesGroup', r)}
-                                />
-                            </div>
-                            <div className="rounded-md bg-muted/40 p-3 space-y-2">
-                                <EmailChipInput
-                                    label="Invoices group default recipients (invoice issued, overdue)"
-                                    value={active.invoicesGroup?.defaultRecipients ?? []}
-                                    onChange={r => updateGroup('invoicesGroup', r)}
-                                />
-                            </div>
-                            <Separator />
-                            <div className="divide-y">
-                                {ENFORCEMENT_WORKFLOWS.map(w => (
-                                    <WorkflowToggle
-                                        key={w.key}
-                                        label={w.label}
-                                        description={w.description}
-                                        value={active[w.key] as WorkflowPreferenceItem}
-                                        onChange={v => update(w.key, v)}
-                                        showCc={!w.userTargetedOnly}
-                                    />
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {isCommercial && (
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Scale className="h-4 w-4 text-blue-600" />
-                                Commercial Weighing Workflows
-                            </CardTitle>
-                            <CardDescription>Two-pass commercial weighing event notifications</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4 pt-2">
-                            <div className="rounded-md bg-muted/40 p-3 space-y-2">
-                                <EmailChipInput
-                                    label="Weighing group default recipients (stale alerts, tolerance exceptions)"
-                                    value={active.weighingGroup?.defaultRecipients ?? []}
-                                    onChange={r => updateGroup('weighingGroup', r)}
-                                />
-                            </div>
-                            <div className="rounded-md bg-muted/40 p-3 space-y-2">
-                                <EmailChipInput
-                                    label="Receipts group default recipients (weight tickets)"
-                                    value={active.receiptsGroup?.defaultRecipients ?? []}
-                                    onChange={r => updateGroup('receiptsGroup', r)}
-                                />
-                            </div>
-                            <Separator />
-                            <div className="divide-y">
-                                {COMMERCIAL_WORKFLOWS.map(w => (
-                                    <WorkflowToggle
-                                        key={w.key}
-                                        label={w.label}
-                                        description={w.description}
-                                        value={active[w.key] as WorkflowPreferenceItem}
-                                        onChange={v => update(w.key, v)}
-                                        showCc={!w.userTargetedOnly}
-                                    />
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                <Card className={!isEnforcement && !isCommercial ? 'lg:col-span-2' : ''}>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Bell className="h-4 w-4 text-primary" />
-                            General Workflows
-                        </CardTitle>
-                        <CardDescription>Platform-wide event notifications — user-targeted events resolve the account email automatically</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <div className="divide-y">
-                            {SHARED_WORKFLOWS.map(w => (
-                                <WorkflowToggle
-                                    key={w.key}
-                                    label={w.label}
-                                    description={w.description}
-                                    value={active[w.key] as WorkflowPreferenceItem}
-                                    onChange={v => update(w.key, v)}
-                                    showCc={!w.userTargetedOnly}
-                                />
-                            ))}
+            {/* ── Default Recipient Pools ── */}
+            {pools.length > 0 && (
+                <section className="space-y-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
+                            <Users className="h-4 w-4 text-muted-foreground" />
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
+                        <div>
+                            <h3 className="text-sm font-semibold">Default Recipients</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">
+                                Everyone listed here automatically receives all emails in that workflow group — regardless of individual workflow settings below.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {pools.map(pool => (
+                            <div key={pool.key} className="rounded-xl border bg-card p-4 space-y-3 hover:shadow-sm transition-shadow">
+                                <div className="flex items-center gap-2.5">
+                                    <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${pool.bgClass} shrink-0`}>
+                                        <Users className={`h-3.5 w-3.5 ${pool.iconClass}`} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium leading-tight">{pool.label}</p>
+                                        <p className="text-[11px] text-muted-foreground">{pool.description}</p>
+                                    </div>
+                                </div>
+                                <EmailChipInput
+                                    value={active[pool.key]?.defaultRecipients ?? []}
+                                    onChange={r => updateGroup(pool.key, r)}
+                                    placeholder="manager@company.com"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
 
-            <div className="flex justify-end">
+            {/* ── Enforcement Workflows ── */}
+            {isEnforcement && (
+                <section className="space-y-3">
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 shrink-0">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-semibold">Enforcement Workflows</h3>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{ENFORCEMENT_WORKFLOWS.length}</Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Axle load enforcement event notifications</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        {ENFORCEMENT_WORKFLOWS.map(w => (
+                            <WorkflowRow
+                                key={w.key}
+                                label={w.label}
+                                description={w.description}
+                                value={active[w.key] as WorkflowPreferenceItem}
+                                onChange={v => update(w.key, v)}
+                                showCc={!w.userTargetedOnly}
+                                accentClass="bg-amber-400"
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* ── Commercial Workflows ── */}
+            {isCommercial && (
+                <section className="space-y-3">
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 shrink-0">
+                            <Scale className="h-3.5 w-3.5 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-semibold">Commercial Workflows</h3>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{COMMERCIAL_WORKFLOWS.length}</Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Two-pass commercial weighing event notifications</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        {COMMERCIAL_WORKFLOWS.map(w => (
+                            <WorkflowRow
+                                key={w.key}
+                                label={w.label}
+                                description={w.description}
+                                value={active[w.key] as WorkflowPreferenceItem}
+                                onChange={v => update(w.key, v)}
+                                showCc={!w.userTargetedOnly}
+                                accentClass="bg-blue-400"
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* ── General Workflows ── */}
+            <section className="space-y-3">
+                <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                        <Bell className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold">General Workflows</h3>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{SHARED_WORKFLOWS.length}</Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">Platform-wide events — user-targeted workflows resolve the recipient from the account automatically</p>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    {SHARED_WORKFLOWS.map(w => (
+                        <WorkflowRow
+                            key={w.key}
+                            label={w.label}
+                            description={w.description}
+                            value={active[w.key] as WorkflowPreferenceItem}
+                            onChange={v => update(w.key, v)}
+                            showCc={!w.userTargetedOnly}
+                            accentClass="bg-primary/50"
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {/* ── Save footer ── */}
+            <div className="flex items-center justify-between border-t pt-4">
+                <p className="text-xs text-muted-foreground">
+                    {local ? 'You have unsaved changes.' : 'All preferences saved.'}
+                </p>
                 <Button
                     className="gap-2"
                     disabled={!local || saveMutation.isPending}
