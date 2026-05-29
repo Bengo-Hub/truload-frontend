@@ -145,8 +145,11 @@ interface TabProps {
 // ============================================================================
 
 function OverviewTab({ filters, isCommercial }: TabProps) {
-  const { formatAmount } = useCurrency();
-  const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
+  const { formatAmount, selectedCurrency, convert } = useCurrency();
+  const formatRevenue = useCallback((v: number) => formatAmount(v, selectedCurrency), [formatAmount, selectedCurrency]);
+  const toDisplayCurrency = useCallback((kes: number, usd: number) =>
+    convert(kes, 'KES', selectedCurrency) + convert(usd, 'USD', selectedCurrency),
+    [convert, selectedCurrency]);
   const isEnforcement = !isCommercial;
 
   // Commercial: only weighing stats + revenue. Enforcement: full suite.
@@ -166,6 +169,22 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
   const { data: cargoVolume, isLoading: loadingCargo } = useCargoVolumeByType(isCommercial ? filters : undefined);
 
   const isLoading = loadingWeighing;
+
+  const revenueByStationDisplay = useMemo(() =>
+    (revenueByStation ?? []).map(r => ({
+      name: r.stationName,
+      revenue: toDisplayCurrency(r.revenueKes, r.revenueUsd),
+      count: r.count,
+    })),
+    [revenueByStation, toDisplayCurrency]);
+
+  const stationPerfDisplay = useMemo(() =>
+    (stationPerf ?? []).map(s => ({
+      name: s.stationName,
+      weighings: s.totalWeighings,
+      compliance: s.complianceRate,
+    })),
+    [stationPerf]);
 
   return (
     <div className="space-y-6">
@@ -194,7 +213,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
               </PermissionGate>
             )}
             <PermissionGate permissions="weighing.read">
-              <StatCard title="Revenue (KES)" value={formatKES(getStatValue(weighingStats, 'totalFeesKes'))} rawValue={getStatValue(weighingStats, 'totalFeesKes')} icon={Banknote} color="bg-emerald-600" />
+              <StatCard title={`Revenue (${selectedCurrency})`} value={formatRevenue(toDisplayCurrency(getStatValue(weighingStats, 'totalFeesKes'), getStatValue(weighingStats, 'totalFeesUsd')))} rawValue={toDisplayCurrency(getStatValue(weighingStats, 'totalFeesKes'), getStatValue(weighingStats, 'totalFeesUsd'))} icon={Banknote} color="bg-emerald-600" />
             </PermissionGate>
             {isEnforcement && (
               <PermissionGate permissions="case.read">
@@ -236,7 +255,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
           </PermissionGate>
         )}
         <PermissionGate permissions={isCommercial ? 'weighing.read' : 'receipt.read'}>
-          <ChartWrapper title="Revenue by Station" subtitle="Fee collection performance by weighbridge" data={revenueByStation ?? []} series={[{ dataKey: 'revenue', name: 'Revenue (KES)', color: '#3b82f6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie']} valueFormatter={formatKES} isLoading={loadingRevStation} />
+          <ChartWrapper title="Revenue by Station" subtitle={`Fee collection performance by weighbridge (${selectedCurrency})`} data={revenueByStationDisplay} series={[{ dataKey: 'revenue', name: `Revenue (${selectedCurrency})`, color: '#3b82f6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie']} valueFormatter={formatRevenue} isLoading={loadingRevStation} />
         </PermissionGate>
       </div>
 
@@ -244,7 +263,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
       <div className={`grid grid-cols-1 gap-6 ${isEnforcement ? 'lg:grid-cols-2' : ''}`}>
         {isEnforcement && (
           <PermissionGate permissions="weighing.read">
-            <ChartWrapper title="Station Performance" subtitle="Weighings and compliance rates across stations" data={stationPerf ?? []} series={[{ dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' }, { dataKey: 'compliance', name: 'Compliance %', color: '#10b981' }]} defaultChartType="bar" allowedChartTypes={['bar', 'line']} isLoading={loadingStations} />
+            <ChartWrapper title="Station Performance" subtitle="Weighings and compliance rates across stations" data={stationPerfDisplay} series={[{ dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' }, { dataKey: 'compliance', name: 'Compliance %', color: '#10b981' }]} defaultChartType="bar" allowedChartTypes={['bar', 'line']} isLoading={loadingStations} />
           </PermissionGate>
         )}
         {isCommercial && (
@@ -265,6 +284,10 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
 // ============================================================================
 
 function WeighingTab({ filters, isCommercial }: TabProps) {
+  const { formatAmount, selectedCurrency, convert } = useCurrency();
+  const toDisplayCurrency = useCallback((kes: number, usd: number) =>
+    convert(kes, 'KES', selectedCurrency) + convert(usd, 'USD', selectedCurrency),
+    [convert, selectedCurrency]);
   const isEnforcement = !isCommercial;
   const { data: weighingStats, isLoading } = useDashboardWeighingStats(filters);
   // Enforcement-only queries — disabled for commercial (enabled: !!filters guards in hooks)
@@ -290,7 +313,7 @@ function WeighingTab({ filters, isCommercial }: TabProps) {
               </>
             )}
             {isCommercial && (
-              <StatCard title="Total Fees (KES)" value={formatNumber(getStatValue(weighingStats, 'totalFeesKes'))} icon={Banknote} color="bg-emerald-500" />
+              <StatCard title={`Total Fees (${selectedCurrency})`} value={formatAmount(toDisplayCurrency(getStatValue(weighingStats, 'totalFeesKes'), getStatValue(weighingStats, 'totalFeesUsd')), selectedCurrency)} icon={Banknote} color="bg-emerald-500" />
             )}
           </>
         )}
@@ -486,8 +509,11 @@ function ProsecutionTab({ filters }: TabProps) {
 // ============================================================================
 
 function FinancialTab({ filters, isCommercial }: TabProps) {
-  const { formatAmount } = useCurrency();
-  const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
+  const { formatAmount, selectedCurrency, convert } = useCurrency();
+  const formatRevenue = useCallback((v: number) => formatAmount(v, selectedCurrency), [formatAmount, selectedCurrency]);
+  const toDisplayCurrency = useCallback((kes: number, usd: number) =>
+    convert(kes, 'KES', selectedCurrency) + convert(usd, 'USD', selectedCurrency),
+    [convert, selectedCurrency]);
   const { data: invoiceStats, isLoading: loadingInvoices } = useDashboardInvoiceStats(filters);
   const { data: receiptStats, isLoading: loadingReceipts } = useDashboardReceiptStats(filters);
   const { data: monthlyRevenue, isLoading: loadingMonthlyRev } = useMonthlyRevenueData(filters);
@@ -496,6 +522,22 @@ function FinancialTab({ filters, isCommercial }: TabProps) {
   const { data: revenueByStation, isLoading: loadingRevStation } = useRevenueByStation(filters);
 
   const isLoading = loadingInvoices || loadingReceipts;
+
+  const monthlyRevenueDisplay = useMemo(() =>
+    (monthlyRevenue ?? []).map(m => ({
+      name: m.name,
+      revenue: toDisplayCurrency(m.revenueKes, m.revenueUsd),
+      transactionCount: m.transactionCount,
+    })),
+    [monthlyRevenue, toDisplayCurrency]);
+
+  const revenueByStationDisplay = useMemo(() =>
+    (revenueByStation ?? []).map(r => ({
+      name: r.stationName,
+      revenue: toDisplayCurrency(r.revenueKes, r.revenueUsd),
+      count: r.count,
+    })),
+    [revenueByStation, toDisplayCurrency]);
 
   return (
     <div className="space-y-6">
@@ -532,10 +574,10 @@ function FinancialTab({ filters, isCommercial }: TabProps) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <PermissionGate permissions="receipt.read">
-          <ChartWrapper title="Monthly Revenue Trend" subtitle="Fee collection over time (KES)" data={monthlyRevenue ?? []} series={[{ dataKey: 'revenue', name: 'Revenue', color: '#10b981' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} valueFormatter={formatKES} isLoading={loadingMonthlyRev} />
+          <ChartWrapper title="Monthly Revenue Trend" subtitle={`Fee collection over time (${selectedCurrency})`} data={monthlyRevenueDisplay} series={[{ dataKey: 'revenue', name: `Revenue (${selectedCurrency})`, color: '#10b981' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} valueFormatter={formatRevenue} isLoading={loadingMonthlyRev} />
         </PermissionGate>
         <PermissionGate permissions="receipt.read">
-          <ChartWrapper title="Payment Methods" subtitle="Collection breakdown by payment type" data={paymentMethods ?? []} series={[{ dataKey: 'amount', name: 'Amount (KES)', color: '#3b82f6' }]} defaultChartType="donut" allowedChartTypes={['donut', 'pie', 'bar']} valueFormatter={formatKES} isLoading={loadingPayments} />
+          <ChartWrapper title="Payment Methods" subtitle="Collection breakdown by payment type" data={paymentMethods ?? []} series={[{ dataKey: 'amount', name: `Amount (${selectedCurrency})`, color: '#3b82f6' }]} defaultChartType="donut" allowedChartTypes={['donut', 'pie', 'bar']} valueFormatter={formatRevenue} isLoading={loadingPayments} />
         </PermissionGate>
       </div>
 
@@ -544,7 +586,7 @@ function FinancialTab({ filters, isCommercial }: TabProps) {
           <ChartWrapper title="Invoice Aging Analysis" subtitle="Outstanding invoices by age bracket" data={invoiceAging ?? []} series={[{ dataKey: 'value', name: 'Invoices', color: '#f59e0b' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie']} isLoading={loadingAging} />
         </PermissionGate>
         <PermissionGate permissions="receipt.read">
-          <ChartWrapper title="Revenue by Station" subtitle="Collection performance by weighbridge" data={revenueByStation ?? []} series={[{ dataKey: 'revenue', name: 'Revenue (KES)', color: '#8b5cf6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie']} valueFormatter={formatKES} isLoading={loadingRevStation} />
+          <ChartWrapper title="Revenue by Station" subtitle={`Collection performance by weighbridge (${selectedCurrency})`} data={revenueByStationDisplay} series={[{ dataKey: 'revenue', name: `Revenue (${selectedCurrency})`, color: '#8b5cf6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie']} valueFormatter={formatRevenue} isLoading={loadingRevStation} />
         </PermissionGate>
       </div>
     </div>
