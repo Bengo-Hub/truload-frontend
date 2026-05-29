@@ -12,6 +12,7 @@ export interface ProviderMeta {
   logo?: string;
   icon?: React.ReactNode;
   color: string;
+  commercialOnly?: boolean;
 }
 
 interface IntegrationProviderCardProps {
