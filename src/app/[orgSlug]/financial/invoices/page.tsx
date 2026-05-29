@@ -100,6 +100,7 @@ export default function InvoicesPage() {
   const [showHardDeleteDialog, setShowHardDeleteDialog] = useState(false);
   const [showReconcileDialog, setShowReconcileDialog] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState<'iframe' | 'redirect'>('iframe');
   const [showTreasuryCheckout, setShowTreasuryCheckout] = useState(false);
   const [showTreasuryReconcile, setShowTreasuryReconcile] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
@@ -166,6 +167,7 @@ export default function InvoicesPage() {
 
     // Enforcement invoices use Pesaflow
     if (invoice.pesaflowPaymentLink) {
+      setCheckoutMode(invoice.pesaflowCheckoutMode ?? 'iframe');
       setShowCheckoutDialog(true);
       return;
     }
@@ -180,6 +182,7 @@ export default function InvoicesPage() {
       if (result.success && result.paymentLink) {
         invoice.pesaflowPaymentLink = result.paymentLink;
         invoice.pesaflowInvoiceNumber = result.pesaflowInvoiceNumber || undefined;
+        setCheckoutMode(result.checkoutMode ?? 'iframe');
         setShowCheckoutDialog(true);
       } else {
         toast.error(result.message || 'Failed to generate payment link');
@@ -569,6 +572,7 @@ export default function InvoicesPage() {
                       invoiceId={selectedInvoice.id}
                       invoiceNo={selectedInvoice.invoiceNo}
                       pesaflowInvoiceNumber={selectedInvoice.pesaflowInvoiceNumber}
+                      checkoutMode={checkoutMode}
                       onPaymentConfirmed={() => {
                         queryClient.invalidateQueries({ queryKey: ['invoices'] });
                         queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });

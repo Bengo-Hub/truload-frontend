@@ -28,6 +28,8 @@ export interface InvoiceDto {
   pesaflowAmountNet?: number;
   pesaflowTotalAmount?: number;
   pesaflowSyncStatus?: string;
+  /** "iframe" for test/sandbox; "redirect" for live (X-Frame-Options: DENY on live eCitizen) */
+  pesaflowCheckoutMode?: 'iframe' | 'redirect';
   /** Treasury intent ID for commercial invoices */
   treasuryIntentId?: string;
   /** Treasury intent status (e.g. "pending", "succeeded") */

@@ -10,6 +10,7 @@ import {
   useIntegrations,
   useUpsertIntegration,
 } from '@/hooks/queries/useIntegrationQueries';
+import { useOrgPaymentSettings, useUpdateOrgPaymentSettings } from '@/hooks/useOrgPaymentSettings';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import type { UpsertIntegrationConfigRequest } from '@/lib/api/integration';
 import { reconcilePayments, testIntegrationConnectivity } from '@/lib/api/integration';
@@ -157,7 +158,7 @@ function IntegrationSettingsContent() {
   // Platform owners: Payments, Notifications, APIs, Rates, Weighing, Middleware [+ Commercial if commercial tenant]
   // Tenant users: Exchange Rates, Weighing, Middleware [+ Commercial if commercial tenant]
   const defaultTab = isPlatformOwner ? 'payment-gateways' : isCommercial ? 'commercial' : 'exchange-rates';
-  const tabCount = isPlatformOwner ? (isCommercial ? 7 : 6) : (isCommercial ? 4 : 3);
+  const tabCount = isPlatformOwner ? (isCommercial ? 8 : 7) : (isCommercial ? 5 : 4);
 
   return (
     <div className="space-y-6">
@@ -207,6 +208,10 @@ function IntegrationSettingsContent() {
               <span className="hidden sm:inline">Commercial</span>
             </TabsTrigger>
           )}
+          <TabsTrigger value="invoice-payment" className="gap-1.5">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Invoice</span>
+          </TabsTrigger>
           <TabsTrigger value="middleware" className="gap-1.5">
             <Cpu className="h-4 w-4" />
             <span className="hidden sm:inline">Middleware</span>
@@ -237,6 +242,9 @@ function IntegrationSettingsContent() {
             <CommercialSettingsTab canEdit={canEdit} />
           </TabsContent>
         )}
+        <TabsContent value="invoice-payment">
+          <InvoicePaymentSettingsTab canEdit={canEdit} />
+        </TabsContent>
         <TabsContent value="middleware">
           <MiddlewareTab />
         </TabsContent>
@@ -898,6 +906,131 @@ function MiddlewareTab() {
           </div>
         </Card>
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Invoice Payment Settings Tab
+// ============================================================================
+
+function InvoicePaymentSettingsTab({ canEdit }: { canEdit: boolean }) {
+  const { data, isLoading } = useOrgPaymentSettings();
+  const updateMutation = useUpdateOrgPaymentSettings();
+
+  const [form, setForm] = useState({
+    bankName: '',
+    bankBranch: '',
+    bankAccountNumber: '',
+    mpesaPaybillNumber: '',
+    mpesaTillNumber: '',
+  });
+
+  useEffect(() => {
+    if (data) {
+      setForm({
+        bankName: data.bankName ?? '',
+        bankBranch: data.bankBranch ?? '',
+        bankAccountNumber: data.bankAccountNumber ?? '',
+        mpesaPaybillNumber: data.mpesaPaybillNumber ?? '',
+        mpesaTillNumber: data.mpesaTillNumber ?? '',
+      });
+    }
+  }, [data]);
+
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        bankName: form.bankName || undefined,
+        bankBranch: form.bankBranch || undefined,
+        bankAccountNumber: form.bankAccountNumber || undefined,
+        mpesaPaybillNumber: form.mpesaPaybillNumber || undefined,
+        mpesaTillNumber: form.mpesaTillNumber || undefined,
+      });
+      toast.success('Payment settings saved');
+    } catch {
+      toast.error('Failed to save payment settings');
+    }
+  };
+
+  if (isLoading) return <Skeleton className="h-48 rounded-xl" />;
+
+  return (
+    <div className="space-y-6 max-w-xl">
+      <div>
+        <h3 className="text-base font-semibold">Invoice Payment Details</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          These details appear on invoice PDFs under &quot;Payment Instructions&quot;. Leave blank to omit a section.
+        </p>
+      </div>
+
+      <Card className="p-5 space-y-4">
+        <p className="text-sm font-medium text-gray-700">Bank Transfer</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Bank Name</Label>
+            <Input
+              value={form.bankName}
+              onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+              placeholder="e.g. Kenya Commercial Bank"
+              disabled={!canEdit}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Branch</Label>
+            <Input
+              value={form.bankBranch}
+              onChange={(e) => setForm((f) => ({ ...f, bankBranch: e.target.value }))}
+              placeholder="e.g. Nairobi Main"
+              disabled={!canEdit}
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label>Account Number</Label>
+            <Input
+              value={form.bankAccountNumber}
+              onChange={(e) => setForm((f) => ({ ...f, bankAccountNumber: e.target.value }))}
+              placeholder="e.g. 1234567890"
+              disabled={!canEdit}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-5 space-y-4">
+        <p className="text-sm font-medium text-gray-700">M-Pesa</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Paybill Business No</Label>
+            <Input
+              value={form.mpesaPaybillNumber}
+              onChange={(e) => setForm((f) => ({ ...f, mpesaPaybillNumber: e.target.value }))}
+              placeholder="e.g. 222222"
+              disabled={!canEdit}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Till Number</Label>
+            <Input
+              value={form.mpesaTillNumber}
+              onChange={(e) => setForm((f) => ({ ...f, mpesaTillNumber: e.target.value }))}
+              placeholder="e.g. 654321"
+              disabled={!canEdit}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {canEdit && (
+        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          {updateMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          Save Payment Details
+        </Button>
+      )}
     </div>
   );
 }
