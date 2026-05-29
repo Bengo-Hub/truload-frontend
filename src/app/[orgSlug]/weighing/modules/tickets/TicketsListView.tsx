@@ -354,7 +354,9 @@ export default function TicketsListView({
 
                     {/* Time Taken */}
                     <TableCell className="text-xs text-gray-600 py-2 text-center font-mono hidden lg:table-cell">
-                      {ticket.timeTakenSeconds ?? '—'}
+                      {ticket.timeTakenSeconds != null
+                        ? (() => { const m = Math.floor(ticket.timeTakenSeconds! / 60); const s = ticket.timeTakenSeconds! % 60; return m > 0 ? `${m}m ${s}s` : `${s}s`; })()
+                        : '—'}
                     </TableCell>
 
                     {/* Source/Dest */}
