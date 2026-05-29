@@ -155,6 +155,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
   // Commercial: only weighing stats + revenue. Enforcement: full suite.
   // Passing undefined disables the query entirely (enabled: !!filters in hook).
   const { data: weighingStats, isLoading: loadingWeighing } = useDashboardWeighingStats(filters);
+  const { data: receiptStats } = useDashboardReceiptStats(filters);
   const { data: caseStats } = useDashboardCaseStats(isEnforcement ? filters : undefined);
   const { data: yardStats } = useDashboardYardStats(isEnforcement ? filters : undefined);
   const { data: userStats, isLoading: loadingUserStats } = useUserStatistics();
@@ -212,8 +213,8 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
                 <StatCard title="Throughput (veh/hr)" value={throughputData && throughputData.length > 0 ? formatNumber(throughputData[throughputData.length - 1]?.vehiclesPerHour ?? 0) : '0'} icon={Activity} color="bg-indigo-500" />
               </PermissionGate>
             )}
-            <PermissionGate permissions="weighing.read">
-              <StatCard title={`Revenue (${selectedCurrency})`} value={formatRevenue(toDisplayCurrency(getStatValue(weighingStats, 'totalFeesKes'), getStatValue(weighingStats, 'totalFeesUsd')))} rawValue={toDisplayCurrency(getStatValue(weighingStats, 'totalFeesKes'), getStatValue(weighingStats, 'totalFeesUsd'))} icon={Banknote} color="bg-emerald-600" />
+            <PermissionGate permissions="receipt.read">
+              <StatCard title={`Revenue (${selectedCurrency})`} value={formatRevenue(toDisplayCurrency(receiptStats?.totalCollectedKes ?? 0, receiptStats?.totalCollectedUsd ?? 0))} rawValue={toDisplayCurrency(receiptStats?.totalCollectedKes ?? 0, receiptStats?.totalCollectedUsd ?? 0)} icon={Banknote} color="bg-emerald-600" />
             </PermissionGate>
             {isEnforcement && (
               <PermissionGate permissions="case.read">
