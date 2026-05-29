@@ -98,6 +98,7 @@ export interface WeighingStatistics {
   warningCount: number;
   complianceRate: number;
   totalFeesKes: number;
+  totalFeesUsd: number;
   avgOverloadKg: number;
 }
 
@@ -115,9 +116,19 @@ export interface ComplianceTrendData {
 }
 
 export interface RevenueByStationData {
+  stationId: string;
+  stationName: string;
+  revenueKes: number;
+  revenueUsd: number;
+  count: number;
+  percentage: number;
+}
+
+export interface MonthlyRevenueData {
   name: string;
-  revenue: number;
-  transactions: number;
+  revenueKes: number;
+  revenueUsd: number;
+  transactionCount: number;
 }
 
 export interface OverloadDistributionData {
@@ -144,10 +155,14 @@ export interface DriverDemeritData {
 }
 
 export interface StationPerformanceData {
-  name: string;
-  weighings: number;
-  compliance: number;
-  revenue: number;
+  stationId: string;
+  stationName: string;
+  totalWeighings: number;
+  overloadedCount: number;
+  complianceRate: number;
+  revenueKes: number;
+  revenueUsd: number;
+  avgProcessingTime: number;
 }
 
 export interface UserStatistics {
@@ -302,7 +317,7 @@ export async function getRevenueByStation(filters?: DashboardFilterParams) {
  * Get monthly revenue trend
  */
 export async function getMonthlyRevenue(filters?: DashboardFilterParams) {
-  const response = await apiClient.get<TimeSeriesDataPoint[]>(
+  const response = await apiClient.get<MonthlyRevenueData[]>(
     '/receipts/monthly-revenue',
     { params: buildParams(filters) }
   );
