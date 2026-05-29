@@ -259,11 +259,68 @@ function ChannelSettingsTab() {
 // ── Email Tab ──────────────────────────────────────────────────────────────────
 
 function EmailProviderTab() {
+    const qc = useQueryClient();
     const [testRecipient, setTestRecipient] = useState('');
 
     const { data: selected = [], isLoading } = useQuery({
         queryKey: ['notif-providers-selected'],
         queryFn: () => notificationApi.getSelectedProviders(),
+    });
+
+    const { data: smtpData, isLoading: smtpLoading } = useQuery({
+        queryKey: ['notif-smtp-settings'],
+        queryFn: async () => {
+            try { return await notificationApi.getProviderSettings('email', 'smtp'); }
+            catch { return null; }
+        },
+    });
+
+    const [smtp, setSmtp] = useState({
+        host: '', port: '587', username: '', password: '', from: '', start_tls: true, ssl: false,
+    });
+    const [smtpDirty, setSmtpDirty] = useState(false);
+
+    useEffect(() => {
+        const s = smtpData?.settings ?? {};
+        setSmtp({
+            host: s.host ?? '',
+            port: s.port ?? '587',
+            username: s.username ?? '',
+            password: '',
+            from: s.from ?? '',
+            start_tls: s.start_tls !== 'false',
+            ssl: s.ssl === 'true',
+        });
+        setSmtpDirty(false);
+    }, [smtpData]);
+
+    const patch = (k: string, v: string | boolean) => {
+        setSmtp(prev => ({ ...prev, [k]: v }));
+        setSmtpDirty(true);
+    };
+
+    const hasPassword = smtpData?.settings?.password === '••••••••';
+
+    const smtpSave = useMutation({
+        mutationFn: () => {
+            const settings: Record<string, string> = {
+                host: smtp.host,
+                port: smtp.port,
+                username: smtp.username,
+                from: smtp.from,
+                start_tls: smtp.start_tls ? 'true' : 'false',
+                ssl: smtp.ssl ? 'true' : 'false',
+            };
+            if (smtp.password) settings.password = smtp.password;
+            return notificationApi.saveProviderSettings({ providerType: 'email', providerName: 'smtp', settings });
+        },
+        onSuccess: () => {
+            toast.success('SMTP settings saved');
+            setSmtpDirty(false);
+            qc.invalidateQueries({ queryKey: ['notif-smtp-settings'] });
+            qc.invalidateQueries({ queryKey: ['notif-providers-selected'] });
+        },
+        onError: () => toast.error('Failed to save SMTP settings'),
     });
 
     const testMutation = useMutation({
@@ -275,91 +332,191 @@ function EmailProviderTab() {
     const activeEmail = selected.find(s => s.providerType === 'email');
 
     return (
-        <div className="grid gap-6 lg:grid-cols-2">
-            {/* Status card */}
+        <div className="space-y-6">
+            {/* SMTP Configuration */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Mail className="h-4 w-4 text-primary" />
-                        Email Provider
+                        SMTP Configuration
                     </CardTitle>
                     <CardDescription>
-                        Delivery is routed through the centralized notifications-api. Configure
-                        SMTP credentials and sender identity in the notifications admin panel.
+                        Outbound email credentials for this tenant. Changes take effect on the next send.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
-                        <div className="flex items-center gap-3 rounded-lg border p-4">
-                            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-                            <div className="space-y-1.5 flex-1">
-                                <Skeleton className="h-4 w-36" />
-                                <Skeleton className="h-3 w-52" />
-                            </div>
-                        </div>
-                    ) : activeEmail ? (
-                        <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 shrink-0">
-                                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">Email provider active</p>
-                                <p className="text-xs text-muted-foreground capitalize">
-                                    Using <strong>{activeEmail.providerName}</strong> via notifications-api
-                                </p>
-                            </div>
+                    {smtpLoading ? (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
                         </div>
                     ) : (
-                        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 shrink-0">
-                                <XCircle className="h-5 w-5 text-amber-600" />
+                        <div className="space-y-4">
+                            <div className="grid sm:grid-cols-3 gap-4">
+                                <div className="sm:col-span-2 space-y-1.5">
+                                    <Label className="text-xs">SMTP Host</Label>
+                                    <Input
+                                        placeholder="smtp.office365.com"
+                                        value={smtp.host}
+                                        onChange={e => patch('host', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs">Port</Label>
+                                    <Input
+                                        placeholder="587"
+                                        value={smtp.port}
+                                        onChange={e => patch('port', e.target.value)}
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">No email provider configured</p>
-                                <p className="text-xs text-muted-foreground">
-                                    Add an SMTP provider in the notifications-api admin panel.
-                                </p>
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs">Username</Label>
+                                    <Input
+                                        placeholder="user@example.com"
+                                        value={smtp.username}
+                                        onChange={e => patch('username', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs">Password</Label>
+                                    <Input
+                                        type="password"
+                                        placeholder={hasPassword ? 'Leave blank to keep current' : 'Enter password'}
+                                        value={smtp.password}
+                                        onChange={e => patch('password', e.target.value)}
+                                    />
+                                </div>
+                                <div className="sm:col-span-2 space-y-1.5">
+                                    <Label className="text-xs">From Address</Label>
+                                    <Input
+                                        placeholder="Org Name <noreply@example.com>"
+                                        value={smtp.from}
+                                        onChange={e => patch('from', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-6 border-t pt-3">
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        id="smtp-starttls"
+                                        checked={smtp.start_tls}
+                                        onCheckedChange={v => patch('start_tls', v)}
+                                    />
+                                    <Label htmlFor="smtp-starttls" className="text-sm font-normal cursor-pointer">
+                                        STARTTLS <span className="text-muted-foreground text-xs">(port 587)</span>
+                                    </Label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        id="smtp-ssl"
+                                        checked={smtp.ssl}
+                                        onCheckedChange={v => patch('ssl', v)}
+                                    />
+                                    <Label htmlFor="smtp-ssl" className="text-sm font-normal cursor-pointer">
+                                        Implicit TLS / SSL <span className="text-muted-foreground text-xs">(port 465)</span>
+                                    </Label>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    className="gap-2 ml-auto"
+                                    disabled={!smtpDirty || smtpSave.isPending}
+                                    onClick={() => smtpSave.mutate()}
+                                >
+                                    {smtpSave.isPending
+                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <Save className="h-4 w-4" />}
+                                    Save SMTP
+                                </Button>
                             </div>
                         </div>
                     )}
                 </CardContent>
             </Card>
 
-            {/* Test email card */}
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Send className="h-4 w-4 text-primary" />
-                        Send Test Email
-                    </CardTitle>
-                    <CardDescription>
-                        Send a sample email to verify end-to-end delivery. The email will use
-                        your tenant&apos;s brand colours and logo automatically.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="test-email" className="text-sm">Recipient address</Label>
-                        <Input
-                            id="test-email"
-                            type="email"
-                            placeholder="you@example.com"
-                            value={testRecipient}
-                            onChange={e => setTestRecipient(e.target.value)}
-                        />
-                    </div>
-                    <Button
-                        className="w-full gap-2"
-                        disabled={!testRecipient.trim() || testMutation.isPending}
-                        onClick={() => testMutation.mutate()}
-                    >
-                        {testMutation.isPending
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <Send className="h-4 w-4" />}
-                        Send Test Email
-                    </Button>
-                </CardContent>
-            </Card>
+            {/* Status + Test */}
+            <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-primary" />
+                            Email Provider
+                        </CardTitle>
+                        <CardDescription>
+                            Delivery is routed through the centralized notifications-api.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <div className="flex items-center gap-3 rounded-lg border p-4">
+                                <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                                <div className="space-y-1.5 flex-1">
+                                    <Skeleton className="h-4 w-36" />
+                                    <Skeleton className="h-3 w-52" />
+                                </div>
+                            </div>
+                        ) : activeEmail ? (
+                            <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 shrink-0">
+                                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">Email provider active</p>
+                                    <p className="text-xs text-muted-foreground capitalize">
+                                        Using <strong>{activeEmail.providerName}</strong> via notifications-api
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 shrink-0">
+                                    <XCircle className="h-5 w-5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">No email provider configured</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Save SMTP settings above to activate email delivery.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Send className="h-4 w-4 text-primary" />
+                            Send Test Email
+                        </CardTitle>
+                        <CardDescription>
+                            Send a sample email to verify end-to-end delivery using your configured SMTP settings.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="test-email" className="text-sm">Recipient address</Label>
+                            <Input
+                                id="test-email"
+                                type="email"
+                                placeholder="you@example.com"
+                                value={testRecipient}
+                                onChange={e => setTestRecipient(e.target.value)}
+                            />
+                        </div>
+                        <Button
+                            className="w-full gap-2"
+                            disabled={!testRecipient.trim() || testMutation.isPending}
+                            onClick={() => testMutation.mutate()}
+                        >
+                            {testMutation.isPending
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Send className="h-4 w-4" />}
+                            Send Test Email
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
