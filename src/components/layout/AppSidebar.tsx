@@ -23,7 +23,6 @@ import {
   LayoutDashboard,
   LayoutList,
   LogOut,
-  Plug,
   Receipt,
   Scale,
   Settings,
@@ -101,8 +100,7 @@ const menuSections: MenuSection[] = [
       { href: '/setup/settings', label: 'Settings', icon: Settings, permissions: ['config.read'], moduleKey: 'setup_settings' },
       { href: '/setup/system-config', label: 'System Config', icon: SlidersHorizontal, permissions: ['config.read'], moduleKey: 'setup_system_config' },
       { href: '/setup/notifications', label: 'Notifications', icon: Bell, permissions: ['config.read'], moduleKey: 'setup_notifications' },
-      { href: '/setup/integrations', label: 'Integrations', icon: Plug, permissions: ['config.read'], moduleKey: 'setup_integrations', superuserOnly: true },
-      { href: '/setup/tenants', label: 'Tenants', icon: Globe, permissions: ['config.read'], moduleKey: 'setup_tenants', superuserOnly: true },
+{ href: '/setup/tenants', label: 'Tenants', icon: Globe, permissions: ['config.read'], moduleKey: 'setup_tenants', superuserOnly: true },
     ],
   },
   {
