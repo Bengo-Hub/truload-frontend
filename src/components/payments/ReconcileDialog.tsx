@@ -6,8 +6,9 @@
  * 1. Original Pesaflow ref is shown read-only (audit trail)
  * 2. Officer may enter an Alternate Reference if payment went to a different eCitizen ref
  * 3. "Verify" queries Pesaflow using the alternate ref (if given) or the original ref
- * 4. Shows transaction details; Notes become required when alternate ref differs from original
- * 5. "Reconcile" updates the invoice status + generates a receipt with notes + alternate ref
+ * 4. Shows transaction details; M-Pesa ref field is always required (Pesaflow may not return it)
+ * 5. Notes become required when alternate ref differs from original
+ * 6. "Reconcile" updates the invoice status + generates a receipt with the M-Pesa ref, notes, alternate ref
  */
 
 'use client';
@@ -56,6 +57,7 @@ export function ReconcileDialog({
   const [step, setStep] = useState<Step>('input');
   const [alternateRef, setAlternateRef] = useState('');
   const [amount, setAmount] = useState(amountDue.toString());
+  const [mpesaRef, setMpesaRef] = useState('');
   const [notes, setNotes] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<PesaflowPaymentStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export function ReconcileDialog({
     if (!open) return;
     setAlternateRef('');
     setAmount(amountDue.toString());
+    setMpesaRef('');
     setNotes('');
     setPaymentStatus(null);
     setError(null);
@@ -94,15 +97,18 @@ export function ReconcileDialog({
     try {
       const status = await queryPaymentStatus(invoiceId, refToQuery);
 
-      if (status.status === 'PAID' || status.amountPaid > 0) {
+      if (status.status === 'PAID' || status.status === 'settled' || status.status?.toLowerCase() === 'paid' || status.status?.toLowerCase() === 'settled' || status.amountPaid > 0) {
         setPaymentStatus(status);
-        setAmount(status.amountPaid.toString());
+        // Cap amount at invoice amountDue — Pesaflow returns penalty + eCitizen service fee
+        setAmount(Math.min(status.amountPaid, amountDue).toString());
+        // Pre-fill M-Pesa ref if Pesaflow returned it; otherwise leave blank for manual entry
+        setMpesaRef(status.paymentReference || '');
 
         // Auto-suggest notes when using an alternate reference
         if (isUsingAlternateRef && !notes.trim()) {
-          const mpesaRef = status.paymentReference || '';
+          const mpesaCode = status.paymentReference || '';
           setNotes(
-            `eCitizen ref ${alternateRef.trim()} confirmed paid${mpesaRef ? ` via M-Pesa ${mpesaRef}` : ''}; ` +
+            `eCitizen ref ${alternateRef.trim()} confirmed paid${mpesaCode ? ` via M-Pesa ${mpesaCode}` : ''}; ` +
             `original invoice ref ${originalRef} could not be used for payment ` +
             `(please explain reason — e.g. iframe blocked on live eCitizen).`
           );
@@ -123,6 +129,11 @@ export function ReconcileDialog({
   };
 
   const handleReconcile = async () => {
+    if (!mpesaRef.trim()) {
+      setError('M-Pesa / Transaction Reference is required for reconciliation.');
+      return;
+    }
+
     if (notesRequired && !notes.trim()) {
       setError('Notes are required when reconciling under a different reference — please explain why.');
       return;
@@ -133,7 +144,7 @@ export function ReconcileDialog({
 
     try {
       const result = await reconcileInvoice(invoiceId, {
-        transactionReference: paymentStatus?.paymentReference || alternateRef.trim() || originalRef,
+        transactionReference: mpesaRef.trim(),
         amountPaid: parseFloat(amount),
         alternateReference: isUsingAlternateRef ? alternateRef.trim() : undefined,
         notes: notes.trim() || undefined,
@@ -234,7 +245,7 @@ export function ReconcileDialog({
           </div>
         )}
 
-        {/* Step: Confirmed — show verified payment details + notes */}
+        {/* Step: Confirmed — show verified payment details + M-Pesa ref + notes */}
         {step === 'confirmed' && paymentStatus && (
           <div className="space-y-4">
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-3">
@@ -249,12 +260,12 @@ export function ReconcileDialog({
                   <p className="font-semibold">{formatCurrency(paymentStatus.amountPaid)}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Channel</span>
-                  <p className="font-semibold">{paymentStatus.paymentChannel || 'N/A'}</p>
+                  <span className="text-muted-foreground">Amount to Record</span>
+                  <p className="font-semibold text-emerald-700">{formatCurrency(parseFloat(amount))}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">M-Pesa / Payment Ref</span>
-                  <p className="font-mono text-xs">{paymentStatus.paymentReference || '—'}</p>
+                  <span className="text-muted-foreground">Channel</span>
+                  <p className="font-semibold">{paymentStatus.paymentChannel || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Date</span>
@@ -266,11 +277,39 @@ export function ReconcileDialog({
                 </div>
               </div>
 
+              {parseFloat(amount) < paymentStatus.amountPaid && (
+                <p className="text-xs text-amber-700 flex items-center gap-1.5 border-t border-emerald-200 pt-2">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  Amount capped at invoice total ({formatCurrency(parseFloat(amount))}). Pesaflow returned {formatCurrency(paymentStatus.amountPaid)} which includes the eCitizen service fee.
+                </p>
+              )}
+
               {isUsingAlternateRef && (
                 <div className="border-t border-emerald-200 pt-2 text-xs text-emerald-700 space-y-0.5">
                   <p><span className="font-medium">Queried via alternate ref:</span> {alternateRef.trim()}</p>
                   <p><span className="font-medium">Original invoice ref:</span> {originalRef} (preserved)</p>
                 </div>
+              )}
+            </div>
+
+            {/* M-Pesa / Transaction Reference — always required */}
+            <div className="space-y-2">
+              <Label htmlFor="mpesa-ref" className="flex items-center gap-1">
+                M-Pesa / Transaction Reference
+                <span className="text-red-500 text-xs ml-1">* required</span>
+              </Label>
+              <Input
+                id="mpesa-ref"
+                value={mpesaRef}
+                onChange={(e) => setMpesaRef(e.target.value.trim().toUpperCase())}
+                placeholder="e.g. UETJS5SUID"
+                className={`font-mono ${!mpesaRef.trim() ? 'border-amber-400 focus:border-amber-500' : ''}`}
+              />
+              {!paymentStatus.paymentReference && (
+                <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  Not returned by Pesaflow — enter the M-Pesa or bank transaction code manually.
+                </p>
               )}
             </div>
 
@@ -289,7 +328,7 @@ export function ReconcileDialog({
                     ? 'Required: explain why payment was made under a different reference...'
                     : 'Optional: add any notes about this reconciliation...'
                 }
-                rows={4}
+                rows={3}
                 className={notesRequired && !notes.trim() ? 'border-amber-400 focus:border-amber-500' : ''}
               />
               {notesRequired && !notes.trim() && (
@@ -355,7 +394,7 @@ export function ReconcileDialog({
               </Button>
               <Button
                 onClick={handleReconcile}
-                disabled={notesRequired && !notes.trim()}
+                disabled={(notesRequired && !notes.trim()) || !mpesaRef.trim()}
                 className="gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
               >
                 <CheckCircle2 className="h-4 w-4" />
