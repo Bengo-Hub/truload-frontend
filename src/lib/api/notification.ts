@@ -43,9 +43,18 @@ export interface WorkflowPreferenceItem {
     emailEnabled: boolean;
     pushEnabled: boolean;
     smsEnabled: boolean;
+    /** Additional CC addresses for this specific workflow. */
+    ccRecipients: string[];
+}
+
+/** Pool/group-level default recipients shared across all workflows in the group. */
+export interface WorkflowGroupPreferences {
+    /** Email addresses that always receive every notification in this workflow group. */
+    defaultRecipients: string[];
 }
 
 export interface WorkflowPreferencesDto {
+    // Per-workflow toggles
     overloadAlert: WorkflowPreferenceItem;
     caseCreated: WorkflowPreferenceItem;
     caseEscalated: WorkflowPreferenceItem;
@@ -60,6 +69,11 @@ export interface WorkflowPreferencesDto {
     weighingTicketReady: WorkflowPreferenceItem;
     staleWeighingAlert: WorkflowPreferenceItem;
     qualityDeductionApplied: WorkflowPreferenceItem;
+    // Group-level default recipients
+    weighingGroup: WorkflowGroupPreferences;
+    casesGroup: WorkflowGroupPreferences;
+    invoicesGroup: WorkflowGroupPreferences;
+    receiptsGroup: WorkflowGroupPreferences;
 }
 
 // ── Scheduled report DTOs ────────────────────────────────────────────────────
