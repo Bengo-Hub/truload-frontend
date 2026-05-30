@@ -72,6 +72,8 @@ export interface OrganizationDto {
   contactEmail?: string;
   contactPhone?: string;
   website?: string;
+  /** Per-tenant TruLoad app base URL (e.g. https://kuraweigh.kura.go.ke). Used for email deep links. */
+  appUrl?: string | null;
   streetAddress?: string;
   poBox?: string;
   city?: string;
@@ -112,6 +114,7 @@ export interface CreateOrganizationRequest {
   contactEmail?: string;
   contactPhone?: string;
   website?: string;
+  appUrl?: string;
   streetAddress?: string;
   poBox?: string;
   city?: string;
@@ -127,6 +130,7 @@ export interface UpdateOrganizationRequest {
   contactEmail?: string;
   contactPhone?: string;
   website?: string;
+  appUrl?: string | null;
   streetAddress?: string;
   poBox?: string;
   city?: string;

@@ -12,6 +12,7 @@ interface OrganizationFormData {
   contactEmail?: string;
   contactPhone?: string;
   website?: string;
+  appUrl?: string;
   streetAddress?: string;
   poBox?: string;
   city?: string;
@@ -32,6 +33,7 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
       contactEmail: initialData?.contactEmail || '',
       contactPhone: initialData?.contactPhone || '',
       website: initialData?.website || '',
+      appUrl: initialData?.appUrl || '',
       streetAddress: initialData?.streetAddress || '',
       poBox: initialData?.poBox || '',
       city: initialData?.city || '',
@@ -46,6 +48,7 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
         contactEmail: initialData.contactEmail || '',
         contactPhone: initialData.contactPhone || '',
         website: initialData.website || '',
+        appUrl: initialData.appUrl || '',
         streetAddress: initialData.streetAddress || '',
         poBox: initialData.poBox || '',
         city: initialData.city || '',
@@ -117,13 +120,26 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
           </div>
 
           {/* Website */}
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2">
             <Label htmlFor="website">Website</Label>
             <Input
               id="website"
               {...register('website')}
               placeholder="e.g., www.organisation.go.ke"
             />
+          </div>
+
+          {/* App URL */}
+          <div className="space-y-2">
+            <Label htmlFor="appUrl">App URL</Label>
+            <Input
+              id="appUrl"
+              {...register('appUrl')}
+              placeholder="e.g., https://kuraweigh.kura.go.ke"
+            />
+            <p className="text-xs text-muted-foreground">
+              The deployed TruLoad app domain for this tenant. Used in email links (password reset, welcome).
+            </p>
           </div>
         </div>
 
