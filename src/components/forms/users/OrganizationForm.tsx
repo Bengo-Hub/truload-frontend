@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -12,7 +11,11 @@ interface OrganizationFormData {
   name: string;
   contactEmail?: string;
   contactPhone?: string;
-  address?: string;
+  website?: string;
+  streetAddress?: string;
+  poBox?: string;
+  city?: string;
+  country?: string;
 }
 
 interface OrganizationFormProps {
@@ -28,7 +31,11 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
       name: initialData?.name || '',
       contactEmail: initialData?.contactEmail || '',
       contactPhone: initialData?.contactPhone || '',
-      address: initialData?.address || '',
+      website: initialData?.website || '',
+      streetAddress: initialData?.streetAddress || '',
+      poBox: initialData?.poBox || '',
+      city: initialData?.city || '',
+      country: initialData?.country || '',
     },
   });
 
@@ -38,7 +45,11 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
         name: initialData.name || '',
         contactEmail: initialData.contactEmail || '',
         contactPhone: initialData.contactPhone || '',
-        address: initialData.address || '',
+        website: initialData.website || '',
+        streetAddress: initialData.streetAddress || '',
+        poBox: initialData.poBox || '',
+        city: initialData.city || '',
+        country: initialData.country || '',
       });
     }
   }, [initialData, reset]);
@@ -47,7 +58,7 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
     try {
       await onSubmit(data);
       toast.success(mode === 'create' ? 'Organization created successfully' : 'Organization updated successfully');
-      
+
       if (mode === 'create') {
         reset();
       }
@@ -82,7 +93,7 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
               type="email"
               {...register('contactEmail', {
                 pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  value: /^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                   message: 'Invalid email address',
                 },
               })}
@@ -101,20 +112,66 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
               id="contactPhone"
               type="tel"
               {...register('contactPhone')}
-              placeholder="e.g., +254 700 000000"
+              placeholder="e.g., 0717105233"
+            />
+          </div>
+
+          {/* Website */}
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="website">Website</Label>
+            <Input
+              id="website"
+              {...register('website')}
+              placeholder="e.g., www.organisation.go.ke"
             />
           </div>
         </div>
 
-        {/* Address */}
-        <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
-          <Textarea
-            id="address"
-            {...register('address')}
-            placeholder="Enter organization address (optional)"
-            rows={3}
-          />
+        {/* Address Section */}
+        <div className="space-y-4">
+          <p className="text-sm font-medium text-muted-foreground">Address Details</p>
+
+          {/* Street Address */}
+          <div className="space-y-2">
+            <Label htmlFor="streetAddress">Street Address</Label>
+            <Input
+              id="streetAddress"
+              {...register('streetAddress')}
+              placeholder="e.g., Barabara Plaza-JKIA, Off Airport South Road Along Mazao Road"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* PO Box */}
+            <div className="space-y-2">
+              <Label htmlFor="poBox">P.O Box</Label>
+              <Input
+                id="poBox"
+                {...register('poBox')}
+                placeholder="e.g., 41727-00100"
+              />
+            </div>
+
+            {/* City */}
+            <div className="space-y-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                {...register('city')}
+                placeholder="e.g., Nairobi"
+              />
+            </div>
+
+            {/* Country */}
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                {...register('country')}
+                placeholder="e.g., Kenya"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
