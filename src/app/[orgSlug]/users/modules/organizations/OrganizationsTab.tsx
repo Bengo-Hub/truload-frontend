@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   Building,
+  Globe,
   Landmark,
   Loader2,
   Mail,
@@ -89,7 +90,11 @@ interface CreateOrgFormValues {
   tenantType: string;
   contactEmail: string;
   contactPhone: string;
-  address: string;
+  website: string;
+  streetAddress: string;
+  poBox: string;
+  city: string;
+  country: string;
 }
 
 interface EditOrgFormValues {
@@ -98,7 +103,11 @@ interface EditOrgFormValues {
   orgType: string;
   contactEmail: string;
   contactPhone: string;
-  address: string;
+  website: string;
+  streetAddress: string;
+  poBox: string;
+  city: string;
+  country: string;
   isActive: boolean;
 }
 
@@ -129,7 +138,11 @@ function CreateOrgDialog({
       tenantType: "AxleLoadEnforcement",
       contactEmail: "",
       contactPhone: "",
-      address: "",
+      website: "",
+      streetAddress: "",
+      poBox: "",
+      city: "",
+      country: "Kenya",
     },
   });
 
@@ -161,7 +174,11 @@ function CreateOrgDialog({
       tenantType: values.tenantType || undefined,
       contactEmail: values.contactEmail.trim() || undefined,
       contactPhone: values.contactPhone.trim() || undefined,
-      address: values.address.trim() || undefined,
+      website: values.website.trim() || undefined,
+      streetAddress: values.streetAddress.trim() || undefined,
+      poBox: values.poBox.trim() || undefined,
+      city: values.city.trim() || undefined,
+      country: values.country.trim() || undefined,
     };
     createMutation.mutate(payload);
   }
@@ -310,13 +327,53 @@ function CreateOrgDialog({
               />
             </div>
 
-            {/* Address */}
+            {/* Street Address */}
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="create-org-address">Address</Label>
+              <Label htmlFor="create-org-street">Street Address</Label>
               <Input
-                id="create-org-address"
-                placeholder="Physical address"
-                {...register("address")}
+                id="create-org-street"
+                placeholder="e.g. Barabara Plaza-JKIA, Off Airport South Road"
+                {...register("streetAddress")}
+              />
+            </div>
+
+            {/* PO Box */}
+            <div className="space-y-2">
+              <Label htmlFor="create-org-pobox">P.O Box</Label>
+              <Input
+                id="create-org-pobox"
+                placeholder="e.g. 41727-00100"
+                {...register("poBox")}
+              />
+            </div>
+
+            {/* City */}
+            <div className="space-y-2">
+              <Label htmlFor="create-org-city">City</Label>
+              <Input
+                id="create-org-city"
+                placeholder="e.g. Nairobi"
+                {...register("city")}
+              />
+            </div>
+
+            {/* Country */}
+            <div className="space-y-2">
+              <Label htmlFor="create-org-country">Country</Label>
+              <Input
+                id="create-org-country"
+                placeholder="e.g. Kenya"
+                {...register("country")}
+              />
+            </div>
+
+            {/* Website */}
+            <div className="space-y-2">
+              <Label htmlFor="create-org-website">Website</Label>
+              <Input
+                id="create-org-website"
+                placeholder="e.g. www.organisation.go.ke"
+                {...register("website")}
               />
             </div>
           </div>
@@ -373,7 +430,11 @@ function EditOrgDialog({
       orgType: "",
       contactEmail: "",
       contactPhone: "",
-      address: "",
+      website: "",
+      streetAddress: "",
+      poBox: "",
+      city: "",
+      country: "",
       isActive: true,
     },
   });
@@ -386,7 +447,11 @@ function EditOrgDialog({
         orgType: org.orgType ?? "",
         contactEmail: org.contactEmail ?? "",
         contactPhone: org.contactPhone ?? "",
-        address: org.address ?? "",
+        website: org.website ?? "",
+        streetAddress: org.streetAddress ?? "",
+        poBox: org.poBox ?? "",
+        city: org.city ?? "",
+        country: org.country ?? "",
         isActive: org.isActive,
       });
     }
@@ -415,7 +480,11 @@ function EditOrgDialog({
       orgType: values.orgType || undefined,
       contactEmail: values.contactEmail.trim() || undefined,
       contactPhone: values.contactPhone.trim() || undefined,
-      address: values.address.trim() || undefined,
+      website: values.website.trim() || undefined,
+      streetAddress: values.streetAddress.trim() || undefined,
+      poBox: values.poBox.trim() || undefined,
+      city: values.city.trim() || undefined,
+      country: values.country.trim() || undefined,
       isActive: values.isActive,
     };
     updateMutation.mutate({ id: org.id, payload });
@@ -544,13 +613,53 @@ function EditOrgDialog({
                 />
               </div>
 
-              {/* Address */}
+              {/* Street Address */}
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="edit-org-address">Address</Label>
+                <Label htmlFor="edit-org-street">Street Address</Label>
                 <Input
-                  id="edit-org-address"
-                  placeholder="Physical address"
-                  {...register("address")}
+                  id="edit-org-street"
+                  placeholder="e.g. Barabara Plaza-JKIA, Off Airport South Road"
+                  {...register("streetAddress")}
+                />
+              </div>
+
+              {/* PO Box */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-org-pobox">P.O Box</Label>
+                <Input
+                  id="edit-org-pobox"
+                  placeholder="e.g. 41727-00100"
+                  {...register("poBox")}
+                />
+              </div>
+
+              {/* City */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-org-city">City</Label>
+                <Input
+                  id="edit-org-city"
+                  placeholder="e.g. Nairobi"
+                  {...register("city")}
+                />
+              </div>
+
+              {/* Country */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-org-country">Country</Label>
+                <Input
+                  id="edit-org-country"
+                  placeholder="e.g. Kenya"
+                  {...register("country")}
+                />
+              </div>
+
+              {/* Website */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-org-website">Website</Label>
+                <Input
+                  id="edit-org-website"
+                  placeholder="e.g. www.organisation.go.ke"
+                  {...register("website")}
                 />
               </div>
 
@@ -910,13 +1019,23 @@ export default function OrganizationsTab() {
                       <span>{org.contactPhone}</span>
                     </div>
                   )}
-                  {org.address && (
+                  {org.website && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{org.address}</span>
+                      <Globe className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{org.website}</span>
                     </div>
                   )}
-                  {!org.contactEmail && !org.contactPhone && !org.address && (
+                  {(org.streetAddress || org.city || org.country) && (
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                      <span className="truncate">
+                        {[org.streetAddress, org.poBox ? `P.O Box ${org.poBox}` : null, org.city, org.country]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {!org.contactEmail && !org.contactPhone && !org.website && !org.streetAddress && !org.city && (
                     <p className="text-xs text-muted-foreground/60 italic">
                       No contact info
                     </p>

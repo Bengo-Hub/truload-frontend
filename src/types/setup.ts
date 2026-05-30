@@ -71,6 +71,11 @@ export interface OrganizationDto {
   enabledModules?: string[];
   contactEmail?: string;
   contactPhone?: string;
+  website?: string;
+  streetAddress?: string;
+  poBox?: string;
+  city?: string;
+  country?: string;
   address?: string;
   logoUrl?: string | null;
   platformLogoUrl?: string | null;
@@ -106,6 +111,11 @@ export interface CreateOrganizationRequest {
   tenantType?: string;
   contactEmail?: string;
   contactPhone?: string;
+  website?: string;
+  streetAddress?: string;
+  poBox?: string;
+  city?: string;
+  country?: string;
   address?: string;
 }
 
@@ -116,6 +126,11 @@ export interface UpdateOrganizationRequest {
   tenantType?: string;
   contactEmail?: string;
   contactPhone?: string;
+  website?: string;
+  streetAddress?: string;
+  poBox?: string;
+  city?: string;
+  country?: string;
   address?: string;
   logoUrl?: string | null;
   platformLogoUrl?: string | null;
