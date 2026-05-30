@@ -91,6 +91,7 @@ interface CreateOrgFormValues {
   contactEmail: string;
   contactPhone: string;
   website: string;
+  appUrl: string;
   streetAddress: string;
   poBox: string;
   city: string;
@@ -104,6 +105,7 @@ interface EditOrgFormValues {
   contactEmail: string;
   contactPhone: string;
   website: string;
+  appUrl: string;
   streetAddress: string;
   poBox: string;
   city: string;
@@ -139,6 +141,7 @@ function CreateOrgDialog({
       contactEmail: "",
       contactPhone: "",
       website: "",
+      appUrl: "",
       streetAddress: "",
       poBox: "",
       city: "",
@@ -175,6 +178,7 @@ function CreateOrgDialog({
       contactEmail: values.contactEmail.trim() || undefined,
       contactPhone: values.contactPhone.trim() || undefined,
       website: values.website.trim() || undefined,
+      appUrl: values.appUrl.trim() || undefined,
       streetAddress: values.streetAddress.trim() || undefined,
       poBox: values.poBox.trim() || undefined,
       city: values.city.trim() || undefined,
@@ -376,6 +380,19 @@ function CreateOrgDialog({
                 {...register("website")}
               />
             </div>
+
+            {/* App URL */}
+            <div className="space-y-2">
+              <Label htmlFor="create-org-app-url">App URL</Label>
+              <Input
+                id="create-org-app-url"
+                placeholder="e.g. https://kuraweigh.kura.go.ke"
+                {...register("appUrl")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Deployed TruLoad app domain — used in email links.
+              </p>
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
@@ -431,6 +448,7 @@ function EditOrgDialog({
       contactEmail: "",
       contactPhone: "",
       website: "",
+      appUrl: "",
       streetAddress: "",
       poBox: "",
       city: "",
@@ -448,6 +466,7 @@ function EditOrgDialog({
         contactEmail: org.contactEmail ?? "",
         contactPhone: org.contactPhone ?? "",
         website: org.website ?? "",
+        appUrl: org.appUrl ?? "",
         streetAddress: org.streetAddress ?? "",
         poBox: org.poBox ?? "",
         city: org.city ?? "",
@@ -481,6 +500,7 @@ function EditOrgDialog({
       contactEmail: values.contactEmail.trim() || undefined,
       contactPhone: values.contactPhone.trim() || undefined,
       website: values.website.trim() || undefined,
+      appUrl: values.appUrl.trim() || null,
       streetAddress: values.streetAddress.trim() || undefined,
       poBox: values.poBox.trim() || undefined,
       city: values.city.trim() || undefined,
@@ -661,6 +681,19 @@ function EditOrgDialog({
                   placeholder="e.g. www.organisation.go.ke"
                   {...register("website")}
                 />
+              </div>
+
+              {/* App URL */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-org-app-url">App URL</Label>
+                <Input
+                  id="edit-org-app-url"
+                  placeholder="e.g. https://kuraweigh.kura.go.ke"
+                  {...register("appUrl")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deployed TruLoad app domain — used in email links.
+                </p>
               </div>
 
               {/* Active Toggle */}
