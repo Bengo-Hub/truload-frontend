@@ -60,6 +60,7 @@ export interface WorkflowPreferencesDto {
     caseEscalated: WorkflowPreferenceItem;
     invoiceIssued: WorkflowPreferenceItem;
     invoiceOverdue: WorkflowPreferenceItem;
+    invoicePaid: WorkflowPreferenceItem;
     weighingCompleted: WorkflowPreferenceItem;
     scheduledReport: WorkflowPreferenceItem;
     userRegistered: WorkflowPreferenceItem;

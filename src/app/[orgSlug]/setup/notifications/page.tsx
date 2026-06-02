@@ -612,6 +612,7 @@ const ENFORCEMENT_WORKFLOWS: WorkflowConfig[] = [
     { key: 'caseEscalated', label: 'Case Escalated', description: 'Notify assignee when a case is escalated for prosecution' },
     { key: 'invoiceIssued', label: 'Invoice Issued', description: 'Notify transporter when an overload invoice is issued' },
     { key: 'invoiceOverdue', label: 'Invoice Overdue', description: 'Remind transporter when payment is overdue' },
+    { key: 'invoicePaid', label: 'Invoice Paid', description: 'Notify when payment is received / receipt generated' },
 ];
 
 const SHARED_WORKFLOWS: WorkflowConfig[] = [

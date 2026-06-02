@@ -82,7 +82,10 @@ function TenantAuthLoginContent() {
 
     storePkceVerifier(verifier);
     storeSsoState(state);
-    storeSsoReturnTo(`/${orgSlug}/dashboard`);
+    // Return to the CTA deep-link if a safe relative ?from= was supplied, else the dashboard.
+    const rawFrom = searchParams?.get('from');
+    const safeFrom = rawFrom && rawFrom.startsWith('/') && !rawFrom.startsWith('//') ? rawFrom : null;
+    storeSsoReturnTo(safeFrom ?? `/${orgSlug}/dashboard`);
 
     const authorizeUrl = buildAuthorizeUrl(ssoSlug, challenge, state, callbackUrl);
     window.location.href = authorizeUrl;
