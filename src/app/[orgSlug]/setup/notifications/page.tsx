@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { normalizeEmails } from '@/lib/email';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -537,9 +538,10 @@ function EmailChipInput({
     const [input, setInput] = useState('');
 
     const addEmail = (raw: string) => {
-        const email = raw.trim().toLowerCase();
-        if (!email || !email.includes('@')) return;
-        if (!value.includes(email)) onChange([...value, email]);
+        // Split/validate so a pasted or typed comma/newline blob expands into individual
+        // chips instead of one malformed entry (which the mail server would reject).
+        const added = normalizeEmails(raw).filter(e => !value.includes(e));
+        if (added.length) onChange([...value, ...added]);
         setInput('');
     };
 
@@ -549,6 +551,14 @@ function EmailChipInput({
             addEmail(input);
         } else if (e.key === 'Backspace' && !input && value.length > 0) {
             onChange(value.slice(0, -1));
+        }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const text = e.clipboardData.getData('text');
+        if (text && /[,;\n\r]/.test(text)) {
+            e.preventDefault();
+            addEmail(text);
         }
     };
 
@@ -577,6 +587,7 @@ function EmailChipInput({
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
                     onBlur={() => addEmail(input)}
                     placeholder={value.length === 0 ? placeholder : ''}
                 />
@@ -1124,7 +1135,7 @@ function ScheduledReportForm({
     });
 
     const handleSave = () => {
-        const recipientList = recipients.split('\n').map(r => r.trim()).filter(Boolean);
+        const recipientList = normalizeEmails(recipients);
         if (!name || !module || !reportType || recipientList.length === 0) {
             toast.error('Fill in all required fields and add at least one recipient');
             return;
