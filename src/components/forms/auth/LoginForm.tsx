@@ -98,7 +98,10 @@ export function LoginForm({ mode = 'tenant', orgSlugOverride, stationCode, prima
     onError: (err) => toast.error(err),
   });
 
-  const fromParam = searchParams?.get('from');
+  // Honor a return-to only when it's a same-origin relative path (reject "//host" and "scheme:")
+  // to prevent open redirects from a crafted ?from= value.
+  const rawFrom = searchParams?.get('from');
+  const fromParam = rawFrom && rawFrom.startsWith('/') && !rawFrom.startsWith('//') ? rawFrom : null;
 
   const {
     register,

@@ -7,7 +7,7 @@
 
 import { useAuth, useHasPermission, useHasRole } from '@/hooks/useAuth';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 interface ProtectedRouteProps {
@@ -29,6 +29,8 @@ export function ProtectedRoute({
   moduleKey,
 }: ProtectedRouteProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const orgSlug = useOrgSlug();
   const { isAuthenticated, isLoading, user } = useAuth();
   const hasRequiredRole = useHasRole(requiredRoles ?? [], matchAllRoles ? 'all' : 'any');
@@ -48,7 +50,13 @@ export function ProtectedRoute({
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       const loginPath = orgSlug ? `/${orgSlug}/auth/login` : '/auth/login';
-      router.replace(loginPath);
+      // Preserve where the user was headed (e.g. an email CTA deep-link) so login returns them here.
+      const qs = searchParams?.toString();
+      const target = `${pathname ?? ''}${qs ? `?${qs}` : ''}`;
+      const loginUrl = target && target !== loginPath
+        ? `${loginPath}?from=${encodeURIComponent(target)}`
+        : loginPath;
+      router.replace(loginUrl);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, isLoading]);
