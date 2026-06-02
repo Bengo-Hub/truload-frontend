@@ -364,6 +364,10 @@ export default function CaseManagementDetailPage() {
                             <p className="font-medium">{caseData.driverName || 'Not recorded'}</p>
                           </div>
                           <div>
+                            <Label className="text-sm text-gray-500">Driver ID / Passport</Label>
+                            <p className="font-medium">{caseData.driverIdNumber || '-'}</p>
+                          </div>
+                          <div>
                             <Label className="text-sm text-gray-500">Driver License</Label>
                             <p className="font-medium">{caseData.driverLicenseNo || '-'}</p>
                           </div>
