@@ -1,5 +1,6 @@
 "use client";
 
+import { CaseDetailsDrawer, EscalateChooserModal } from '@/components/case';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { AppShell } from '@/components/layout/AppShell';
@@ -40,7 +41,6 @@ import {
     useViolationTypes,
 } from '@/hooks/queries';
 import { useAuth } from '@/hooks/useAuth';
-import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { CaseRegisterDto, CaseSearchParams, hardDeleteCase } from '@/lib/api/caseRegister';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -56,7 +56,6 @@ import {
     TrendingUp,
     XCircle,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -70,12 +69,12 @@ import { toast } from 'sonner';
  * - Quick actions (view, escalate)
  */
 export default function CaseRegisterPage() {
-  const router = useRouter();
-  const orgSlug = useOrgSlug();
   const { user } = useAuth();
   const isPlatformOwner = user?.isSuperUser === true;
   const queryClient = useQueryClient();
   const [hardDeleteTarget, setHardDeleteTarget] = useState<CaseRegisterDto | null>(null);
+  const [drawerCaseId, setDrawerCaseId] = useState<string | null>(null);
+  const [escalateCaseId, setEscalateCaseId] = useState<string | null>(null);
 
   const hardDeleteMutation = useMutation({
     mutationFn: (id: string) => hardDeleteCase(id),
@@ -439,11 +438,15 @@ export default function CaseRegisterPage() {
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               {getStatusBadge(caseItem.caseStatus)}
-                              {caseItem.escalatedToCaseManager && (
+                              {caseItem.hasProsecution ? (
+                                <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 text-xs">
+                                  Escalated to Prosecution
+                                </Badge>
+                              ) : caseItem.escalatedToCaseManager ? (
                                 <Badge variant="outline" className="text-xs">
                                   Escalated
                                 </Badge>
-                              )}
+                              ) : null}
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-500">
@@ -455,14 +458,18 @@ export default function CaseRegisterPage() {
                                 permission="case.read"
                                 icon={Eye}
                                 label="View"
-                                onClick={() => router.push(`/${orgSlug}/cases/${caseItem.id}`)}
+                                onClick={() => setDrawerCaseId(caseItem.id)}
                               />
                               <PermissionActionButton
                                 permission="case.escalate"
                                 icon={ArrowUpRight}
                                 label="Escalate"
-                                onClick={() => router.push(`/${orgSlug}/cases/${caseItem.id}?tab=prosecution`)}
-                                condition={!caseItem.escalatedToCaseManager && caseItem.caseStatus !== 'closed'}
+                                onClick={() => setEscalateCaseId(caseItem.id)}
+                                condition={
+                                  !caseItem.escalatedToCaseManager &&
+                                  !caseItem.hasProsecution &&
+                                  caseItem.caseStatus?.toUpperCase() !== 'CLOSED'
+                                }
                               />
                               {isPlatformOwner && (
                                 <Button
@@ -499,6 +506,26 @@ export default function CaseRegisterPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Case details drawer (View) */}
+        <CaseDetailsDrawer
+          open={!!drawerCaseId}
+          onOpenChange={(open) => !open && setDrawerCaseId(null)}
+          caseId={drawerCaseId}
+          onEscalate={(id) => {
+            setDrawerCaseId(null);
+            setEscalateCaseId(id);
+          }}
+        />
+
+        {/* Escalation chooser (Escalate) */}
+        {escalateCaseId && (
+          <EscalateChooserModal
+            open={!!escalateCaseId}
+            onOpenChange={(open) => !open && setEscalateCaseId(null)}
+            caseId={escalateCaseId}
+          />
+        )}
 
         <Dialog open={!!hardDeleteTarget} onOpenChange={(open) => !open && setHardDeleteTarget(null)}>
           <DialogContent>

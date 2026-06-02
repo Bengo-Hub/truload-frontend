@@ -17,6 +17,10 @@ export interface CaseRegisterDto {
   driverId?: string;
   driverName?: string;
   driverLicenseNo?: string;
+  /** Driver National ID / Passport number (from linked weighing's driver). */
+  driverIdNumber?: string;
+  /** Driver phone number (from linked weighing's driver) — used to prefill online payment. */
+  driverPhoneNumber?: string;
   violationTypeId: string;
   violationType: string;
   violationDetails?: string;
@@ -33,6 +37,10 @@ export interface CaseRegisterDto {
   caseStatusId: string;
   caseStatus: string;
   escalatedToCaseManager: boolean;
+  /** True when a prosecution case exists for this case (escalated to prosecution). */
+  hasProsecution?: boolean;
+  /** Status of the linked prosecution case (pending/invoiced/paid/court), when present. */
+  prosecutionStatus?: string;
   caseManagerId?: string;
   caseManagerName?: string;
   prosecutorId?: string;
