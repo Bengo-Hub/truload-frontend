@@ -88,6 +88,10 @@ interface ProsecutionSectionProps {
   caseId: string;
   caseNo: string;
   weighingId?: string;
+  /** Captured driver details — used to prefill the eCitizen / Pesaflow payment form. */
+  driverName?: string;
+  driverIdNumber?: string;
+  driverPhone?: string;
   /** When true (e.g. case opened from Case management), hide create prosecution and pay actions. */
   readOnly?: boolean;
 }
@@ -101,7 +105,7 @@ const PAYMENT_METHODS = [
   { value: 'pesaflow', label: 'Pesaflow (eCitizen)' },
 ];
 
-export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOnly = false }: ProsecutionSectionProps) {
+export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driverName, driverIdNumber, driverPhone, readOnly = false }: ProsecutionSectionProps) {
   const orgSlug = useOrgSlug();
   const isOnline = useOnlineStatus();
   const { data: acts } = useAllActs();
@@ -296,10 +300,15 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, readOn
     refetch,
   ]);
 
-  // Open Pesaflow payment modal
+  // Open Pesaflow payment modal — prefilled with the captured driver details (editable).
   const openPesaflowModal = (invoice: InvoiceDto) => {
     setSelectedInvoice(invoice);
-    pesaflowForm.reset({ clientName: '', clientEmail: '', clientMsisdn: '', clientIdNumber: '' });
+    pesaflowForm.reset({
+      clientName: driverName ?? '',
+      clientEmail: '',
+      clientMsisdn: driverPhone ?? '',
+      clientIdNumber: driverIdNumber ?? '',
+    });
     setShowPesaflowModal(true);
   };
 

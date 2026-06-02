@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Globe, Loader2, RefreshCcw, CheckCircle2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PesaflowPaymentStatusResponse } from '@/lib/api/integration';
-import { queryPaymentStatus } from '@/lib/api/integration';
+import { queryPaymentStatus, reconcileInvoice } from '@/lib/api/integration';
 import { toast } from 'sonner';
 
 interface PesaflowCheckoutDialogProps {
@@ -38,6 +38,17 @@ export function PesaflowCheckoutDialog({
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Persist the payment once the gateway reports PAID: reconcile so a receipt is recorded and
+  // the invoice is marked paid (the status query alone is read-only and persists nothing).
+  const persistPayment = useCallback(async () => {
+    if (!invoiceId) return;
+    try {
+      await reconcileInvoice(invoiceId, {});
+    } catch {
+      // Reconcile may briefly lag the gateway; the result page / Reconcile button are fallbacks.
+    }
+  }, [invoiceId]);
+
   const startStatusPolling = useCallback(() => {
     if (!invoiceId || !pesaflowInvoiceNumber) return;
 
@@ -46,8 +57,9 @@ export function PesaflowCheckoutDialog({
         const status = await queryPaymentStatus(invoiceId, pesaflowInvoiceNumber);
         if (status.status === 'PAID' || status.amountPaid > 0) {
           setPaymentStatus(status);
-          setPaymentState('paid');
           if (pollingRef.current) clearInterval(pollingRef.current);
+          await persistPayment();
+          setPaymentState('paid');
           toast.success('Payment confirmed!');
           onPaymentConfirmed?.();
         }
@@ -55,7 +67,7 @@ export function PesaflowCheckoutDialog({
         // Silently retry — polling will continue
       }
     }, 10000);
-  }, [invoiceId, pesaflowInvoiceNumber, onPaymentConfirmed]);
+  }, [invoiceId, pesaflowInvoiceNumber, onPaymentConfirmed, persistPayment]);
 
   const handleIframeLoad = useCallback(() => {
     setPaymentState('checkout');
@@ -68,8 +80,9 @@ export function PesaflowCheckoutDialog({
       const status = await queryPaymentStatus(invoiceId, pesaflowInvoiceNumber);
       setPaymentStatus(status);
       if (status.status === 'PAID' || status.amountPaid > 0) {
-        setPaymentState('paid');
         if (pollingRef.current) clearInterval(pollingRef.current);
+        await persistPayment();
+        setPaymentState('paid');
         toast.success('Payment confirmed!');
         onPaymentConfirmed?.();
       } else {
@@ -80,7 +93,7 @@ export function PesaflowCheckoutDialog({
       setPaymentState('checkout');
       toast.error('Could not check payment status');
     }
-  }, [invoiceId, pesaflowInvoiceNumber, onPaymentConfirmed]);
+  }, [invoiceId, pesaflowInvoiceNumber, onPaymentConfirmed, persistPayment]);
 
   useEffect(() => {
     if (open && paymentLink) {

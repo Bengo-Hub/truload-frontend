@@ -5,10 +5,12 @@ import {
   upsertIntegration,
   testIntegrationConnectivity,
   reconcilePayments,
+  reconcileInvoice,
   createPesaflowInvoice,
   queryPaymentStatus,
   type UpsertIntegrationConfigRequest,
   type CreatePesaflowInvoiceRequest,
+  type ReconcileRequest,
 } from '@/lib/api/integration';
 import { QUERY_OPTIONS } from '@/lib/query/config';
 import { INVOICE_QUERY_KEYS } from './useInvoiceQueries';
@@ -76,6 +78,23 @@ export function useTestConnectivity() {
 export function useReconcilePayments() {
   return useMutation({
     mutationFn: reconcilePayments,
+  });
+}
+
+/**
+ * Reconcile a single invoice against Pesaflow — records the receipt, marks the invoice paid,
+ * and auto-closes the linked case. Used to persist payment when the gateway reports PAID
+ * (checkout poll / payment-result page), and for manual reconciliation.
+ */
+export function useReconcileInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ invoiceId, request }: { invoiceId: string; request: ReconcileRequest }) =>
+      reconcileInvoice(invoiceId, request),
+    onSuccess: (_data, { invoiceId }) => {
+      queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoiceById(invoiceId) });
+      queryClient.invalidateQueries({ queryKey: INVOICE_QUERY_KEYS.invoices });
+    },
   });
 }
 

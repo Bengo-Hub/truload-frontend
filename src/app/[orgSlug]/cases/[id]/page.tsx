@@ -1,6 +1,6 @@
 "use client";
 
-import { CaseAssignmentLog, ConvictionHistory, EscalateCaseModal, ProsecutionSection } from '@/components/case';
+import { CaseAssignmentLog, CaseOverviewCards, ConvictionHistory, EscalateCaseModal, EscalateChooserModal, ProsecutionSection } from '@/components/case';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
@@ -40,29 +40,22 @@ import { downloadSpecialReleaseCertificate } from '@/lib/api/caseRegister';
 import { downloadWeightTicketPdf } from '@/lib/api/weighing';
 import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
 import {
-    AlertTriangle,
     ArrowLeft,
     ArrowRight,
     Briefcase,
     Calendar,
-    Car,
-    CheckCircle,
-    Clock,
-    Download,
     FileText,
     Gavel,
     Loader2,
-    Scale,
     Send,
     Shield,
     TrendingUp,
     User,
-    Weight,
     XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 /**
@@ -80,6 +73,7 @@ import { toast } from 'sonner';
  */
 export default function CaseDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgSlug = useOrgSlug();
   const caseId = params.id as string;
 
@@ -101,7 +95,17 @@ export default function CaseDetailPage() {
   // Modal states
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [showEscalateChooser, setShowEscalateChooser] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>(
+    searchParams.get('tab') === 'prosecution' ? 'prosecution' : 'overview'
+  );
+
+  // Honour escalation deep-links from the chooser / case-register list.
+  useEffect(() => {
+    if (searchParams.get('tab') === 'prosecution') setActiveTab('prosecution');
+    if (searchParams.get('escalate') === 'manager') setShowEscalateModal(true);
+  }, [searchParams]);
   const [showTicketPreview, setShowTicketPreview] = useState(false);
   const [ticketPdfBlob, setTicketPdfBlob] = useState<Blob | null>(null);
   const [ticketPdfLoading, setTicketPdfLoading] = useState(false);
@@ -175,11 +179,6 @@ export default function CaseDetailPage() {
     caseData?.dispositionType?.toLowerCase().includes('special release');
   const isEscalated = caseData?.escalatedToCaseManager ||
     caseData?.caseStatus?.toUpperCase() === 'ESCALATED';
-
-  const formatWeight = (kg?: number) => {
-    if (kg == null) return '-';
-    return `${kg.toLocaleString()} kg`;
-  };
 
   const handleViewWeightTicket = useCallback(async (weighingId: string) => {
     setShowTicketPreview(true);
@@ -267,7 +266,7 @@ export default function CaseDetailPage() {
                       Request Release
                     </Button>
                     {!caseData.escalatedToCaseManager && (
-                      <Button variant="outline" onClick={() => setShowEscalateModal(true)}>
+                      <Button variant="outline" onClick={() => setShowEscalateChooser(true)}>
                         <TrendingUp className="mr-2 h-4 w-4" />
                         Escalate
                       </Button>
@@ -309,7 +308,7 @@ export default function CaseDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column – Tabs */}
               <div className="lg:col-span-2 space-y-6">
-                <Tabs defaultValue="overview" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className={`grid w-full ${isSpecialRelease ? 'grid-cols-1' : 'grid-cols-2'}`}>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     {!isSpecialRelease && (
@@ -319,217 +318,12 @@ export default function CaseDetailPage() {
 
                   {/* Overview Tab */}
                   <TabsContent value="overview" className="space-y-6">
-                    {/* Violation Details */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <AlertTriangle className="h-5 w-5 text-red-500" />
-                          Violation Details
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-sm text-gray-500">Violation Type</Label>
-                            <p className="font-medium">{caseData.violationType}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm text-gray-500">Applicable Act</Label>
-                            <p className="font-medium">{caseData.actName || 'Not specified'}</p>
-                          </div>
-                        </div>
-                        {caseData.violationDetails && (
-                          <div>
-                            <Label className="text-sm text-gray-500">Details</Label>
-                            <p className="font-medium">{caseData.violationDetails}</p>
-                          </div>
-                        )}
-                        {caseData.weighingTicketNo && (
-                          <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-lg">
-                            <Scale className="h-5 w-5 text-blue-600" />
-                            <div>
-                              <Label className="text-sm text-gray-500">Weighing Ticket</Label>
-                              <p className="font-mono font-medium">{caseData.weighingTicketNo}</p>
-                            </div>
-                            {caseData.weighingId && (
-                              <Button variant="link" size="sm" onClick={() => handleViewWeightTicket(caseData.weighingId!)}>
-                                View Ticket
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                        {caseData.prohibitionNo && (
-                          <div className="flex items-center gap-4 p-3 bg-red-50 rounded-lg">
-                            <FileText className="h-5 w-5 text-red-600" />
-                            <div>
-                              <Label className="text-sm text-gray-500">Prohibition Order</Label>
-                              <p className="font-mono font-medium">{caseData.prohibitionNo}</p>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Overload Analysis */}
-                    {caseData.weighingId && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Weight className="h-5 w-5 text-orange-500" />
-                            Overload Analysis
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {caseData.actualWeightKg != null ? (
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="text-sm text-gray-500">Actual Weight (GVW)</Label>
-                                  <p className="font-mono font-bold text-lg">{formatWeight(caseData.actualWeightKg)}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm text-gray-500">Permissible Weight</Label>
-                                  <p className="font-mono font-medium text-lg">{formatWeight(caseData.permissibleWeightKg)}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm text-gray-500">Tolerance Applied</Label>
-                                  <p className="font-mono font-medium">{formatWeight(caseData.toleranceAppliedKg)}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm text-gray-500">Overload After Tolerance</Label>
-                                  <p className={`font-mono font-bold text-lg ${
-                                    (caseData.overloadAfterToleranceKg ?? 0) > 0 ? 'text-red-600' : 'text-green-600'
-                                  }`}>
-                                    {formatWeight(caseData.overloadAfterToleranceKg)}
-                                  </p>
-                                </div>
-                              </div>
-                              {caseData.weighingId && (
-                                <Button variant="outline" size="sm" className="mt-2" onClick={() => handleViewWeightTicket(caseData.weighingId!)}>
-                                  <Scale className="mr-2 h-4 w-4" />
-                                  View Full Weight Ticket
-                                </Button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                              <Scale className="h-5 w-5 text-gray-400" />
-                              <div>
-                                <p className="text-sm text-gray-600">
-                                  Overload details are available on the weight ticket.
-                                </p>
-                                <Button variant="link" size="sm" className="px-0" onClick={() => handleViewWeightTicket(caseData.weighingId!)}>
-                                  View weight ticket for full analysis
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Vehicle & Driver */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Car className="h-5 w-5 text-blue-500" />
-                          Vehicle & Driver
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-sm text-gray-500">Vehicle Registration</Label>
-                            <p className="font-mono font-bold text-lg">{caseData.vehicleRegNumber}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm text-gray-500">Driver Name</Label>
-                            <p className="font-medium">{caseData.driverName || 'Not recorded'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm text-gray-500">Driver License</Label>
-                            <p className="font-medium">{caseData.driverLicenseNo || '-'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm text-gray-500">Driver NTAC No</Label>
-                            <p className="font-medium">{caseData.driverNtacNo || '-'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm text-gray-500">Transporter</Label>
-                            <p className="font-medium">{caseData.transporterName || '-'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm text-gray-500">Transporter NTAC No</Label>
-                            <p className="font-medium">{caseData.transporterNtacNo || '-'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-sm text-gray-500">OB Number</Label>
-                            <p className="font-medium">{caseData.obNo || '-'}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Special Releases */}
-                    {specialReleases.length > 0 && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-green-500" />
-                            Special Releases
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {specialReleases.map((release) => (
-                              <div
-                                key={release.id}
-                                className={`p-3 rounded-lg border ${
-                                  release.isApproved
-                                    ? 'bg-green-50 border-green-200'
-                                    : release.isRejected
-                                    ? 'bg-red-50 border-red-200'
-                                    : 'bg-yellow-50 border-yellow-200'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="font-mono font-medium">{release.certificateNo}</p>
-                                    <p className="text-sm text-gray-600">{release.releaseType}</p>
-                                  </div>
-                                  {release.isApproved ? (
-                                    <Badge className="bg-green-100 text-green-800">
-                                      <CheckCircle className="h-3 w-3 mr-1" />Approved
-                                    </Badge>
-                                  ) : release.isRejected ? (
-                                    <Badge className="bg-red-100 text-red-800">
-                                      <XCircle className="h-3 w-3 mr-1" />Rejected
-                                    </Badge>
-                                  ) : (
-                                    <Badge className="bg-yellow-100 text-yellow-800">
-                                      <Clock className="h-3 w-3 mr-1" />Pending
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between mt-2">
-                                  <p className="text-sm text-gray-500">{release.reason}</p>
-                                  {release.isApproved && release.certificateNo && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDownloadCertificate(release.id, release.certificateNo)}
-                                    >
-                                      <Download className="h-3 w-3 mr-1" />
-                                      View Certificate
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
+                    <CaseOverviewCards
+                      caseData={caseData}
+                      specialReleases={specialReleases}
+                      onViewWeightTicket={handleViewWeightTicket}
+                      onDownloadCertificate={handleDownloadCertificate}
+                    />
                   </TabsContent>
 
                   {/* Prosecution Tab (hidden for special release cases) */}
@@ -539,6 +333,9 @@ export default function CaseDetailPage() {
                         caseId={caseId}
                         caseNo={caseData.caseNo}
                         weighingId={caseData.weighingId}
+                        driverName={caseData.driverName}
+                        driverIdNumber={caseData.driverIdNumber}
+                        driverPhone={caseData.driverPhoneNumber}
                         readOnly={false}
                       />
                     </TabsContent>
@@ -769,7 +566,14 @@ export default function CaseDetailPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Escalate Modal */}
+          {/* Escalation chooser — prosecution vs case manager */}
+          <EscalateChooserModal
+            open={showEscalateChooser}
+            onOpenChange={setShowEscalateChooser}
+            caseId={caseId}
+          />
+
+          {/* Escalate to Case Manager Modal */}
           <EscalateCaseModal
             open={showEscalateModal}
             onOpenChange={setShowEscalateModal}
