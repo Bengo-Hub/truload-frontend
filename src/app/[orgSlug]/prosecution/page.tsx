@@ -46,14 +46,15 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
     useDeleteProsecution,
-    useDownloadChargeSheet,
     useProsecutionSearch,
     useProsecutionStatistics,
     useUpdateProsecution,
 } from '@/hooks/queries';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
 import { useHasPermission } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
-import type { ProsecutionCaseDto, ProsecutionSearchCriteria } from '@/lib/api/prosecution';
+import { downloadChargeSheetPdf, type ProsecutionCaseDto, type ProsecutionSearchCriteria } from '@/lib/api/prosecution';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     AlertTriangle,
@@ -125,7 +126,7 @@ function ProsecutionContent() {
   // Mutation hooks
   const updateMutation = useUpdateProsecution();
   const deleteMutation = useDeleteProsecution();
-  const downloadChargeSheetMutation = useDownloadChargeSheet();
+  const { openPreview, previewProps } = useDocumentPreview();
 
   // Handle search
   const handleSearch = useCallback(() => {
@@ -211,14 +212,11 @@ function ProsecutionContent() {
   };
 
   // Download charge sheet
-  const handleDownloadChargeSheet = async (id: string) => {
-    try {
-      await downloadChargeSheetMutation.mutateAsync(id);
-      toast.success('Charge sheet downloaded');
-    } catch {
-      toast.error('Failed to download charge sheet');
-    }
-  };
+  const handleDownloadChargeSheet = (item: ProsecutionCaseDto) =>
+    openPreview(() => downloadChargeSheetPdf(item.id), {
+      fileName: `ChargeSheet_${item.certificateNo || item.id}.pdf`,
+      title: 'Charge Sheet',
+    });
 
   // Get status badge
   const getStatusBadge = (status: string) => {
@@ -558,10 +556,9 @@ function ProsecutionContent() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDownloadChargeSheet(item.id)}
-                              title="Download Charge Sheet"
+                              onClick={() => handleDownloadChargeSheet(item)}
+                              title="View Charge Sheet"
                               className="h-8 w-8"
-                              disabled={downloadChargeSheetMutation.isPending}
                             >
                               <Download className="h-4 w-4" />
                             </Button>
@@ -782,6 +779,8 @@ function ProsecutionContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PdfPreviewDialog {...previewProps} />
     </div>
   );
 }

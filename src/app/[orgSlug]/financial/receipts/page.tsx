@@ -43,15 +43,16 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    useDownloadReceipt,
     useReceiptSearch,
     useReceiptStatistics,
     useVoidReceipt,
 } from '@/hooks/queries/useReceiptQueries';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { ReceiptDto, ReceiptSearchCriteria } from '@/lib/api/receipt';
-import { hardDeleteReceipt } from '@/lib/api/receipt';
+import { downloadReceiptPdf, hardDeleteReceipt } from '@/lib/api/receipt';
 import {
     AlertCircle,
     CreditCard,
@@ -91,7 +92,7 @@ export default function ReceiptsPage() {
 
   // Mutations
   const voidReceiptMutation = useVoidReceipt();
-  const downloadPdfMutation = useDownloadReceipt();
+  const { openPreview, previewProps } = useDocumentPreview();
   const hardDeleteMutation = useMutation({
     mutationFn: (id: string) => hardDeleteReceipt(id),
     onSuccess: () => {
@@ -141,14 +142,11 @@ export default function ReceiptsPage() {
     }
   };
 
-  const handleDownloadPdf = async (receipt: ReceiptDto) => {
-    try {
-      await downloadPdfMutation.mutateAsync(receipt.id);
-      toast.success('Receipt downloaded');
-    } catch (_error) {
-      toast.error('Failed to download receipt');
-    }
-  };
+  const handleDownloadPdf = (receipt: ReceiptDto) =>
+    openPreview(() => downloadReceiptPdf(receipt.id), {
+      fileName: `Receipt_${receipt.receiptNo}.pdf`,
+      title: `Receipt ${receipt.receiptNo}`,
+    });
 
   const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -422,7 +420,6 @@ export default function ReceiptsPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDownloadPdf(receipt)}
-                                  disabled={downloadPdfMutation.isPending}
                                 >
                                   <Download className="h-4 w-4" />
                                 </Button>
@@ -591,6 +588,8 @@ export default function ReceiptsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <PdfPreviewDialog {...previewProps} />
         </div>
       </ProtectedRoute>
     </AppShell>

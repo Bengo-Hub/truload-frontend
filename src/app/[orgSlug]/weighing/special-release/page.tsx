@@ -2,6 +2,8 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,6 +79,7 @@ function SpecialReleaseContent() {
   const searchParams = useSearchParams();
   const orgSlug = useOrgSlug();
   const transactionId = searchParams.get('transactionId');
+  const { openPreview, previewProps } = useDocumentPreview();
 
   // Form state
   const [selectedReleaseTypeId, setSelectedReleaseTypeId] = useState<string>('');
@@ -197,24 +200,12 @@ function SpecialReleaseContent() {
     });
   }, [selectedReleaseId, rejectionReason, rejectReleaseMutation, refetchReleases]);
 
-  // Handle download certificate
-  const handleDownloadCertificate = useCallback(async (releaseId: string, certificateNo: string) => {
-    try {
-      const blob = await downloadSpecialReleaseCertificate(releaseId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SpecialRelease_${certificateNo}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Certificate downloaded');
-    } catch (error) {
-      console.error('Failed to download certificate:', error);
-      toast.error('Failed to download certificate');
-    }
-  }, []);
+  // Open the special-release certificate in the preview dialog (download/print from there).
+  const handleDownloadCertificate = useCallback((releaseId: string, certificateNo: string) =>
+    openPreview(() => downloadSpecialReleaseCertificate(releaseId), {
+      fileName: `SpecialRelease_${certificateNo}.pdf`,
+      title: `Special Release ${certificateNo}`,
+    }), [openPreview]);
 
   // Get status badge for release
   const getStatusBadge = (release: SpecialReleaseDto) => {
@@ -613,6 +604,8 @@ function SpecialReleaseContent() {
               </Card>
             </div>
           )}
+
+          <PdfPreviewDialog {...previewProps} />
         </div>
       </ProtectedRoute>
     </AppShell>
