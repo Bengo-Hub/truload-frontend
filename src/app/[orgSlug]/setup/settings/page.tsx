@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -53,12 +54,21 @@ import {
   Cpu,
   Download,
   Scale,
-  Info
+  Info,
+  Palette,
+  Gavel,
+  Calculator,
 } from 'lucide-react';
 
 import { ExchangeRateSettings } from '@/components/integrations/ExchangeRateSettings';
 import { WeighingSettingsTab } from '@/components/settings/WeighingSettingsTab';
 import { CommercialSettingsTab } from '@/components/settings/CommercialSettingsTab';
+import { BrandSettingsTab } from '@/components/settings/BrandSettingsTab';
+import { CategorySettingsTab } from '@/components/settings/CategorySettingsTab';
+import { DocumentConventionsTab } from '@/components/settings/DocumentConventionsTab';
+import { DocumentSequencesTab } from '@/components/settings/DocumentSequencesTab';
+import { ProsecutionSettingsTab } from '@/components/settings/ProsecutionSettingsTab';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
 
 // ============================================================================
@@ -129,10 +139,14 @@ export default function IntegrationSettingsPage() {
 type TabId =
   | 'payment-gateways'
   | 'api-settings'
+  | 'branding'
   | 'exchange-rates'
+  | 'financial'
   | 'weighing'
   | 'commercial'
   | 'invoice-payment'
+  | 'documents'
+  | 'prosecution'
   | 'middleware';
 
 interface NavItem {
@@ -145,13 +159,17 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { id: 'branding',         label: 'Branding',      icon: <Palette className="h-4 w-4" />,    group: 'Organisation' },
+  { id: 'weighing',         label: 'Weighing',      icon: <Scale className="h-4 w-4" />,      group: 'Organisation' },
+  { id: 'commercial',       label: 'Commercial',    icon: <Globe className="h-4 w-4" />,      group: 'Organisation', commercialOnly: true },
+  { id: 'invoice-payment',  label: 'Invoice',       icon: <FileText className="h-4 w-4" />,   group: 'Organisation' },
   { id: 'payment-gateways', label: 'Payments',      icon: <CreditCard className="h-4 w-4" />, group: 'Integrations', ownerOnly: true },
   { id: 'api-settings',     label: 'APIs',          icon: <Settings2 className="h-4 w-4" />,  group: 'Integrations', ownerOnly: true },
-  { id: 'exchange-rates',   label: 'Rates',         icon: <DollarSign className="h-4 w-4" />, group: 'Settings' },
-  { id: 'weighing',         label: 'Weighing',      icon: <Scale className="h-4 w-4" />,      group: 'Settings' },
-  { id: 'commercial',       label: 'Commercial',    icon: <Globe className="h-4 w-4" />,      group: 'Settings', commercialOnly: true },
-  { id: 'invoice-payment',  label: 'Invoice',       icon: <FileText className="h-4 w-4" />,   group: 'Settings' },
-  { id: 'middleware',       label: 'Middleware',    icon: <Cpu className="h-4 w-4" />,        group: 'System' },
+  { id: 'exchange-rates',   label: 'Exchange Rates',icon: <DollarSign className="h-4 w-4" />, group: 'Financial' },
+  { id: 'financial',        label: 'Financial',     icon: <Calculator className="h-4 w-4" />, group: 'Financial', ownerOnly: true },
+  { id: 'documents',        label: 'Documents',     icon: <FileText className="h-4 w-4" />,    group: 'System', ownerOnly: true },
+  { id: 'prosecution',      label: 'Prosecution',   icon: <Gavel className="h-4 w-4" />,       group: 'System', ownerOnly: true },
+  { id: 'middleware',       label: 'Connectivity',  icon: <Cpu className="h-4 w-4" />,         group: 'System' },
 ];
 
 function IntegrationSettingsContent() {
@@ -166,8 +184,15 @@ function IntegrationSettingsContent() {
       (!item.commercialOnly || isCommercial)
   );
 
-  const defaultTab = isPlatformOwner ? 'payment-gateways' : isCommercial ? 'commercial' : 'exchange-rates';
-  const [activeTab, setActiveTab] = useState<TabId>(defaultTab as TabId);
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams?.get('tab') as TabId | null) ?? 'branding';
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+
+  // Honour deep links / redirects from the old System Config route (?tab=).
+  useEffect(() => {
+    const tab = searchParams?.get('tab');
+    if (tab) setActiveTab(tab as TabId);
+  }, [searchParams]);
 
   // Group items for sidebar
   const groups = useMemo(() => {
@@ -250,12 +275,25 @@ function IntegrationSettingsContent() {
 
         {/* Content area */}
         <div className="flex-1 min-w-0">
+          {activeTab === 'branding'         && <BrandSettingsTab canEdit={canEdit} />}
           {activeTab === 'payment-gateways' && isPlatformOwner && <PaymentGatewaysTab canEdit={canEdit} isCommercial={isCommercial} />}
           {activeTab === 'api-settings'     && isPlatformOwner && <ApiSettingsTab canEdit={canEdit} />}
           {activeTab === 'exchange-rates'   && <ExchangeRateSettings />}
+          {activeTab === 'financial'        && isPlatformOwner && <CategorySettingsTab category="Financial" description="Financial calculation parameters including exchange-rate fallbacks and invoice aging thresholds used in reports." />}
           {activeTab === 'weighing'         && <WeighingSettingsTab isCommercial={isCommercial} />}
           {activeTab === 'commercial'       && isCommercial     && <CommercialSettingsTab canEdit={canEdit} />}
           {activeTab === 'invoice-payment'  && <InvoicePaymentSettingsTab canEdit={canEdit} />}
+          {activeTab === 'documents'        && isPlatformOwner && (
+            <Tabs defaultValue="conventions" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="conventions">Numbering conventions</TabsTrigger>
+                <TabsTrigger value="sequences">Sequence counters</TabsTrigger>
+              </TabsList>
+              <TabsContent value="conventions"><DocumentConventionsTab canEdit={canEdit} /></TabsContent>
+              <TabsContent value="sequences"><DocumentSequencesTab canEdit={canEdit} /></TabsContent>
+            </Tabs>
+          )}
+          {activeTab === 'prosecution'      && isPlatformOwner && <ProsecutionSettingsTab />}
           {activeTab === 'middleware'       && <MiddlewareTab />}
         </div>
       </div>
