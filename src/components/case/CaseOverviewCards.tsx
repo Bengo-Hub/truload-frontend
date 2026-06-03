@@ -25,6 +25,8 @@ interface CaseOverviewCardsProps {
   onViewWeightTicket?: (weighingId: string) => void;
   /** When provided, renders certificate download buttons for approved special releases. */
   onDownloadCertificate?: (releaseId: string, certificateNo: string) => void;
+  /** When provided, renders a "View Prohibition Order" button (beyond-tolerance overload cases). */
+  onViewProhibition?: (prohibitionOrderId: string) => void;
 }
 
 const formatWeight = (kg?: number) => (kg == null ? '-' : `${kg.toLocaleString()} kg`);
@@ -38,6 +40,7 @@ export function CaseOverviewCards({
   specialReleases = [],
   onViewWeightTicket,
   onDownloadCertificate,
+  onViewProhibition,
 }: CaseOverviewCardsProps) {
   return (
     <div className="space-y-6">
@@ -81,12 +84,25 @@ export function CaseOverviewCards({
             </div>
           )}
           {caseData.prohibitionNo && (
-            <div className="flex items-center gap-4 p-3 bg-red-50 rounded-lg">
-              <FileText className="h-5 w-5 text-red-600" />
-              <div>
-                <Label className="text-sm text-gray-500">Prohibition Order</Label>
-                <p className="font-mono font-medium">{caseData.prohibitionNo}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-red-50 rounded-lg">
+              <div className="flex items-center gap-4 flex-1">
+                <FileText className="h-5 w-5 text-red-600 shrink-0" />
+                <div>
+                  <Label className="text-sm text-gray-500">Prohibition Order</Label>
+                  <p className="font-mono font-medium">{caseData.prohibitionNo}</p>
+                </div>
               </div>
+              {caseData.prohibitionOrderId && onViewProhibition && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => onViewProhibition(caseData.prohibitionOrderId!)}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Prohibition Order
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
