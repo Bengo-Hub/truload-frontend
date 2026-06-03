@@ -36,7 +36,7 @@ import {
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { fetchUsers } from '@/lib/api/setup';
 import { useQuery } from '@tanstack/react-query';
-import { downloadSpecialReleaseCertificate } from '@/lib/api/caseRegister';
+import { downloadProhibitionOrderPdf, downloadSpecialReleaseCertificate } from '@/lib/api/caseRegister';
 import { downloadWeightTicketPdf } from '@/lib/api/weighing';
 import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
 import { useDocumentPreview } from '@/hooks/useDocumentPreview';
@@ -317,6 +317,11 @@ export default function CaseDetailPage() {
                       specialReleases={specialReleases}
                       onViewWeightTicket={handleViewWeightTicket}
                       onDownloadCertificate={handleDownloadCertificate}
+                      onViewProhibition={(prohibitionOrderId) =>
+                        openPreview(() => downloadProhibitionOrderPdf(prohibitionOrderId), {
+                          fileName: `ProhibitionOrder_${caseData.prohibitionNo || prohibitionOrderId}.pdf`,
+                          title: 'Prohibition Order',
+                        })}
                     />
                   </TabsContent>
 
