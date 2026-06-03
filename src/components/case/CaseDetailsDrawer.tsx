@@ -16,6 +16,10 @@ import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { ArrowRight, Loader2, Scale, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { CaseOverviewCards } from './CaseOverviewCards';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
+import { downloadProhibitionOrderPdf, downloadSpecialReleaseCertificate } from '@/lib/api/caseRegister';
+import { downloadWeightTicketPdf } from '@/lib/api/weighing';
 
 interface CaseDetailsDrawerProps {
   open: boolean;
@@ -43,6 +47,7 @@ export function CaseDetailsDrawer({ open, onOpenChange, caseId, onEscalate }: Ca
   const orgSlug = useOrgSlug();
   const { data: caseData, isLoading } = useCaseById(open && caseId ? caseId : undefined);
   const { data: specialReleases = [] } = useSpecialReleasesByCase(open && caseId ? caseId : undefined);
+  const { openPreview, previewProps } = useDocumentPreview();
 
   const isEscalated = !!caseData?.escalatedToCaseManager || !!caseData?.hasProsecution
     || caseData?.caseStatus?.toUpperCase() === 'ESCALATED';
@@ -68,9 +73,29 @@ export function CaseDetailsDrawer({ open, onOpenChange, caseId, onEscalate }: Ca
               <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             </div>
           ) : (
-            <CaseOverviewCards caseData={caseData} specialReleases={specialReleases} />
+            <CaseOverviewCards
+              caseData={caseData}
+              specialReleases={specialReleases}
+              onViewWeightTicket={(weighingId) =>
+                openPreview(() => downloadWeightTicketPdf(weighingId), {
+                  fileName: `WeightTicket_${caseData.weighingTicketNo || weighingId}.pdf`,
+                  title: 'Weight Ticket',
+                })}
+              onDownloadCertificate={(releaseId, certificateNo) =>
+                openPreview(() => downloadSpecialReleaseCertificate(releaseId), {
+                  fileName: `SpecialRelease_${certificateNo}.pdf`,
+                  title: `Special Release ${certificateNo}`,
+                })}
+              onViewProhibition={(prohibitionOrderId) =>
+                openPreview(() => downloadProhibitionOrderPdf(prohibitionOrderId), {
+                  fileName: `ProhibitionOrder_${caseData.prohibitionNo || prohibitionOrderId}.pdf`,
+                  title: 'Prohibition Order',
+                })}
+            />
           )}
         </SheetBody>
+
+        <PdfPreviewDialog {...previewProps} />
 
         <SheetFooter className="px-6 py-4 border-t flex-row gap-2 sm:justify-between">
           {caseId && !isEscalated && !isClosed && onEscalate && (
