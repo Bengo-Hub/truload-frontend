@@ -241,9 +241,9 @@ function IntegrationSettingsContent() {
 
       {/* Desktop: sidebar + content */}
       <div className="flex gap-6 items-start">
-        {/* Left sidebar — desktop only */}
-        <aside className="hidden lg:block w-48 shrink-0">
-          <nav className="space-y-5 sticky top-4">
+        {/* Left sidebar — desktop only; stays fixed while the content scrolls */}
+        <aside className="hidden lg:block w-48 shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto">
+          <nav className="space-y-5">
             {Object.entries(groups).map(([group, items]) => (
               <div key={group}>
                 <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
