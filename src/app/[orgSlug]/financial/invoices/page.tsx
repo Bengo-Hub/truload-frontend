@@ -49,17 +49,18 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    useDownloadInvoice,
     useInvoiceSearch,
     useInvoiceStatistics,
     useUpdateInvoiceStatus,
     useVoidInvoice,
 } from '@/hooks/queries/useInvoiceQueries';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { createPesaflowInvoice } from '@/lib/api/integration';
 import type { InvoiceDto, InvoiceSearchCriteria } from '@/lib/api/invoice';
-import { hardDeleteInvoice } from '@/lib/api/invoice';
+import { downloadInvoicePdf, hardDeleteInvoice } from '@/lib/api/invoice';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     AlertCircle,
@@ -113,7 +114,7 @@ export default function InvoicesPage() {
   // Mutations
   const updateStatusMutation = useUpdateInvoiceStatus();
   const voidInvoiceMutation = useVoidInvoice();
-  const downloadPdfMutation = useDownloadInvoice();
+  const { openPreview, previewProps } = useDocumentPreview();
   const hardDeleteMutation = useMutation({
     mutationFn: (id: string) => hardDeleteInvoice(id),
     onSuccess: () => {
@@ -214,14 +215,11 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleDownloadPdf = async (invoice: InvoiceDto) => {
-    try {
-      await downloadPdfMutation.mutateAsync(invoice.id);
-      toast.success('Invoice downloaded');
-    } catch (_error) {
-      toast.error('Failed to download invoice');
-    }
-  };
+  const handleDownloadPdf = (invoice: InvoiceDto) =>
+    openPreview(() => downloadInvoicePdf(invoice.id), {
+      fileName: `Invoice_${invoice.invoiceNo}.pdf`,
+      title: `Invoice ${invoice.invoiceNo}`,
+    });
 
   const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -495,9 +493,8 @@ export default function InvoicesPage() {
                                 <PermissionActionButton
                                   permission="invoice.read"
                                   icon={Download}
-                                  label="Download"
+                                  label="View"
                                   onClick={() => handleDownloadPdf(invoice)}
-                                  disabled={downloadPdfMutation.isPending}
                                 />
                                 <PermissionActionButton
                                   permission="invoice.update"
@@ -746,6 +743,8 @@ export default function InvoicesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <PdfPreviewDialog {...previewProps} />
         </div>
       </ProtectedRoute>
     </AppShell>

@@ -16,10 +16,11 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import {
   useAssignmentsByCaseId, useCurrentAssignment, useLogAssignment, useOfficersList,
 } from '@/hooks/queries';
-import { Loader2, Plus, Shield, User, ArrowRight } from 'lucide-react';
+import { Eye, Loader2, Plus, Shield, User, ArrowRight } from 'lucide-react';
 import { useHasPermission } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -53,6 +54,7 @@ export function CaseAssignmentLog({ caseId, caseNo }: Props) {
   const { data: officers = [] } = useOfficersList();
 
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selected, setSelected] = useState<(typeof assignments)[number] | null>(null);
 
   const {
     register,
@@ -95,6 +97,9 @@ export function CaseAssignmentLog({ caseId, caseNo }: Props) {
 
   const formatDate = (d?: string) =>
     d ? format(new Date(d), 'dd MMM yyyy HH:mm') : '-';
+
+  const getTypeBadgeLabel = (type: string) =>
+    ASSIGNMENT_TYPES.find((t) => t.value === type?.toUpperCase())?.label ?? type;
 
   const getTypeBadge = (type: string) => {
     switch (type?.toUpperCase()) {
@@ -150,46 +155,64 @@ export function CaseAssignmentLog({ caseId, caseNo }: Props) {
             </div>
           )}
 
-          {/* Timeline */}
-          {assignments.length === 0 ? (
-            <div className="text-center py-6 text-gray-500">
-              <Shield className="h-10 w-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">No assignment history</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {assignments.map((a) => (
-                <div
-                  key={a.id}
-                  className={`relative pl-6 pb-3 border-l-2 ${
-                    a.isCurrent ? 'border-indigo-400' : 'border-gray-200'
-                  }`}
-                >
-                  <div className={`absolute -left-[5px] top-1 h-2 w-2 rounded-full ${
-                    a.isCurrent ? 'bg-indigo-500' : 'bg-gray-300'
-                  }`} />
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{a.newOfficerName}</span>
-                    {getTypeBadge(a.assignmentType)}
-                    {a.isCurrent && <Badge className="bg-indigo-100 text-indigo-800 text-xs">Current</Badge>}
-                  </div>
-                  {a.previousOfficerName && (
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                      <span>{a.previousOfficerName}</span>
-                      <ArrowRight className="h-3 w-3" />
-                      <span>{a.newOfficerName}</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-0.5">{a.reason}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {formatDate(a.assignedAt)} &middot; by {a.assignedByName}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* History — overflow-safe table (cards on mobile) + per-row details modal */}
+          <ResponsiveTable
+            data={assignments}
+            keyExtractor={(a) => a.id}
+            emptyMessage="No assignment history"
+            columns={[
+              {
+                key: 'officer', header: 'Officer', primary: true, render: (a) => (
+                  <span className="flex items-center gap-2">
+                    {a.newOfficerName}
+                    {a.isCurrent && <Badge className="bg-indigo-100 text-indigo-800 text-[10px]">Current</Badge>}
+                  </span>
+                ),
+              },
+              { key: 'type', header: 'Type', render: (a) => getTypeBadge(a.assignmentType) },
+              { key: 'date', header: 'Date', hideTablet: true, render: (a) => <span className="text-xs">{formatDate(a.assignedAt)}</span> },
+              { key: 'by', header: 'Assigned by', hideTablet: true, render: (a) => <span className="text-xs">{a.assignedByName}</span> },
+            ]}
+            actionsRenderer={(a) => (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(a)} title="View details">
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
+          />
         </CardContent>
       </Card>
+
+      {/* Assignment details modal */}
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-indigo-500" />
+              {selected?.newOfficerName}
+            </DialogTitle>
+            <DialogDescription>{selected && getTypeBadgeLabel(selected.assignmentType)} · {selected && formatDate(selected.assignedAt)}</DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-3 text-sm">
+              {selected.previousOfficerName && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>{selected.previousOfficerName}</span>
+                  <ArrowRight className="h-3 w-3" />
+                  <span className="font-medium text-foreground">{selected.newOfficerName}</span>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground">Reason</p>
+                <p className="whitespace-pre-wrap">{selected.reason || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Assigned by</p>
+                <p className="font-medium">{selected.assignedByName}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Officer Modal */}
       <Dialog open={showAssignModal} onOpenChange={(open) => { setShowAssignModal(open); if (!open) reset(); }}>

@@ -39,6 +39,7 @@ import { useQuery } from '@tanstack/react-query';
 import { downloadSpecialReleaseCertificate } from '@/lib/api/caseRegister';
 import { downloadWeightTicketPdf } from '@/lib/api/weighing';
 import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
 import {
     ArrowLeft,
     ArrowRight,
@@ -109,6 +110,10 @@ export default function CaseDetailPage() {
   const [showTicketPreview, setShowTicketPreview] = useState(false);
   const [ticketPdfBlob, setTicketPdfBlob] = useState<Blob | null>(null);
   const [ticketPdfLoading, setTicketPdfLoading] = useState(false);
+  const [showReason, setShowReason] = useState(false);
+
+  // Document preview (special-release certificate, etc.)
+  const { openPreview, previewProps } = useDocumentPreview();
 
   // Form states
   const [closeDispositionId, setCloseDispositionId] = useState('');
@@ -195,22 +200,11 @@ export default function CaseDetailPage() {
     }
   }, []);
 
-  const handleDownloadCertificate = async (releaseId: string, certificateNo: string) => {
-    try {
-      const blob = await downloadSpecialReleaseCertificate(releaseId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SpecialRelease_${certificateNo}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Certificate downloaded');
-    } catch {
-      toast.error('Failed to download certificate');
-    }
-  };
+  const handleDownloadCertificate = (releaseId: string, certificateNo: string) =>
+    openPreview(() => downloadSpecialReleaseCertificate(releaseId), {
+      fileName: `SpecialRelease_${certificateNo}.pdf`,
+      title: `Special Release ${certificateNo}`,
+    });
 
   return (
     <AppShell title={caseData ? `Case ${caseData.caseNo}` : isLoading ? 'Loading...' : 'Error'} subtitle="Case register">
@@ -341,6 +335,10 @@ export default function CaseDetailPage() {
                     </TabsContent>
                   )}
                 </Tabs>
+
+                {/* Officer assignments & conviction history — full-width, overflow-safe tables */}
+                <CaseAssignmentLog caseId={caseId} caseNo={caseData.caseNo} />
+                <ConvictionHistory vehicleId={caseData.vehicleId} />
               </div>
 
               {/* Right Column – Sidebar */}
@@ -421,12 +419,6 @@ export default function CaseDetailPage() {
                   </CardContent>
                 </Card>
 
-                {/* Assignment Log */}
-                <CaseAssignmentLog caseId={caseId} caseNo={caseData.caseNo} />
-
-                {/* Conviction History */}
-                <ConvictionHistory vehicleId={caseData.vehicleId} />
-
                 {/* Disposition */}
                 {caseData.dispositionType && (
                   <Card>
@@ -444,7 +436,12 @@ export default function CaseDetailPage() {
                       {caseData.closingReason && (
                         <div>
                           <Label className="text-sm text-gray-500">Reason</Label>
-                          <p className="text-sm">{caseData.closingReason}</p>
+                          <p className="text-sm line-clamp-3">{caseData.closingReason}</p>
+                          {caseData.closingReason.length > 140 && (
+                            <Button variant="link" size="sm" className="px-0 h-auto" onClick={() => setShowReason(true)}>
+                              View full reason
+                            </Button>
+                          )}
                         </div>
                       )}
                       {caseData.courtName && (
@@ -592,6 +589,19 @@ export default function CaseDetailPage() {
             title="Weight Ticket Preview"
             isLoading={ticketPdfLoading}
           />
+
+          {/* Document preview (special-release certificate) */}
+          <PdfPreviewDialog {...previewProps} />
+
+          {/* Full disposition reason */}
+          <Dialog open={showReason} onOpenChange={setShowReason}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Disposition Reason</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm whitespace-pre-wrap">{caseData.closingReason}</p>
+            </DialogContent>
+          </Dialog>
 
           {/* Special Release Modal */}
           <Dialog open={showReleaseModal} onOpenChange={setShowReleaseModal}>

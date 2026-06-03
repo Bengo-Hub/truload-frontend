@@ -33,9 +33,6 @@ import {
 import {
     useChargeCalculation,
     useCreateProsecution,
-    useDownloadChargeSheet,
-    useDownloadInvoice,
-    useDownloadReceipt,
     useGenerateInvoice,
     useInvoicesByProsecutionId,
     useProsecutionByCaseId,
@@ -47,11 +44,13 @@ import {
     useCreatePesaflowInvoice,
 } from '@/hooks/queries/useIntegrationQueries';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
-import type { InvoiceDto } from '@/lib/api/invoice';
-import type { ChargeCalculationResult } from '@/lib/api/prosecution';
-import { generateIdempotencyKey } from '@/lib/api/receipt';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { downloadInvoicePdf, type InvoiceDto } from '@/lib/api/invoice';
+import { downloadChargeSheetPdf, type ChargeCalculationResult } from '@/lib/api/prosecution';
+import { downloadReceiptPdf, generateIdempotencyKey } from '@/lib/api/receipt';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import {
@@ -131,12 +130,12 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
 
   // Mutations
   const createProsecutionMutation = useCreateProsecution();
-  const downloadChargeSheetMutation = useDownloadChargeSheet();
   const generateInvoiceMutation = useGenerateInvoice();
-  const downloadInvoiceMutation = useDownloadInvoice();
   const recordPaymentMutation = useRecordPayment();
-  const downloadReceiptMutation = useDownloadReceipt();
   const createPesaflowInvoiceMutation = useCreatePesaflowInvoice();
+
+  // Document preview (charge sheet / invoice / receipt open in preview first)
+  const { openPreview, previewProps } = useDocumentPreview();
 
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -502,8 +501,10 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => downloadChargeSheetMutation.mutate(prosecution.id)}
-                disabled={downloadChargeSheetMutation.isPending}
+                onClick={() => openPreview(() => downloadChargeSheetPdf(prosecution.id), {
+                  fileName: `ChargeSheet_${prosecution.certificateNo || prosecution.id}.pdf`,
+                  title: 'Charge Sheet',
+                })}
               >
                 <Download className="h-4 w-4 mr-2" />
                 Charge Sheet
@@ -676,8 +677,10 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => downloadInvoiceMutation.mutate(invoice.id)}
-                            disabled={downloadInvoiceMutation.isPending}
+                            onClick={() => openPreview(() => downloadInvoicePdf(invoice.id), {
+                              fileName: `Invoice_${invoice.invoiceNo}.pdf`,
+                              title: `Invoice ${invoice.invoiceNo}`,
+                            })}
                           >
                             <Download className="h-4 w-4" />
                           </Button>
@@ -729,8 +732,10 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => downloadReceiptMutation.mutate(receipt.id)}
-                          disabled={downloadReceiptMutation.isPending}
+                          onClick={() => openPreview(() => downloadReceiptPdf(receipt.id), {
+                            fileName: `Receipt_${receipt.receiptNo}.pdf`,
+                            title: `Receipt ${receipt.receiptNo}`,
+                          })}
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -967,6 +972,9 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
           refetch();
         }}
       />
+
+      {/* Document preview (charge sheet / invoice / receipt) */}
+      <PdfPreviewDialog {...previewProps} />
     </>
   );
 }
