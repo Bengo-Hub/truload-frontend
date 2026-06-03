@@ -17,11 +17,19 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Info, Loader2, Save, Scale } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 const KEY_SCALE_TEST_REQUIRED = 'weighing.scale_test_required';
 const KEY_MAX_REWEIGH_CYCLES = 'weighing.max_reweigh_cycles';
+const KEY_CASE_CAPTURE_MODE = 'weighing.case_capture_mode';
 
 export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: boolean }) {
   const { data: settings, isLoading } = useSettingsByCategory('Weighing');
@@ -31,6 +39,7 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
 
   const [scaleTestRequired, setScaleTestRequired] = useState<boolean>(false);
   const [maxReweighCycles, setMaxReweighCycles] = useState<string>('3');
+  const [caseCaptureMode, setCaseCaptureMode] = useState<string>('beyond_tolerance');
   const [operationalTolerance, setOperationalTolerance] = useState<string>('200');
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -49,6 +58,9 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
 
     const reweighSetting = get(KEY_MAX_REWEIGH_CYCLES);
     setMaxReweighCycles(reweighSetting?.settingValue ?? '3');
+
+    const captureModeSetting = get(KEY_CASE_CAPTURE_MODE);
+    setCaseCaptureMode(captureModeSetting?.settingValue ?? 'beyond_tolerance');
   }, [settings]);
 
   // Load operational tolerance from ToleranceSetting table (single source of truth)
@@ -65,6 +77,7 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
       const updates: UpdateSettingsBatchRequest['settings'] = [
         { settingKey: KEY_SCALE_TEST_REQUIRED, settingValue: scaleTestRequired.toString() },
         { settingKey: KEY_MAX_REWEIGH_CYCLES, settingValue: maxReweighCycles },
+        { settingKey: KEY_CASE_CAPTURE_MODE, settingValue: caseCaptureMode },
       ];
       await updateBatch.mutateAsync({ settings: updates });
 
@@ -84,7 +97,7 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
     } finally {
       setIsSaving(false);
     }
-  }, [scaleTestRequired, maxReweighCycles, operationalTolerance, updateBatch, opAllowanceSetting, queryClient]);
+  }, [scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, updateBatch, opAllowanceSetting, queryClient]);
 
   useEffect(() => {
     if (!settings?.length) return;
@@ -92,14 +105,15 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
 
     const settingsChanged =
       (get(KEY_SCALE_TEST_REQUIRED) === 'true') !== scaleTestRequired ||
-      get(KEY_MAX_REWEIGH_CYCLES) !== maxReweighCycles;
+      get(KEY_MAX_REWEIGH_CYCLES) !== maxReweighCycles ||
+      (get(KEY_CASE_CAPTURE_MODE) || 'beyond_tolerance') !== caseCaptureMode;
 
     const toleranceChanged = opAllowanceSetting
       ? String(opAllowanceSetting.toleranceKg ?? 200) !== operationalTolerance
       : false;
 
     setHasChanges(settingsChanged || toleranceChanged);
-  }, [settings, scaleTestRequired, maxReweighCycles, operationalTolerance, opAllowanceSetting]);
+  }, [settings, scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, opAllowanceSetting]);
 
   if (isLoading || isLoadingTolerances) {
     return (
@@ -171,6 +185,32 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
             Set to 0 to disable. This value is used by both the frontend compliance display and the backend ticket generation.
           </p>
         </div>
+
+        {!isCommercial && (
+          <div className="space-y-2">
+            <Label htmlFor="case-capture-mode">Case-register capture</Label>
+            <Select value={caseCaptureMode} onValueChange={setCaseCaptureMode}>
+              <SelectTrigger id="case-capture-mode" className="max-w-md">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="beyond_tolerance">
+                  Only beyond-tolerance overloads (remedial action)
+                </SelectItem>
+                <SelectItem value="all">
+                  Capture all violations (auto special-release for within-tolerance)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Only beyond-tolerance</span> (default): vehicles overloaded only within the
+              operational allowance pass without a case-register entry, prohibition, or email — only overloads beyond the
+              tolerance create a case, prohibition order and notifications.{' '}
+              <span className="font-medium">Capture all</span>: within-tolerance overloads are also recorded with an
+              automatically issued (and auto-closed) special release.
+            </p>
+          </div>
+        )}
 
         <div className="pt-4 border-t">
           <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
