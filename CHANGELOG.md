@@ -5,6 +5,58 @@ All notable changes to TruLoad Frontend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0](https://github.com/Bengo-Hub/truload-frontend/compare/v1.3.0...v1.4.0) (2026-06-07)
+
+
+### Features
+
+* add AppUrl field to Organization CRUD UI ([b40669a](https://github.com/Bengo-Hub/truload-frontend/commit/b40669a687b893454ca5648d7b35b3751373017c))
+* **cases,docs:** preview-first documents, restore weight-ticket button, modern case-detail redesign ([aacf39e](https://github.com/Bengo-Hub/truload-frontend/commit/aacf39e9da5dceff35bd47415123c5b7ce0d8b3c))
+* **cases:** View Prohibition Order button (preview) on case overview ([00f7bff](https://github.com/Bengo-Hub/truload-frontend/commit/00f7bff61f86817a386156ca7efed997065ced92))
+* commercial capture step — entity selectors, modal wiring, weighingScaleType ([3a73632](https://github.com/Bengo-Hub/truload-frontend/commit/3a736320bb8ed2a3331ff9f02eee199bb145d051))
+* **commercial-weighing:** GAP-1, BUG-2, QD-1, NOTIF-1, SIDEBAR-1, INTEGRATIONS-1 frontend ([cb202f9](https://github.com/Bengo-Hub/truload-frontend/commit/cb202f9e79f7e3b173103c0916d40f7e98c4d5c1))
+* **commercial:** two-pass resume flow, billing page fix, and subscription 402 redirect ([13a28d3](https://github.com/Bengo-Hub/truload-frontend/commit/13a28d3ff90b7f48e9a2ac61a28adc6ce5fe2bed))
+* **dashboard:** rename card to Total Weighings, axle tolerance UI, hostname middleware ([7875e94](https://github.com/Bengo-Hub/truload-frontend/commit/7875e9468b9312a3a5ddfdcd44c57ef46edd0397))
+* driver form shows transporter selector + CreateDriverRequest.transporterId ([9a07e61](https://github.com/Bengo-Hub/truload-frontend/commit/9a07e61f684bb4c36cc0aca28495a5754f022ab8))
+* multi-currency dashboard — all money stats/charts now respect selected currency and KES/USD act split ([33038ef](https://github.com/Bengo-Hub/truload-frontend/commit/33038efa5f740b05e27c44c0f47a595c2cfbaa50))
+* **notifications,auth:** Invoice Paid workflow toggle + return-URL on auth redirect ([e1d0c71](https://github.com/Bengo-Hub/truload-frontend/commit/e1d0c71ccb43ac7c6045ccbe15aeb5de43a81913))
+* **notifications:** add notifications config page, update API client, and domain changes ([8efb558](https://github.com/Bengo-Hub/truload-frontend/commit/8efb558aff915a8c54a76cfe56c3338bfffd57f6))
+* **notifications:** add SMTP config form to Email tab ([0e003ce](https://github.com/Bengo-Hub/truload-frontend/commit/0e003ce682d4b40699fd9ead3a576b4ab5c24e56))
+* **notifications:** revamp settings page — modern responsive layout ([066cc59](https://github.com/Bengo-Hub/truload-frontend/commit/066cc5916dbca2498c56a0d2d688b2594c0a45f3))
+* **notifications:** workflow group default recipients + per-workflow CC UI ([a77ab0a](https://github.com/Bengo-Hub/truload-frontend/commit/a77ab0a3635aa91d00363e71eec0f9c42cbbfcf6))
+* **org:** add structured address fields to org form and types ([463ef4c](https://github.com/Bengo-Hub/truload-frontend/commit/463ef4cca62370e8cd40c0cd4bee85539a4b82e5))
+* platform pages removal, hard delete, integrations refactor, tenant scoping ([2ce8447](https://github.com/Bengo-Hub/truload-frontend/commit/2ce844732aab9cee17c92b3cadf92fecbc789a7b))
+* **portal:** PORTAL-1 — subscription-aware UI gates and history limit banner ([b444324](https://github.com/Bengo-Hub/truload-frontend/commit/b4443247163efad3f9fb545b67be3d7bdd52b43f))
+* **portal:** team management UI, bulk ZIP download, bulk vehicle CSV import ([c2dc049](https://github.com/Bengo-Hub/truload-frontend/commit/c2dc049519a52dce6d34686820fc76d5165d1ace))
+* **pwa:** add PWA update detection, dynamic manifest, safe-area layout, expiry-first auth hydration ([1004ec6](https://github.com/Bengo-Hub/truload-frontend/commit/1004ec64dbe2c5ba7b82dbda540bb0c2aa88b3ac))
+* **settings:** responsive sidebar nav replacing broken dynamic grid tabs ([715a158](https://github.com/Bengo-Hub/truload-frontend/commit/715a1583fee6bd69c3a03014ebc19a20b87b4bd4))
+* **subscription:** add isServiceCharge/isDemo bypass + bump shared-ui-lib to v0.1.10 ([0f37912](https://github.com/Bengo-Hub/truload-frontend/commit/0f3791248f507b37f6bd02816bda69a2e1ab6139))
+* **webauthn:** add biometric fingerprint login to truload-frontend ([218c1e0](https://github.com/Bengo-Hub/truload-frontend/commit/218c1e0beb280a4f6065ac58915a1e0ffbf09c53))
+
+
+### Bug Fixes
+
+* **auth:** exclude all /auth/ endpoints from tenant routing headers ([0d28ac5](https://github.com/Bengo-Hub/truload-frontend/commit/0d28ac545c74cfa2a05c745ea95f7dadbf6117b6))
+* **biometric:** normalize snake_case token response from WebAuthn authenticate ([4bc6e7e](https://github.com/Bengo-Hub/truload-frontend/commit/4bc6e7e2f539d323c55d4ad4160e32c400be5c60))
+* **documents:** preview case documents instead of force-downloading ([#16](https://github.com/Bengo-Hub/truload-frontend/issues/16)) ([24bde7e](https://github.com/Bengo-Hub/truload-frontend/commit/24bde7ea2ce25595a1879720d2889502fb0a10b8))
+* **email:** normalize recipient inputs (comma + line-by-line) to one shape ([829ff9e](https://github.com/Bengo-Hub/truload-frontend/commit/829ff9e5f09ec7de9fb15dc8c7d1ba32974ef1f4))
+* enforce fetch roles and permissions by use case ([e0b9177](https://github.com/Bengo-Hub/truload-frontend/commit/e0b91772a203add25bc99727ad37a959351a7e76))
+* **integrations:** remove redundant AppShell wrapper and notification channels tab ([44e28d5](https://github.com/Bengo-Hub/truload-frontend/commit/44e28d51a3d698f59800a1e0d01939f6eb433e44))
+* **multi-tenant:** send X-Org-Slug header for superusers based on URL context ([f78930e](https://github.com/Bengo-Hub/truload-frontend/commit/f78930e63608e6c2ce7d98d8733f13b7e0677856))
+* Overview Revenue stat now sourced from receipts (collected) not weighing transaction fees (assessed) ([4f0f899](https://github.com/Bengo-Hub/truload-frontend/commit/4f0f89998649aa056df9901cf3c928fa18d4277f))
+* **payments,cases,drivers:** payment result page, case drawer + escalation chooser, driver ID + prefill ([#15](https://github.com/Bengo-Hub/truload-frontend/issues/15)) ([d6243bb](https://github.com/Bengo-Hub/truload-frontend/commit/d6243bb1a393331213d896e0c53d0c39c0d34c66))
+* **payments:** reconcile alternate refs, eCitizen redirect mode, driver ID enforcement, payment settings UI ([607831c](https://github.com/Bengo-Hub/truload-frontend/commit/607831c9a4024446a1d799311ae36ef4c80a8af1))
+* proper permission mapping for users ([9f34162](https://github.com/Bengo-Hub/truload-frontend/commit/9f3416288954379b272f20bc86dc88af8d5981da))
+* **proxy:** add kuraweightest.masterspace.co.ke to hostname-slug map ([b516b85](https://github.com/Bengo-Hub/truload-frontend/commit/b516b858988df1b8e860c0ac74944e9eb6874964))
+* **proxy:** merge hostname slug injection into proxy.ts, remove conflicting middleware.ts ([f20222a](https://github.com/Bengo-Hub/truload-frontend/commit/f20222a915b20d815ff5093182105c3527eb91c2))
+* **reconcile:** add editable M-Pesa ref field, cap amount at invoice total ([767e891](https://github.com/Bengo-Hub/truload-frontend/commit/767e891714b1705e4413622853a101946bb98698))
+* regenerate pnpm lockfile + add subscription banner and layout gating ([f2d0b58](https://github.com/Bengo-Hub/truload-frontend/commit/f2d0b58516d64d66fb2e8201965ccde1c0ff574e))
+* replace email provider config tab with integration status + test button ([752a55a](https://github.com/Bengo-Hub/truload-frontend/commit/752a55af4851f3576bc462cd4f3ea697d7e6d53e))
+* replace useCanDelete with domain permissions in tenant pages ([5ed60a7](https://github.com/Bengo-Hub/truload-frontend/commit/5ed60a7bbacad2a142efceb2254c28e0efcc0874))
+* restore formatKES in FinancialTab — explicit KES stat cards need KES formatter not selectedCurrency ([5d5e55b](https://github.com/Bengo-Hub/truload-frontend/commit/5d5e55bebe8011b76797ed8a238984dab17c4f31))
+* **ui:** remove duplicate notifications provider tab, format processing time, remove repo link ([3730d7a](https://github.com/Bengo-Hub/truload-frontend/commit/3730d7a17b130426d05a8dfb8ed3daf3393c96b0))
+* wire API vehicle makes to dropdown and make it searchable ([60f8bd3](https://github.com/Bengo-Hub/truload-frontend/commit/60f8bd38fbe10e2cc3710ebe7d6fe2f78b605e2b))
+
 ## [1.3.0](https://github.com/Bengo-Hub/truload-frontend/compare/v1.2.0...v1.3.0) (2026-04-22)
 
 
