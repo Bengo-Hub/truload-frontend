@@ -15,6 +15,8 @@ import {
 import { useCaseDocuments, useCaseDocumentSummary } from '@/hooks/queries/useCaseDocumentQueries';
 import type { CaseDocumentDto } from '@/lib/api/caseDocuments';
 import { apiClient } from '@/lib/api/client';
+import { PdfPreviewDialog } from '@/components/shared/PdfPreviewDialog';
+import { useDocumentPreview } from '@/hooks/useDocumentPreview';
 import {
   Download,
   FileCheck,
@@ -26,7 +28,6 @@ import {
   Shield,
   Upload,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 const DOCUMENT_TYPE_CONFIG: Record<string, { icon: typeof FileText; color: string; label: string }> = {
   WeightTicket: { icon: Scale, color: 'text-blue-600 bg-blue-50', label: 'Weight Ticket' },
@@ -52,26 +53,25 @@ interface DocumentsTabProps {
 export function DocumentsTab({ caseId }: DocumentsTabProps) {
   const { data: documents, isLoading } = useCaseDocuments(caseId);
   const { data: summary } = useCaseDocumentSummary(caseId);
+  const { openPreview, previewProps } = useDocumentPreview();
 
-  const handleDownload = async (doc: CaseDocumentDto) => {
-    try {
-      // For subfiles with external URLs, open in new tab
-      if (doc.documentType === 'Subfile' && doc.downloadUrl && !doc.downloadUrl.startsWith('/api')) {
-        window.open(doc.downloadUrl, '_blank');
-        return;
-      }
-
-      const response = await apiClient.get(doc.downloadUrl, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${doc.displayName}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Failed to download document');
+  const handleDownload = (doc: CaseDocumentDto) => {
+    // For subfiles with external (non-API) URLs, open in a new tab — these are
+    // arbitrary attachments that may not be PDFs and aren't fetched via the API.
+    if (doc.documentType === 'Subfile' && doc.downloadUrl && !doc.downloadUrl.startsWith('/api')) {
+      window.open(doc.downloadUrl, '_blank');
+      return;
     }
+
+    // Preview-first: open the shared dialog (Download / Print) instead of forcing
+    // a direct download.
+    openPreview(
+      async () => {
+        const response = await apiClient.get(doc.downloadUrl, { responseType: 'blob' });
+        return new Blob([response.data], { type: 'application/pdf' });
+      },
+      { fileName: `${doc.displayName}.pdf`, title: doc.displayName }
+    );
   };
 
   if (isLoading) {
@@ -159,7 +159,7 @@ export function DocumentsTab({ caseId }: DocumentsTabProps) {
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => handleDownload(doc)}
-                              title="Download"
+                              title="Preview / Download"
                             >
                               <Download className="h-4 w-4" />
                             </Button>
@@ -174,6 +174,8 @@ export function DocumentsTab({ caseId }: DocumentsTabProps) {
           )}
         </CardContent>
       </Card>
+
+      <PdfPreviewDialog {...previewProps} />
     </div>
   );
 }
