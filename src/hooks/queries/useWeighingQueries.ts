@@ -148,6 +148,19 @@ export function useDrivers(search?: string) {
 }
 
 /**
+ * Fetch a single driver by id. Used to preload the driver edit modal
+ * (e.g. when capturing a missing National ID from the Generate Invoice flow).
+ */
+export function useDriverById(id?: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.DRIVERS, 'by-id', id ?? ''],
+    queryFn: () => weighingApi.getDriverById(id!),
+    ...QUERY_OPTIONS.semiStatic,
+    enabled: !!id,
+  });
+}
+
+/**
  * Fetch stations
  */
 export function useStations() {
