@@ -33,11 +33,14 @@ import {
 import {
     useChargeCalculation,
     useCreateProsecution,
+    useDriverById,
     useGenerateInvoice,
     useInvoicesByProsecutionId,
     useProsecutionByCaseId,
     useReceiptsByInvoiceId,
     useRecordPayment,
+    useUpdateDriver,
+    useWeighingTransaction,
 } from '@/hooks/queries';
 import { useAllActs } from '@/hooks/queries/useActQueries';
 import {
@@ -73,6 +76,20 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { FinancialSummary } from './FinancialSummary';
+import { DriverModal } from '@/components/weighing/modals/DriverModal';
+import type { CreateDriverRequest, Driver } from '@/types/weighing';
+
+/** Extracts a human-readable message from an Axios error whose body may be a
+ *  plain string (e.g. BadRequest("...")) or a ProblemDetails-style object. */
+function extractApiError(error: unknown): string {
+  const data = (error as { response?: { data?: unknown } })?.response?.data;
+  if (typeof data === 'string') return data;
+  if (data && typeof data === 'object') {
+    const o = data as { message?: string; title?: string; error?: string };
+    return o.message || o.title || o.error || '';
+  }
+  return '';
+}
 
 const pesaflowSchema = z.object({
   clientName: z.string().min(1, 'Client name is required'),
@@ -133,6 +150,13 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
   const generateInvoiceMutation = useGenerateInvoice();
   const recordPaymentMutation = useRecordPayment();
   const createPesaflowInvoiceMutation = useCreatePesaflowInvoice();
+  const updateDriverMutation = useUpdateDriver();
+
+  // Driver linked to this case (via the weighing) — used to capture a missing
+  // National ID inline from the Generate Invoice flow without leaving the page.
+  const { data: weighingTx } = useWeighingTransaction(weighingId);
+  const driverId = weighingTx?.driverId;
+  const { data: linkedDriver, refetch: refetchDriver } = useDriverById(driverId);
 
   // Document preview (charge sheet / invoice / receipt open in preview first)
   const { openPreview, previewProps } = useDocumentPreview();
@@ -145,6 +169,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
   const [checkoutPaymentLink, setCheckoutPaymentLink] = useState<string | null>(null);
   const [checkoutMode, setCheckoutMode] = useState<'iframe' | 'redirect'>('iframe');
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDto | null>(null);
+  const [driverModalOpen, setDriverModalOpen] = useState(false);
 
   // Payment form states
   const [paymentForm, setPaymentForm] = useState({
@@ -197,8 +222,10 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
     [caseId, acts, createProsecutionMutation, refetch]
   );
 
-  // Handle generate invoice
-  const handleGenerateInvoice = useCallback(async () => {
+  // Actually call the generate-invoice API. If the backend reports the driver is
+  // missing required details (e.g. National ID), open the driver edit modal so the
+  // user can fix it inline instead of being dead-ended by a toast.
+  const runGenerateInvoice = useCallback(async () => {
     if (!prosecution) return;
 
     try {
@@ -206,10 +233,45 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
       toast.success('Invoice generated successfully');
       refetch();
     } catch (error: unknown) {
-      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const msg = extractApiError(error);
+      if (driverId && /national id|driver details|update driver/i.test(msg)) {
+        toast.error(msg);
+        setDriverModalOpen(true);
+        return;
+      }
       toast.error(msg || 'Failed to generate invoice');
     }
-  }, [prosecution, generateInvoiceMutation, refetch]);
+  }, [prosecution, generateInvoiceMutation, refetch, driverId]);
+
+  // Handle generate invoice (button click). Proactively capture a missing National
+  // ID inline: if the linked driver has no ID number, open the edit modal first.
+  const handleGenerateInvoice = useCallback(async () => {
+    if (!prosecution) return;
+
+    if (driverId && linkedDriver && !linkedDriver.idNumber?.trim()) {
+      toast.info('A National ID is required to generate the invoice. Please complete the driver details.');
+      setDriverModalOpen(true);
+      return;
+    }
+
+    await runGenerateInvoice();
+  }, [prosecution, driverId, linkedDriver, runGenerateInvoice]);
+
+  // Save the driver edited inline, then continue the invoice the user intended.
+  const handleSaveDriver = useCallback(async (data: CreateDriverRequest) => {
+    if (!driverId) return;
+
+    try {
+      await updateDriverMutation.mutateAsync({ id: driverId, payload: data });
+      toast.success('Driver details updated');
+      setDriverModalOpen(false);
+      await refetchDriver();
+      await runGenerateInvoice();
+    } catch (error: unknown) {
+      // Backend now returns a clear 409 on duplicate ID/license — surface it.
+      toast.error(extractApiError(error) || 'Failed to update driver details');
+    }
+  }, [driverId, updateDriverMutation, refetchDriver, runGenerateInvoice]);
 
   // Handle record payment
   const handleRecordPayment = useCallback(async () => {
@@ -975,6 +1037,17 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
 
       {/* Document preview (charge sheet / invoice / receipt) */}
       <PdfPreviewDialog {...previewProps} />
+
+      {/* Inline driver edit — preloaded with the linked driver so a missing
+          National ID can be captured without leaving the Generate Invoice flow. */}
+      <DriverModal
+        open={driverModalOpen}
+        onOpenChange={setDriverModalOpen}
+        mode="edit"
+        driver={(linkedDriver as unknown as Driver) ?? null}
+        onSave={handleSaveDriver}
+        isSaving={updateDriverMutation.isPending || generateInvoiceMutation.isPending}
+      />
     </>
   );
 }
