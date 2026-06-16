@@ -13,7 +13,7 @@ import { getPendingMutationCount, drainMutationQueue } from '@/lib/offline/sync'
 export function OfflineBar() {
   return (
     <SharedOfflineBar
-      registerSW={false}
+      registerSW={true}
       getPendingCount={getPendingMutationCount}
       onSyncNow={() => { void drainMutationQueue(); }}
       availableOffline={['Weighing capture', 'Case recording', 'Cached records']}
