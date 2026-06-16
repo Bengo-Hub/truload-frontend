@@ -29,8 +29,8 @@ importers:
   .:
     dependencies:
       '@bengo-hub/shared-ui-lib':
-        specifier: github:Bengo-Hub/shared-ui-lib#v0.1.12
-        version: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/1b0936d2926d8af231c58c5baff80faff2550199(lucide-react@0.454.0(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: github:Bengo-Hub/shared-ui-lib#v0.1.20
+        version: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/07ede97f44fd3a0e520beb594ebcc0fa7f0ba88b(lucide-react@0.454.0(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.71.1(react@19.2.4))
@@ -832,9 +832,9 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
-  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/1b0936d2926d8af231c58c5baff80faff2550199':
-    resolution: {tarball: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/1b0936d2926d8af231c58c5baff80faff2550199}
-    version: 0.1.12
+  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/07ede97f44fd3a0e520beb594ebcc0fa7f0ba88b':
+    resolution: {tarball: https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/07ede97f44fd3a0e520beb594ebcc0fa7f0ba88b}
+    version: 0.1.20
     peerDependencies:
       lucide-react: '>=0.400.0'
       react: '>=18.0.0'
@@ -6308,7 +6308,7 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/1b0936d2926d8af231c58c5baff80faff2550199(lucide-react@0.454.0(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@bengo-hub/shared-ui-lib@https://codeload.github.com/Bengo-Hub/shared-ui-lib/tar.gz/07ede97f44fd3a0e520beb594ebcc0fa7f0ba88b(lucide-react@0.454.0(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
