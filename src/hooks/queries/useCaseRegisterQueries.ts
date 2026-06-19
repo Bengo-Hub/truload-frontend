@@ -7,6 +7,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as caseApi from '@/lib/api/caseRegister';
+import * as memoApi from '@/lib/api/loadCorrectionMemo';
 import { QUERY_OPTIONS } from '@/lib/query/config';
 
 // Query key constants
@@ -24,7 +25,33 @@ export const CASE_QUERY_KEYS = {
   specialReleasesByCase: (caseId: string) => ['special-releases', 'by-case', caseId] as const,
   pendingReleases: (params?: caseApi.PendingSpecialReleasesParams) => ['special-releases', 'pending', params ?? {}] as const,
   releaseTypes: ['release-types'] as const,
+  memosByCase: (caseId: string) => ['load-correction-memos', 'by-case', caseId] as const,
+  memoByWeighing: (weighingId: string) => ['load-correction-memos', 'by-weighing', weighingId] as const,
 };
+
+// ============================================================================
+// Load Correction Memo Queries
+// ============================================================================
+
+/** Load-correction memos for a case register (issued after overload invoices are paid). */
+export function useLoadCorrectionMemosByCase(caseId?: string) {
+  return useQuery({
+    queryKey: CASE_QUERY_KEYS.memosByCase(caseId ?? ''),
+    queryFn: () => memoApi.getLoadCorrectionMemosByCase(caseId!),
+    ...QUERY_OPTIONS.semiStatic,
+    enabled: !!caseId,
+  });
+}
+
+/** The load-correction memo for a weighing (or null if none yet). */
+export function useLoadCorrectionMemoByWeighing(weighingId?: string) {
+  return useQuery({
+    queryKey: CASE_QUERY_KEYS.memoByWeighing(weighingId ?? ''),
+    queryFn: () => memoApi.getLoadCorrectionMemoByWeighing(weighingId!),
+    ...QUERY_OPTIONS.semiStatic,
+    enabled: !!weighingId,
+  });
+}
 
 // ============================================================================
 // Case Register Queries

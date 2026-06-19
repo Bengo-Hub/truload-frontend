@@ -4,7 +4,7 @@
  */
 
 import * as authApi from '@/lib/auth/api';
-import { clearTokens, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext, setTokens } from '@/lib/auth/token';
+import { clearTokens, hasValidToken, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext, setTokens } from '@/lib/auth/token';
 import { clearAllScaleTestCaches } from '@/lib/scale-test-cache';
 import type { User } from '@/types/auth/types';
 import { create } from 'zustand';

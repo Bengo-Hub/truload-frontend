@@ -52,6 +52,7 @@ import {
     useDeleteTransporter,
     useDeleteVehicle,
     useDeleteVehicleMake,
+    useDeduplicateDrivers,
     useDrivers,
     useOriginsDestinations,
     useRoadsPaged,
@@ -305,6 +306,19 @@ function DriversTab() {
   const createMutation = useCreateDriver();
   const updateMutation = useUpdateDriver();
   const deleteMutation = useDeleteDriver();
+  const dedupeMutation = useDeduplicateDrivers();
+  const canDedupe = useHasPermission('driver.update');
+
+  const handleDeduplicate = async () => {
+    try {
+      const r = await dedupeMutation.mutateAsync();
+      toast.success(
+        `De-duplication complete: ${r.groupsMerged} group(s) merged, ${r.driversRemoved} removed, ${r.referencesRepointed} reference(s) repointed`,
+      );
+    } catch {
+      toast.error('Failed to de-duplicate drivers');
+    }
+  };
 
   const allItems = drivers ?? [];
   const paginatedItems = useMemo(() => {
@@ -348,6 +362,18 @@ function DriversTab() {
 
   return (
     <>
+      {canDedupe && (
+        <div className="mb-3 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDeduplicate}
+            disabled={dedupeMutation.isPending}
+          >
+            {dedupeMutation.isPending ? 'Merging duplicates…' : 'Merge Duplicate Drivers'}
+          </Button>
+        </div>
+      )}
       <MetadataCard
         title="Drivers"
         description="Manage registered drivers and their license information"

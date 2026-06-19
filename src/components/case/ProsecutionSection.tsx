@@ -41,6 +41,7 @@ import {
     useRecordPayment,
     useUpdateDriver,
     useWeighingTransaction,
+    useLoadCorrectionMemosByCase,
 } from '@/hooks/queries';
 import { useAllActs } from '@/hooks/queries/useActQueries';
 import {
@@ -132,7 +133,13 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
 
   // Get the primary invoice (most recent unpaid or latest)
   const primaryInvoice = invoices.find((i) => i.status === 'pending') || invoices[0];
+  // Only one live pending invoice may exist per prosecution case (enforced by the backend).
+  // Hide "Generate Invoice" when one already exists so users don't trigger the
+  // "Pending invoice already exists" error — the existing invoice's actions are the path forward.
+  const hasPendingInvoice = invoices.some((i) => i.status === 'pending');
   const { data: receipts = [] } = useReceiptsByInvoiceId(primaryInvoice?.id);
+  // Load-correction memos are auto-issued once an overload invoice is fully paid.
+  const { data: loadCorrectionMemos = [] } = useLoadCorrectionMemosByCase(caseId);
 
   // Charge calculation (only when no prosecution exists and we have weighingId)
   const [legalFramework, setLegalFramework] = useState('TRAFFIC_ACT');
@@ -612,7 +619,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
                 <FileText className="h-4 w-4" />
                 Invoices
               </h4>
-              {!readOnly && prosecution.status === 'pending' && (
+              {!readOnly && prosecution.status === 'pending' && !hasPendingInvoice && (
                 <Button
                   size="sm"
                   onClick={handleGenerateInvoice}
@@ -754,6 +761,44 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
               </Table>
             )}
           </div>
+
+          {/* Load Correction Memos — issued after an overload invoice is fully paid */}
+          {loadCorrectionMemos.length > 0 && (
+            <div className="border-t pt-4">
+              <h4 className="font-semibold flex items-center gap-2 mb-4">
+                <FileText className="h-4 w-4" />
+                Load Correction Memos
+              </h4>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Memo No</TableHead>
+                    <TableHead>Overload (kg)</TableHead>
+                    <TableHead>Redistribution</TableHead>
+                    <TableHead>Issued</TableHead>
+                    <TableHead>Compliance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadCorrectionMemos.map((memo) => (
+                    <TableRow key={memo.id}>
+                      <TableCell className="font-mono">{memo.memoNo}</TableCell>
+                      <TableCell>{memo.overloadKg.toLocaleString()}</TableCell>
+                      <TableCell className="capitalize">{memo.redistributionType}</TableCell>
+                      <TableCell>{format(new Date(memo.issuedAt), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>
+                        {memo.complianceAchieved ? (
+                          <Badge className="bg-green-100 text-green-800">Achieved</Badge>
+                        ) : (
+                          <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
           {/* Receipts Section */}
           {receipts.length > 0 && (
