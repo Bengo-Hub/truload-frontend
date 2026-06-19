@@ -64,6 +64,52 @@ export interface UpdateBackupSettingsRequest {
   retentionDays: number;
 }
 
+// --- Remote backup destination (rclone mirror) ---------------------------
+export type BackupDestinationType = 'none' | 's3' | 'onedrive' | 'gdrive' | 'webdav' | 'sftp' | 'smb';
+
+export interface BackupDestinationParams {
+  // S3 / S3-compatible
+  bucket?: string;
+  region?: string;
+  endpoint?: string;
+  provider?: string;
+  accessKeyId?: string;     // secret (masked on read)
+  secretAccessKey?: string; // secret
+  // OneDrive / Google Drive
+  token?: string;           // secret (rclone token JSON)
+  driveId?: string;
+  // WebDAV
+  url?: string;
+  // SFTP / SMB
+  host?: string;
+  port?: string;
+  domain?: string;
+  share?: string;
+  // Shared credentials
+  user?: string;
+  pass?: string;            // secret
+  privateKey?: string;      // secret
+}
+
+export interface BackupDestinationDto {
+  type: BackupDestinationType;
+  enabled: boolean;
+  remotePath: string;
+  params: BackupDestinationParams;
+}
+
+export interface UpdateBackupDestinationRequest {
+  type: BackupDestinationType;
+  enabled: boolean;
+  remotePath: string;
+  params?: BackupDestinationParams;
+}
+
+export interface BackupDestinationTestResult {
+  ok: boolean;
+  message: string;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -134,6 +180,30 @@ export async function updateBackupSettings(data: UpdateBackupSettingsRequest) {
   return response.data;
 }
 
+/**
+ * Get the remote backup destination config (secrets masked).
+ */
+export async function getBackupDestination() {
+  const response = await apiClient.get<BackupDestinationDto>('/system/backups/destination');
+  return response.data;
+}
+
+/**
+ * Create/update the remote backup destination. Omitted/masked secrets are preserved.
+ */
+export async function updateBackupDestination(data: UpdateBackupDestinationRequest) {
+  const response = await apiClient.put<BackupDestinationDto>('/system/backups/destination', data);
+  return response.data;
+}
+
+/**
+ * Test connectivity to a remote backup destination (without saving).
+ */
+export async function testBackupDestination(data: UpdateBackupDestinationRequest) {
+  const response = await apiClient.post<BackupDestinationTestResult>('/system/backups/destination/test', data);
+  return response.data;
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -162,4 +232,7 @@ export const backupApi = {
   validate: validateBackup,
   restore: restoreBackup,
   updateSettings: updateBackupSettings,
+  getDestination: getBackupDestination,
+  updateDestination: updateBackupDestination,
+  testDestination: testBackupDestination,
 };

@@ -138,16 +138,17 @@ export async function removePermissionFromRole(roleId: string, permissionId: str
   await apiClient.delete(`/user-management/roles/${roleId}/permissions/${permissionId}`);
 }
 
-// Permissions
+// Permissions — the PermissionsController is routed at api/v1/permissions
+// (NOT under user-management, which only hosts users + roles).
 export async function fetchPermissions(useCase?: string): Promise<PermissionDto[]> {
-  const { data } = await apiClient.get<PermissionDto[]>('/user-management/permissions', {
+  const { data } = await apiClient.get<PermissionDto[]>('/permissions', {
     params: { useCase },
   });
   return data;
 }
 
 export async function fetchPermissionsByCategory(category: string, useCase?: string): Promise<PermissionDto[]> {
-  const { data } = await apiClient.get<PermissionDto[]>(`/user-management/permissions/category/${category}`, {
+  const { data } = await apiClient.get<PermissionDto[]>(`/permissions/category/${category}`, {
     params: { useCase },
   });
   return data;

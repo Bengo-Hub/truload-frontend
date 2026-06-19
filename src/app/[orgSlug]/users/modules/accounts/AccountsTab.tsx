@@ -26,6 +26,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -1416,6 +1417,11 @@ export default function AccountsTab() {
   const queryClient = useQueryClient();
 
   const currentUser = useAuthStore((s) => s.user);
+  const routeParams = useParams();
+  const routeSlug = (
+    Array.isArray(routeParams?.orgSlug) ? routeParams?.orgSlug[0] : routeParams?.orgSlug
+  )?.toLowerCase();
+  const [orgFilterInitialized, setOrgFilterInitialized] = useState(false);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -1442,6 +1448,28 @@ export default function AccountsTab() {
     queryKey: ["orgs"],
     queryFn: () => fetchOrganizations(),
   });
+
+  // Preselect the org the user is logged into so the accounts list is tenant-scoped by
+  // default (instead of leaking every tenant's users for platform owners). Prefer the
+  // logged-in user's own org; otherwise resolve the org from the route slug. Runs once;
+  // the user can still switch to "All Organizations" or another org afterwards.
+  const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+  useEffect(() => {
+    if (orgFilterInitialized || !currentUser) return;
+    let defaultOrgId =
+      currentUser.organizationId && currentUser.organizationId !== EMPTY_GUID
+        ? currentUser.organizationId
+        : "";
+    if (!defaultOrgId && routeSlug && orgs.length > 0) {
+      const match = orgs.find((o) => o.code?.toLowerCase() === routeSlug);
+      if (match) defaultOrgId = match.id;
+    }
+    // Wait for orgs to load before giving up on the slug match.
+    if (!defaultOrgId && routeSlug && orgs.length === 0) return;
+    if (defaultOrgId) setOrgFilter(defaultOrgId);
+    setOrgFilterInitialized(true);
+  }, [currentUser, orgs, routeSlug, orgFilterInitialized]);
+
   const { data: stations = [] } = useQuery({
     queryKey: ["stations"],
     queryFn: () => fetchStations(),

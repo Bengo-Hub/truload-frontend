@@ -37,6 +37,7 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { BackupSettingsForm } from '@/components/settings/BackupSettingsForm';
+import { BackupDestinationForm } from '@/components/settings/BackupDestinationForm';
 
 interface PasswordPolicyForm {
   minLength: number;
@@ -474,6 +475,9 @@ export default function SecurityPage() {
 
               {/* Backup Settings Form */}
               <BackupSettingsForm canEdit={canEdit} />
+
+              {/* Remote Backup Destination (S3 / OneDrive / GDrive / WebDAV / SFTP / SMB) */}
+              <BackupDestinationForm canEdit={canEdit} />
 
               {/* Backup List */}
               <Card>
