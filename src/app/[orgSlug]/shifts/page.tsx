@@ -67,6 +67,7 @@ import {
   fetchUserShifts,
   fetchWorkShifts,
   updateShiftRotation,
+  updateRotationShifts,
   updateUserShift,
   updateWorkShift,
 } from '@/lib/api/setup';
@@ -1077,8 +1078,15 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
   });
 
   const updateMutation = useMutation({
-    mutationFn: (input: { id: string; payload: UpdateShiftRotationRequest }) =>
-      updateShiftRotation(input.id, input.payload),
+    mutationFn: async (input: {
+      id: string;
+      payload: UpdateShiftRotationRequest;
+      rotationShifts: { workShiftId: string; sequenceOrder: number }[];
+    }) => {
+      await updateShiftRotation(input.id, input.payload);
+      // Persist the rotation's shift sequence via the dedicated replace endpoint.
+      await updateRotationShifts(input.id, input.rotationShifts);
+    },
     onSuccess: () => {
       toast.success('Rotation updated successfully');
       queryClient.invalidateQueries({ queryKey: ['shiftRotations'] });
@@ -1091,6 +1099,10 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
 
   const onSubmit = (values: RotationFormValues) => {
     if (editing) {
+      // Only send fully-specified shift rows (backend requires a WorkShiftId), re-sequenced.
+      const cleanShifts = (values.rotationShifts || [])
+        .filter((rs) => rs.workShiftId)
+        .map((rs, i) => ({ workShiftId: rs.workShiftId, sequenceOrder: i + 1 }));
       updateMutation.mutate({
         id: editing.id,
         payload: {
@@ -1100,6 +1112,7 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
           breakDuration: values.breakDuration,
           breakUnit: values.breakUnit,
         },
+        rotationShifts: cleanShifts,
       });
     } else {
       createMutation.mutate({
@@ -1205,8 +1218,8 @@ function RotationFormDialog({ open, onOpenChange, editing, shifts }: RotationFor
             </div>
           </div>
 
-          {/* Rotation Shifts (only for create) */}
-          {!editing && (
+          {/* Rotation Shifts — editable on both create and edit */}
+          {(
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Rotation Shifts</Label>
@@ -1608,8 +1621,8 @@ function AssignmentFormDialog({ open, onOpenChange, editing, userId, shifts, rot
 
   const onSubmit = (values: AssignmentFormValues) => {
     const payload = {
-      workShiftId: values.workShiftId || undefined,
-      shiftRotationId: values.shiftRotationId || undefined,
+      workShiftId: values.workShiftId?.trim() || undefined,
+      shiftRotationId: values.shiftRotationId?.trim() || undefined,
       startsOn: values.startsOn,
       endsOn: values.endsOn || undefined,
     };
@@ -1639,8 +1652,11 @@ function AssignmentFormDialog({ open, onOpenChange, editing, userId, shifts, rot
             <Select
               value={workShiftId}
               onValueChange={(v) => {
-                setValue('workShiftId', v);
-                if (v) setValue('shiftRotationId', '');
+                // The "None" item uses a space sentinel (Radix forbids empty values) — normalize
+                // it to '' so it isn't sent to the backend as " " and fail GUID parsing.
+                const val = v.trim();
+                setValue('workShiftId', val);
+                if (val) setValue('shiftRotationId', '');
               }}
               disabled={!!shiftRotationId}
             >
@@ -1667,8 +1683,9 @@ function AssignmentFormDialog({ open, onOpenChange, editing, userId, shifts, rot
             <Select
               value={shiftRotationId}
               onValueChange={(v) => {
-                setValue('shiftRotationId', v);
-                if (v) setValue('workShiftId', '');
+                const val = v.trim();
+                setValue('shiftRotationId', val);
+                if (val) setValue('workShiftId', '');
               }}
               disabled={!!workShiftId}
             >

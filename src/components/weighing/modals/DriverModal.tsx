@@ -7,6 +7,8 @@ import { useForm } from 'react-hook-form';
 import { DriverFormFields, TransporterOption } from './DriverFormFields';
 import { EntityModal, ModalMode } from './EntityModal';
 import { Label } from '@/components/ui/label';
+import { useDriverByIdNumber } from '@/hooks/queries';
+import { AlertTriangle } from 'lucide-react';
 
 interface DriverModalProps {
   open: boolean;
@@ -102,6 +104,13 @@ export function DriverModal({
   const formValues = watch();
   const isValid = !!formValues.fullNames?.trim() && !!formValues.surname?.trim();
 
+  // Warn (during create) if a driver with the entered National ID already exists, so the
+  // officer reuses it instead of hitting the backend's 409 duplicate error.
+  const idNumber = formValues.idNumber?.trim();
+  const { data: existingByIdNumber } = useDriverByIdNumber(
+    mode === 'create' && idNumber && idNumber.length >= 6 ? idNumber : undefined,
+  );
+
   const onSubmit = async (data: CreateDriverRequest) => {
     if (!data.fullNames?.trim()) {
       setError('fullNames', { message: 'Full names are required' });
@@ -140,6 +149,16 @@ export function DriverModal({
           requiredFields={['fullNames', 'surname']}
           transporters={transporters}
         />
+        {mode === 'create' && existingByIdNumber && (
+          <div className="flex items-start gap-2 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              A driver with National ID <strong>{idNumber}</strong> already exists
+              ({existingByIdNumber.fullNames} {existingByIdNumber.surname}). Saving will be rejected as a duplicate —
+              edit the existing driver instead.
+            </span>
+          </div>
+        )}
         {isViewMode && driver && (
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-gray-700 border-b pb-2">Status Information</h4>

@@ -700,7 +700,7 @@ function ProsecutionContent() {
           <SheetFooter>
             <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Close</Button>
             {selectedCase && (
-              <Button onClick={() => handleDownloadChargeSheet(selectedCase.id)}>
+              <Button onClick={() => handleDownloadChargeSheet(selectedCase)}>
                 <Download className="mr-2 h-4 w-4" />
                 Charge Sheet
               </Button>

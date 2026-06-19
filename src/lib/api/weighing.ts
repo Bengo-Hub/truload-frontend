@@ -406,6 +406,40 @@ export async function searchDrivers(query: string): Promise<Driver[]> {
   return data;
 }
 
+/** Look up a driver by National ID number. Returns null when none exists (404). */
+export async function getDriverByIdNumber(idNumber: string): Promise<Driver | null> {
+  try {
+    const { data } = await apiClient.get<Driver>(`/drivers/id_number/${encodeURIComponent(idNumber)}`);
+    return data;
+  } catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 404) return null;
+    throw e;
+  }
+}
+
+/** Look up a driver by driving-license number. Returns null when none exists (404). */
+export async function getDriverByLicense(licenseNo: string): Promise<Driver | null> {
+  try {
+    const { data } = await apiClient.get<Driver>(`/drivers/license/${encodeURIComponent(licenseNo)}`);
+    return data;
+  } catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 404) return null;
+    throw e;
+  }
+}
+
+export interface DriverDeduplicateResult {
+  groupsMerged: number;
+  driversRemoved: number;
+  referencesRepointed: number;
+}
+
+/** Merge duplicate (same-name) driver records, repointing references. Superuser/admin tool. */
+export async function deduplicateDrivers(): Promise<DriverDeduplicateResult> {
+  const { data } = await apiClient.post<DriverDeduplicateResult>('/drivers/deduplicate');
+  return data;
+}
+
 export async function createDriver(driver: Partial<Driver>): Promise<Driver> {
   const { data } = await apiClient.post<Driver>('/drivers', driver);
   return data;

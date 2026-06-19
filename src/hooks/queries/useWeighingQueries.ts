@@ -160,6 +160,37 @@ export function useDriverById(id?: string) {
   });
 }
 
+/** Look up a driver by National ID (returns null if not found). */
+export function useDriverByIdNumber(idNumber?: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.DRIVERS, 'by-id-number', idNumber ?? ''],
+    queryFn: () => weighingApi.getDriverByIdNumber(idNumber!),
+    ...QUERY_OPTIONS.semiStatic,
+    enabled: !!idNumber,
+  });
+}
+
+/** Look up a driver by driving-license number (returns null if not found). */
+export function useDriverByLicense(licenseNo?: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.DRIVERS, 'by-license', licenseNo ?? ''],
+    queryFn: () => weighingApi.getDriverByLicense(licenseNo!),
+    ...QUERY_OPTIONS.semiStatic,
+    enabled: !!licenseNo,
+  });
+}
+
+/** Merge duplicate (same-name) driver records. Invalidates driver caches on success. */
+export function useDeduplicateDrivers() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.deduplicateDrivers,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DRIVERS });
+    },
+  });
+}
+
 /**
  * Fetch stations
  */
@@ -349,27 +380,15 @@ export function useTodayWeighingStats(stationId?: string) {
   return useQuery({
     queryKey: [...QUERY_KEYS.WEIGHING_TRANSACTIONS, 'stats', 'today', stationId ?? 'all'],
     queryFn: async () => {
-      const result = await weighingApi.searchWeighingTransactions({
-        stationId,
-        fromDate,
-        toDate,
-        pageSize: 1000, // Get all for stats calculation
-      });
-
-      // Calculate statistics
-      const transactions = result.items;
-      const compliant = transactions.filter(t => t.controlStatus === 'LEGAL' || t.controlStatus === 'Compliant');
-      const overloaded = transactions.filter(t => t.controlStatus === 'OVERLOAD' || t.controlStatus === 'Overloaded');
-      const warnings = transactions.filter(t => t.controlStatus === 'WARNING' || t.controlStatus === 'Warning');
-
+      // Use the dedicated statistics endpoint (DB-side aggregation) rather than pulling a
+      // capped page of rows and counting client-side — correct for any volume, far cheaper.
+      const s = await weighingApi.getWeighingStatistics({ stationId, dateFrom: fromDate, dateTo: toDate });
       return {
-        total: transactions.length,
-        compliant: compliant.length,
-        overloaded: overloaded.length,
-        warnings: warnings.length,
-        complianceRate: transactions.length > 0
-          ? Math.round((compliant.length / transactions.length) * 100)
-          : 100,
+        total: s.totalWeighings,
+        compliant: s.legalCount,
+        overloaded: s.overloadedCount,
+        warnings: s.warningCount,
+        complianceRate: s.totalWeighings > 0 ? Math.round(s.complianceRate) : 100,
       };
     },
     ...QUERY_OPTIONS.semiStatic,

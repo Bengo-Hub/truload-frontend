@@ -261,6 +261,8 @@ export interface UpdateWorkShiftRequest {
   totalHoursPerWeek?: number;
   graceMinutes?: number;
   isActive?: boolean;
+  // When provided, replaces the shift's weekly schedule rows (edit-schedule support).
+  schedules?: WorkShiftScheduleDto[];
 }
 
 // Role management
@@ -291,7 +293,7 @@ export interface AssignPermissionsRequest {
 export interface UserShiftDto {
   id: string;
   userId: string;
-  userName?: string;
+  userFullName?: string;
   userEmail?: string;
   workShiftId?: string;
   workShiftName?: string;
@@ -319,7 +321,7 @@ export interface UpdateUserShiftRequest {
 
 // Shift rotations
 export interface RotationShiftDto {
-  id: string;
+  rotationId: string;
   workShiftId: string;
   workShiftName?: string;
   sequenceOrder: number;

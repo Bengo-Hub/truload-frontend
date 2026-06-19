@@ -148,7 +148,7 @@ export default function ReceiptsPage() {
       title: `Receipt ${receipt.receiptNo}`,
     });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
     switch (status?.toLowerCase()) {
       case 'valid':
         return <Badge className="bg-green-500">Valid</Badge>;

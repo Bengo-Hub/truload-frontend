@@ -259,7 +259,9 @@ export async function createWorkShift(payload: CreateWorkShiftRequest): Promise<
 }
 
 export async function updateWorkShift(id: string, payload: UpdateWorkShiftRequest): Promise<WorkShiftDto> {
-  const { data } = await apiClient.put<WorkShiftDto>(`/WorkShifts/${id}`, payload);
+  // Normalize "HH:mm" -> "HH:mm:ss" for any schedules being sent, same as create.
+  const body = normalizeWorkShiftTimes(payload);
+  const { data } = await apiClient.put<WorkShiftDto>(`/WorkShifts/${id}`, body);
   return data;
 }
 
@@ -313,6 +315,15 @@ export async function createShiftRotation(payload: CreateShiftRotationRequest): 
 
 export async function updateShiftRotation(id: string, payload: UpdateShiftRotationRequest): Promise<ShiftRotationDto> {
   const { data } = await apiClient.put<ShiftRotationDto>(`/shift-rotations/${id}`, payload);
+  return data;
+}
+
+/** Replace the rotation's ordered shift sequence (edit-rotation-shifts support). */
+export async function updateRotationShifts(
+  id: string,
+  rotationShifts: { workShiftId: string; sequenceOrder: number }[],
+): Promise<ShiftRotationDto> {
+  const { data } = await apiClient.put<ShiftRotationDto>(`/shift-rotations/${id}/rotation-shifts`, { rotationShifts });
   return data;
 }
 

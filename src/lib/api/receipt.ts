@@ -13,10 +13,13 @@ export interface ReceiptDto {
   currency: string;
   paymentMethod: string;
   transactionReference?: string;
+  paymentChannel?: string;
+  alternateReference?: string;
+  notes?: string;
   idempotencyKey?: string;
   receivedById?: string;
   receivedByName?: string;
-  status: string;
+  status?: string;
   paymentDate: string;
   voidedAt?: string;
   voidReason?: string;
@@ -29,6 +32,8 @@ export interface RecordPaymentRequest {
   currency: string;
   paymentMethod: string;
   transactionReference?: string;
+  alternateReference?: string;
+  notes?: string;
   idempotencyKey: string;
 }
 
@@ -84,7 +89,7 @@ export async function getReceiptById(id: string): Promise<ReceiptDto> {
  * Get receipts by invoice ID
  */
 export async function getReceiptsByInvoiceId(invoiceId: string): Promise<ReceiptDto[]> {
-  const { data } = await apiClient.get<ReceiptDto[]>(`/invoices/${invoiceId}/receipts`);
+  const { data } = await apiClient.get<ReceiptDto[]>(`/invoices/${invoiceId}/payments`);
   return data;
 }
 
