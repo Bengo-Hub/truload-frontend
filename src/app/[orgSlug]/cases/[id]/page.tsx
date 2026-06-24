@@ -1,6 +1,6 @@
 "use client";
 
-import { CaseAssignmentLog, CaseOverviewCards, ConvictionHistory, EscalateCaseModal, EscalateChooserModal, ProsecutionSection } from '@/components/case';
+import { CaseAssignmentLog, CaseOverviewCards, ConvictionHistory, DocumentsTab, EscalateCaseModal, EscalateChooserModal, ProsecutionSection } from '@/components/case';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
@@ -303,11 +303,12 @@ export default function CaseDetailPage() {
               {/* Left Column – Tabs */}
               <div className="lg:col-span-2 space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className={`grid w-full ${isSpecialRelease ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  <TabsList className={`grid w-full ${isSpecialRelease ? 'grid-cols-2' : 'grid-cols-3'}`}>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     {!isSpecialRelease && (
                       <TabsTrigger value="prosecution">Prosecution</TabsTrigger>
                     )}
+                    <TabsTrigger value="documents">Documents</TabsTrigger>
                   </TabsList>
 
                   {/* Overview Tab */}
@@ -339,6 +340,13 @@ export default function CaseDetailPage() {
                       />
                     </TabsContent>
                   )}
+
+                  {/* Documents Tab — one place listing every generated document for the case
+                      (weight ticket, prohibition order, charge sheet, invoice, receipt, load
+                      correction memo, conditional LCM, compliance certificate, etc.) */}
+                  <TabsContent value="documents">
+                    <DocumentsTab caseId={caseId} />
+                  </TabsContent>
                 </Tabs>
 
                 {/* Officer assignments & conviction history — full-width, overflow-safe tables */}

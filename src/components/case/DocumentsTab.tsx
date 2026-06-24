@@ -40,6 +40,9 @@ const DOCUMENT_TYPE_CONFIG: Record<string, { icon: typeof FileText; color: strin
   OBExtract: { icon: FileText, color: 'text-teal-600 bg-teal-50', label: 'OB Extract' },
   Subfile: { icon: Upload, color: 'text-gray-600 bg-gray-50', label: 'Subfile' },
   ProhibitionOrder: { icon: Shield, color: 'text-rose-600 bg-rose-50', label: 'Prohibition Order' },
+  LoadCorrectionMemo: { icon: FileCheck, color: 'text-cyan-600 bg-cyan-50', label: 'Load Correction Memo' },
+  ConditionalLoadCorrectionMemo: { icon: FileWarning, color: 'text-yellow-600 bg-yellow-50', label: 'Conditional LCM' },
+  ComplianceCertificate: { icon: Shield, color: 'text-emerald-600 bg-emerald-50', label: 'Compliance Certificate' },
 };
 
 function getDocConfig(type: string) {
