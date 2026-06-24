@@ -1,6 +1,5 @@
 "use client";
 
-import { PesaflowCheckoutDialog } from '@/components/payments/PesaflowCheckoutDialog';
 import { ReconcileDialog } from '@/components/payments/ReconcileDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,10 +170,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPesaflowModal, setShowPesaflowModal] = useState(false);
-  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [showReconcileDialog, setShowReconcileDialog] = useState(false);
-  const [checkoutPaymentLink, setCheckoutPaymentLink] = useState<string | null>(null);
-  const [checkoutMode, setCheckoutMode] = useState<'iframe' | 'redirect'>('iframe');
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDto | null>(null);
   const [driverModalOpen, setDriverModalOpen] = useState(false);
 
@@ -350,10 +346,9 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
       });
 
       if (result.paymentLink) {
-        setCheckoutPaymentLink(result.paymentLink);
-        setCheckoutMode(result.checkoutMode ?? 'iframe');
+        // Open the payment page directly (no modal) — same behaviour in test and live.
         setShowPesaflowModal(false);
-        setShowCheckoutDialog(true);
+        window.location.href = result.paymentLink;
       } else {
         toast.success('Pesaflow invoice created — awaiting payment link');
         setShowPesaflowModal(false);
@@ -735,9 +730,7 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
                               className="text-purple-600"
                               onClick={() => {
                                 setSelectedInvoice(invoice);
-                                setCheckoutPaymentLink(invoice.pesaflowPaymentLink!);
-                                setCheckoutMode(invoice.pesaflowCheckoutMode ?? 'iframe');
-                                setShowCheckoutDialog(true);
+                                window.location.href = invoice.pesaflowPaymentLink!;
                               }}
                             >
                               <Globe className="h-4 w-4" />
@@ -1051,20 +1044,6 @@ export function ProsecutionSection({ caseId, caseNo: _caseNo, weighingId, driver
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Pesaflow Checkout Iframe Dialog */}
-      <PesaflowCheckoutDialog
-        open={showCheckoutDialog}
-        onOpenChange={setShowCheckoutDialog}
-        paymentLink={checkoutPaymentLink}
-        invoiceId={selectedInvoice?.id || ''}
-        invoiceNo={selectedInvoice?.invoiceNo || ''}
-        pesaflowInvoiceNumber={selectedInvoice?.pesaflowInvoiceNumber}
-        checkoutMode={checkoutMode}
-        onPaymentConfirmed={() => {
-          refetch();
-        }}
-      />
 
       {/* Reconcile Offline Invoice Dialog */}
       <ReconcileDialog

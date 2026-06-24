@@ -3,7 +3,6 @@
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { AppShell } from '@/components/layout/AppShell';
-import { PesaflowCheckoutDialog } from '@/components/payments/PesaflowCheckoutDialog';
 import { ReconcileDialog } from '@/components/payments/ReconcileDialog';
 import { TreasuryCheckoutDialog } from '@/components/payments/TreasuryCheckoutDialog';
 import { TreasuryManualReconcileDialog } from '@/components/payments/TreasuryManualReconcileDialog';
@@ -100,8 +99,6 @@ export default function InvoicesPage() {
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [showHardDeleteDialog, setShowHardDeleteDialog] = useState(false);
   const [showReconcileDialog, setShowReconcileDialog] = useState(false);
-  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
-  const [checkoutMode, setCheckoutMode] = useState<'iframe' | 'redirect'>('iframe');
   const [showTreasuryCheckout, setShowTreasuryCheckout] = useState(false);
   const [showTreasuryReconcile, setShowTreasuryReconcile] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
@@ -166,14 +163,13 @@ export default function InvoicesPage() {
       return;
     }
 
-    // Enforcement invoices use Pesaflow
+    // Enforcement invoices use Pesaflow — open the payment page directly (no modal).
     if (invoice.pesaflowPaymentLink) {
-      setCheckoutMode(invoice.pesaflowCheckoutMode ?? 'iframe');
-      setShowCheckoutDialog(true);
+      window.location.href = invoice.pesaflowPaymentLink;
       return;
     }
 
-    // Generate Pesaflow link if missing
+    // Generate Pesaflow link if missing, then navigate straight to it.
     try {
       setIsGeneratingLink(true);
       const result = await createPesaflowInvoice(invoice.id, {
@@ -181,10 +177,7 @@ export default function InvoicesPage() {
       });
 
       if (result.success && result.paymentLink) {
-        invoice.pesaflowPaymentLink = result.paymentLink;
-        invoice.pesaflowInvoiceNumber = result.pesaflowInvoiceNumber || undefined;
-        setCheckoutMode(result.checkoutMode ?? 'iframe');
-        setShowCheckoutDialog(true);
+        window.location.href = result.paymentLink;
       } else {
         toast.error(result.message || 'Failed to generate payment link');
       }
@@ -560,22 +553,6 @@ export default function InvoicesPage() {
                     />
                   )}
 
-                  {/* Enforcement: Pesaflow Checkout */}
-                  {selectedInvoice && (
-                    <PesaflowCheckoutDialog
-                      open={showCheckoutDialog}
-                      onOpenChange={setShowCheckoutDialog}
-                      paymentLink={selectedInvoice.pesaflowPaymentLink || null}
-                      invoiceId={selectedInvoice.id}
-                      invoiceNo={selectedInvoice.invoiceNo}
-                      pesaflowInvoiceNumber={selectedInvoice.pesaflowInvoiceNumber}
-                      checkoutMode={checkoutMode}
-                      onPaymentConfirmed={() => {
-                        queryClient.invalidateQueries({ queryKey: ['invoices'] });
-                        queryClient.invalidateQueries({ queryKey: ['invoices', 'statistics'] });
-                      }}
-                    />
-                  )}
 
                   {/* Commercial: Treasury Checkout */}
                   {selectedInvoice?.treasuryPaymentUrl && (
