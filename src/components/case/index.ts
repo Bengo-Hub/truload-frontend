@@ -16,4 +16,5 @@ export { EscalateChooserModal } from './EscalateChooserModal';
 export { CaseOverviewCards } from './CaseOverviewCards';
 export { CaseDetailsDrawer } from './CaseDetailsDrawer';
 export { ProsecutionSection } from './ProsecutionSection';
+export { DocumentsTab } from './DocumentsTab';
 
