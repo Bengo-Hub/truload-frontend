@@ -176,14 +176,16 @@ export function ReconcileDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] w-[95vw] flex-col gap-0 p-0 sm:max-w-lg">
+        <DialogHeader className="shrink-0 border-b px-6 pb-4 pt-6">
           <DialogTitle>Reconcile Invoice</DialogTitle>
           <DialogDescription>
             Verify and reconcile <strong>{invoiceNo}</strong> against Pesaflow payment records.
           </DialogDescription>
         </DialogHeader>
 
+        {/* Scrollable body — keeps the footer actions visible on short/mobile viewports */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
         {/* Step: Input */}
         {(step === 'input' || step === 'verifying') && (
           <div className="space-y-4">
@@ -254,28 +256,28 @@ export function ReconcileDialog({
                 <span className="font-medium text-emerald-800">Payment Verified</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Amount Paid</span>
-                  <p className="font-semibold">{formatCurrency(paymentStatus.amountPaid)}</p>
+              <dl className="divide-y divide-emerald-200/70 text-sm">
+                <div className="flex items-center justify-between py-1.5">
+                  <dt className="text-muted-foreground">Amount Paid</dt>
+                  <dd className="font-semibold">{formatCurrency(paymentStatus.amountPaid)}</dd>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Amount to Record</span>
-                  <p className="font-semibold text-emerald-700">{formatCurrency(parseFloat(amount))}</p>
+                <div className="flex items-center justify-between py-1.5">
+                  <dt className="text-muted-foreground">Amount to Record</dt>
+                  <dd className="font-semibold text-emerald-700">{formatCurrency(parseFloat(amount))}</dd>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Channel</span>
-                  <p className="font-semibold">{paymentStatus.paymentChannel || 'N/A'}</p>
+                <div className="flex items-center justify-between py-1.5">
+                  <dt className="text-muted-foreground">Channel</dt>
+                  <dd className="font-semibold">{paymentStatus.paymentChannel || 'N/A'}</dd>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Date</span>
-                  <p className="font-semibold">
+                <div className="flex items-center justify-between py-1.5">
+                  <dt className="text-muted-foreground">Date</dt>
+                  <dd className="font-semibold">
                     {paymentStatus.paymentDate
                       ? new Date(paymentStatus.paymentDate).toLocaleDateString()
                       : 'N/A'}
-                  </p>
+                  </dd>
                 </div>
-              </div>
+              </dl>
 
               {parseFloat(amount) < paymentStatus.amountPaid && (
                 <p className="text-xs text-amber-700 flex items-center gap-1.5 border-t border-emerald-200 pt-2">
@@ -366,8 +368,9 @@ export function ReconcileDialog({
             <p className="text-sm text-muted-foreground">Reconciling invoice...</p>
           </div>
         )}
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t px-6 py-4">
           {step === 'input' && (
             <>
               <Button variant="outline" onClick={handleClose}>
