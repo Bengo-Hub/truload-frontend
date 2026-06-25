@@ -122,6 +122,98 @@ function groupToleranceKg(
   return toleranceKgOf(standard, groupPermissibleKg);
 }
 
+// ── Provisional charges (faithful port of ProsecutionService.CalculateChargesAsync) ──
+
+export interface FeeScheduleRef {
+  legalFramework: string;
+  feeType: string; // 'GVW' | 'AXLE'
+  convictionNumber: number; // 1 = first offence, 2 = repeat (priorCount >= 1)
+  overloadMinKg: number;
+  overloadMaxKg: number | null;
+  feePerKgUsd: number;
+  flatFeeUsd: number;
+  flatFeeKes: number;
+}
+
+export interface ChargesInput {
+  gvwOverloadKg: number;
+  legalFramework: string; // 'TRAFFIC_ACT' | 'EAC'
+  /** From cached recent-convictions: priorCount in the last 12 months for this vehicle. */
+  priorConvictionCount: number;
+  feeSchedules: FeeScheduleRef[];
+  /** Last-known USD->KES rate (server reconciles authoritatively on sync). */
+  forexRate: number;
+  /** EAC axle fees in USD (Traffic Act = 0). Optional; defaults to 0. */
+  axleFeeUsd?: number;
+}
+
+export interface ProvisionalCharges {
+  provisional: true;
+  convictionNumber: number;
+  gvwFeeKes: number;
+  gvwFeeUsd: number;
+  bestChargeBasis: 'gvw' | 'axle';
+  /** Per-party fee; total is x2 (driver + owner jointly liable). */
+  perPartyFeeKes: number;
+  totalFeeKes: number;
+  totalFeeUsd: number;
+}
+
+/**
+ * Provisional charges for an overloaded weighing, computed offline from cached fee schedules
+ * and the cached prior-conviction count. Mirrors CalculateGvwFeeAsync + CalculateChargesAsync:
+ * Traffic Act = flat KES band; EAC = per-kg USD; two-party total = per-party x2. Forex only
+ * affects cross-currency reporting (KES total is native for Traffic Act). The server recomputes
+ * authoritatively on sync — treat as an estimate.
+ */
+export function computeProvisionalCharges(input: ChargesInput): ProvisionalCharges {
+  const { gvwOverloadKg, legalFramework, feeSchedules, forexRate } = input;
+  const isTraffic = up(legalFramework) === 'TRAFFIC_ACT';
+  const convictionNumber = input.priorConvictionCount >= 1 ? 2 : 1;
+
+  const band = feeSchedules.find(
+    (f) =>
+      up(f.legalFramework) === up(legalFramework) &&
+      up(f.feeType) === 'GVW' &&
+      f.convictionNumber === convictionNumber &&
+      gvwOverloadKg >= f.overloadMinKg &&
+      (f.overloadMaxKg == null || gvwOverloadKg <= f.overloadMaxKg),
+  );
+
+  let gvwFeeKes = 0;
+  let gvwFeeUsd = 0;
+  if (gvwOverloadKg > 0) {
+    if (!band) {
+      // Backend fallback: overloadKg * 0.50 USD (flagged — should not happen with seeded data).
+      gvwFeeUsd = gvwOverloadKg * 0.5;
+      gvwFeeKes = gvwFeeUsd * forexRate;
+    } else if (isTraffic) {
+      gvwFeeKes = band.flatFeeKes;
+      gvwFeeUsd = forexRate > 0 ? gvwFeeKes / forexRate : 0;
+    } else {
+      gvwFeeUsd = band.feePerKgUsd * gvwOverloadKg + band.flatFeeUsd;
+      gvwFeeKes = gvwFeeUsd * forexRate;
+    }
+  }
+
+  const axleFeeUsd = input.axleFeeUsd ?? 0;
+  const axleFeeKes = axleFeeUsd * forexRate;
+  const bestChargeBasis: 'gvw' | 'axle' = gvwFeeUsd >= axleFeeUsd ? 'gvw' : 'axle';
+  const perPartyFeeKes = bestChargeBasis === 'gvw' ? gvwFeeKes : axleFeeKes;
+  const perPartyFeeUsd = bestChargeBasis === 'gvw' ? gvwFeeUsd : axleFeeUsd;
+
+  return {
+    provisional: true,
+    convictionNumber,
+    gvwFeeKes,
+    gvwFeeUsd,
+    bestChargeBasis,
+    perPartyFeeKes,
+    totalFeeKes: perPartyFeeKes * 2,
+    totalFeeUsd: perPartyFeeUsd * 2,
+  };
+}
+
 function determineStatus(overloadKg: number, opToleranceKg: number): 'LEGAL' | 'WARNING' | 'OVERLOAD' {
   if (overloadKg <= 0) return 'LEGAL';
   if (overloadKg <= opToleranceKg) return 'WARNING';
