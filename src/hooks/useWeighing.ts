@@ -250,12 +250,15 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
 
       const normalizedPlate = vehicleRegNo.toUpperCase().trim();
 
-      // Backend generates ticket number via DocumentNumberService
+      // Backend generates ticket number via DocumentNumberService.
+      // clientLocalId makes the create idempotent: a retry or accidental double-submit
+      // returns the existing transaction instead of creating a duplicate weighing.
       const request: CreateWeighingRequest = {
         stationId: station.id,
         vehicleRegNo: normalizedPlate,
         weighingType: weighingMode,
         bound: bound,
+        clientLocalId: crypto.randomUUID(),
         ...details,
       };
 
