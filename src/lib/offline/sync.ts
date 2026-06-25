@@ -47,9 +47,15 @@ async function syncWeighings(nowMs: number): Promise<number> {
   const ready = pendingReady(await offlineDb.offlineWeighings.toArray(), nowMs);
   for (const w of ready) {
     try {
+      // 1. Create the transaction (idempotent on clientLocalId == localId).
       const res = await apiClient.post('/weighing-transactions', JSON.parse(w.payload), idem(w.localId));
+      const serverId = (res.data as { id: string }).id;
+      // 2. Replay the captured weights if any (offline capture is a two-step flow).
+      if (w.axles) {
+        await apiClient.post(`/weighing-transactions/${serverId}/capture-weights`, { axles: JSON.parse(w.axles) });
+      }
       await offlineDb.offlineWeighings.update(w.localId, {
-        synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
+        synced: true, serverId, syncedAt: new Date(nowMs).toISOString(),
       } as Partial<typeof w>);
       n++;
     } catch (err) {
