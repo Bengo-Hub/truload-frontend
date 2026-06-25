@@ -5,7 +5,7 @@
  * backend computed. This locks the offline engine to the server's results in CI — the same
  * assertion the live parity harness (scripts/offline-compliance-parity.mjs) makes against the DB.
  */
-import { computeProvisionalCompliance, type ToleranceSettingRef } from '../compliance';
+import { computeProvisionalCompliance, computeProvisionalCharges, type ToleranceSettingRef, type FeeScheduleRef } from '../compliance';
 
 // Mirror of tolerance_settings in kuraweigh.
 const SETTINGS: ToleranceSettingRef[] = [
@@ -78,5 +78,36 @@ describe('offline compliance engine — parity with backend', () => {
       axles: [{ axleNumber: 1, measuredWeightKg: 30000, permissibleWeightKg: 26000, axleGrouping: 'A' }],
     });
     expect(r.gvwToleranceKg).toBe(3000);
+  });
+});
+
+// Traffic Act GVW fee bands (mirror of axle_fee_schedules, conviction 1 + 2).
+const FEES: FeeScheduleRef[] = [
+  { legalFramework: 'TRAFFIC_ACT', feeType: 'GVW', convictionNumber: 1, overloadMinKg: 1, overloadMaxKg: 999, feePerKgUsd: 0, flatFeeUsd: 0, flatFeeKes: 5000 },
+  { legalFramework: 'TRAFFIC_ACT', feeType: 'GVW', convictionNumber: 1, overloadMinKg: 1000, overloadMaxKg: 1999, feePerKgUsd: 0, flatFeeUsd: 0, flatFeeKes: 10000 },
+  { legalFramework: 'TRAFFIC_ACT', feeType: 'GVW', convictionNumber: 1, overloadMinKg: 2000, overloadMaxKg: 2999, feePerKgUsd: 0, flatFeeUsd: 0, flatFeeKes: 15000 },
+  { legalFramework: 'TRAFFIC_ACT', feeType: 'GVW', convictionNumber: 2, overloadMinKg: 1, overloadMaxKg: 999, feePerKgUsd: 0, flatFeeUsd: 0, flatFeeKes: 10000 },
+];
+
+describe('offline charges engine — parity with backend', () => {
+  it('Traffic Act 200kg overload, first offence → 5000 per-party, 10000 total (x2)', () => {
+    const c = computeProvisionalCharges({ gvwOverloadKg: 200, legalFramework: 'TRAFFIC_ACT', priorConvictionCount: 0, feeSchedules: FEES, forexRate: 130 });
+    expect(c.convictionNumber).toBe(1);
+    expect(c.gvwFeeKes).toBe(5000);
+    expect(c.totalFeeKes).toBe(10000);
+    expect(c.bestChargeBasis).toBe('gvw');
+  });
+
+  it('Traffic Act 2000kg overload, first offence → 15000 / 30000', () => {
+    const c = computeProvisionalCharges({ gvwOverloadKg: 2000, legalFramework: 'TRAFFIC_ACT', priorConvictionCount: 0, feeSchedules: FEES, forexRate: 130 });
+    expect(c.gvwFeeKes).toBe(15000);
+    expect(c.totalFeeKes).toBe(30000);
+  });
+
+  it('repeat offender (priorCount>=1) uses conviction-2 band', () => {
+    const c = computeProvisionalCharges({ gvwOverloadKg: 200, legalFramework: 'TRAFFIC_ACT', priorConvictionCount: 1, feeSchedules: FEES, forexRate: 130 });
+    expect(c.convictionNumber).toBe(2);
+    expect(c.gvwFeeKes).toBe(10000); // higher band
+    expect(c.totalFeeKes).toBe(20000);
   });
 });
