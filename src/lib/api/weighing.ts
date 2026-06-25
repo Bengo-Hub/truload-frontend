@@ -313,6 +313,12 @@ export interface CreateWeighingRequest {
   locationCounty?: string;
   locationLat?: number;
   locationLng?: number;
+  /**
+   * Client-generated stable UUID for offline/idempotent create. Sent so a replayed or
+   * double-submitted weighing returns the existing transaction instead of duplicating it
+   * (backend get-or-create on ClientLocalId).
+   */
+  clientLocalId?: string;
 }
 
 export interface UpdateWeighingRequest {
