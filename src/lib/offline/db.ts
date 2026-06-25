@@ -29,13 +29,9 @@ export interface OfflineWeighing extends SyncState {
   serverId?: string; // server weighing-transaction id once synced
   stationId: string;
   vehicleRegNumber: string;
-  vehicleType: string;
-  gvw: number;
-  axleWeights: string; // JSON stringified array
-  driverName?: string;
-  driverLicense?: string;
-  transporterName?: string;
-  payload: string; // JSON of the full CreateWeighingRequest
+  payload: string; // JSON of the full CreateWeighingRequest (carries clientLocalId)
+  /** JSON CaptureWeightsRequest.axles to replay after the create syncs (offline capture). */
+  axles?: string;
   createdAt: string;
   syncedAt?: string;
 }
