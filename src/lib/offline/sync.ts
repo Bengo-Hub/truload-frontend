@@ -1,137 +1,211 @@
 /**
  * Background Sync Manager
  *
- * Detects online/offline transitions. When the app comes back online,
- * drains the Dexie mutation queue (oldest-first), pushing each mutation
- * to the backend. Failed mutations are retried up to MAX_RETRIES before
- * being marked with lastError for manual intervention.
+ * When the app comes back online it drains, in dependency order and with
+ * exactly-once semantics:
+ *   1. the typed workflow stores — weighings → cases → prosecutions → invoices
+ *      (children resolve their parent's freshly-synced server id), then
+ *   2. the generic mutation queue (oldest-first).
+ *
+ * Every POST carries an `Idempotency-Key` header (the row's stable localId), so a
+ * replay returns the existing server record instead of creating a duplicate
+ * (backed by the Phase 1 backend get-or-create). Failures use exponential backoff
+ * + jitter; terminal 4xx (except 408/429) dead-letter for manual review.
  */
 
 import { apiClient } from '@/lib/api/client';
-import { offlineDb, type QueuedMutation } from './db';
-
-const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 2000;
+import {
+  offlineDb,
+  nextRetryState,
+  pendingReady,
+  getSyncStatusCounts,
+  type QueuedMutation,
+  type SyncState,
+} from './db';
 
 let isSyncing = false;
 
-/**
- * Process a single queued mutation against the backend.
- */
-async function processMutation(mutation: QueuedMutation): Promise<boolean> {
-  try {
-    const payload = JSON.parse(mutation.payload);
+/** A 4xx (except 408 timeout / 429 rate-limit) is a permanent failure → dead-letter. */
+function isTerminal(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  return typeof status === 'number' && status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
 
-    switch (mutation.method) {
-      case 'POST':
-        await apiClient.post(mutation.endpoint, payload);
-        break;
-      case 'PUT':
-        await apiClient.put(mutation.endpoint, payload);
-        break;
-      case 'PATCH':
-        await apiClient.patch(mutation.endpoint, payload);
-        break;
+function errMessage(err: unknown): string {
+  const e = err as { response?: { data?: { message?: string } }; message?: string };
+  return e?.response?.data?.message || e?.message || 'Unknown sync error';
+}
+
+function idem(key: string) {
+  return { headers: { 'Idempotency-Key': key } };
+}
+
+// ── Typed workflow drain (weighings → cases → prosecutions → invoices) ────────
+
+async function syncWeighings(nowMs: number): Promise<number> {
+  let n = 0;
+  const ready = pendingReady(await offlineDb.offlineWeighings.toArray(), nowMs);
+  for (const w of ready) {
+    try {
+      const res = await apiClient.post('/weighing-transactions', JSON.parse(w.payload), idem(w.localId));
+      await offlineDb.offlineWeighings.update(w.localId, {
+        synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
+      } as Partial<typeof w>);
+      n++;
+    } catch (err) {
+      await offlineDb.offlineWeighings.update(w.localId, nextRetryState(w, errMessage(err), isTerminal(err), nowMs) as Partial<typeof w>);
     }
+  }
+  return n;
+}
 
-    return true;
-  } catch {
-    return false;
+async function syncCases(nowMs: number): Promise<number> {
+  let n = 0;
+  const ready = pendingReady(await offlineDb.offlineCases.toArray(), nowMs);
+  for (const c of ready) {
+    // Resolve the parent weighing's server id; skip this pass if not synced yet.
+    let serverWeighingId = c.serverWeighingId;
+    if (!serverWeighingId && c.localWeighingId) {
+      const w = await offlineDb.offlineWeighings.get(c.localWeighingId);
+      serverWeighingId = w?.serverId;
+      if (!serverWeighingId) continue;
+      await offlineDb.offlineCases.update(c.localId, { serverWeighingId } as Partial<typeof c>);
+    }
+    try {
+      const res = await apiClient.post(`/case/cases/from-weighing/${serverWeighingId}`, {}, idem(c.localId));
+      await offlineDb.offlineCases.update(c.localId, {
+        synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
+      } as Partial<typeof c>);
+      n++;
+    } catch (err) {
+      await offlineDb.offlineCases.update(c.localId, nextRetryState(c, errMessage(err), isTerminal(err), nowMs) as Partial<typeof c>);
+    }
+  }
+  return n;
+}
+
+async function syncProsecutions(nowMs: number): Promise<number> {
+  let n = 0;
+  const ready = pendingReady(await offlineDb.offlineProsecutions.toArray(), nowMs);
+  for (const p of ready) {
+    let serverCaseId = p.serverCaseId;
+    if (!serverCaseId && p.localCaseId) {
+      const c = await offlineDb.offlineCases.get(p.localCaseId);
+      serverCaseId = c?.serverId;
+      if (!serverCaseId) continue;
+      await offlineDb.offlineProsecutions.update(p.localId, { serverCaseId } as Partial<typeof p>);
+    }
+    try {
+      const res = await apiClient.post(`/cases/${serverCaseId}/prosecution`, JSON.parse(p.payload), idem(p.localId));
+      await offlineDb.offlineProsecutions.update(p.localId, {
+        synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
+      } as Partial<typeof p>);
+      n++;
+    } catch (err) {
+      await offlineDb.offlineProsecutions.update(p.localId, nextRetryState(p, errMessage(err), isTerminal(err), nowMs) as Partial<typeof p>);
+    }
+  }
+  return n;
+}
+
+async function syncInvoices(nowMs: number): Promise<number> {
+  let n = 0;
+  const ready = pendingReady(await offlineDb.offlineInvoices.toArray(), nowMs);
+  for (const inv of ready) {
+    let serverProsecutionId = inv.serverProsecutionId;
+    if (!serverProsecutionId && inv.localProsecutionId) {
+      const p = await offlineDb.offlineProsecutions.get(inv.localProsecutionId);
+      serverProsecutionId = p?.serverId;
+      if (!serverProsecutionId) continue;
+      await offlineDb.offlineInvoices.update(inv.localId, { serverProsecutionId } as Partial<typeof inv>);
+    }
+    try {
+      const res = await apiClient.post(`/prosecutions/${serverProsecutionId}/invoices`, {}, idem(inv.localId));
+      await offlineDb.offlineInvoices.update(inv.localId, {
+        synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
+      } as Partial<typeof inv>);
+      n++;
+    } catch (err) {
+      await offlineDb.offlineInvoices.update(inv.localId, nextRetryState(inv, errMessage(err), isTerminal(err), nowMs) as Partial<typeof inv>);
+    }
+  }
+  return n;
+}
+
+// ── Generic mutation queue (used by useOfflineMutation) ───────────────────────
+
+async function processMutation(mutation: QueuedMutation): Promise<void> {
+  const payload = JSON.parse(mutation.payload);
+  const cfg = idem(mutation.idempotencyKey);
+  switch (mutation.method) {
+    case 'POST': await apiClient.post(mutation.endpoint, payload, cfg); break;
+    case 'PUT': await apiClient.put(mutation.endpoint, payload, cfg); break;
+    case 'PATCH': await apiClient.patch(mutation.endpoint, payload, cfg); break;
   }
 }
 
-/**
- * Drain the mutation queue oldest-first.
- * Returns the count of successfully synced mutations.
- */
+async function syncMutationQueue(nowMs: number): Promise<number> {
+  let n = 0;
+  const all = await offlineDb.mutationQueue.orderBy('createdAt').toArray();
+  for (const m of pendingReady(all, nowMs)) {
+    try {
+      await processMutation(m);
+      await offlineDb.mutationQueue.update(m.id!, { synced: true } as Partial<QueuedMutation>);
+      await offlineDb.mutationQueue.delete(m.id!); // success → remove from queue
+      n++;
+    } catch (err) {
+      await offlineDb.mutationQueue.update(m.id!, nextRetryState(m, errMessage(err), isTerminal(err), nowMs) as Partial<QueuedMutation>);
+    }
+  }
+  return n;
+}
+
+/** Drain everything in dependency order. Returns total rows synced this pass. */
 export async function drainMutationQueue(): Promise<number> {
   if (isSyncing) return 0;
   isSyncing = true;
-
+  const nowMs = Date.now();
   let synced = 0;
-
   try {
-    const pending = await offlineDb.mutationQueue
-      .orderBy('createdAt')
-      .toArray();
-
-    for (const mutation of pending) {
-      const success = await processMutation(mutation);
-
-      if (success) {
-        await offlineDb.mutationQueue.delete(mutation.id!);
-        synced++;
-      } else {
-        const retries = mutation.retries + 1;
-        if (retries >= MAX_RETRIES) {
-          await offlineDb.mutationQueue.update(mutation.id!, {
-            retries,
-            lastError: `Failed after ${MAX_RETRIES} retries`,
-          });
-        } else {
-          await offlineDb.mutationQueue.update(mutation.id!, { retries });
-          // Wait before retrying next mutation
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-        }
-      }
-    }
+    synced += await syncWeighings(nowMs);
+    synced += await syncCases(nowMs);
+    synced += await syncProsecutions(nowMs);
+    synced += await syncInvoices(nowMs);
+    synced += await syncMutationQueue(nowMs);
   } finally {
     isSyncing = false;
   }
-
   return synced;
 }
 
-/**
- * Mark all synced offline invoices with a syncedAt timestamp.
- */
-export async function markOfflineInvoicesSynced(): Promise<void> {
-  const unsynced = await offlineDb.offlineInvoices
-    .where('syncedAt')
-    .equals('')
-    .toArray();
-
-  const now = new Date().toISOString();
-  for (const inv of unsynced) {
-    await offlineDb.offlineInvoices.update(inv.localId, { syncedAt: now });
-  }
-}
-
-/**
- * Get current queue size (for UI indicators).
- */
+/** Total queued items not yet synced (across typed stores + generic queue). */
 export async function getPendingMutationCount(): Promise<number> {
-  return offlineDb.mutationQueue.count();
+  return (await getSyncStatusCounts()).pending;
 }
 
-/**
- * Get failed mutations that exceeded retry limit.
- */
+/** Dead-lettered items needing manual review. */
+export async function getDeadLetterCount(): Promise<number> {
+  return (await getSyncStatusCounts()).deadLetter;
+}
+
 export async function getFailedMutations(): Promise<QueuedMutation[]> {
-  return offlineDb.mutationQueue
-    .filter((m) => m.retries >= MAX_RETRIES)
-    .toArray();
+  return offlineDb.mutationQueue.filter((m: SyncState) => !!m.deadLetter).toArray();
 }
 
-/**
- * Clear a specific failed mutation (manual dismissal).
- */
 export async function dismissFailedMutation(id: number): Promise<void> {
   await offlineDb.mutationQueue.delete(id);
 }
 
-/**
- * Clear expired reference data cache entries.
- */
+/** Reset a dead-lettered generic mutation so it retries on the next drain. */
+export async function retryFailedMutation(id: number): Promise<void> {
+  await offlineDb.mutationQueue.update(id, {
+    deadLetter: false, attempts: 0, nextAttemptAt: undefined, syncError: undefined,
+  } as Partial<QueuedMutation>);
+}
+
 export async function clearExpiredCache(): Promise<number> {
   const now = new Date().toISOString();
-  const expired = await offlineDb.referenceDataCache
-    .filter((entry) => entry.expiresAt < now)
-    .toArray();
-
-  for (const entry of expired) {
-    await offlineDb.referenceDataCache.delete(entry.key);
-  }
-
+  const expired = await offlineDb.referenceDataCache.filter((e) => e.expiresAt < now).toArray();
+  for (const entry of expired) await offlineDb.referenceDataCache.delete(entry.key);
   return expired.length;
 }
