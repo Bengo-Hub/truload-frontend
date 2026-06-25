@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DecisionPanel } from '../DecisionPanel';
 import { ComplianceStatus } from '@/types/weighing';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, WifiOff } from 'lucide-react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface WeighingDecisionStepProps {
   ticketNumber: string;
@@ -78,8 +79,21 @@ export function WeighingDecisionStep({
   onBack,
   operationalToleranceKg,
 }: WeighingDecisionStepProps) {
+  const isOnline = useOnlineStatus();
   return (
     <div className="space-y-4">
+      {/* Offline: the compliance result + charges shown here were computed locally from cached
+          reference data and are PROVISIONAL — the server recomputes authoritatively on sync. */}
+      {!isOnline && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-800">
+          <WifiOff className="h-4 w-4 mt-0.5 shrink-0" />
+          <p className="text-sm">
+            <span className="font-semibold">Provisional (offline).</span>{' '}
+            Compliance and charges were computed from cached data and queued for sync. Final figures
+            are confirmed once connectivity is restored.
+          </p>
+        </div>
+      )}
       {/* Vehicle Summary */}
       <Card className="border border-gray-200 rounded-xl">
         <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

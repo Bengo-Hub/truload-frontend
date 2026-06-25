@@ -27,6 +27,8 @@ export interface AxleFeeScheduleDto {
   overloadMaxKg: number | null;
   feePerKgUsd: number;
   flatFeeUsd: number;
+  flatFeeKes: number;
+  convictionNumber: number;
   demeritPoints: number;
   penaltyDescription: string;
   effectiveFrom: string;

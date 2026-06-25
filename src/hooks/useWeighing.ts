@@ -19,6 +19,10 @@ import {
     useMyStation,
     useUpdateWeighingTransaction,
 } from './queries';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { offlineDb } from '@/lib/offline/db';
+import { computeOfflineCompliance } from '@/lib/offline/offlineCapture';
+import { cacheComplianceReferenceData } from '@/lib/offline/referenceCache';
 
 // Storage key for persisting weighing session
 const WEIGHING_SESSION_KEY = 'truload_weighing_session';
@@ -139,6 +143,16 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
   const { data: axleConfigurations = [], isLoading: isLoadingConfigs } = useAxleConfigurations();
   const createTransactionMutation = useCreateWeighingTransaction();
   const updateTransactionMutation = useUpdateWeighingTransaction();
+  const isOnline = useOnlineStatus();
+
+  // Warm the offline compliance reference cache (axle configs, tolerances, fee schedules,
+  // demerit, convictions) whenever online, so weighing capture can compute provisional
+  // overload + charges if connectivity drops mid-shift.
+  useEffect(() => {
+    if (isOnline && station?.id) {
+      void cacheComplianceReferenceData();
+    }
+  }, [isOnline, station?.id]);
 
   // Local state
   const [session, setSession] = useState<WeighingSessionState | null>(null);
@@ -253,16 +267,39 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
       // Backend generates ticket number via DocumentNumberService.
       // clientLocalId makes the create idempotent: a retry or accidental double-submit
       // returns the existing transaction instead of creating a duplicate weighing.
+      const clientLocalId = crypto.randomUUID();
       const request: CreateWeighingRequest = {
         stationId: station.id,
         vehicleRegNo: normalizedPlate,
         weighingType: weighingMode,
         bound: bound,
-        clientLocalId: crypto.randomUUID(),
+        clientLocalId,
         ...details,
       };
 
-      const newTransaction = await createTransactionMutation.mutateAsync(request);
+      let newTransaction: WeighingTransaction;
+      if (isOnline) {
+        newTransaction = await createTransactionMutation.mutateAsync(request);
+      } else {
+        // Offline: queue the weighing for sync (the engine replays create+capture-weights with
+        // this clientLocalId on reconnect) and synthesize a local transaction so capture proceeds.
+        await offlineDb.offlineWeighings.put({
+          localId: clientLocalId,
+          stationId: station.id,
+          vehicleRegNumber: normalizedPlate,
+          payload: JSON.stringify(request),
+          synced: false,
+          attempts: 0,
+          createdAt: new Date().toISOString(),
+        });
+        newTransaction = {
+          id: clientLocalId,
+          ticketNumber: `OFFLINE-${clientLocalId.slice(0, 8)}`,
+          vehicleId: request.vehicleId ?? null,
+          vehicleRegNumber: normalizedPlate,
+          reweighCycleNo: 0,
+        } as unknown as WeighingTransaction;
+      }
 
       const newSession: WeighingSessionState = {
         transactionId: newTransaction.id,
@@ -349,6 +386,29 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
     try {
       setError(null);
 
+      // Offline: persist the captured axles onto the queued weighing (so sync replays
+      // create + capture-weights) and compute a PROVISIONAL compliance result from cached
+      // reference data so the officer sees overload/charges immediately. Server reconciles on sync.
+      if (!isOnline) {
+        const axles = capturedAxles.map(a => ({ axleNumber: a.axleNumber, measuredWeightKg: a.weightKg }));
+        await offlineDb.offlineWeighings.update(session.transactionId, {
+          axles: JSON.stringify(axles),
+        } as Partial<import('@/lib/offline/db').OfflineWeighing>).catch(() => {});
+
+        const provisional = await computeOfflineCompliance({
+          axleConfigCode: session.axleConfigCode,
+          ticketNumber: session.ticketNumber,
+          vehicleRegNumber: session.vehiclePlate,
+          axles,
+        });
+        if (!provisional) {
+          setError(new Error('Offline compliance unavailable — reference data not cached. Reconnect to capture.'));
+          return null;
+        }
+        setComplianceResult(provisional);
+        return provisional;
+      }
+
       const result = await captureWeights(session.transactionId, {
         axles: capturedAxles.map(a => ({
           axleNumber: a.axleNumber,
@@ -369,7 +429,7 @@ export function useWeighing(options: UseWeighingOptions): UseWeighingReturn {
       console.error('Failed to submit weights:', e);
       return null;
     }
-  }, [session, capturedAxles, queryClient]);
+  }, [session, capturedAxles, queryClient, isOnline]);
 
   // Throttle and backoff to avoid rate limiting (429) from repeated PUTs
   const lastPutTimeRef = useRef<number>(0);
