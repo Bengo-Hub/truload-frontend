@@ -8,6 +8,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { RecommendedAuthenticatorLinks } from '@/components/auth/RecommendedAuthenticatorLinks';
 import { TwoFactorCodeInput } from '@/components/auth/TwoFactorCodeInput';
 import { AppShell } from '@/components/layout/AppShell';
+import { OfflineSyncPanel } from '@/components/offline/OfflineSyncPanel';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -374,9 +375,10 @@ export default function ProfilePage() {
           </div>
         )}
         <Tabs defaultValue={requires2FASetup ? 'security' : 'profile'} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-1/2">
+          <TabsList className="grid w-full grid-cols-3 lg:w-2/3">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="offline">Offline</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile" className="space-y-6 pt-4">
@@ -470,6 +472,10 @@ export default function ProfilePage() {
           <TabsContent value="security" className="space-y-6 pt-4">
             <ChangePasswordCard />
             <TwoFactorCard />
+          </TabsContent>
+
+          <TabsContent value="offline" className="space-y-6 pt-4">
+            <OfflineSyncPanel />
           </TabsContent>
         </Tabs>
       </AppShell>

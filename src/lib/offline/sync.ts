@@ -203,6 +203,61 @@ export async function retryFailedMutation(id: number): Promise<void> {
   } as Partial<QueuedMutation>);
 }
 
+// ── Unified dead-letter review (across typed stores + generic queue) ───────────
+
+export type DeadLetterKind = 'weighing' | 'case' | 'prosecution' | 'invoice' | 'mutation';
+
+export interface DeadLetterItem {
+  kind: DeadLetterKind;
+  key: string; // localId, or stringified mutation id
+  label: string;
+  error?: string;
+  attempts: number;
+  createdAt: string;
+}
+
+/** Every dead-lettered item needing manual review, across all stores. */
+export async function getDeadLetterItems(): Promise<DeadLetterItem[]> {
+  const [weighings, cases, prosecutions, invoices, mutations] = await Promise.all([
+    offlineDb.offlineWeighings.filter((r) => !!r.deadLetter).toArray(),
+    offlineDb.offlineCases.filter((r) => !!r.deadLetter).toArray(),
+    offlineDb.offlineProsecutions.filter((r) => !!r.deadLetter).toArray(),
+    offlineDb.offlineInvoices.filter((r) => !!r.deadLetter).toArray(),
+    offlineDb.mutationQueue.filter((r) => !!r.deadLetter).toArray(),
+  ]);
+  return [
+    ...weighings.map((w) => ({ kind: 'weighing' as const, key: w.localId, label: `Weighing ${w.vehicleRegNumber}`, error: w.syncError, attempts: w.attempts, createdAt: w.createdAt })),
+    ...cases.map((c) => ({ kind: 'case' as const, key: c.localId, label: `Case ${c.vehicleRegNumber}`, error: c.syncError, attempts: c.attempts, createdAt: c.createdAt })),
+    ...prosecutions.map((p) => ({ kind: 'prosecution' as const, key: p.localId, label: `Prosecution ${p.localId.slice(0, 8)}`, error: p.syncError, attempts: p.attempts, createdAt: p.createdAt })),
+    ...invoices.map((i) => ({ kind: 'invoice' as const, key: i.localId, label: `Invoice ${i.invoiceNo ?? i.localId.slice(0, 8)}`, error: i.syncError, attempts: i.attempts, createdAt: i.createdAt })),
+    ...mutations.map((m) => ({ kind: 'mutation' as const, key: String(m.id), label: m.type, error: m.syncError, attempts: m.attempts, createdAt: m.createdAt })),
+  ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+const RESET: Partial<SyncState> = { deadLetter: false, attempts: 0, nextAttemptAt: undefined, syncError: undefined };
+
+/** Re-queue a dead-lettered item for the next drain. */
+export async function retryDeadLetter(kind: DeadLetterKind, key: string): Promise<void> {
+  switch (kind) {
+    case 'weighing': await offlineDb.offlineWeighings.update(key, RESET as never); break;
+    case 'case': await offlineDb.offlineCases.update(key, RESET as never); break;
+    case 'prosecution': await offlineDb.offlineProsecutions.update(key, RESET as never); break;
+    case 'invoice': await offlineDb.offlineInvoices.update(key, RESET as never); break;
+    case 'mutation': await offlineDb.mutationQueue.update(Number(key), RESET as never); break;
+  }
+}
+
+/** Permanently discard a dead-lettered item (operator gives up on it). */
+export async function dismissDeadLetter(kind: DeadLetterKind, key: string): Promise<void> {
+  switch (kind) {
+    case 'weighing': await offlineDb.offlineWeighings.delete(key); break;
+    case 'case': await offlineDb.offlineCases.delete(key); break;
+    case 'prosecution': await offlineDb.offlineProsecutions.delete(key); break;
+    case 'invoice': await offlineDb.offlineInvoices.delete(key); break;
+    case 'mutation': await offlineDb.mutationQueue.delete(Number(key)); break;
+  }
+}
+
 export async function clearExpiredCache(): Promise<number> {
   const now = new Date().toISOString();
   const expired = await offlineDb.referenceDataCache.filter((e) => e.expiresAt < now).toArray();
