@@ -172,10 +172,25 @@ export const useAuthStore = create<AuthState>()(
               setIsPlatformOwner(user.organizationCode?.toUpperCase() === PLATFORM_OWNER_ORG_CODE);
               set({ user, isAuthenticated: true, isLoading: false, error: null });
             } catch (error) {
-              // Silent fail for 401 (not logged in) to avoid unnecessary errors
-              const is401 = (error as ApiError)?.response?.status === 401;
-              const errorMessage = !is401 && error instanceof Error ? error.message : '';
-              set({ user: null, isAuthenticated: false, isLoading: false, error: errorMessage || null });
+              const apiErr = error as ApiError;
+              const is401 = apiErr?.response?.status === 401;
+              // Offline session continuity: distinguish a genuine auth rejection (server
+              // returned 401/403 while reachable) from a NETWORK failure. When there's no
+              // response (offline/timeout) — or the browser reports offline — and we already
+              // have a persisted session, KEEP it so the officer can keep weighing at a remote
+              // bridge with no signal. Otherwise ProtectedRoute would bounce them to a login
+              // page that itself needs the network, making offline capture unreachable.
+              // Real session validity is re-verified by the refresh flow on reconnect (the
+              // 7-day refresh token); a dead refresh token there triggers the normal redirect.
+              const isOffline = !apiErr?.response
+                || (typeof navigator !== 'undefined' && navigator.onLine === false);
+              const hasPersistedSession = !!get().user;
+              if (isOffline && hasPersistedSession) {
+                set({ isLoading: false, error: null });
+              } else {
+                const errorMessage = !is401 && error instanceof Error ? error.message : '';
+                set({ user: null, isAuthenticated: false, isLoading: false, error: errorMessage || null });
+              }
             } finally {
               isFetchingUser = false;
               fetchUserPromise = null;
