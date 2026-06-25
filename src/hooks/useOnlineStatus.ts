@@ -7,6 +7,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { drainMutationQueue } from '@/lib/offline/sync';
+import { registerBackgroundSync } from '@/lib/offline/registerBackgroundSync';
 
 function subscribe(callback: () => void) {
   window.addEventListener('online', callback);
@@ -28,10 +29,13 @@ function getServerSnapshot() {
 export function useOnlineStatus(): boolean {
   const isOnline = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  // Auto-drain mutation queue when coming back online
+  // Coming back online: drain immediately. Going offline: register a background-sync request so
+  // the browser drains the queue when connectivity returns even if the app is later closed.
   useEffect(() => {
     if (isOnline) {
       drainMutationQueue().catch(console.error);
+    } else {
+      void registerBackgroundSync();
     }
   }, [isOnline]);
 
