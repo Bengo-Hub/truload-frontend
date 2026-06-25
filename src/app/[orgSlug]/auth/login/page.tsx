@@ -22,6 +22,9 @@ import { fetchOrganizationByCode } from '@/lib/api/public';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { OfflinePinUnlock } from '@/components/offline/OfflinePinUnlock';
+import { isOfflinePinEnabled } from '@/lib/auth/offlinePinSession';
 
 function formatOrgDisplay(slug: string): string {
   return slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase();
@@ -37,6 +40,9 @@ function TenantAuthLoginContent() {
   const [ssoChecking, setSsoChecking] = useState(true);
   const [ssoAvailable, setSsoAvailable] = useState(false);
   const [ssoSlug, setSsoSlug] = useState('');
+  const isOnline = useOnlineStatus();
+  const [pinEnabled, setPinEnabled] = useState(false);
+  useEffect(() => setPinEnabled(isOfflinePinEnabled()), []);
 
   useEffect(() => {
     if (!orgSlug) {
@@ -107,6 +113,15 @@ function TenantAuthLoginContent() {
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
         </div>
+      </LoginPageLayout>
+    );
+  }
+
+  // Offline with an enrolled PIN: unlock the cached session instead of a dead online form.
+  if (!isOnline && pinEnabled) {
+    return (
+      <LoginPageLayout org={org} subtitle={subtitle} primaryColor={primaryColor}>
+        <OfflinePinUnlock onUnlocked={() => router.replace(`/${orgSlug}/dashboard`)} />
       </LoginPageLayout>
     );
   }

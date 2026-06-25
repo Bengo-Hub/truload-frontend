@@ -9,6 +9,7 @@ import { RecommendedAuthenticatorLinks } from '@/components/auth/RecommendedAuth
 import { TwoFactorCodeInput } from '@/components/auth/TwoFactorCodeInput';
 import { AppShell } from '@/components/layout/AppShell';
 import { OfflineSyncPanel } from '@/components/offline/OfflineSyncPanel';
+import { OfflinePinSettings } from '@/components/offline/OfflinePinSettings';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -472,6 +473,7 @@ export default function ProfilePage() {
           <TabsContent value="security" className="space-y-6 pt-4">
             <ChangePasswordCard />
             <TwoFactorCard />
+            <OfflinePinSettings />
           </TabsContent>
 
           <TabsContent value="offline" className="space-y-6 pt-4">
