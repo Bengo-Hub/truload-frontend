@@ -43,19 +43,24 @@ export function useOfflineMutation<TPayload = unknown, TResponse = unknown>(
         ? options.transformPayload(payload)
         : payload;
 
+      // Stable idempotency key per logical mutation — sent as a header both online and on
+      // replay, so a duplicate submission returns the existing server record (Phase 1 backend).
+      const idempotencyKey = crypto.randomUUID();
+      const cfg = { headers: { 'Idempotency-Key': idempotencyKey } };
+
       try {
         if (isOnline) {
           // Execute directly
           let response: { data: TResponse };
           switch (options.method) {
             case 'POST':
-              response = await apiClient.post<TResponse>(options.endpoint, body);
+              response = await apiClient.post<TResponse>(options.endpoint, body, cfg);
               break;
             case 'PUT':
-              response = await apiClient.put<TResponse>(options.endpoint, body);
+              response = await apiClient.put<TResponse>(options.endpoint, body, cfg);
               break;
             case 'PATCH':
-              response = await apiClient.patch<TResponse>(options.endpoint, body);
+              response = await apiClient.patch<TResponse>(options.endpoint, body, cfg);
               break;
           }
           options.onOnlineSuccess?.(response!.data);
@@ -66,8 +71,10 @@ export function useOfflineMutation<TPayload = unknown, TResponse = unknown>(
             endpoint: options.endpoint,
             method: options.method,
             payload: JSON.stringify(body),
+            idempotencyKey,
             createdAt: new Date().toISOString(),
-            retries: 0,
+            synced: false,
+            attempts: 0,
           });
           options.onQueued?.();
         }
