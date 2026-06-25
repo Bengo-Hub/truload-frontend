@@ -4,12 +4,21 @@ import { pushNotificationService } from '@/lib/pushNotification';
 import { useEffect } from 'react';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { PWAUpdateBanner } from './PWAUpdateBanner';
+import { drainMutationQueue } from '@/lib/offline/sync';
+import { registerPeriodicSync } from '@/lib/offline/registerBackgroundSync';
 
 // Guard for debug logging - only emit console.log in development builds
 const isDev = process.env.NODE_ENV === 'development';
 
 export function PWARegister() {
   useEffect(() => {
+    // When the SW wakes an open window for background sync, drain with the page (axios) engine.
+    const onSwMessage = (e: MessageEvent) => {
+      if ((e.data as { type?: string })?.type === 'truload-sync') {
+        drainMutationQueue().catch(console.error);
+      }
+    };
+
     // Check if the app is running as a PWA
     const isRunningAsPWA = () => {
       return (
@@ -36,10 +45,15 @@ export function PWARegister() {
           setInterval(() => {
             registration.update();
           }, 60000); // Check every minute
+
+          // Opt-in periodic background sync (installed PWA + permission granted).
+          void registerPeriodicSync();
         })
         .catch((error) => {
           console.warn('PWA Service Worker registration failed:', error);
         });
+
+      navigator.serviceWorker.addEventListener('message', onSwMessage);
     }
 
     // In development, unregister any stale service workers to avoid cache issues
@@ -58,6 +72,9 @@ export function PWARegister() {
 
     return () => {
       window.removeEventListener('appinstalled', appInstalledHandler);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', onSwMessage);
+      }
     };
   }, []);
 

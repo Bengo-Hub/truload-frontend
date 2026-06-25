@@ -25,6 +25,27 @@ import {
 
 let isSyncing = false;
 
+/**
+ * HTTP abstraction so the SAME dependency-ordered drain runs in two contexts:
+ *  - the page (default `axiosPoster`, reusing the apiClient interceptor for auth/tenant headers);
+ *  - the service worker for headless background sync (a fetch-based poster — axios' XHR adapter
+ *    isn't available in a SW). Both must throw errors shaped `{ response: { status, data } }` so
+ *    the terminal-4xx / backoff logic below is identical regardless of transport.
+ */
+export interface Poster {
+  post(endpoint: string, body: unknown, idempotencyKey?: string): Promise<{ data: unknown }>;
+  put(endpoint: string, body: unknown, idempotencyKey?: string): Promise<{ data: unknown }>;
+  patch(endpoint: string, body: unknown, idempotencyKey?: string): Promise<{ data: unknown }>;
+}
+
+const idemCfg = (key?: string) => (key ? { headers: { 'Idempotency-Key': key } } : undefined);
+
+const axiosPoster: Poster = {
+  post: (e, b, k) => apiClient.post(e, b, idemCfg(k)),
+  put: (e, b, k) => apiClient.put(e, b, idemCfg(k)),
+  patch: (e, b, k) => apiClient.patch(e, b, idemCfg(k)),
+};
+
 /** A 4xx (except 408 timeout / 429 rate-limit) is a permanent failure → dead-letter. */
 function isTerminal(err: unknown): boolean {
   const status = (err as { response?: { status?: number } })?.response?.status;
@@ -36,23 +57,19 @@ function errMessage(err: unknown): string {
   return e?.response?.data?.message || e?.message || 'Unknown sync error';
 }
 
-function idem(key: string) {
-  return { headers: { 'Idempotency-Key': key } };
-}
-
 // ── Typed workflow drain (weighings → cases → prosecutions → invoices) ────────
 
-async function syncWeighings(nowMs: number): Promise<number> {
+async function syncWeighings(nowMs: number, poster: Poster): Promise<number> {
   let n = 0;
   const ready = pendingReady(await offlineDb.offlineWeighings.toArray(), nowMs);
   for (const w of ready) {
     try {
       // 1. Create the transaction (idempotent on clientLocalId == localId).
-      const res = await apiClient.post('/weighing-transactions', JSON.parse(w.payload), idem(w.localId));
+      const res = await poster.post('/weighing-transactions', JSON.parse(w.payload), w.localId);
       const serverId = (res.data as { id: string }).id;
       // 2. Replay the captured weights if any (offline capture is a two-step flow).
       if (w.axles) {
-        await apiClient.post(`/weighing-transactions/${serverId}/capture-weights`, { axles: JSON.parse(w.axles) });
+        await poster.post(`/weighing-transactions/${serverId}/capture-weights`, { axles: JSON.parse(w.axles) });
       }
       await offlineDb.offlineWeighings.update(w.localId, {
         synced: true, serverId, syncedAt: new Date(nowMs).toISOString(),
@@ -65,7 +82,7 @@ async function syncWeighings(nowMs: number): Promise<number> {
   return n;
 }
 
-async function syncCases(nowMs: number): Promise<number> {
+async function syncCases(nowMs: number, poster: Poster): Promise<number> {
   let n = 0;
   const ready = pendingReady(await offlineDb.offlineCases.toArray(), nowMs);
   for (const c of ready) {
@@ -78,7 +95,7 @@ async function syncCases(nowMs: number): Promise<number> {
       await offlineDb.offlineCases.update(c.localId, { serverWeighingId } as Partial<typeof c>);
     }
     try {
-      const res = await apiClient.post(`/case/cases/from-weighing/${serverWeighingId}`, {}, idem(c.localId));
+      const res = await poster.post(`/case/cases/from-weighing/${serverWeighingId}`, {}, c.localId);
       await offlineDb.offlineCases.update(c.localId, {
         synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
       } as Partial<typeof c>);
@@ -90,7 +107,7 @@ async function syncCases(nowMs: number): Promise<number> {
   return n;
 }
 
-async function syncProsecutions(nowMs: number): Promise<number> {
+async function syncProsecutions(nowMs: number, poster: Poster): Promise<number> {
   let n = 0;
   const ready = pendingReady(await offlineDb.offlineProsecutions.toArray(), nowMs);
   for (const p of ready) {
@@ -102,7 +119,7 @@ async function syncProsecutions(nowMs: number): Promise<number> {
       await offlineDb.offlineProsecutions.update(p.localId, { serverCaseId } as Partial<typeof p>);
     }
     try {
-      const res = await apiClient.post(`/cases/${serverCaseId}/prosecution`, JSON.parse(p.payload), idem(p.localId));
+      const res = await poster.post(`/cases/${serverCaseId}/prosecution`, JSON.parse(p.payload), p.localId);
       await offlineDb.offlineProsecutions.update(p.localId, {
         synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
       } as Partial<typeof p>);
@@ -114,7 +131,7 @@ async function syncProsecutions(nowMs: number): Promise<number> {
   return n;
 }
 
-async function syncInvoices(nowMs: number): Promise<number> {
+async function syncInvoices(nowMs: number, poster: Poster): Promise<number> {
   let n = 0;
   const ready = pendingReady(await offlineDb.offlineInvoices.toArray(), nowMs);
   for (const inv of ready) {
@@ -126,7 +143,7 @@ async function syncInvoices(nowMs: number): Promise<number> {
       await offlineDb.offlineInvoices.update(inv.localId, { serverProsecutionId } as Partial<typeof inv>);
     }
     try {
-      const res = await apiClient.post(`/prosecutions/${serverProsecutionId}/invoices`, {}, idem(inv.localId));
+      const res = await poster.post(`/prosecutions/${serverProsecutionId}/invoices`, {}, inv.localId);
       await offlineDb.offlineInvoices.update(inv.localId, {
         synced: true, serverId: (res.data as { id: string }).id, syncedAt: new Date(nowMs).toISOString(),
       } as Partial<typeof inv>);
@@ -140,22 +157,22 @@ async function syncInvoices(nowMs: number): Promise<number> {
 
 // ── Generic mutation queue (used by useOfflineMutation) ───────────────────────
 
-async function processMutation(mutation: QueuedMutation): Promise<void> {
+async function processMutation(mutation: QueuedMutation, poster: Poster): Promise<void> {
   const payload = JSON.parse(mutation.payload);
-  const cfg = idem(mutation.idempotencyKey);
+  const key = mutation.idempotencyKey;
   switch (mutation.method) {
-    case 'POST': await apiClient.post(mutation.endpoint, payload, cfg); break;
-    case 'PUT': await apiClient.put(mutation.endpoint, payload, cfg); break;
-    case 'PATCH': await apiClient.patch(mutation.endpoint, payload, cfg); break;
+    case 'POST': await poster.post(mutation.endpoint, payload, key); break;
+    case 'PUT': await poster.put(mutation.endpoint, payload, key); break;
+    case 'PATCH': await poster.patch(mutation.endpoint, payload, key); break;
   }
 }
 
-async function syncMutationQueue(nowMs: number): Promise<number> {
+async function syncMutationQueue(nowMs: number, poster: Poster): Promise<number> {
   let n = 0;
   const all = await offlineDb.mutationQueue.orderBy('createdAt').toArray();
   for (const m of pendingReady(all, nowMs)) {
     try {
-      await processMutation(m);
+      await processMutation(m, poster);
       await offlineDb.mutationQueue.update(m.id!, { synced: true } as Partial<QueuedMutation>);
       await offlineDb.mutationQueue.delete(m.id!); // success → remove from queue
       n++;
@@ -166,18 +183,22 @@ async function syncMutationQueue(nowMs: number): Promise<number> {
   return n;
 }
 
-/** Drain everything in dependency order. Returns total rows synced this pass. */
-export async function drainMutationQueue(): Promise<number> {
+/**
+ * Drain everything in dependency order. Returns total rows synced this pass.
+ * `poster` defaults to the axios-based page transport; the service worker passes a fetch-based
+ * poster for headless background sync.
+ */
+export async function drainMutationQueue(poster: Poster = axiosPoster): Promise<number> {
   if (isSyncing) return 0;
   isSyncing = true;
   const nowMs = Date.now();
   let synced = 0;
   try {
-    synced += await syncWeighings(nowMs);
-    synced += await syncCases(nowMs);
-    synced += await syncProsecutions(nowMs);
-    synced += await syncInvoices(nowMs);
-    synced += await syncMutationQueue(nowMs);
+    synced += await syncWeighings(nowMs, poster);
+    synced += await syncCases(nowMs, poster);
+    synced += await syncProsecutions(nowMs, poster);
+    synced += await syncInvoices(nowMs, poster);
+    synced += await syncMutationQueue(nowMs, poster);
   } finally {
     isSyncing = false;
   }
