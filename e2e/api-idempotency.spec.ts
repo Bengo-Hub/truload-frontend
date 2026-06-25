@@ -48,9 +48,12 @@ test.describe('TruLoad backend idempotency (live)', () => {
   });
 
   test.afterAll(async () => {
-    // Clean up everything created (team rule: delete all E2E test data).
+    // Clean up everything created (team rule: delete ALL E2E test data), child→parent so FKs
+    // don't block: invoice → prosecution → case → weighing.
     if (created.invoiceId) await api.post(`/api/v1/invoices/${created.invoiceId}/void`, { data: { reason: 'e2e cleanup' } }).catch(() => {});
-    if (created.weighingId) await api.delete(`/api/v1/weighing-transactions/${created.weighingId}`).catch(() => {});
+    if (created.caseId) await api.delete(`/api/v1/case/cases/${created.caseId}/hard`).catch(() => {});
+    // Hard-delete the weighing (soft delete leaves the row → violates the delete-all-test-data rule).
+    if (created.weighingId) await api.delete(`/api/v1/weighing-transactions/${created.weighingId}/hard`).catch(() => {});
     await api?.dispose();
   });
 
@@ -60,11 +63,11 @@ test.describe('TruLoad backend idempotency (live)', () => {
     const r1 = await api.post('/api/v1/weighing-transactions', { data: body });
     expect(r1.ok(), `weighing create #1 (got ${r1.status()})`).toBeTruthy();
     const id1 = (await r1.json()).id;
+    created.weighingId = id1; // track for cleanup IMMEDIATELY, before assertions can throw
     const r2 = await api.post('/api/v1/weighing-transactions', { data: body });
     expect(r2.ok(), `weighing create #2 (got ${r2.status()})`).toBeTruthy();
     const id2 = (await r2.json()).id;
     expect(id2, 'replay returns the SAME weighing (no duplicate)').toBe(id1);
-    created.weighingId = id1;
   });
 
   test('case-from-weighing is idempotent (get-or-create)', async () => {
@@ -72,11 +75,11 @@ test.describe('TruLoad backend idempotency (live)', () => {
     const r1 = await api.post(`/api/v1/case/cases/from-weighing/${created.weighingId}`, { data: {} });
     expect(r1.ok(), `case create #1 (got ${r1.status()})`).toBeTruthy();
     const id1 = (await r1.json()).id;
+    created.caseId = id1; // track for cleanup IMMEDIATELY, before assertions can throw
     const r2 = await api.post(`/api/v1/case/cases/from-weighing/${created.weighingId}`, { data: {} });
     expect(r2.ok(), `case create #2 should get-or-create, not 400 (got ${r2.status()})`).toBeTruthy();
     const id2 = (await r2.json()).id;
     expect(id2, 'replay returns the SAME case').toBe(id1);
-    created.caseId = id1;
   });
 
   test('recent-convictions cache endpoint responds', async () => {
