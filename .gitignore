@@ -42,3 +42,8 @@ coverage
 *.pem
 
 nul
+
+# Build / test artifacts
+tsconfig.tsbuildinfo
+/playwright-report/
+/test-results/
