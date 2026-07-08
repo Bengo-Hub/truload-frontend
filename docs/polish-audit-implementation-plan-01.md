@@ -1,4 +1,4 @@
-Design a comprehensive implementation plan for the TruLoad Sprint 19 "Polish & Integration" sprint. This plan must be written to a file at `d:\Projects\BengoBox\Truload\truload-frontend\docs\polish-plan-01.md` — but since we're in plan mode, just return the complete plan content as text output.
+Design a comprehensive implementation plan for the TruLoad Sprint 19 "Polish & Integration" sprint. This plan must be written to a file at `d:\Projects\Codevertex\Truload\truload-frontend\docs\polish-plan-01.md` — but since we're in plan mode, just return the complete plan content as text output.
 
 ## Context from Exploration
 

@@ -159,7 +159,7 @@ Final polish sprint to fix Pesaflow integration flow alignment with backend, rev
 - **Outcome:** Module resolution restored, all imports work
 
 **Issue 4: Turbopack root detection failure**
-- **Error:** `Next.js inferred your workspace root, but it may not be correct. We couldn't find next/package.json from D:\Projects\BengoBox\TruLoad\truload-frontend\src\app`
+- **Error:** `Next.js inferred your workspace root, but it may not be correct. We couldn't find next/package.json from D:\Projects\Codevertex\TruLoad\truload-frontend\src\app`
 - **Root cause:** `pnpm-workspace.yaml` presence triggered Turbopack workspace detection, but file only had `ignoredBuiltDependencies` (no packages)
 - **Attempted fixes:**
   - Set `turbopack.root: __dirname` — no effect
