@@ -5,7 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Override with env: BASE_URL, E2E_ORG_SLUG, E2E_EMAIL, E2E_PASSWORD, TRULOAD_API_URL.
  * Local runs are headed unless CI=true.
  */
-const base = process.env.BASE_URL || 'https://truload.codevertexitsolutions.com';
+const base = process.env.BASE_URL || 'https://truload.codevertexafrica.com';
 const orgSlug = process.env.E2E_ORG_SLUG || 'KURA';
 
 export default defineConfig({

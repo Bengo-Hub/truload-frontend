@@ -8,10 +8,10 @@ import { test, expect, request as pwRequest, type APIRequestContext } from '@pla
  * record (no duplicates) — which is what makes offline replay safe. Also smoke-checks the
  * recent-convictions cache endpoint. Cleans up everything it creates.
  *
- * Env: TRULOAD_API_URL (default https://truloadapi.codevertexitsolutions.com),
+ * Env: TRULOAD_API_URL (default https://truloadapi.codevertexafrica.com),
  *      E2E_EMAIL, E2E_PASSWORD, E2E_ORG_SLUG (KURA), E2E_STATION_ID (KURA-HQ id).
  */
-const API = process.env.TRULOAD_API_URL || 'https://truloadapi.codevertexitsolutions.com';
+const API = process.env.TRULOAD_API_URL || 'https://truloadapi.codevertexafrica.com';
 const ORG = process.env.E2E_ORG_SLUG || 'KURA';
 const EMAIL = process.env.E2E_EMAIL || 'gadmin@masterspace.co.ke';
 const PASSWORD = process.env.E2E_PASSWORD || '';

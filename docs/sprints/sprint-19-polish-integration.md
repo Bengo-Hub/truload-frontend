@@ -62,7 +62,7 @@ Final polish sprint to fix Pesaflow integration flow alignment with backend, rev
 **New components:**
 - `src/components/reporting/SupersetDashboard.tsx` — Superset embedded dashboard:
   - Uses dynamic `import('@superset-ui/embedded-sdk')` to bypass Turbopack resolution
-  - `SUPERSET_DOMAIN` from `NEXT_PUBLIC_SUPERSET_URL` env var (defaults to `https://superset.codevertexitsolutions.com`)
+  - `SUPERSET_DOMAIN` from `NEXT_PUBLIC_SUPERSET_URL` env var (defaults to `https://superset.codevertexafrica.com`)
   - Dashboard selector dropdown, embeds selected dashboard with guest token auth
   - `embedDashboard()` with `id`, `supersetDomain`, `mountPoint`, `fetchGuestToken`
 - `src/components/reporting/NaturalLanguageQuery.tsx` — Ollama NLQ interface:

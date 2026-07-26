@@ -53,7 +53,7 @@ Design a comprehensive implementation plan for the TruLoad Sprint 19 "Polish & I
 - But NO backend report generation API (individual documents only, not aggregate reports)
 - Superset integration: `SupersetController` with guest-token, dashboards, NLQ query endpoints
 - Ollama NLQ: `POST /api/v1/analytics/query` — converts natural language → SQL → Superset SQL Lab
-- Superset deployed at `https://superset.codevertexitsolutions.com` (K8s, admin/Vertex2020!)
+- Superset deployed at `https://superset.codevertexafrica.com` (K8s, admin/Vertex2020!)
 
 **Required: Two-tab Reporting Page:**
 
@@ -68,7 +68,7 @@ Design a comprehensive implementation plan for the TruLoad Sprint 19 "Polish & I
 - Superset embedded dashboards (via `@superset-ui/embedded-sdk`, guest tokens)
 - Natural language query interface (Ollama-backed)
 - Interactive charts, cross-filtering
-- Superset URL: `https://superset.codevertexitsolutions.com`
+- Superset URL: `https://superset.codevertexafrica.com`
 
 ### 3. FULL OFFLINE PWA
 

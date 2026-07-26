@@ -45,7 +45,7 @@ Complete production-ready BI and AI analytics integration for TruLoad, deployed 
 | Backend | Deployment | `truload` | `truload-backend.truload.svc.cluster.local:4000` | ✅ |
 | Ollama | Deployment | `truload` | `ollama.truload.svc.cluster.local:11434` | 🆕 |
 | PostgreSQL | StatefulSet | `infra` | `postgres.infra.svc.cluster.local:5432` | ✅ |
-| Superset | External | N/A | `https://superset.codevertexitsolutions.com` | ✅ |
+| Superset | External | N/A | `https://superset.codevertexafrica.com` | ✅ |
 
 ---
 

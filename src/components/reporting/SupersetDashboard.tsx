@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useSupersetDashboards, useGetSupersetGuestToken } from '@/hooks/queries/useAnalyticsQueries';
 import { BarChart3, Loader2, RefreshCcw } from 'lucide-react';
 
-const SUPERSET_DOMAIN = process.env.NEXT_PUBLIC_SUPERSET_URL || 'https://superset.codevertexitsolutions.com';
+const SUPERSET_DOMAIN = process.env.NEXT_PUBLIC_SUPERSET_URL || 'https://superset.codevertexafrica.com';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EmbeddedDashboardPromise = Promise<{ unmount: () => void } & Record<string, any>>;

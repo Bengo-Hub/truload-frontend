@@ -34,7 +34,7 @@ export interface InvoiceDto {
   treasuryIntentId?: string;
   /** Treasury intent status (e.g. "pending", "succeeded") */
   treasuryIntentStatus?: string;
-  /** Pre-built treasury pay URL (books.codevertexitsolutions.com/pay?intent_id=...) */
+  /** Pre-built treasury pay URL (books.codevertexafrica.com/pay?intent_id=...) */
   treasuryPaymentUrl?: string;
   amountPaid: number;
   balanceRemaining: number;

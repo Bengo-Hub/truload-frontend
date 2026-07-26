@@ -49,7 +49,7 @@ export function buildAuthorizeUrl(
   state: string,
   redirectUri: string
 ): string {
-  const authApiBase = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexitsolutions.com';
+  const authApiBase = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexafrica.com';
   const clientId = process.env.NEXT_PUBLIC_SSO_CLIENT_ID ?? 'truload-ui';
 
   const params = new URLSearchParams({
@@ -73,7 +73,7 @@ export async function exchangeCodeForSSOToken(
   codeVerifier: string,
   redirectUri: string
 ): Promise<{ accessToken: string }> {
-  const authApiBase = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexitsolutions.com';
+  const authApiBase = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexafrica.com';
   const clientId = process.env.NEXT_PUBLIC_SSO_CLIENT_ID ?? 'truload-ui';
 
   const params = new URLSearchParams({
