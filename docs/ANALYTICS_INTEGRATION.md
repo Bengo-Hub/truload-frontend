@@ -62,7 +62,7 @@ Full-stack analytics integration combining **Apache Superset** for BI dashboards
 ```json
 {
   "Superset": {
-    "BaseUrl": "https://superset.codevertexitsolutions.com",
+    "BaseUrl": "https://superset.codevertexafrica.com",
     "Username": "admin",
     "Password": "admin123",
     "GuestTokenExpiryMinutes": 300
@@ -327,7 +327,7 @@ webpack: (config) => { return config; },
 ### Frontend (`.env.local`)
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
-NEXT_PUBLIC_SUPERSET_URL=https://superset.codevertexitsolutions.com
+NEXT_PUBLIC_SUPERSET_URL=https://superset.codevertexafrica.com
 ```
 
 ### Backend (`appsettings.json`)
@@ -356,7 +356,7 @@ Already configured with Superset and Ollama endpoints.
 ### Prerequisites
 1. ✅ Backend running on port 4000
 2. ✅ PostgreSQL with seeded data
-3. ✅ Superset instance accessible at https://superset.codevertexitsolutions.com
+3. ✅ Superset instance accessible at https://superset.codevertexafrica.com
 4. ⏳ Ollama llama2 model downloaded (in progress)
 
 ### Test Scenarios
@@ -452,7 +452,7 @@ grep "Superset\|Ollama\|NaturalLanguageQuery" /path/to/backend/logs
 ### Superset Connection Fails
 ```bash
 # Check Superset is accessible
-curl https://superset.codevertexitsolutions.com/health
+curl https://superset.codevertexafrica.com/health
 
 # Check credentials in appsettings.json
 # Verify username/password are correct

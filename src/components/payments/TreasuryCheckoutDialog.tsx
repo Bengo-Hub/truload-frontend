@@ -7,7 +7,7 @@
  * Uses postMessage pattern for real-time payment status updates from
  * the treasury-ui iframe — same pattern as PesaflowCheckoutDialog.
  *
- * The treasury pay page at books.codevertexitsolutions.com/pay handles:
+ * The treasury pay page at books.codevertexafrica.com/pay handles:
  * - Invoice display
  * - Gateway selection (Paystack, M-Pesa, Cash, Wallet)
  * - Payment processing

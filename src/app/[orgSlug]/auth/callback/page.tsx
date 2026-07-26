@@ -17,7 +17,7 @@ import {
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
-const SSO_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexitsolutions.com';
+const SSO_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexafrica.com';
 
 type ErrorKind = 'org_mismatch' | 'general';
 
