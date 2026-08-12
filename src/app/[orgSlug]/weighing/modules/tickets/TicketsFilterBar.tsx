@@ -69,20 +69,24 @@ export default function TicketsFilterBar({
   isFetching, canExport, hasActiveFilters,
   isCommercial = false,
 }: TicketsFilterBarProps) {
+  // Values here MUST match ControlStatus exactly as persisted by the backend (verified 2026-08-12
+  // via WeighingService.cs/CommercialWeighingService.cs/AxleGroupAggregationService.cs) - a
+  // mismatched value here silently returns zero rows rather than erroring, which was a confirmed
+  // bug ("Overload"/"Charged"/"FirstWeightCaptured" below never matched anything real).
   const statusOptions = isCommercial
     ? [
         { value: 'all', label: 'All Status' },
         { value: 'Pending', label: 'Pending' },
-        { value: 'FirstWeightCaptured', label: 'First Weight Done' },
         { value: 'Complete', label: 'Complete' },
         { value: 'ToleranceExceeded', label: 'Tolerance Exceeded' },
+        { value: 'Voided', label: 'Voided' },
       ]
     : [
         { value: 'all', label: 'All Status' },
         { value: 'Pending', label: 'Pending' },
         { value: 'Compliant', label: 'Compliant' },
-        { value: 'Overload', label: 'Overload' },
-        { value: 'Charged', label: 'Charged' },
+        { value: 'Warning', label: 'Warning (axle overload)' },
+        { value: 'Overloaded', label: 'Overloaded (GVW)' },
         { value: 'Released', label: 'Released' },
       ];
   return (

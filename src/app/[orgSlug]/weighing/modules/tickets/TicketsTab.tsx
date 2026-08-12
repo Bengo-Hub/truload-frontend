@@ -11,6 +11,7 @@ import {
   useDownloadWeightTicket,
 } from '@/hooks/queries/useWeighingQueries';
 import { getCommercialTicketPdf, approveToleranceException } from '@/lib/api/weighing';
+import { buildEatDateRange } from '@/lib/utils/dateRange';
 import type { SearchWeighingParams, WeighingTransaction } from '@/lib/api/weighing';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query/config';
@@ -113,25 +114,11 @@ export default function TicketsTab() {
       params.searchTicketNo = appliedSearchTicketNo;
     }
 
-    // Date filters
-    if (dateFrom) {
-      const from = new Date(dateFrom);
-      if (timeFrom) {
-        const [h, m] = timeFrom.split(':');
-        from.setHours(parseInt(h), parseInt(m), 0, 0);
-      }
-      params.fromDate = from.toISOString();
-    }
-    if (dateTo) {
-      const to = new Date(dateTo);
-      if (timeTo) {
-        const [h, m] = timeTo.split(':');
-        to.setHours(parseInt(h), parseInt(m), 59, 999);
-      } else {
-        to.setHours(23, 59, 59, 999);
-      }
-      params.toDate = to.toISOString();
-    }
+    // Date filters - EAT-aware and symmetric (see buildEatDateRange), not the browser's own
+    // timezone. Reused below for the stats query too, so both use the identical window.
+    const { fromDate, toDate } = buildEatDateRange(dateFrom, dateTo, timeFrom, timeTo);
+    if (fromDate) params.fromDate = fromDate;
+    if (toDate) params.toDate = toDate;
 
     return params;
   }, [pageNumber, pageSize, myStation?.id, stationFilter, statusFilter, stateFilter, axleTypeFilter, appliedSearchReg, appliedSearchTicketNo, dateFrom, dateTo, timeFrom, timeTo]);
@@ -139,10 +126,11 @@ export default function TicketsTab() {
   // Fetch transactions
   const { data: result, isLoading, isFetching, error } = useWeighingTransactions(searchParams);
 
-  // Fetch statistics
+  // Fetch statistics - reuses the SAME date-range computation as the ticket list above (previously
+  // this rebuilt its own, subtly different logic that also silently ignored timeFrom/timeTo).
   const { data: stats, isLoading: statsLoading } = useWeighingStatistics({
-    dateFrom: dateFrom ? new Date(dateFrom).toISOString() : undefined,
-    dateTo: dateTo ? (() => { const d = new Date(dateTo); d.setHours(23, 59, 59, 999); return d.toISOString(); })() : undefined,
+    dateFrom: searchParams.fromDate,
+    dateTo: searchParams.toDate,
     stationId: stationFilter !== 'all' ? stationFilter : myStation?.id,
   });
 
