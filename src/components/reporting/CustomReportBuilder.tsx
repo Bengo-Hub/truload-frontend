@@ -20,6 +20,7 @@ import {
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { CountySelectFilter } from '@/components/filters/CountySelectFilter';
 import { SubcountySelectFilter } from '@/components/filters/SubcountySelectFilter';
+import { RoadSelectFilter } from '@/components/filters/RoadSelectFilter';
 import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { ReportPreviewDialog } from './ReportPreviewDialog';
 import type { ReportFilterDefinition } from '@/lib/api/reports';
@@ -77,9 +78,12 @@ export function CustomReportBuilder() {
   const setFilterValue = (key: string, value: string | undefined) => {
     setFilterValues((prev) => {
       const next = { ...prev, [key]: value };
-      // Sub-county is scoped to a county - clear it if the county changes/clears so a stale
-      // selection from a different county can't linger.
-      if (key === 'countyId') next.subcountyId = undefined;
+      // Sub-county and Road are both scoped to a county - clear them if the county changes/clears
+      // so a stale selection from a different county can't linger.
+      if (key === 'countyId') {
+        next.subcountyId = undefined;
+        next.roadId = undefined;
+      }
       return next;
     });
   };
@@ -133,6 +137,7 @@ export function CustomReportBuilder() {
           stationId,
           countyId: filterValues.countyId,
           subcountyId: filterValues.subcountyId,
+          roadId: filterValues.roadId,
           weighingType: filterValues.weighingType,
           controlStatus: filterValues.controlStatus,
           useDefaults,
@@ -219,6 +224,17 @@ export function CustomReportBuilder() {
                   if (f.kind === 'subcounty') {
                     return (
                       <SubcountySelectFilter
+                        key={f.key}
+                        label={f.label}
+                        value={filterValues[f.key]}
+                        countyId={filterValues.countyId}
+                        onValueChange={(v) => setFilterValue(f.key, v)}
+                      />
+                    );
+                  }
+                  if (f.kind === 'road') {
+                    return (
+                      <RoadSelectFilter
                         key={f.key}
                         label={f.label}
                         value={filterValues[f.key]}
