@@ -22,6 +22,7 @@ import {
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { triggerBlobDownload } from '@/lib/api/reports';
 
 interface PortalReportDef {
   id: string;
@@ -96,14 +97,9 @@ export default function PortalReportsPage() {
         responseType: 'blob',
       });
       const blob = response.data as Blob;
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${reportId}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Shared triggerBlobDownload (src/lib/api/reports.ts) - was previously duplicated here
+      // as its own create-anchor/click/revoke block, one of 3+ independent copies of this logic.
+      triggerBlobDownload(blob, `${reportId}.${format}`);
       toast.success('Report downloaded');
     } catch {
       toast.error('Failed to download report');

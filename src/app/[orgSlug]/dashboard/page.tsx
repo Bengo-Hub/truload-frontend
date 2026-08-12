@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardFilterProvider, useDashboardFilters } from '@/contexts/DashboardFilterContext';
+import { STATUS_COLORS } from '@/lib/constants/statusColors';
 import {
   DASHBOARD_QUERY_KEYS,
   useAxleViolations,
@@ -242,7 +243,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {isEnforcement && (
           <PermissionGate permissions="weighing.read">
-            <ChartWrapper title="Compliance Trend" subtitle="Daily compliance vs overload distribution" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Compliant', color: '#10b981' }, { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
+            <ChartWrapper title="Compliance Trend" subtitle="Daily compliance vs overload distribution" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Compliant', color: STATUS_COLORS.compliant }, { dataKey: 'overloaded', name: 'Overloaded', color: STATUS_COLORS.overloaded }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
           </PermissionGate>
         )}
         {isCommercial && (
@@ -323,7 +324,7 @@ function WeighingTab({ filters, isCommercial }: TabProps) {
       {/* Enforcement-only charts */}
       {isEnforcement && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <ChartWrapper title="Compliance Trend" subtitle="Legal vs overloaded vehicles over time" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Legal', color: '#10b981' }, { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' }, { dataKey: 'warning', name: 'Warning', color: '#f59e0b' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
+          <ChartWrapper title="Compliance Trend" subtitle="Legal vs overloaded vehicles over time" data={complianceTrend ?? []} series={[{ dataKey: 'compliant', name: 'Legal', color: STATUS_COLORS.compliant }, { dataKey: 'overloaded', name: 'Overloaded', color: STATUS_COLORS.overloaded }, { dataKey: 'warning', name: 'Warning', color: STATUS_COLORS.warning }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingCompliance} />
           <ChartWrapper title="Overload Distribution" subtitle="Violations by overload severity band" data={overloadDist ?? []} series={[{ dataKey: 'count', name: 'Vehicles', color: '#ef4444' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie', 'donut']} isLoading={loadingOverload} />
         </div>
       )}
