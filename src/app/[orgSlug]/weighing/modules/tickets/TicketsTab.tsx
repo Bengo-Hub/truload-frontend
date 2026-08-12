@@ -12,6 +12,7 @@ import {
 } from '@/hooks/queries/useWeighingQueries';
 import { getCommercialTicketPdf, approveToleranceException } from '@/lib/api/weighing';
 import { buildEatDateRange } from '@/lib/utils/dateRange';
+import { exportToCSV } from '@/lib/utils/export';
 import type { SearchWeighingParams, WeighingTransaction } from '@/lib/api/weighing';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query/config';
@@ -165,21 +166,23 @@ export default function TicketsTab() {
 
   const handleExport = useCallback(() => {
     if (!tickets.length) return;
-    const headers = ['Ticket No', 'Vehicle Reg', 'GVW Measured (kg)', 'GVW Permissible (kg)', 'Overload (kg)', 'Status', 'Station', 'Weighed At'];
-    const rows = tickets.map(t => [
-      t.ticketNumber, t.vehicleRegNumber, t.gvwMeasuredKg, t.gvwPermissibleKg,
-      t.overloadKg, t.controlStatus, t.stationName ?? '', t.weighedAt,
-    ]);
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `weight-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    // Shared exportToCSV (src/lib/utils/export.ts) properly escapes fields containing commas/
+    // quotes - the previous hand-rolled `r.join(',')` had no such escaping (a real CSV-corruption
+    // bug if e.g. a station name ever contained a comma), on top of duplicating this logic.
+    exportToCSV(
+      tickets,
+      [
+        { header: 'Ticket No', accessor: 'ticketNumber' },
+        { header: 'Vehicle Reg', accessor: 'vehicleRegNumber' },
+        { header: 'GVW Measured (kg)', accessor: 'gvwMeasuredKg' },
+        { header: 'GVW Permissible (kg)', accessor: 'gvwPermissibleKg' },
+        { header: 'Overload (kg)', accessor: 'overloadKg' },
+        { header: 'Status', accessor: 'controlStatus' },
+        { header: 'Station', accessor: (t) => t.stationName ?? '' },
+        { header: 'Weighed At', accessor: 'weighedAt' },
+      ],
+      'weight-tickets'
+    );
     toast.success('Tickets exported to CSV');
   }, [tickets]);
 

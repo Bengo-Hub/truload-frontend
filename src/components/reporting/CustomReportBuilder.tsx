@@ -13,6 +13,7 @@ import {
 import { Eye, FileSpreadsheet, Loader2, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReportCatalog, useDownloadReport } from '@/hooks/queries/useReportQueries';
+import { triggerBlobDownload } from '@/lib/api/reports';
 import {
   useReportConfigs, useSaveReportConfig, useDeleteReportConfig,
 } from '@/hooks/queries/useReportConfigQueries';
@@ -118,14 +119,8 @@ export function CustomReportBuilder() {
         setPreviewFileName(result.fileName);
         setPreviewOpen(true);
       } else {
-        const url = window.URL.createObjectURL(result.blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = result.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        // Shared helper (was duplicated inline here too - see the same fix in ModuleReportSelector).
+        triggerBlobDownload(result.blob, result.fileName);
         toast.success(`${format.toUpperCase()} report downloaded`);
       }
     } catch {

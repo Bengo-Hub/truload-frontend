@@ -27,6 +27,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReportCatalog, useDownloadReport } from '@/hooks/queries/useReportQueries';
+import { triggerBlobDownload } from '@/lib/api/reports';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { ReportPreviewDialog } from './ReportPreviewDialog';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
@@ -143,15 +144,9 @@ export function ModuleReportSelector() {
         setPreviewFileName(result.fileName);
         setPreviewOpen(true);
       } else {
-        // CSV/Excel - trigger immediate download
-        const url = window.URL.createObjectURL(result.blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = result.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        // CSV/Excel - trigger immediate download via the shared helper (was previously its own
+        // inline create-anchor/click/revoke block, duplicated across 3+ places in this frontend)
+        triggerBlobDownload(result.blob, result.fileName);
         toast.success('CSV report downloaded');
       }
     } catch {
