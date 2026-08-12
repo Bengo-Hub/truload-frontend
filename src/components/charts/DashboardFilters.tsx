@@ -15,19 +15,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RotateCcw } from 'lucide-react';
 
+// Values MUST match ControlStatus exactly as persisted by the backend (verified 2026-08-12 via
+// WeighingService.cs/CommercialWeighingService.cs/AxleGroupAggregationService.cs). The backend's
+// WeighingQueryHelpers.ApplyControlStatusFilter now also accepts the old all-caps aliases
+// defensively, but sending the real canonical value here is the correct fix, not a workaround.
 const ENFORCEMENT_STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
-  { value: 'LEGAL', label: 'Legal' },
-  { value: 'WARNING', label: 'Warning' },
-  { value: 'OVERLOAD', label: 'Overloaded' },
+  { value: 'Compliant', label: 'Legal' },
+  { value: 'Warning', label: 'Warning (axle overload)' },
+  { value: 'Overloaded', label: 'Overloaded (GVW)' },
 ];
 
 const COMMERCIAL_STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'Pending', label: 'Pending' },
-  { value: 'FirstWeightCaptured', label: 'First Weight Done' },
   { value: 'Complete', label: 'Complete' },
   { value: 'ToleranceExceeded', label: 'Tolerance Exceeded' },
+  { value: 'Voided', label: 'Voided' },
 ];
 
 const WEIGHING_TYPE_OPTIONS = [

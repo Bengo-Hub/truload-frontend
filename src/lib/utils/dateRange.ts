@@ -1,0 +1,58 @@
+/**
+ * Centralized EAT (Nairobi, UTC+3, no DST) date/time-range helpers.
+ *
+ * "Select 12 Aug" must mean the same real-world window everywhere in this app. Before this file
+ * existed, each page (Tickets, Dashboard, Report generator) built its own date-range strings by
+ * hand, and the Tickets page specifically used `new Date(dateOnlyString)` (parsed as UTC midnight
+ * per spec) plus `.setHours()` (which mutates using the BROWSER's local timezone, not Nairobi's) -
+ * an asymmetric from/to bug confirmed during the 2026-08-12 audit. These helpers never depend on
+ * the browser's local timezone at all: a date-only input is always treated as an EAT calendar day,
+ * computed via `Date.UTC(...)` minus a fixed 3-hour offset (Kenya has one fixed UTC+3 offset, no
+ * daylight-saving changes, so this static shift is correct).
+ */
+
+const EAT_OFFSET_HOURS = 3;
+
+/**
+ * Converts a `YYYY-MM-DD` date string (+ optional `HH:mm` time) into a true UTC ISO instant,
+ * treating the input as Nairobi (EAT) local time - never the browser's own local timezone.
+ */
+export function eatDateTimeToUtcIso(dateStr: string, timeStr?: string, endOfDayIfNoTime = false): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+
+  let hour = 0;
+  let minute = 0;
+  let second = 0;
+  let ms = 0;
+
+  if (timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    hour = h;
+    minute = m;
+  } else if (endOfDayIfNoTime) {
+    hour = 23;
+    minute = 59;
+    second = 59;
+    ms = 999;
+  }
+
+  const utcMillis = Date.UTC(year, month - 1, day, hour, minute, second, ms) - EAT_OFFSET_HOURS * 3_600_000;
+  return new Date(utcMillis).toISOString();
+}
+
+/**
+ * Builds `{ fromDate, toDate }` UTC ISO instants for a date-range filter - EAT-aware and
+ * symmetric (both bounds get the same "no time given" treatment, unlike the previous per-page
+ * logic where `toDate` always got an implicit end-of-day but `fromDate` did not).
+ */
+export function buildEatDateRange(
+  dateFrom: string,
+  dateTo: string,
+  timeFrom?: string,
+  timeTo?: string
+): { fromDate?: string; toDate?: string } {
+  return {
+    fromDate: dateFrom ? eatDateTimeToUtcIso(dateFrom, timeFrom, false) : undefined,
+    toDate: dateTo ? eatDateTimeToUtcIso(dateTo, timeTo, !timeTo) : undefined,
+  };
+}
