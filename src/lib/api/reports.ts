@@ -15,6 +15,20 @@ export interface ReportChartOption {
   label: string;
 }
 
+export interface ReportFilterOption {
+  value: string;
+  label: string;
+}
+
+export interface ReportFilterDefinition {
+  key: string;
+  label: string;
+  /** Which control to render: 'station' | 'county' | 'subcounty' | 'select' | 'text' | 'date'. */
+  kind: string;
+  /** Fixed option list, present when kind === 'select'. */
+  options?: ReportFilterOption[];
+}
+
 export interface ReportDefinition {
   id: string;
   name: string;
@@ -24,6 +38,8 @@ export interface ReportDefinition {
   /** Present only on report types that opted into the structured custom-report builder. */
   columns?: ReportColumnDefinition[];
   chartOptions?: ReportChartOption[];
+  /** Present only on report types that opted into the structured filter catalog - shows only the filters this report actually supports. */
+  filters?: ReportFilterDefinition[];
 }
 
 export interface ReportModuleCatalog {
@@ -40,6 +56,8 @@ export interface ReportFilterParams {
   dateFrom?: string;
   dateTo?: string;
   stationId?: string;
+  countyId?: string;
+  subcountyId?: string;
   status?: string;
   weighingType?: string;
   controlStatus?: string;
@@ -77,13 +95,13 @@ export async function downloadReport(
   filters: ReportFilterParams = {}
 ): Promise<{ blob: Blob; fileName: string; contentType: string }> {
   const {
-    format = 'pdf', dateFrom, dateTo, stationId, status, weighingType, controlStatus,
+    format = 'pdf', dateFrom, dateTo, stationId, countyId, subcountyId, status, weighingType, controlStatus,
     columns, chartType, useDefaults,
   } = filters;
 
   const response = await apiClient.get(`/reports/${module}/${reportType}`, {
     params: {
-      format, dateFrom, dateTo, stationId, status, weighingType, controlStatus,
+      format, dateFrom, dateTo, stationId, countyId, subcountyId, status, weighingType, controlStatus,
       columns: columns?.length ? columns.join(',') : undefined,
       chartType,
       useDefaults,
