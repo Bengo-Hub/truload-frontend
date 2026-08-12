@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModuleReportSelector } from '@/components/reporting/ModuleReportSelector';
+import { CustomReportBuilder } from '@/components/reporting/CustomReportBuilder';
 import { SupersetDashboard } from '@/components/reporting/SupersetDashboard';
 import { NaturalLanguageQuery } from '@/components/reporting/NaturalLanguageQuery';
 import {
@@ -98,8 +99,21 @@ function ReportingContent() {
 
         {/* Tab 1: General Reports */}
         <TabsContent value="general" className="space-y-6">
-          {/* Module-filtered predefined reports */}
-          <ModuleReportSelector />
+          {/* Quick Reports (catalog-driven, fixed layout) vs. Custom Builder (curated
+              column/chart selection per report type) - the builder is a variant of this same
+              catalog-driven flow, not a different tool (that's "BI & AI" below). */}
+          <Tabs defaultValue="quick" className="w-full">
+            <TabsList>
+              <TabsTrigger value="quick">Quick Reports</TabsTrigger>
+              <TabsTrigger value="builder">Custom Builder</TabsTrigger>
+            </TabsList>
+            <TabsContent value="quick" className="mt-4">
+              <ModuleReportSelector />
+            </TabsContent>
+            <TabsContent value="builder" className="mt-4">
+              <CustomReportBuilder />
+            </TabsContent>
+          </Tabs>
 
           {/* Quick access to specialized reports */}
           {isEnforcement && (

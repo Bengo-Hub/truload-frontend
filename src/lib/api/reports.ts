@@ -4,12 +4,26 @@ import { apiClient } from './client';
 // Types
 // ============================================================================
 
+export interface ReportColumnDefinition {
+  key: string;
+  label: string;
+  defaultSelected: boolean;
+}
+
+export interface ReportChartOption {
+  key: string;
+  label: string;
+}
+
 export interface ReportDefinition {
   id: string;
   name: string;
   description: string;
   module: string;
   supportedFormats: string[];
+  /** Present only on report types that opted into the structured custom-report builder. */
+  columns?: ReportColumnDefinition[];
+  chartOptions?: ReportChartOption[];
 }
 
 export interface ReportModuleCatalog {
@@ -30,6 +44,13 @@ export interface ReportFilterParams {
   weighingType?: string;
   controlStatus?: string;
   format?: 'pdf' | 'csv' | 'xlsx';
+  /** Structured custom-report-builder column selection (header/key values). Ignored server-side
+   *  unless `useDefaults` is explicitly false. */
+  columns?: string[];
+  /** Structured custom-report-builder chart-option selection. */
+  chartType?: string;
+  /** true (default) reproduces the report's normal fixed output; false applies columns/chartType. */
+  useDefaults?: boolean;
 }
 
 // ============================================================================
@@ -55,10 +76,18 @@ export async function downloadReport(
   reportType: string,
   filters: ReportFilterParams = {}
 ): Promise<{ blob: Blob; fileName: string; contentType: string }> {
-  const { format = 'pdf', dateFrom, dateTo, stationId, status, weighingType, controlStatus } = filters;
+  const {
+    format = 'pdf', dateFrom, dateTo, stationId, status, weighingType, controlStatus,
+    columns, chartType, useDefaults,
+  } = filters;
 
   const response = await apiClient.get(`/reports/${module}/${reportType}`, {
-    params: { format, dateFrom, dateTo, stationId, status, weighingType, controlStatus },
+    params: {
+      format, dateFrom, dateTo, stationId, status, weighingType, controlStatus,
+      columns: columns?.length ? columns.join(',') : undefined,
+      chartType,
+      useDefaults,
+    },
     responseType: 'blob',
   });
 
