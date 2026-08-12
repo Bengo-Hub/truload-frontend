@@ -58,6 +58,7 @@ export interface ReportFilterParams {
   stationId?: string;
   countyId?: string;
   subcountyId?: string;
+  roadId?: string;
   status?: string;
   weighingType?: string;
   controlStatus?: string;
@@ -95,13 +96,13 @@ export async function downloadReport(
   filters: ReportFilterParams = {}
 ): Promise<{ blob: Blob; fileName: string; contentType: string }> {
   const {
-    format = 'pdf', dateFrom, dateTo, stationId, countyId, subcountyId, status, weighingType, controlStatus,
+    format = 'pdf', dateFrom, dateTo, stationId, countyId, subcountyId, roadId, status, weighingType, controlStatus,
     columns, chartType, useDefaults,
   } = filters;
 
   const response = await apiClient.get(`/reports/${module}/${reportType}`, {
     params: {
-      format, dateFrom, dateTo, stationId, countyId, subcountyId, status, weighingType, controlStatus,
+      format, dateFrom, dateTo, stationId, countyId, subcountyId, roadId, status, weighingType, controlStatus,
       columns: columns?.length ? columns.join(',') : undefined,
       chartType,
       useDefaults,
