@@ -18,8 +18,11 @@ import {
   useReportConfigs, useSaveReportConfig, useDeleteReportConfig,
 } from '@/hooks/queries/useReportConfigQueries';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
+import { CountySelectFilter } from '@/components/filters/CountySelectFilter';
+import { SubcountySelectFilter } from '@/components/filters/SubcountySelectFilter';
 import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { ReportPreviewDialog } from './ReportPreviewDialog';
+import type { ReportFilterDefinition } from '@/lib/api/reports';
 
 /**
  * Structured custom-report builder - lets a user pick a report type, then (when that report has
@@ -35,6 +38,10 @@ export function CustomReportBuilder() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [stationId, setStationId] = useState<string | undefined>(undefined);
+  /** Values for this report's declared drill-down filters (county/subcounty/weighing type/etc.),
+   *  keyed by ReportFilterDefinition.key. Applies regardless of "Use Recommended Defaults" -
+   *  filters narrow WHAT DATA is fetched, unlike columns/chart visuals which only affect layout. */
+  const [filterValues, setFilterValues] = useState<Record<string, string | undefined>>({});
   const [useDefaults, setUseDefaults] = useState(true);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [chartType, setChartType] = useState<string | undefined>(undefined);
@@ -62,9 +69,25 @@ export function CustomReportBuilder() {
     setSelectedReportType(reportType);
     setUseDefaults(true);
     setChartType(undefined);
+    setFilterValues({});
     const report = allReports.find((r) => r.id === reportType && r.module === module);
     setSelectedColumns(report?.columns?.filter((c) => c.defaultSelected).map((c) => c.key) ?? []);
   };
+
+  const setFilterValue = (key: string, value: string | undefined) => {
+    setFilterValues((prev) => {
+      const next = { ...prev, [key]: value };
+      // Sub-county is scoped to a county - clear it if the county changes/clears so a stale
+      // selection from a different county can't linger.
+      if (key === 'countyId') next.subcountyId = undefined;
+      return next;
+    });
+  };
+
+  // Station is already its own dedicated control above; the dynamic section only needs to render
+  // this report's OTHER declared filters (county/subcounty/weighing type/compliance status/etc.).
+  const dynamicFilters: ReportFilterDefinition[] =
+    selectedReport?.filters?.filter((f) => f.key !== 'stationId') ?? [];
 
   const toggleColumn = (key: string, checked: boolean) => {
     setSelectedColumns((prev) => (checked ? [...prev, key] : prev.filter((c) => c !== key)));
@@ -108,6 +131,10 @@ export function CustomReportBuilder() {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
           stationId,
+          countyId: filterValues.countyId,
+          subcountyId: filterValues.subcountyId,
+          weighingType: filterValues.weighingType,
+          controlStatus: filterValues.controlStatus,
           useDefaults,
           columns: useDefaults ? undefined : selectedColumns,
           chartType: useDefaults ? undefined : chartType,
@@ -173,6 +200,59 @@ export function CustomReportBuilder() {
             onDateToChange={setDateTo}
             className="grid grid-cols-2 gap-3 sm:w-1/2"
           />
+
+          {dynamicFilters.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-500">Drill-down filters for this report</Label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {dynamicFilters.map((f) => {
+                  if (f.kind === 'county') {
+                    return (
+                      <CountySelectFilter
+                        key={f.key}
+                        label={f.label}
+                        value={filterValues[f.key]}
+                        onValueChange={(v) => setFilterValue(f.key, v)}
+                      />
+                    );
+                  }
+                  if (f.kind === 'subcounty') {
+                    return (
+                      <SubcountySelectFilter
+                        key={f.key}
+                        label={f.label}
+                        value={filterValues[f.key]}
+                        countyId={filterValues.countyId}
+                        onValueChange={(v) => setFilterValue(f.key, v)}
+                      />
+                    );
+                  }
+                  if (f.kind === 'select' && f.options?.length) {
+                    return (
+                      <div key={f.key} className="space-y-2">
+                        <Label className="text-xs text-gray-500">{f.label}</Label>
+                        <Select
+                          value={filterValues[f.key] ?? 'all'}
+                          onValueChange={(v) => setFilterValue(f.key, v === 'all' ? undefined : v)}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder={`All ${f.label.toLowerCase()}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All {f.label.toLowerCase()}</SelectItem>
+                            {f.options.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          )}
 
           {selectedReport && (
             <div className="flex items-center gap-3 rounded-md border p-3">
