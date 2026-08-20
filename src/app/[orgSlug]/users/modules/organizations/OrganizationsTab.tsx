@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CountrySelect, PhoneInputField, countryName } from "@bengo-hub/shared-ui-lib/contact";
 import {
   AlertTriangle,
   Building,
@@ -324,10 +325,12 @@ function CreateOrgDialog({
             {/* Contact Phone */}
             <div className="space-y-2">
               <Label htmlFor="create-org-phone">Contact Phone</Label>
-              <Input
-                id="create-org-phone"
-                placeholder="07xx xxx xxx"
-                {...register("contactPhone")}
+              <Controller
+                name="contactPhone"
+                control={control}
+                render={({ field }) => (
+                  <PhoneInputField id="create-org-phone" value={field.value ?? ''} onChange={field.onChange} />
+                )}
               />
             </div>
 
@@ -361,13 +364,19 @@ function CreateOrgDialog({
               />
             </div>
 
-            {/* Country */}
+            {/* Country — stored as a free-text name; onChange converts CountrySelect's ISO
+                output back via countryName() to keep that shape unchanged. */}
             <div className="space-y-2">
               <Label htmlFor="create-org-country">Country</Label>
-              <Input
-                id="create-org-country"
-                placeholder="e.g. Kenya"
-                {...register("country")}
+              <Controller
+                name="country"
+                control={control}
+                render={({ field }) => (
+                  <CountrySelect
+                    value={field.value ?? ''}
+                    onChange={(iso) => field.onChange(countryName(iso))}
+                  />
+                )}
               />
             </div>
 
@@ -626,10 +635,12 @@ function EditOrgDialog({
               {/* Contact Phone */}
               <div className="space-y-2">
                 <Label htmlFor="edit-org-phone">Contact Phone</Label>
-                <Input
-                  id="edit-org-phone"
-                  placeholder="07xx xxx xxx"
-                  {...register("contactPhone")}
+                <Controller
+                  name="contactPhone"
+                  control={control}
+                  render={({ field }) => (
+                    <PhoneInputField id="edit-org-phone" value={field.value ?? ''} onChange={field.onChange} />
+                  )}
                 />
               </div>
 
@@ -663,13 +674,19 @@ function EditOrgDialog({
                 />
               </div>
 
-              {/* Country */}
+              {/* Country — stored as a free-text name; onChange converts CountrySelect's ISO
+                  output back via countryName() to keep that shape unchanged. */}
               <div className="space-y-2">
                 <Label htmlFor="edit-org-country">Country</Label>
-                <Input
-                  id="edit-org-country"
-                  placeholder="e.g. Kenya"
-                  {...register("country")}
+                <Controller
+                  name="country"
+                  control={control}
+                  render={({ field }) => (
+                    <CountrySelect
+                      value={field.value ?? ''}
+                      onChange={(iso) => field.onChange(countryName(iso))}
+                    />
+                  )}
                 />
               </div>
 

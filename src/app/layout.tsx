@@ -3,6 +3,7 @@ import { OfflineBar } from '@/components/ui/OfflineBar';
 import { PWARegister } from '@/components/PWARegister';
 import type { Metadata, Viewport } from 'next';
 import { Inter, Orbitron } from 'next/font/google';
+import '@bengo-hub/shared-ui-lib/contact/style.css';
 import './globals.css';
 import { Providers } from './providers';
 

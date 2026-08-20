@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { CountrySelect, PhoneInputField, countryName } from '@bengo-hub/shared-ui-lib/contact';
 
 interface OrganizationFormData {
   name: string;
@@ -27,7 +28,7 @@ interface OrganizationFormProps {
 }
 
 export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: OrganizationFormProps) {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<OrganizationFormData>({
+  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<OrganizationFormData>({
     defaultValues: {
       name: initialData?.name || '',
       contactEmail: initialData?.contactEmail || '',
@@ -111,11 +112,12 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
           {/* Contact Phone */}
           <div className="space-y-2">
             <Label htmlFor="contactPhone">Contact Phone</Label>
-            <Input
-              id="contactPhone"
-              type="tel"
-              {...register('contactPhone')}
-              placeholder="e.g., 0717105233"
+            <Controller
+              name="contactPhone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInputField id="contactPhone" value={field.value ?? ''} onChange={field.onChange} />
+              )}
             />
           </div>
 
@@ -178,13 +180,19 @@ export function OrganizationForm({ mode, initialData, onSubmit, onCancel }: Orga
               />
             </div>
 
-            {/* Country */}
+            {/* Country — stored as a free-text name; onChange converts CountrySelect's ISO
+                output back via countryName() to keep that shape unchanged. */}
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                {...register('country')}
-                placeholder="e.g., Kenya"
+              <Controller
+                name="country"
+                control={control}
+                render={({ field }) => (
+                  <CountrySelect
+                    value={field.value ?? ''}
+                    onChange={(iso) => field.onChange(countryName(iso))}
+                  />
+                )}
               />
             </div>
           </div>
