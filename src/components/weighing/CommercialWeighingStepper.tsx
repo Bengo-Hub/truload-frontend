@@ -60,6 +60,7 @@ import { TreasuryCheckoutDialog } from '@/components/payments/TreasuryCheckoutDi
 import type {
   CommercialWeighingResult,
   CommercialWeighingStep,
+  UpdateQualityDeductionRequest,
   VehicleTareHistory,
 } from '@/types/weighing';
 import { cn } from '@/lib/utils';
@@ -121,8 +122,6 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Quality deduction
-  const [qualityDeductionKg, setQualityDeductionKg] = useState(0);
-  const [qualityDeductionReason, setQualityDeductionReason] = useState('');
   const [isApplyingDeduction, setIsApplyingDeduction] = useState(false);
 
   // Cargo details form
@@ -179,6 +178,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     isSavingEntity,
     handleSaveDriver, handleSaveTransporter, handleSaveCargoType, handleSaveLocation,
   } = weighingUI;
+
+  // Selected cargo type's quality parameters (moisture target / FM limit), used to drive the
+  // formula-based quality deduction UI on the ticket step.
+  const selectedCargoType = cargoTypes.find((c) => c.id === selectedCargoId);
 
   const createVehicleMutation = useCreateVehicle();
   const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
@@ -475,11 +478,14 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     }
   }, [transactionId]);
 
-  const handleApplyQualityDeduction = useCallback(async () => {
-    if (!transactionId || qualityDeductionKg <= 0) return;
+  const handleApplyQualityDeduction = useCallback(async (payload: UpdateQualityDeductionRequest) => {
+    if (!transactionId) return;
+    const hasManualKg = payload.qualityDeductionKg != null && payload.qualityDeductionKg > 0;
+    const hasActuals = payload.actualMoisturePercent != null || payload.actualForeignMatterPercent != null;
+    if (!hasManualKg && !hasActuals) return;
     setIsApplyingDeduction(true);
     try {
-      const updated = await updateQualityDeduction(transactionId, { qualityDeductionKg, reason: qualityDeductionReason || undefined });
+      const updated = await updateQualityDeduction(transactionId, payload);
       setResult(updated);
       toast.success('Quality deduction applied.');
     } catch (err) {
@@ -487,7 +493,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     } finally {
       setIsApplyingDeduction(false);
     }
-  }, [transactionId, qualityDeductionKg, qualityDeductionReason]);
+  }, [transactionId]);
 
   const handlePrintTicket = useCallback(async () => {
     if (!transactionId) return;
@@ -536,7 +542,6 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     setFrontViewImage(undefined); setOverviewImage(undefined);
     setSelectedDriverId(undefined); setSelectedTransporterId(undefined);
     setSelectedCargoId(undefined); setSelectedOriginId(undefined); setSelectedDestinationId(undefined);
-    setQualityDeductionKg(0); setQualityDeductionReason('');
     setDeckWeights([]); setCapturedAxleWeights([]); setCurrentAxle(1);
     setCargoDetails({ consignmentNo: '', orderReference: '', cargoType: '', origin: '', destination: '', sealNumbers: '', trailerRegNo: '', expectedNetWeightKg: '', remarks: '' });
     setLiveWeightKg(0);
@@ -947,9 +952,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               result={result}
               cargoDetails={cargoDetails}
               onCargoDetailsChange={(partial) => setCargoDetails((prev) => ({ ...prev, ...partial }))}
-              qualityDeductionKg={qualityDeductionKg}
-              qualityDeductionReason={qualityDeductionReason}
-              onQualityDeductionChange={(kg, reason) => { setQualityDeductionKg(kg); setQualityDeductionReason(reason); }}
+              cargoQualityParams={selectedCargoType ? {
+                moistureTargetPercent: selectedCargoType.moistureTargetPercent,
+                foreignMatterLimitPercent: selectedCargoType.foreignMatterLimitPercent,
+              } : undefined}
               onApplyQualityDeduction={handleApplyQualityDeduction}
               isApplyingDeduction={isApplyingDeduction}
               onPrintTicket={handlePrintTicket}

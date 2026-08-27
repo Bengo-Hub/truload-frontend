@@ -8,9 +8,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { CommercialNetWeightDisplay } from '@/components/weighing/CommercialNetWeightDisplay';
 import { cn } from '@/lib/utils';
 import { formatWeight } from '@/lib/weighing-utils';
-import type { CommercialWeighingResult } from '@/types/weighing';
+import type { CommercialWeighingResult, UpdateQualityDeductionRequest } from '@/types/weighing';
 import { AlertTriangle, CheckCircle2, CreditCard, FileDown, Printer } from 'lucide-react';
 import { useState } from 'react';
+
+/** The subset of CargoType fields needed to decide whether the formula-driven quality deduction UI applies. */
+export interface CargoQualityParams {
+  moistureTargetPercent?: number;
+  foreignMatterLimitPercent?: number;
+}
 
 interface CommercialTicketStepProps {
   /** Current transaction result */
@@ -19,11 +25,10 @@ interface CommercialTicketStepProps {
   cargoDetails: CargoDetailsForm;
   /** Callback when cargo details change */
   onCargoDetailsChange: (details: Partial<CargoDetailsForm>) => void;
-  /** Quality deduction state */
-  qualityDeductionKg: number;
-  qualityDeductionReason: string;
-  onQualityDeductionChange: (kg: number, reason: string) => void;
-  onApplyQualityDeduction: () => void;
+  /** Quality parameters (moisture target / foreign matter limit) of the selected cargo type, when configured. */
+  cargoQualityParams?: CargoQualityParams;
+  /** Apply a quality deduction — either a manual kg override or actual moisture/FM readings for the backend to compute from. */
+  onApplyQualityDeduction: (payload: UpdateQualityDeductionRequest) => void;
   /** Whether a quality deduction update is in progress */
   isApplyingDeduction: boolean;
   /** Print ticket callback */
@@ -56,9 +61,7 @@ export function CommercialTicketStep({
   result,
   cargoDetails,
   onCargoDetailsChange,
-  qualityDeductionKg,
-  qualityDeductionReason,
-  onQualityDeductionChange,
+  cargoQualityParams,
   onApplyQualityDeduction,
   isApplyingDeduction,
   onPrintTicket,
@@ -72,6 +75,58 @@ export function CommercialTicketStep({
   const discrepancy = expectedNet && result.netWeightKg
     ? result.netWeightKg - expectedNet
     : null;
+
+  // Quality deduction: either derived from a formula (actual moisture/FM readings vs. the
+  // cargo type's configured target/limit) or a flat manual kg override + reason.
+  const moistureTarget = cargoQualityParams?.moistureTargetPercent;
+  const foreignMatterLimit = cargoQualityParams?.foreignMatterLimitPercent;
+  const hasQualityParams = moistureTarget != null || foreignMatterLimit != null;
+
+  const [deductionMode, setDeductionMode] = useState<'automatic' | 'manual'>('automatic');
+  const [actualMoisturePercent, setActualMoisturePercent] = useState('');
+  const [actualForeignMatterPercent, setActualForeignMatterPercent] = useState('');
+  const [manualDeductionKg, setManualDeductionKg] = useState('');
+  const [manualDeductionReason, setManualDeductionReason] = useState('');
+
+  const netForPreview = result.netWeightKg ?? 0;
+  const actualMoistureNum = parseFloat(actualMoisturePercent);
+  const actualForeignMatterNum = parseFloat(actualForeignMatterPercent);
+  const moistureDeductionKg = (moistureTarget != null && !isNaN(actualMoistureNum) && actualMoistureNum > moistureTarget)
+    ? netForPreview * (actualMoistureNum - moistureTarget) / 100
+    : 0;
+  const foreignMatterDeductionKg = (foreignMatterLimit != null && !isNaN(actualForeignMatterNum) && actualForeignMatterNum > foreignMatterLimit)
+    ? netForPreview * actualForeignMatterNum / 100
+    : 0;
+  const previewDeductionKg = moistureDeductionKg + foreignMatterDeductionKg;
+
+  const openDeductionForm = () => {
+    setDeductionMode(hasQualityParams ? 'automatic' : 'manual');
+    setShowDeductionForm(true);
+  };
+
+  const closeDeductionForm = () => {
+    setShowDeductionForm(false);
+    setActualMoisturePercent('');
+    setActualForeignMatterPercent('');
+    setManualDeductionKg('');
+    setManualDeductionReason('');
+  };
+
+  const handleApplyAutomatic = () => {
+    const payload: UpdateQualityDeductionRequest = {};
+    if (!isNaN(actualMoistureNum)) payload.actualMoisturePercent = actualMoistureNum;
+    if (!isNaN(actualForeignMatterNum)) payload.actualForeignMatterPercent = actualForeignMatterNum;
+    onApplyQualityDeduction(payload);
+  };
+
+  const handleApplyManual = () => {
+    const kg = parseInt(manualDeductionKg, 10);
+    if (!kg || kg <= 0) return;
+    onApplyQualityDeduction({ qualityDeductionKg: kg, reason: manualDeductionReason || undefined });
+  };
+
+  const canApplyAutomatic = actualMoisturePercent.trim().length > 0 || actualForeignMatterPercent.trim().length > 0;
+  const canApplyManual = manualDeductionKg.trim().length > 0 && parseInt(manualDeductionKg, 10) > 0;
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -164,7 +219,7 @@ export function CommercialTicketStep({
               variant="outline"
               size="sm"
               className="mt-3"
-              onClick={() => setShowDeductionForm(true)}
+              onClick={openDeductionForm}
             >
               {result.qualityDeductionKg ? 'Edit Quality Deduction' : 'Add Quality Deduction'}
             </Button>
@@ -172,46 +227,120 @@ export function CommercialTicketStep({
 
           {showDeductionForm && (
             <div className="mt-4 p-3 border border-gray-200 rounded-lg space-y-3">
-              <Label className="text-sm font-medium">Quality Deduction</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-gray-500">Deduction (kg)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={qualityDeductionKg || ''}
-                    onChange={(e) => onQualityDeductionChange(parseInt(e.target.value, 10) || 0, qualityDeductionReason)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Reason</Label>
-                  <Input
-                    value={qualityDeductionReason}
-                    onChange={(e) => onQualityDeductionChange(qualityDeductionKg, e.target.value)}
-                    placeholder="e.g. Moisture"
-                  />
-                </div>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <Label className="text-sm font-medium">Quality Deduction</Label>
+                {hasQualityParams && (
+                  <div className="flex gap-1 rounded-md border p-0.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={deductionMode === 'automatic' ? 'default' : 'ghost'}
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setDeductionMode('automatic')}
+                    >
+                      Automatic (formula)
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={deductionMode === 'manual' ? 'default' : 'ghost'}
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setDeductionMode('manual')}
+                    >
+                      Manual override
+                    </Button>
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  disabled={qualityDeductionKg <= 0 || isApplyingDeduction}
-                  onClick={onApplyQualityDeduction}
-                >
-                  {isApplyingDeduction ? 'Applying...' : 'Apply Deduction'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowDeductionForm(false);
-                    onQualityDeductionChange(0, '');
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
+
+              {deductionMode === 'automatic' && hasQualityParams ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    {moistureTarget != null && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Actual Moisture % (target {moistureTarget}%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={actualMoisturePercent}
+                          onChange={(e) => setActualMoisturePercent(e.target.value)}
+                          placeholder="0.0"
+                        />
+                      </div>
+                    )}
+                    {foreignMatterLimit != null && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Actual Foreign Matter % (limit {foreignMatterLimit}%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={actualForeignMatterPercent}
+                          onChange={(e) => setActualForeignMatterPercent(e.target.value)}
+                          placeholder="0.0"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Estimated deduction:{' '}
+                    <span className="font-mono font-semibold text-gray-700">
+                      {formatWeight(previewDeductionKg)} kg
+                    </span>{' '}
+                    — preview only, the server computes and persists the final value.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={!canApplyAutomatic || isApplyingDeduction}
+                      onClick={handleApplyAutomatic}
+                    >
+                      {isApplyingDeduction ? 'Applying...' : 'Apply Deduction'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={closeDeductionForm}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-500">Deduction (kg)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={manualDeductionKg}
+                        onChange={(e) => setManualDeductionKg(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Reason</Label>
+                      <Input
+                        value={manualDeductionReason}
+                        onChange={(e) => setManualDeductionReason(e.target.value)}
+                        placeholder="e.g. Moisture"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={!canApplyManual || isApplyingDeduction}
+                      onClick={handleApplyManual}
+                    >
+                      {isApplyingDeduction ? 'Applying...' : 'Apply Deduction'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={closeDeductionForm}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </CardContent>

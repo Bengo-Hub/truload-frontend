@@ -706,6 +706,15 @@ export function useDeleteTransporter() {
 }
 
 /**
+ * Invite a transporter to the self-service portal mutation.
+ */
+export function useInviteTransporterToPortal() {
+  return useMutation({
+    mutationFn: weighingApi.inviteTransporterToPortal,
+  });
+}
+
+/**
  * Update driver mutation
  */
 export function useUpdateDriver() {

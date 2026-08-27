@@ -19,7 +19,7 @@ import {
     useTransporters,
     useVehicleMakes,
 } from '@/hooks/queries';
-import { CargoType, Driver, OriginDestination, Station, Transporter } from '@/lib/api/weighing';
+import { CargoType, CreateCargoTypeRequest, Driver, OriginDestination, Station, Transporter } from '@/lib/api/weighing';
 import { QUERY_KEYS } from '@/lib/query/config';
 import { CreateDriverRequest, CreateOriginDestinationRequest, CreateTransporterRequest, CreateVehicleMakeRequest } from '@/types/weighing';
 import { useQueryClient } from '@tanstack/react-query';
@@ -207,7 +207,7 @@ export function useWeighingUI(options: UseWeighingUIOptions = {}) {
     }
   }, [createOriginDestinationMutation, queryClient, locationModalTarget]);
 
-  const handleSaveCargoType = useCallback(async (data: { code: string; name: string; category?: string }) => {
+  const handleSaveCargoType = useCallback(async (data: Omit<CreateCargoTypeRequest, 'category'> & { category?: string }) => {
     setIsSavingEntity(true);
     try {
       const newCargoType = await createCargoTypeMutation.mutateAsync({

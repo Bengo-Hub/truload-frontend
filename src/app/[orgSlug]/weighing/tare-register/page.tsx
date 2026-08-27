@@ -254,6 +254,9 @@ function TareHistoryDialog({ vehicle, open, onClose }: TareHistoryDialogProps) {
                   {entry.stationName && (
                     <p className="text-xs text-muted-foreground">Station: {entry.stationName}</p>
                   )}
+                  {entry.recordedByName && (
+                    <p className="text-xs text-muted-foreground">Recorded by: {entry.recordedByName}</p>
+                  )}
                   {entry.notes && <p className="text-xs text-gray-600 italic">{entry.notes}</p>}
                 </>
               )}

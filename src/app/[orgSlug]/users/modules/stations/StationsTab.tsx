@@ -117,6 +117,11 @@ function CreateStationDialog({ open, onOpenChange }: CreateStationDialogProps) {
       supportsBidirectional: false,
       boundACode: "",
       boundBCode: "",
+      operatingHoursStart: "",
+      operatingHoursEnd: "",
+      printerConfig: "",
+      ticketTemplate: "",
+      defaultWeighingMode: undefined,
     },
   });
 
@@ -153,6 +158,11 @@ function CreateStationDialog({ open, onOpenChange }: CreateStationDialogProps) {
       supportsBidirectional: data.supportsBidirectional ?? false,
       boundACode: data.boundACode?.trim() || undefined,
       boundBCode: data.boundBCode?.trim() || undefined,
+      operatingHoursStart: data.operatingHoursStart?.trim() || undefined,
+      operatingHoursEnd: data.operatingHoursEnd?.trim() || undefined,
+      printerConfig: data.printerConfig?.trim() || undefined,
+      ticketTemplate: data.ticketTemplate?.trim() || undefined,
+      defaultWeighingMode: data.defaultWeighingMode || undefined,
     };
     mutation.mutate(payload);
   };
@@ -387,6 +397,85 @@ function CreateStationDialog({ open, onOpenChange }: CreateStationDialogProps) {
                 </div>
               </div>
             )}
+
+            {/* Operating Hours */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="create-station-hours-start">Operating Hours Start</Label>
+                <Input
+                  id="create-station-hours-start"
+                  type="time"
+                  {...register("operatingHoursStart")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-station-hours-end">Operating Hours End</Label>
+                <Input
+                  id="create-station-hours-end"
+                  type="time"
+                  {...register("operatingHoursEnd")}
+                />
+              </div>
+            </div>
+
+            {/* Printer Configuration */}
+            <div className="space-y-2">
+              <Label htmlFor="create-station-printer-config">Printer Configuration</Label>
+              <Input
+                id="create-station-printer-config"
+                placeholder="e.g. Xprinter TSPL, 127.0.0.1:9330"
+                {...register("printerConfig", {
+                  maxLength: { value: 500, message: "Must not exceed 500 characters" },
+                })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Metadata only for now — no print pipeline is wired up to this yet.
+              </p>
+              {errors.printerConfig && (
+                <p className="text-xs text-destructive">{errors.printerConfig.message}</p>
+              )}
+            </div>
+
+            {/* Ticket Template */}
+            <div className="space-y-2">
+              <Label htmlFor="create-station-ticket-template">Ticket Template</Label>
+              <Input
+                id="create-station-ticket-template"
+                placeholder="e.g. default, compact-thermal"
+                {...register("ticketTemplate", {
+                  maxLength: { value: 100, message: "Must not exceed 100 characters" },
+                })}
+              />
+              {errors.ticketTemplate && (
+                <p className="text-xs text-destructive">{errors.ticketTemplate.message}</p>
+              )}
+            </div>
+
+            {/* Default Weighing Mode */}
+            <div className="space-y-2">
+              <Label>Default Weighing Mode</Label>
+              <Controller
+                name="defaultWeighingMode"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Not set" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Enforcement">Enforcement</SelectItem>
+                      <SelectItem value="Commercial">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Informational / for reporting only — does not change actual routing behavior yet.
+              </p>
+            </div>
           </form>
         </ScrollArea>
         <DialogFooter>
@@ -443,6 +532,11 @@ function EditStationDialog({ station, open, onOpenChange }: EditStationDialogPro
           supportsBidirectional: station.supportsBidirectional,
           boundACode: station.boundACode ?? "",
           boundBCode: station.boundBCode ?? "",
+          operatingHoursStart: station.operatingHoursStart ?? "",
+          operatingHoursEnd: station.operatingHoursEnd ?? "",
+          printerConfig: station.printerConfig ?? "",
+          ticketTemplate: station.ticketTemplate ?? "",
+          defaultWeighingMode: station.defaultWeighingMode ?? undefined,
           isActive: station.isActive,
         }
       : {},
@@ -480,6 +574,11 @@ function EditStationDialog({ station, open, onOpenChange }: EditStationDialogPro
       supportsBidirectional: data.supportsBidirectional,
       boundACode: data.boundACode?.trim() || undefined,
       boundBCode: data.boundBCode?.trim() || undefined,
+      operatingHoursStart: data.operatingHoursStart?.trim() || undefined,
+      operatingHoursEnd: data.operatingHoursEnd?.trim() || undefined,
+      printerConfig: data.printerConfig?.trim() || undefined,
+      ticketTemplate: data.ticketTemplate?.trim() || undefined,
+      defaultWeighingMode: data.defaultWeighingMode || undefined,
       isActive: data.isActive,
     };
     mutation.mutate(payload);
@@ -683,6 +782,85 @@ function EditStationDialog({ station, open, onOpenChange }: EditStationDialogPro
                 </div>
               </div>
             )}
+
+            {/* Operating Hours */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-station-hours-start">Operating Hours Start</Label>
+                <Input
+                  id="edit-station-hours-start"
+                  type="time"
+                  {...register("operatingHoursStart")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-station-hours-end">Operating Hours End</Label>
+                <Input
+                  id="edit-station-hours-end"
+                  type="time"
+                  {...register("operatingHoursEnd")}
+                />
+              </div>
+            </div>
+
+            {/* Printer Configuration */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-station-printer-config">Printer Configuration</Label>
+              <Input
+                id="edit-station-printer-config"
+                placeholder="e.g. Xprinter TSPL, 127.0.0.1:9330"
+                {...register("printerConfig", {
+                  maxLength: { value: 500, message: "Must not exceed 500 characters" },
+                })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Metadata only for now — no print pipeline is wired up to this yet.
+              </p>
+              {errors.printerConfig && (
+                <p className="text-xs text-destructive">{errors.printerConfig.message}</p>
+              )}
+            </div>
+
+            {/* Ticket Template */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-station-ticket-template">Ticket Template</Label>
+              <Input
+                id="edit-station-ticket-template"
+                placeholder="e.g. default, compact-thermal"
+                {...register("ticketTemplate", {
+                  maxLength: { value: 100, message: "Must not exceed 100 characters" },
+                })}
+              />
+              {errors.ticketTemplate && (
+                <p className="text-xs text-destructive">{errors.ticketTemplate.message}</p>
+              )}
+            </div>
+
+            {/* Default Weighing Mode */}
+            <div className="space-y-2">
+              <Label>Default Weighing Mode</Label>
+              <Controller
+                name="defaultWeighingMode"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Not set" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Enforcement">Enforcement</SelectItem>
+                      <SelectItem value="Commercial">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Informational / for reporting only — does not change actual routing behavior yet.
+              </p>
+            </div>
 
             {/* Active Status */}
             <div className="flex items-center justify-between rounded-lg border p-3">
