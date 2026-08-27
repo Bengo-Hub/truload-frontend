@@ -15,6 +15,7 @@ import type {
   PortalDriverPerformance,
   PortalRegistrationRequest,
   PortalRegistrationResponse,
+  PortalStatement,
   PortalSubscription,
   PortalTeamMember,
   PortalVehicle,
@@ -128,6 +129,13 @@ export async function getPortalConsignments(): Promise<PortalConsignment[]> {
 
 export async function getPortalSubscription(): Promise<PortalSubscription> {
   const { data } = await apiClient.get<PortalSubscription>('/portal/subscription');
+  return data;
+}
+
+export async function getPortalStatement(fromDate?: string, toDate?: string): Promise<PortalStatement> {
+  const { data } = await apiClient.get<PortalStatement>('/portal/statement', {
+    params: { fromDate, toDate },
+  });
   return data;
 }
 

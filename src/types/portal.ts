@@ -169,6 +169,31 @@ export interface PortalSubscription {
   features: PortalFeatureAccess;
 }
 
+/** Matches the backend PortalStatementLineDto exactly. */
+export interface PortalStatementLine {
+  date: string;
+  docType: string;
+  reference: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  status: string;
+}
+
+/** Matches the backend PortalStatementDto exactly. */
+export interface PortalStatement {
+  isLinked: boolean;
+  customerName?: string | null;
+  from: string;
+  to: string;
+  totalInvoiced: number;
+  totalPaid: number;
+  closingBalance: number;
+  onAccountBilling: boolean;
+  creditLimitKes?: number | null;
+  lines: PortalStatementLine[];
+}
+
 export interface SubscriptionPlan {
   tier: SubscriptionTier;
   name: string;

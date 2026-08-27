@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Receipt,
   Scale,
   Settings,
   Truck,
@@ -44,6 +45,7 @@ const portalMenuItems: PortalMenuItem[] = [
   { href: '/portal/vehicles', label: 'Vehicles', icon: Truck },
   { href: '/portal/drivers', label: 'Drivers', icon: Users },
   { href: '/portal/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/portal/statement', label: 'Statement', icon: Receipt },
   { href: '/portal/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/portal/settings/team', label: 'Team', icon: UserPlus },
 ];
