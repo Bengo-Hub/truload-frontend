@@ -1122,3 +1122,48 @@ export function useUpdateToleranceSetting() {
     },
   });
 }
+
+// ============================================================================
+// COMMERCIAL TARIFF RULES HOOKS (Commercial weighing admin)
+// ============================================================================
+
+const TARIFF_RULES_KEY = ['commercial-tariff-rules'] as const;
+
+export function useTariffRules() {
+  return useQuery({
+    queryKey: TARIFF_RULES_KEY,
+    queryFn: weighingApi.getTariffRules,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateTariffRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.createTariffRule,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TARIFF_RULES_KEY });
+    },
+  });
+}
+
+export function useUpdateTariffRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<weighingApi.CommercialTariffRule> }) =>
+      weighingApi.updateTariffRule(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TARIFF_RULES_KEY });
+    },
+  });
+}
+
+export function useDeleteTariffRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.deleteTariffRule,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TARIFF_RULES_KEY });
+    },
+  });
+}

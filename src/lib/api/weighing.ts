@@ -1649,6 +1649,48 @@ export async function updateToleranceSetting(
   return data;
 }
 
+// ============================================================================
+// Commercial Tariff Rules API
+// ============================================================================
+
+export interface CommercialTariffRule {
+  id?: string;
+  transporterId?: string;
+  transporterName?: string;
+  vehicleType?: string;
+  axleCountMin?: number;
+  axleCountMax?: number;
+  weightBracketMinKg?: number;
+  weightBracketMaxKg?: number;
+  feeKes: number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  label?: string;
+  isActive?: boolean;
+}
+
+export async function getTariffRules(): Promise<CommercialTariffRule[]> {
+  const { data } = await apiClient.get<CommercialTariffRule[]>('/commercial-weighing/tariffs');
+  return data;
+}
+
+export async function createTariffRule(payload: CommercialTariffRule): Promise<CommercialTariffRule> {
+  const { data } = await apiClient.post<CommercialTariffRule>('/commercial-weighing/tariffs', payload);
+  return data;
+}
+
+export async function updateTariffRule(
+  id: string,
+  payload: Partial<CommercialTariffRule>
+): Promise<CommercialTariffRule> {
+  const { data } = await apiClient.put<CommercialTariffRule>(`/commercial-weighing/tariffs/${id}`, payload);
+  return data;
+}
+
+export async function deleteTariffRule(id: string): Promise<void> {
+  await apiClient.delete(`/commercial-weighing/tariffs/${id}`);
+}
+
 /**
  * Permanently delete a weighing transaction from the database (superuser only).
  */

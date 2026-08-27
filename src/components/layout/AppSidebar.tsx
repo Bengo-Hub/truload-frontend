@@ -96,6 +96,7 @@ const menuSections: MenuSection[] = [
       { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read'], moduleKey: 'setup_weighing_metadata' },
       { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
       { href: '/setup/tolerance', label: 'Tolerance Settings', icon: Sliders, permissions: ['config.read'], moduleKey: 'setup_tolerance', commercialOnly: true },
+      { href: '/setup/tariffs', label: 'Tariff Rules', icon: CreditCard, permissions: ['billing.tariffs.view'], moduleKey: 'billing', commercialOnly: true },
       { href: '/setup/settings', label: 'Settings', icon: Settings, permissions: ['config.read'], moduleKey: 'setup_settings' },
       { href: '/setup/notifications', label: 'Notifications', icon: Bell, permissions: ['config.read'], moduleKey: 'setup_notifications' },
 { href: '/setup/tenants', label: 'Tenants', icon: Globe, permissions: ['config.read'], moduleKey: 'setup_tenants', superuserOnly: true },
