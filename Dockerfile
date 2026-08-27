@@ -22,7 +22,7 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 ENV NEXT_PUBLIC_TREASURY_API_URL=${NEXT_PUBLIC_TREASURY_API_URL}
 ENV NEXT_PUBLIC_TREASURY_UI_URL=${NEXT_PUBLIC_TREASURY_UI_URL}
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.9.0
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
