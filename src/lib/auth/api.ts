@@ -196,15 +196,21 @@ export async function getTenantInfo(orgCode: string): Promise<TenantInfo | null>
 /**
  * Exchanges an SSO access token (from auth-api PKCE flow) for a truload SSO exchange token.
  * Returns { requiresStationSelection: true, ssoExchangeToken } on success.
+ * targetOrgCode is only honored when the SSO token carries is_platform_owner — see
+ * getSsoPlatformOrganizations, which the callback page calls first to detect that case and
+ * offer an org picker before this call.
  */
-export async function ssoExchange(accessToken: string): Promise<{ requiresStationSelection: boolean; ssoExchangeToken: string }> {
+export async function ssoExchange(
+  accessToken: string,
+  targetOrgCode?: string
+): Promise<{ requiresStationSelection: boolean; ssoExchangeToken: string }> {
   // Use raw fetch instead of apiClient to avoid the axios interceptor
   // which attaches truload auth tokens (we don't have one yet during SSO flow)
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
   const response = await fetch(`${baseUrl}/api/v1/auth/sso-exchange`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken }),
+    body: JSON.stringify({ accessToken, targetOrgCode }),
   });
 
   if (!response.ok) {
@@ -224,6 +230,30 @@ export async function ssoExchange(accessToken: string): Promise<{ requiresStatio
     throw err;
   }
 
+  return response.json();
+}
+
+/** One selectable organisation for the platform-owner picker. */
+export interface SsoPlatformOrganization {
+  code: string;
+  name: string;
+  tenantType: string | null;
+}
+
+/**
+ * Checks whether the given SSO access token belongs to the Codevertex platform owner and, if
+ * so, returns every TruLoad organisation for the picker. Returns null for a non-platform-owner
+ * token (403) — the caller should fall through to the normal single-org ssoExchange flow.
+ */
+export async function getSsoPlatformOrganizations(accessToken: string): Promise<SsoPlatformOrganization[] | null> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const response = await fetch(`${baseUrl}/api/v1/auth/sso-platform-organizations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  if (!response.ok) return null;
   return response.json();
 }
 

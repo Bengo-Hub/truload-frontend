@@ -10,30 +10,30 @@ import { getPostLogoutRedirectPath } from '@/lib/auth/lastLoginStation';
 import { useAuthStore } from '@/stores/auth.store';
 import type { LucideIcon } from 'lucide-react';
 import {
-  BarChart3,
-  BookOpen,
-  Clock4,
-  Cog,
-  CreditCard,
-  Database,
-  FileText,
-  FolderOpen,
-  Gavel,
-  Globe,
-  LayoutDashboard,
-  LayoutList,
-  LogOut,
-  Receipt,
-  Scale,
-  Settings,
-  Shield,
-  ShieldAlert,
-  Bell,
-  Sliders,
-  Users,
-  Weight,
-  Wrench,
-  X,
+    BarChart3,
+    Bell,
+    BookOpen,
+    Clock4,
+    Cog,
+    CreditCard,
+    Database,
+    FileText,
+    FolderOpen,
+    Gavel,
+    Globe,
+    LayoutDashboard,
+    LayoutList,
+    LogOut,
+    Receipt,
+    Scale,
+    Settings,
+    Shield,
+    ShieldAlert,
+    Sliders,
+    Users,
+    Weight,
+    Wrench,
+    X,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -155,8 +155,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
           if (item.superuserOnly && !isSuperUser) return false;
           // Commercial-only items: never show for enforcement tenants (regardless of superuser status)
           if (item.commercialOnly && !isCommercial) return false;
-          // Tenant module filter: if org has enabledModules and user is not superuser, hide items whose moduleKey is not enabled
-          if (hasModuleFilter && !isSuperUser && !enabledModules.includes(item.moduleKey)) return false;
+          // Honor the selected tenant's module list, including for platform superusers.
+          if (hasModuleFilter && !enabledModules.includes(item.moduleKey)) return false;
           // No permissions required = always visible (subject to filters above)
           if (item.permissions.length === 0) return true;
           // Superuser sees everything (filters already passed)

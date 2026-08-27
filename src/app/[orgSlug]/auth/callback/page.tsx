@@ -6,7 +6,7 @@
  * to get a short-lived truload exchange token, then redirects to station selection.
  */
 
-import { ssoExchange } from '@/lib/auth/api';
+import { getSsoPlatformOrganizations, ssoExchange, type SsoPlatformOrganization } from '@/lib/auth/api';
 import {
   clearSsoPkceSession,
   exchangeCodeForSSOToken,
@@ -15,7 +15,7 @@ import {
   storeSsoExchangeToken,
 } from '@/lib/auth/sso';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
 const SSO_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexafrica.com';
 
@@ -29,6 +29,44 @@ function SsoCallbackContent() {
 
   const [error, setError] = useState<string | null>(null);
   const [errorKind, setErrorKind] = useState<ErrorKind>('general');
+  // Platform-owner org picker: set once getSsoPlatformOrganizations confirms is_platform_owner.
+  // Holds the raw SSO access token so the picker can call ssoExchange itself once a choice is made.
+  const [platformOrgPicker, setPlatformOrgPicker] = useState<{
+    accessToken: string;
+    organizations: SsoPlatformOrganization[];
+  } | null>(null);
+  const [pickerBusy, setPickerBusy] = useState(false);
+
+  // Shared by the normal single-org path and the platform-owner picker's "select" handler.
+  const finishSsoExchange = useCallback(
+    async (accessToken: string, targetOrgCode?: string) => {
+      try {
+        const { ssoExchangeToken } = await ssoExchange(accessToken, targetOrgCode);
+        storeSsoExchangeToken(ssoExchangeToken);
+        clearSsoPkceSession();
+        router.replace(`/${orgSlug}/auth`);
+      } catch (err: any) {
+        clearSsoPkceSession();
+        if (err?.status === 403 || err?.code === 'org_mismatch') {
+          setErrorKind('org_mismatch');
+          setError(
+            err.message ||
+              'Your account is registered under a different organisation. Contact your administrator or sign in with a different account.'
+          );
+          return;
+        }
+        setError(err instanceof Error ? err.message : 'SSO login failed');
+      }
+    },
+    [orgSlug, router]
+  );
+
+  async function handleSelectPlatformOrg(code: string) {
+    if (!platformOrgPicker) return;
+    setPickerBusy(true);
+    await finishSsoExchange(platformOrgPicker.accessToken, code);
+    setPickerBusy(false);
+  }
 
   useEffect(() => {
     if (!orgSlug) return;
@@ -66,30 +104,23 @@ function SsoCallbackContent() {
         // 1. Exchange authorization code for SSO access token
         const { accessToken } = await exchangeCodeForSSOToken(code!, verifier!, callbackUrl);
 
-        // 2. Exchange SSO token for truload exchange token
-        const { ssoExchangeToken } = await ssoExchange(accessToken);
-
-        // 3. Store exchange token and clear PKCE session data
-        storeSsoExchangeToken(ssoExchangeToken);
-        clearSsoPkceSession();
-
-        // 4. Redirect to station selection
-        router.replace(`/${orgSlug}/auth`);
-      } catch (err: any) {
-        clearSsoPkceSession();
-
-        if (err?.status === 403 || err?.code === 'org_mismatch') {
-          // org_mismatch: user's email exists in TruLoad under a different organisation.
-          // Do NOT redirect to /auth/login — for commercial tenants that immediately
-          // re-triggers the SSO flow, causing an infinite redirect loop.
-          // Instead show an error with a SSO-logout link so the user can switch accounts.
-          setErrorKind('org_mismatch');
-          setError(
-            err.message ||
-              'Your account is registered under a different organisation. Contact your administrator or sign in with a different account.'
-          );
+        // 2. Platform-owner check: if this SSO token carries is_platform_owner, show an org
+        // picker instead of exchanging immediately — the platform owner may want a DIFFERENT
+        // org than the one this login page's URL happens to belong to (e.g. a real enforcement
+        // org like KURA, which has no SsoTenantSlug of its own and can only be reached via an
+        // explicit targetOrgCode on ssoExchange). A non-platform-owner token gets null back and
+        // falls straight through to the existing single-org flow, unchanged.
+        const platformOrgs = await getSsoPlatformOrganizations(accessToken);
+        if (platformOrgs && platformOrgs.length > 0) {
+          setPlatformOrgPicker({ accessToken, organizations: platformOrgs });
           return;
         }
+
+        await finishSsoExchange(accessToken);
+      } catch (err: any) {
+        // exchangeCodeForSSOToken / getSsoPlatformOrganizations failures land here — org_mismatch
+        // specifically only ever comes from ssoExchange itself, handled inside finishSsoExchange.
+        clearSsoPkceSession();
         setError(err instanceof Error ? err.message : 'SSO login failed');
       }
     }
@@ -136,6 +167,48 @@ function SsoCallbackContent() {
               </a>
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (platformOrgPicker) {
+    const grouped = platformOrgPicker.organizations.reduce<Record<string, SsoPlatformOrganization[]>>((acc, org) => {
+      const key = org.tenantType || 'Other';
+      (acc[key] ||= []).push(org);
+      return acc;
+    }, {});
+
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="max-w-md w-full rounded-lg border p-6 space-y-4">
+          <div className="space-y-1 text-center">
+            <h2 className="text-lg font-semibold">Platform Owner — Choose Organisation</h2>
+            <p className="text-sm text-muted-foreground">
+              Signed in as the platform owner. Select which organisation to access.
+            </p>
+          </div>
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {Object.entries(grouped).map(([tenantType, orgs]) => (
+              <div key={tenantType} className="space-y-1">
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  {tenantType === 'CommercialWeighing' ? 'Commercial Weighing' : tenantType === 'AxleLoadEnforcement' ? 'Axle Load Enforcement' : tenantType}
+                </p>
+                {orgs.map((org) => (
+                  <button
+                    key={org.code}
+                    disabled={pickerBusy}
+                    onClick={() => handleSelectPlatformOrg(org.code)}
+                    className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm text-left hover:bg-muted disabled:opacity-50"
+                  >
+                    <span>{org.name}</span>
+                    <span className="text-xs text-muted-foreground">{org.code}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+          {pickerBusy && <p className="text-center text-xs text-muted-foreground">Signing in…</p>}
         </div>
       </div>
     );
