@@ -1033,6 +1033,8 @@ function invalidateTareAnomalyQueries(queryClient: ReturnType<typeof useQueryCli
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLES });
 }
 
+// WeighingTransaction-anchored resolution (two-pass capture / stored-tare-override paths).
+
 export function useApproveTareAnomaly() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -1044,7 +1046,7 @@ export function useApproveTareAnomaly() {
 export function useRejectTareAnomaly() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: weighingApi.rejectTareAnomaly,
+    mutationFn: (id: string) => weighingApi.rejectTareAnomaly(id),
     onSuccess: () => invalidateTareAnomalyQueries(queryClient),
   });
 }
@@ -1054,6 +1056,34 @@ export function useOverrideTareAnomaly() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: OverrideTareAnomalyRequest }) =>
       weighingApi.overrideTareAnomaly(id, payload),
+    onSuccess: () => invalidateTareAnomalyQueries(queryClient),
+  });
+}
+
+// VehicleTareHistory-anchored resolution (standalone Tare Register "Record Tare" dialog, which
+// isn't tied to any live transaction).
+
+export function useApproveTareHistoryAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.approveTareHistoryAnomaly,
+    onSuccess: () => invalidateTareAnomalyQueries(queryClient),
+  });
+}
+
+export function useRejectTareHistoryAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => weighingApi.rejectTareHistoryAnomaly(id),
+    onSuccess: () => invalidateTareAnomalyQueries(queryClient),
+  });
+}
+
+export function useOverrideTareHistoryAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: OverrideTareAnomalyRequest }) =>
+      weighingApi.overrideTareHistoryAnomaly(id, payload),
     onSuccess: () => invalidateTareAnomalyQueries(queryClient),
   });
 }

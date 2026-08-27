@@ -10,7 +10,7 @@ import {
   useWeighingStatistics,
   useDownloadWeightTicket,
 } from '@/hooks/queries/useWeighingQueries';
-import { getCommercialTicketPdf, approveToleranceException } from '@/lib/api/weighing';
+import { getCommercialTicketPdf, approveToleranceException, rejectToleranceException } from '@/lib/api/weighing';
 import { buildEatDateRange } from '@/lib/utils/dateRange';
 import { exportToCSV } from '@/lib/utils/export';
 import { formatFee } from '@/lib/weighing-utils';
@@ -245,6 +245,24 @@ export default function TicketsTab() {
     await approveToleranceMutation.mutateAsync(ticket.id);
   }, [approveToleranceMutation]);
 
+  const rejectToleranceMutation = useMutation({
+    mutationFn: ({ ticketId, reason }: { ticketId: string; reason: string }) =>
+      rejectToleranceException(ticketId, reason),
+    onSuccess: (updated) => {
+      toast.success('Tolerance exception rejected. Transaction voided — a fresh weighing is required.');
+      // Update the selected ticket in place
+      setSelectedTicket((prev) => prev ? { ...prev, controlStatus: updated.controlStatus } : prev);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
+    },
+    onError: () => {
+      toast.error('Failed to reject tolerance exception');
+    },
+  });
+
+  const handleRejectToleranceException = useCallback(async (ticket: WeighingTransaction, reason: string) => {
+    await rejectToleranceMutation.mutateAsync({ ticketId: ticket.id, reason });
+  }, [rejectToleranceMutation]);
+
   const handlePrint = useCallback(async (ticket: WeighingTransaction) => {
     try {
       setPreviewFileName(`WeightTicket_${ticket.ticketNumber ?? ticket.id}.pdf`);
@@ -367,6 +385,8 @@ export default function TicketsTab() {
         canApproveToleranceException={isCommercial && canOverride}
         onApproveToleranceException={handleApproveToleranceException}
         isApprovingTolerance={approveToleranceMutation.isPending}
+        onRejectToleranceException={handleRejectToleranceException}
+        isRejectingTolerance={rejectToleranceMutation.isPending}
       />
 
       {/* PDF Preview Dialog */}

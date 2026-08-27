@@ -1279,6 +1279,7 @@ import type {
   CommercialWeighingResult,
   InitiateCommercialWeighingRequest,
   OverrideTareAnomalyRequest,
+  TareAnomaly,
   UpdateQualityDeductionRequest,
   UseStoredTareRequest,
   VehicleTareHistory,
@@ -1386,6 +1387,20 @@ export async function approveToleranceException(id: string): Promise<CommercialW
 }
 
 /**
+ * Reject a tolerance exception for a transaction where discrepancy exceeded tolerance.
+ * Reuses the Void state transition (ControlStatus becomes "Voided") — the vehicle needs a fresh
+ * weighing from the start. Requires weighing.override permission (same policy as approve).
+ * `reason` is required by the backend (non-empty, max 500 chars).
+ */
+export async function rejectToleranceException(id: string, reason: string): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${id}/reject-tolerance-exception`,
+    { reason }
+  );
+  return data;
+}
+
+/**
  * Find open (first-weight-only) commercial transactions for a vehicle plate.
  * Returns transactions where first weight was captured within the configured threshold.
  *
@@ -1458,49 +1473,95 @@ export async function recordTareWeight(
 // ============================================================================
 // Tare Anomaly Detection API (MVP)
 // ============================================================================
+// Two anchor types exist server-side (see TareAnomaly.anchorType): "WeighingTransaction" for the
+// two-pass capture / stored-tare-override paths, resolved via the plain `{id}/...-tare-anomaly`
+// endpoints below the transaction resource, and "VehicleTareHistory" for the standalone Tare
+// Register "Record Tare" dialog, resolved via the `tare-history/{id}/...-tare-anomaly` endpoints.
+// Callers must route each row to the matching family based on its anchorType.
 
 /**
- * List currently-flagged, unresolved tare anomalies awaiting supervisor review.
+ * List currently-flagged, unresolved tare anomalies awaiting supervisor review — combines both
+ * anchor types (WeighingTransaction and VehicleTareHistory), newest-flagged first.
  */
-export async function getFlaggedTareAnomalies(): Promise<VehicleTareHistory[]> {
-  const { data } = await apiClient.get<VehicleTareHistory[]>(
-    '/commercial-weighing/tare-history/flagged'
+export async function getFlaggedTareAnomalies(): Promise<TareAnomaly[]> {
+  const { data } = await apiClient.get<PagedResponse<TareAnomaly>>(
+    '/commercial-weighing/tare-anomalies',
+    { params: { pageSize: 100 } }
+  );
+  return data.items;
+}
+
+/**
+ * Approve a flagged tare anomaly on a WeighingTransaction — accepts the newly-measured tare as-is.
+ * Requires weighing.override permission.
+ */
+export async function approveTareAnomaly(transactionId: string): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${transactionId}/approve-tare-anomaly`
   );
   return data;
 }
 
 /**
- * Approve a flagged tare anomaly — accepts the newly-measured tare as-is.
- * Requires weighing.override permission.
+ * Reject a flagged tare anomaly on a WeighingTransaction — the operator must re-capture the
+ * vehicle's tare. Requires weighing.override permission.
  */
-export async function approveTareAnomaly(id: string): Promise<VehicleTareHistory> {
-  const { data } = await apiClient.post<VehicleTareHistory>(
-    `/commercial-weighing/tare-history/${id}/approve-anomaly`
+export async function rejectTareAnomaly(transactionId: string, reason?: string): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${transactionId}/reject-tare-anomaly`,
+    { reason }
   );
   return data;
 }
 
 /**
- * Reject a flagged tare anomaly — the operator must re-capture the vehicle's tare.
- * Requires weighing.override permission.
- */
-export async function rejectTareAnomaly(id: string): Promise<VehicleTareHistory> {
-  const { data } = await apiClient.post<VehicleTareHistory>(
-    `/commercial-weighing/tare-history/${id}/reject-anomaly`
-  );
-  return data;
-}
-
-/**
- * Override a flagged tare anomaly with a corrected tare weight. Justification is required.
- * Requires weighing.override permission.
+ * Override a flagged tare anomaly on a WeighingTransaction with a corrected tare weight.
+ * Justification is required. Requires weighing.override permission.
  */
 export async function overrideTareAnomaly(
-  id: string,
+  transactionId: string,
+  request: OverrideTareAnomalyRequest
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${transactionId}/override-tare-anomaly`,
+    request
+  );
+  return data;
+}
+
+/**
+ * Approve a flagged tare anomaly on a standalone VehicleTareHistory entry (Tare Register "Record
+ * Tare" dialog) — accepts the newly-measured tare as-is. Requires weighing.override permission.
+ */
+export async function approveTareHistoryAnomaly(historyId: string): Promise<VehicleTareHistory> {
+  const { data } = await apiClient.post<VehicleTareHistory>(
+    `/commercial-weighing/tare-history/${historyId}/approve-tare-anomaly`
+  );
+  return data;
+}
+
+/**
+ * Reject a flagged tare anomaly on a standalone VehicleTareHistory entry — the operator must
+ * re-capture the vehicle's tare. Requires weighing.override permission.
+ */
+export async function rejectTareHistoryAnomaly(historyId: string, reason?: string): Promise<VehicleTareHistory> {
+  const { data } = await apiClient.post<VehicleTareHistory>(
+    `/commercial-weighing/tare-history/${historyId}/reject-tare-anomaly`,
+    { reason }
+  );
+  return data;
+}
+
+/**
+ * Override a flagged tare anomaly on a standalone VehicleTareHistory entry with a corrected tare
+ * weight. Justification is required. Requires weighing.override permission.
+ */
+export async function overrideTareHistoryAnomaly(
+  historyId: string,
   request: OverrideTareAnomalyRequest
 ): Promise<VehicleTareHistory> {
   const { data } = await apiClient.post<VehicleTareHistory>(
-    `/commercial-weighing/tare-history/${id}/override-anomaly`,
+    `/commercial-weighing/tare-history/${historyId}/override-tare-anomaly`,
     request
   );
   return data;
