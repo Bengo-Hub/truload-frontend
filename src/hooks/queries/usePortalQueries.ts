@@ -13,6 +13,7 @@ import {
   getPortalDrivers,
   getDriverPerformance,
   getPortalConsignments,
+  getPortalStatement,
   getPortalSubscription,
   downloadPortalTicketPdf,
   bulkDownloadTickets,
@@ -39,6 +40,7 @@ export const PORTAL_QUERY_KEYS = {
   consignments: ['portal', 'consignments'] as const,
   subscription: ['portal', 'subscription'] as const,
   team: ['portal', 'team'] as const,
+  statement: (fromDate?: string, toDate?: string) => ['portal', 'statement', fromDate, toDate] as const,
 };
 
 export function usePortalDashboard() {
@@ -110,6 +112,14 @@ export function usePortalSubscription() {
     queryKey: PORTAL_QUERY_KEYS.subscription,
     queryFn: getPortalSubscription,
     staleTime: 120_000,
+  });
+}
+
+export function usePortalStatement(fromDate?: string, toDate?: string) {
+  return useQuery({
+    queryKey: PORTAL_QUERY_KEYS.statement(fromDate, toDate),
+    queryFn: () => getPortalStatement(fromDate, toDate),
+    staleTime: 60_000,
   });
 }
 
