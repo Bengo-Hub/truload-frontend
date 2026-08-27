@@ -2,6 +2,7 @@
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { CreateTransporterRequest } from '@/types/weighing';
 
@@ -9,7 +10,7 @@ export type TransporterFormValues = Partial<CreateTransporterRequest>;
 
 export interface TransporterFormFieldsProps {
   values: TransporterFormValues;
-  onChange: (field: keyof CreateTransporterRequest, value: string | undefined) => void;
+  onChange: (field: keyof CreateTransporterRequest, value: string | number | boolean | undefined) => void;
   errors?: Partial<Record<keyof CreateTransporterRequest, string>>;
   disabled?: boolean;
   /** Required fields to show asterisk and validate. Default: code, name (for standalone); use ['name'] for escalate. */
@@ -122,6 +123,42 @@ export function TransporterFormFields({
           disabled={disabled}
           rows={2}
         />
+      </div>
+
+      <div className="space-y-3 rounded-md border p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor={`${idPrefix}-onAccountBilling`} className="text-sm font-medium">
+              Bill On Account
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When on, commercial weighing invoices for this transporter settle later instead of
+              collecting payment immediately.
+            </p>
+          </div>
+          <Switch
+            id={`${idPrefix}-onAccountBilling`}
+            checked={values.onAccountBilling ?? false}
+            onCheckedChange={(checked) => onChange('onAccountBilling', checked)}
+            disabled={disabled}
+          />
+        </div>
+        {values.onAccountBilling && (
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}-creditLimitKes`} className="text-sm font-medium">
+              Credit Limit (KES) <span className="text-muted-foreground font-normal">optional</span>
+            </Label>
+            <Input
+              id={`${idPrefix}-creditLimitKes`}
+              type="number"
+              min={0}
+              placeholder="e.g. 50000 — leave blank for no limit"
+              value={values.creditLimitKes ?? ''}
+              onChange={(e) => onChange('creditLimitKes', e.target.value ? parseFloat(e.target.value) : undefined)}
+              disabled={disabled}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

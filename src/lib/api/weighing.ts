@@ -58,6 +58,8 @@ export interface Transporter {
   phoneNumber?: string;
   email?: string;
   isActive?: boolean;
+  creditLimitKes?: number;
+  onAccountBilling?: boolean;
 }
 
 export interface WeighingAxle {
