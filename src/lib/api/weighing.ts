@@ -22,6 +22,8 @@ export interface Vehicle {
   defaultTareWeightKg?: number;
   lastTareWeighedAt?: string;
   tareExpiryDays?: number;
+  /** Manufacturer/registered rated capacity in kg; used to compute payload efficiency in the Vehicle Utilization report. */
+  ratedCapacityKg?: number;
 }
 
 export interface Driver {
@@ -659,6 +661,8 @@ export interface CargoType {
   code?: string;
   description?: string;
   isActive?: boolean;
+  /** Owning organization id. Null/absent = shared across all tenants (legacy default); set = scoped to that org only. */
+  organizationId?: string;
   /** Target moisture percentage for this cargo type; actual readings above this trigger a quality deduction. */
   moistureTargetPercent?: number;
   /** Foreign matter limit percentage for this cargo type; actual readings above this trigger a quality deduction. */
@@ -672,6 +676,8 @@ export interface OriginDestination {
   country?: string;
   region?: string;
   isActive?: boolean;
+  /** Owning organization id. Null/absent = shared across all tenants (legacy default); set = scoped to that org only. */
+  organizationId?: string;
 }
 
 export async function fetchCargoTypes(): Promise<CargoType[]> {
@@ -690,6 +696,8 @@ export interface CreateCargoTypeRequest {
   moistureTargetPercent?: number;
   /** Foreign matter limit percentage; used with UpdateQualityDeductionRequest.actualForeignMatterPercent to compute quality deductions. */
   foreignMatterLimitPercent?: number;
+  /** Set to the current org's id to scope this entry to that org only; omit/null to keep it shared across all tenants (default). */
+  organizationId?: string | null;
 }
 
 export async function createCargoType(payload: CreateCargoTypeRequest): Promise<CargoType> {
@@ -716,6 +724,8 @@ export interface CreateOriginDestinationRequest {
   code?: string;
   locationType?: 'city' | 'town' | 'port' | 'border' | 'warehouse';
   country?: string;
+  /** Set to the current org's id to scope this entry to that org only; omit/null to keep it shared across all tenants (default). */
+  organizationId?: string | null;
 }
 
 export async function createOriginDestination(payload: CreateOriginDestinationRequest): Promise<OriginDestination> {
@@ -1268,6 +1278,7 @@ import type {
   CaptureSecondWeightRequest,
   CommercialWeighingResult,
   InitiateCommercialWeighingRequest,
+  OverrideTareAnomalyRequest,
   UpdateQualityDeductionRequest,
   UseStoredTareRequest,
   VehicleTareHistory,
@@ -1431,12 +1442,65 @@ export interface RecordTareWeightRequest {
 
 /**
  * Record a new tare weight for a vehicle and update vehicle's stored tare.
+ * May come back with tareAnomalyFlaggedAt/tareAnomalyReason set when the new tare drifted too
+ * far from the vehicle's previously stored tare (informational — the record still saves).
  */
 export async function recordTareWeight(
   request: RecordTareWeightRequest
 ): Promise<VehicleTareHistory> {
   const { data } = await apiClient.post<VehicleTareHistory>(
     `/commercial-weighing/tare-history`,
+    request
+  );
+  return data;
+}
+
+// ============================================================================
+// Tare Anomaly Detection API (MVP)
+// ============================================================================
+
+/**
+ * List currently-flagged, unresolved tare anomalies awaiting supervisor review.
+ */
+export async function getFlaggedTareAnomalies(): Promise<VehicleTareHistory[]> {
+  const { data } = await apiClient.get<VehicleTareHistory[]>(
+    '/commercial-weighing/tare-history/flagged'
+  );
+  return data;
+}
+
+/**
+ * Approve a flagged tare anomaly — accepts the newly-measured tare as-is.
+ * Requires weighing.override permission.
+ */
+export async function approveTareAnomaly(id: string): Promise<VehicleTareHistory> {
+  const { data } = await apiClient.post<VehicleTareHistory>(
+    `/commercial-weighing/tare-history/${id}/approve-anomaly`
+  );
+  return data;
+}
+
+/**
+ * Reject a flagged tare anomaly — the operator must re-capture the vehicle's tare.
+ * Requires weighing.override permission.
+ */
+export async function rejectTareAnomaly(id: string): Promise<VehicleTareHistory> {
+  const { data } = await apiClient.post<VehicleTareHistory>(
+    `/commercial-weighing/tare-history/${id}/reject-anomaly`
+  );
+  return data;
+}
+
+/**
+ * Override a flagged tare anomaly with a corrected tare weight. Justification is required.
+ * Requires weighing.override permission.
+ */
+export async function overrideTareAnomaly(
+  id: string,
+  request: OverrideTareAnomalyRequest
+): Promise<VehicleTareHistory> {
+  const { data } = await apiClient.post<VehicleTareHistory>(
+    `/commercial-weighing/tare-history/${id}/override-anomaly`,
     request
   );
   return data;

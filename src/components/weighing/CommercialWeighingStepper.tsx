@@ -627,6 +627,20 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         </Card>
       )}
 
+      {/* Tare anomaly warning — informational only, does not block the flow (unlike the tolerance gate above) */}
+      {result?.tareAnomalyFlaggedAt && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="p-3 flex items-start gap-2 text-amber-800 text-sm">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <p>
+              <span className="font-semibold">Tare anomaly flagged.</span>{' '}
+              {result.tareAnomalyReason || 'This tare drifted significantly from the vehicle’s previously stored tare.'}{' '}
+              Pending supervisor review — you can continue this weighing normally.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tare expiry warning */}
       {currentStep === 'second-weight' && isTareExpired && storedTareWeightKg && (
         <Card className="border-orange-300 bg-orange-50">

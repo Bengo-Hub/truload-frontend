@@ -204,6 +204,8 @@ export interface Vehicle {
   lastTareWeightKg?: number;
   lastTareWeighedAt?: string;
   tareExpiryDays?: number;
+  /** Manufacturer/registered rated capacity in kg; used to compute payload efficiency in the Vehicle Utilization report. */
+  ratedCapacityKg?: number;
   // Navigation
   transporter?: Transporter;
   axleConfiguration?: AxleConfiguration;
@@ -225,6 +227,8 @@ export interface CreateVehicleRequest {
   defaultTareWeightKg?: number;
   /** Per-vehicle override for tare validity period in days; falls back to the org default when unset. */
   tareExpiryDays?: number;
+  /** Manufacturer/registered rated capacity in kg; used to compute payload efficiency in the Vehicle Utilization report. */
+  ratedCapacityKg?: number;
 }
 
 export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> {
@@ -337,6 +341,8 @@ export interface CargoType {
   moistureTargetPercent?: number;
   /** Foreign matter limit percentage; actual readings above this trigger a quality deduction. */
   foreignMatterLimitPercent?: number;
+  /** Owning organization id. Null/absent = shared across all tenants (legacy default); set = scoped to that org only. */
+  organizationId?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -351,6 +357,8 @@ export interface CreateCargoTypeRequest {
   requiresPermit?: boolean;
   moistureTargetPercent?: number;
   foreignMatterLimitPercent?: number;
+  /** Set to the current org's id to scope this entry to that org only; omit/null to keep it shared across all tenants (default). */
+  organizationId?: string | null;
 }
 
 export interface UpdateCargoTypeRequest extends Partial<CreateCargoTypeRequest> {
@@ -375,6 +383,8 @@ export interface OriginDestination {
   longitude?: number;
   /** Region/county for location grouping */
   region?: string;
+  /** Owning organization id. Null/absent = shared across all tenants (legacy default); set = scoped to that org only. */
+  organizationId?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -385,6 +395,8 @@ export interface CreateOriginDestinationRequest {
   name: string;
   locationType?: LocationType;
   country?: string;
+  /** Set to the current org's id to scope this entry to that org only; omit/null to keep it shared across all tenants (default). */
+  organizationId?: string | null;
 }
 
 export interface UpdateOriginDestinationRequest extends Partial<CreateOriginDestinationRequest> {
@@ -678,6 +690,11 @@ export interface CommercialWeighingResult {
   toleranceExceptionApprovedBy?: string;
   toleranceExceptionApprovedAt?: string;
 
+  // Tare anomaly detection (MVP) — set when the tare captured/used in this transaction drifted
+  // too far from the vehicle's previously stored tare. Informational only; does not block the flow.
+  tareAnomalyFlaggedAt?: string;
+  tareAnomalyReason?: string;
+
   // Axle / deck weights per pass
   firstPassAxles: CommercialAxleWeight[];
   secondPassAxles: CommercialAxleWeight[];
@@ -775,4 +792,21 @@ export interface VehicleTareHistory {
   recordedByUserId?: string;
   /** Display name of the operator who recorded this tare weight. */
   recordedByName?: string;
+  /** Set when this newly-measured tare drifted too far from the vehicle's previously stored tare and was flagged for supervisor review. */
+  tareAnomalyFlaggedAt?: string;
+  /** Human-readable reason/drift description for the flag (e.g. "18.4% drift from last stored tare: 8,500 kg -> 10,060 kg"). */
+  tareAnomalyReason?: string;
+  /** Set once a supervisor has acted on the flag; absent/undefined while still pending review. */
+  tareAnomalyResolution?: 'approved' | 'rejected' | 'overridden';
+  tareAnomalyResolvedAt?: string;
+  tareAnomalyResolvedByName?: string;
+}
+
+/**
+ * Request to override a flagged tare anomaly with a corrected tare weight.
+ * Justification is required (mirrors other supervisor-override justification requirements in this app).
+ */
+export interface OverrideTareAnomalyRequest {
+  correctedTareWeightKg: number;
+  justification: string;
 }

@@ -29,6 +29,7 @@ interface VehicleModalProps {
  * - transporterId (select)
  * - axleConfigurationId (select)
  * - defaultTareWeightKg, tareExpiryDays (commercial tare management)
+ * - ratedCapacityKg (used for payload efficiency in the Vehicle Utilization report)
  */
 export function VehicleModal({
   open,
@@ -56,6 +57,7 @@ export function VehicleModal({
       axleConfigurationId: '',
       defaultTareWeightKg: undefined,
       tareExpiryDays: undefined,
+      ratedCapacityKg: undefined,
     },
   });
 
@@ -74,6 +76,7 @@ export function VehicleModal({
         axleConfigurationId: vehicle.axleConfigurationId || '',
         defaultTareWeightKg: vehicle.defaultTareWeightKg,
         tareExpiryDays: vehicle.tareExpiryDays,
+        ratedCapacityKg: vehicle.ratedCapacityKg,
       });
     } else if (mode === 'create') {
       reset({
@@ -89,6 +92,7 @@ export function VehicleModal({
         axleConfigurationId: '',
         defaultTareWeightKg: undefined,
         tareExpiryDays: undefined,
+        ratedCapacityKg: undefined,
       });
     }
   }, [vehicle, mode, reset]);
@@ -306,6 +310,20 @@ export function VehicleModal({
               disabled={isViewMode}
             />
             <p className="text-xs text-gray-500">Optional. Leave blank to use the org-wide tare expiry setting.</p>
+          </div>
+
+          {/* Rated Capacity */}
+          <div className="space-y-2">
+            <Label htmlFor="ratedCapacityKg" className="text-sm font-medium">Rated Capacity (kg)</Label>
+            <Input
+              id="ratedCapacityKg"
+              type="number"
+              min={0}
+              placeholder="e.g. 30000"
+              {...register('ratedCapacityKg', { valueAsNumber: true, min: 0 })}
+              disabled={isViewMode}
+            />
+            <p className="text-xs text-gray-500">Optional. Used to compute payload efficiency in the Vehicle Utilization report.</p>
           </div>
         </div>
       </form>

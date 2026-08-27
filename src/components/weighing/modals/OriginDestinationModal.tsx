@@ -3,8 +3,9 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
 import { CreateOriginDestinationRequest, LocationType, OriginDestination } from '@/types/weighing';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { EntityModal, ModalMode } from './EntityModal';
 
@@ -49,6 +50,8 @@ export function OriginDestinationModal({
   isSaving = false,
 }: OriginDestinationModalProps) {
   const isViewMode = mode === 'view';
+  const { user } = useAuth();
+  const [orgOnly, setOrgOnly] = useState(false);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isValid } } = useForm<CreateOriginDestinationRequest>({
     defaultValues: {
@@ -67,6 +70,7 @@ export function OriginDestinationModal({
         locationType: location.locationType || 'city',
         country: location.country || 'Kenya',
       });
+      setOrgOnly(!!location.organizationId);
     } else if (mode === 'create') {
       reset({
         code: '',
@@ -74,11 +78,16 @@ export function OriginDestinationModal({
         locationType: 'city',
         country: 'Kenya',
       });
+      // Default unchecked (shared/global) so existing workflows don't change unless opted in.
+      setOrgOnly(false);
     }
   }, [location, mode, reset]);
 
   const onSubmit = async (data: CreateOriginDestinationRequest) => {
-    await onSave(data);
+    await onSave({
+      ...data,
+      organizationId: orgOnly ? user?.organizationId ?? undefined : undefined,
+    });
   };
 
   return (
@@ -176,6 +185,23 @@ export function OriginDestinationModal({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Org scoping */}
+        <div className="space-y-1">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={orgOnly}
+              onChange={(e) => setOrgOnly(e.target.checked)}
+              disabled={isViewMode}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium">This organization only</span>
+          </label>
+          <p className="text-xs text-gray-500">
+            Unchecked (default): shared across all sites. Checked: only visible/usable within this organization.
+          </p>
         </div>
       </form>
     </EntityModal>
