@@ -28,6 +28,7 @@ interface VehicleModalProps {
  * - yearOfManufacture, chassisNo, engineNo
  * - transporterId (select)
  * - axleConfigurationId (select)
+ * - defaultTareWeightKg, tareExpiryDays (commercial tare management)
  */
 export function VehicleModal({
   open,
@@ -53,6 +54,8 @@ export function VehicleModal({
       engineNo: '',
       transporterId: '',
       axleConfigurationId: '',
+      defaultTareWeightKg: undefined,
+      tareExpiryDays: undefined,
     },
   });
 
@@ -69,6 +72,8 @@ export function VehicleModal({
         engineNo: vehicle.engineNo || '',
         transporterId: vehicle.transporterId || '',
         axleConfigurationId: vehicle.axleConfigurationId || '',
+        defaultTareWeightKg: vehicle.defaultTareWeightKg,
+        tareExpiryDays: vehicle.tareExpiryDays,
       });
     } else if (mode === 'create') {
       reset({
@@ -82,6 +87,8 @@ export function VehicleModal({
         engineNo: '',
         transporterId: '',
         axleConfigurationId: '',
+        defaultTareWeightKg: undefined,
+        tareExpiryDays: undefined,
       });
     }
   }, [vehicle, mode, reset]);
@@ -271,6 +278,34 @@ export function VehicleModal({
               disabled={isViewMode}
               className="font-mono"
             />
+          </div>
+
+          {/* Default Tare Weight */}
+          <div className="space-y-2">
+            <Label htmlFor="defaultTareWeightKg" className="text-sm font-medium">Default Tare Weight (kg)</Label>
+            <Input
+              id="defaultTareWeightKg"
+              type="number"
+              min={0}
+              placeholder="e.g. 8500"
+              {...register('defaultTareWeightKg', { valueAsNumber: true, min: 0 })}
+              disabled={isViewMode}
+            />
+            <p className="text-xs text-gray-500">Known empty weight, used for single-pass commercial weighing.</p>
+          </div>
+
+          {/* Tare Expiry Override */}
+          <div className="space-y-2">
+            <Label htmlFor="tareExpiryDays" className="text-sm font-medium">Tare Expiry Override (days)</Label>
+            <Input
+              id="tareExpiryDays"
+              type="number"
+              min={0}
+              placeholder="Org default"
+              {...register('tareExpiryDays', { valueAsNumber: true, min: 0 })}
+              disabled={isViewMode}
+            />
+            <p className="text-xs text-gray-500">Optional. Leave blank to use the org-wide tare expiry setting.</p>
           </div>
         </div>
       </form>

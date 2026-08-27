@@ -221,6 +221,10 @@ export interface CreateVehicleRequest {
   description?: string;
   transporterId?: string;
   axleConfigurationId?: string;
+  /** Known tare (empty) weight in kg, used for single-pass commercial weighing. */
+  defaultTareWeightKg?: number;
+  /** Per-vehicle override for tare validity period in days; falls back to the org default when unset. */
+  tareExpiryDays?: number;
 }
 
 export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> {

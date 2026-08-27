@@ -13,6 +13,7 @@ import {
 import { getCommercialTicketPdf, approveToleranceException } from '@/lib/api/weighing';
 import { buildEatDateRange } from '@/lib/utils/dateRange';
 import { exportToCSV } from '@/lib/utils/export';
+import { formatFee } from '@/lib/weighing-utils';
 import type { SearchWeighingParams, WeighingTransaction } from '@/lib/api/weighing';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query/config';
@@ -169,22 +170,52 @@ export default function TicketsTab() {
     // Shared exportToCSV (src/lib/utils/export.ts) properly escapes fields containing commas/
     // quotes - the previous hand-rolled `r.join(',')` had no such escaping (a real CSV-corruption
     // bug if e.g. a station name ever contained a comma), on top of duplicating this logic.
-    exportToCSV(
-      tickets,
-      [
-        { header: 'Ticket No', accessor: 'ticketNumber' },
-        { header: 'Vehicle Reg', accessor: 'vehicleRegNumber' },
-        { header: 'GVW Measured (kg)', accessor: 'gvwMeasuredKg' },
-        { header: 'GVW Permissible (kg)', accessor: 'gvwPermissibleKg' },
-        { header: 'Overload (kg)', accessor: 'overloadKg' },
-        { header: 'Status', accessor: 'controlStatus' },
-        { header: 'Station', accessor: (t) => t.stationName ?? '' },
-        { header: 'Weighed At', accessor: 'weighedAt' },
-      ],
-      'weight-tickets'
-    );
+    //
+    // Commercial and enforcement tickets carry different fields (GVW/Overload are enforcement-only
+    // axle-compliance concepts; commercial uses tare/gross/net weighing) - export the column set
+    // that actually matches the ticket type instead of always emitting enforcement columns.
+    if (isCommercial) {
+      // exportToCSV's generic constrains T to Record<string, unknown>, which a plain interface like
+      // WeighingTransaction doesn't structurally satisfy - intersect it so the accessor callbacks
+      // below get properly typed `t` params (numeric fee fields, etc.) instead of `unknown`.
+      exportToCSV(
+        tickets as (WeighingTransaction & Record<string, unknown>)[],
+        [
+          { header: 'Ticket No', accessor: 'ticketNumber' },
+          { header: 'Date/Time', accessor: 'weighedAt' },
+          { header: 'Station', accessor: (t) => t.stationName ?? '' },
+          { header: 'Vehicle Reg', accessor: 'vehicleRegNumber' },
+          { header: 'Transporter', accessor: (t) => t.transporterName ?? '' },
+          { header: 'Driver', accessor: (t) => t.driverName ?? '' },
+          { header: 'Cargo Type', accessor: (t) => t.cargoType ?? t.cargoDescription ?? '' },
+          { header: 'Tare Weight (kg)', accessor: (t) => t.tareWeightKg ?? '' },
+          { header: 'Gross Weight (kg)', accessor: (t) => t.grossWeightKg ?? t.gvwMeasuredKg ?? '' },
+          { header: 'Net Weight (kg)', accessor: (t) => t.netWeightKg ?? '' },
+          { header: 'Adjusted Net Weight (kg)', accessor: (t) => t.adjustedNetWeightKg ?? '' },
+          { header: 'Tare Source', accessor: (t) => t.tareSource ?? '' },
+          { header: 'Status', accessor: 'controlStatus' },
+          { header: 'Fee', accessor: (t) => (t.totalFeeUsd > 0 || (t.totalFeeKes ?? 0) > 0) ? formatFee(t.totalFeeUsd, t.totalFeeKes, t.chargingCurrency) : '' },
+        ],
+        'weight-tickets'
+      );
+    } else {
+      exportToCSV(
+        tickets,
+        [
+          { header: 'Ticket No', accessor: 'ticketNumber' },
+          { header: 'Vehicle Reg', accessor: 'vehicleRegNumber' },
+          { header: 'GVW Measured (kg)', accessor: 'gvwMeasuredKg' },
+          { header: 'GVW Permissible (kg)', accessor: 'gvwPermissibleKg' },
+          { header: 'Overload (kg)', accessor: 'overloadKg' },
+          { header: 'Status', accessor: 'controlStatus' },
+          { header: 'Station', accessor: (t) => t.stationName ?? '' },
+          { header: 'Weighed At', accessor: 'weighedAt' },
+        ],
+        'weight-tickets'
+      );
+    }
     toast.success('Tickets exported to CSV');
-  }, [tickets]);
+  }, [tickets, isCommercial]);
 
   // View / Print / Preview handlers
   const [selectedTicket, setSelectedTicket] = useState<WeighingTransaction | null>(null);

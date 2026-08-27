@@ -72,6 +72,11 @@ function SectionCard({ title, children }: { title: string; children: React.React
   );
 }
 
+/** Same convention as TicketsListView's deck columns: static/multideck tickets carry per-deck weights. */
+function isMultideckTicket(ticket: WeighingTransaction): boolean {
+  return ticket.weighingType === 'static' || ticket.weighingType === 'multideck';
+}
+
 export default function TicketDetailSheet({
   ticket,
   open,
@@ -203,6 +208,19 @@ export default function TicketDetailSheet({
                       value={`${formatWeight(ticket.secondWeightKg)}${ticket.secondWeightAt ? '  · ' + formatDateTime(ticket.secondWeightAt) : ''}`}
                     />
                   )}
+                </SectionCard>
+              )}
+
+              {/* Deck Weights — multideck/static platform scale only */}
+              {isMultideckTicket(ticket) && (
+                ticket.deckAWeightKg != null || ticket.deckBWeightKg != null ||
+                ticket.deckCWeightKg != null || ticket.deckDWeightKg != null
+              ) && (
+                <SectionCard title="Deck Weights">
+                  <DetailRow label="Deck A" value={ticket.deckAWeightKg != null ? formatWeight(ticket.deckAWeightKg) : undefined} />
+                  <DetailRow label="Deck B" value={ticket.deckBWeightKg != null ? formatWeight(ticket.deckBWeightKg) : undefined} />
+                  <DetailRow label="Deck C" value={ticket.deckCWeightKg != null ? formatWeight(ticket.deckCWeightKg) : undefined} />
+                  <DetailRow label="Deck D" value={ticket.deckDWeightKg != null ? formatWeight(ticket.deckDWeightKg) : undefined} />
                 </SectionCard>
               )}
 
