@@ -1376,6 +1376,21 @@ export async function getInterimTicketPdf(id: string): Promise<Blob> {
 }
 
 /**
+ * Get the raw ESC/POS byte stream for an 80mm thermal receipt printer. Covers both the
+ * interim and final ticket from the same route (the backend picks based on how much of the
+ * transaction is captured, same as the PDF endpoints). This is not a preview-able format -
+ * callers should offer it as a download for the operator's own raw/generic printer driver,
+ * not render it inline.
+ */
+export async function getCommercialThermalTicket(id: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(
+    `/commercial-weighing/${id}/thermal-ticket`,
+    { responseType: 'blob' }
+  );
+  return data;
+}
+
+/**
  * Approve a tolerance exception for a transaction where discrepancy exceeded tolerance.
  * Requires weighing.override permission.
  */

@@ -25,16 +25,19 @@ import {
   SheetBody,
   SheetFooter,
 } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { formatFee } from '@/lib/weighing-utils';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Loader2, Printer, XCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, Printer, Receipt, XCircle } from 'lucide-react';
 
 interface TicketDetailSheetProps {
   ticket: WeighingTransaction | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPrint?: (ticket: WeighingTransaction) => void;
+  /** Downloads the raw ESC/POS thermal ticket bytes. Commercial tickets only. */
+  onPrintThermal?: (ticket: WeighingTransaction) => void;
   canPrint?: boolean;
   isCommercial?: boolean;
   canApproveToleranceException?: boolean;
@@ -97,6 +100,7 @@ export default function TicketDetailSheet({
   open,
   onOpenChange,
   onPrint,
+  onPrintThermal,
   canPrint,
   isCommercial = false,
   canApproveToleranceException = false,
@@ -398,6 +402,20 @@ export default function TicketDetailSheet({
                 <Printer className="h-4 w-4 mr-2" />
                 Print Ticket
               </Button>
+            )}
+            {isCommercial && canPrint && onPrintThermal && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" onClick={() => onPrintThermal(ticket)}>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Print Thermal
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Downloads raw ESC/POS commands for an 80mm receipt printer. Requires a printer
+                  configured to accept raw/generic print jobs on this computer.
+                </TooltipContent>
+              </Tooltip>
             )}
           </SheetFooter>
         ) : null}
