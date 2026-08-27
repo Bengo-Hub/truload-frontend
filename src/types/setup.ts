@@ -168,6 +168,19 @@ export interface StationDto {
   countyId?: string;
   subcountyId?: string;
   roadId?: string;
+  /** Operating hours start, e.g. "06:00". Informational only for now. */
+  operatingHoursStart?: string;
+  /** Operating hours end, e.g. "22:00". Informational only for now. */
+  operatingHoursEnd?: string;
+  /** Free-form printer configuration metadata (no print pipeline wired up to this yet). */
+  printerConfig?: string;
+  /** Ticket template identifier/name used when printing weight tickets at this station. */
+  ticketTemplate?: string;
+  /**
+   * Informational/reporting default only — the backend does not yet use this to change
+   * routing behavior between Enforcement and Commercial weighing.
+   */
+  defaultWeighingMode?: 'Enforcement' | 'Commercial';
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -184,6 +197,11 @@ export interface CreateStationRequest {
   supportsBidirectional?: boolean;
   boundACode?: string;
   boundBCode?: string;
+  operatingHoursStart?: string;
+  operatingHoursEnd?: string;
+  printerConfig?: string;
+  ticketTemplate?: string;
+  defaultWeighingMode?: 'Enforcement' | 'Commercial';
 }
 
 export interface UpdateStationRequest {
@@ -196,6 +214,11 @@ export interface UpdateStationRequest {
   supportsBidirectional?: boolean;
   boundACode?: string;
   boundBCode?: string;
+  operatingHoursStart?: string;
+  operatingHoursEnd?: string;
+  printerConfig?: string;
+  ticketTemplate?: string;
+  defaultWeighingMode?: 'Enforcement' | 'Commercial';
   isActive?: boolean;
 }
 

@@ -54,6 +54,7 @@ import {
     useDeleteVehicleMake,
     useDeduplicateDrivers,
     useDrivers,
+    useInviteTransporterToPortal,
     useOriginsDestinations,
     useRoadsPaged,
     useTransporters,
@@ -70,12 +71,14 @@ import type { Transporter as TransporterView } from '@/types/weighing';
 import {
     Building2,
     Eye,
+    Loader2,
     MapPin,
     Package,
     Pencil,
     Plus,
     Route as RoadIcon,
     Search,
+    Send,
     Trash2,
     Truck,
     UserCircle,
@@ -182,6 +185,20 @@ function TransportersTab() {
   const createMutation = useCreateTransporter();
   const updateMutation = useUpdateTransporter();
   const deleteMutation = useDeleteTransporter();
+  const invitePortalMutation = useInviteTransporterToPortal();
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+
+  const handleInviteToPortal = async (t: TransporterView) => {
+    setInvitingId(t.id);
+    try {
+      await invitePortalMutation.mutateAsync(t.id);
+      toast.success(`Portal invite sent to ${t.email}`);
+    } catch {
+      toast.error('Failed to send portal invite');
+    } finally {
+      setInvitingId(null);
+    }
+  };
 
   const allItems = transporters ?? [];
   const paginatedItems = useMemo(() => {
@@ -257,11 +274,27 @@ function TransportersTab() {
                   <TableCell className="hidden md:table-cell">{t.phone || t.phoneNumber || '-'}</TableCell>
                   <TableCell className="hidden lg:table-cell">{t.email || '-'}</TableCell>
                   <TableCell className="text-right">
-                    <ActionButtons
-                      onView={() => openModal('view', t)}
-                      onEdit={() => openModal('edit', t)}
-                      onDelete={() => setDeleteId(t.id)}
-                    />
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleInviteToPortal(t)}
+                        disabled={!t.email || invitingId === t.id}
+                        title={t.email ? 'Invite to Portal' : 'Add a portal email to enable invites'}
+                      >
+                        {invitingId === t.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <ActionButtons
+                        onView={() => openModal('view', t)}
+                        onEdit={() => openModal('edit', t)}
+                        onDelete={() => setDeleteId(t.id)}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

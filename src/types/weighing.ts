@@ -329,7 +329,14 @@ export interface CargoType {
   id: string;
   code: string;
   name: string;
+  description?: string;
   category: CargoCategory;
+  isHazardous?: boolean;
+  requiresPermit?: boolean;
+  /** Target moisture percentage; actual readings above this trigger a quality deduction. */
+  moistureTargetPercent?: number;
+  /** Foreign matter limit percentage; actual readings above this trigger a quality deduction. */
+  foreignMatterLimitPercent?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -338,7 +345,12 @@ export interface CargoType {
 export interface CreateCargoTypeRequest {
   code: string;
   name: string;
+  description?: string;
   category?: CargoCategory;
+  isHazardous?: boolean;
+  requiresPermit?: boolean;
+  moistureTargetPercent?: number;
+  foreignMatterLimitPercent?: number;
 }
 
 export interface UpdateCargoTypeRequest extends Partial<CreateCargoTypeRequest> {
@@ -734,8 +746,18 @@ export interface UseStoredTareRequest {
 
 /** Request to update quality deduction */
 export interface UpdateQualityDeductionRequest {
-  qualityDeductionKg: number;
+  /**
+   * Manual override deduction amount in kg. Required only when the cargo type has no configured
+   * quality parameters, or the operator explicitly chooses manual override; otherwise omit and
+   * send actualMoisturePercent/actualForeignMatterPercent instead so the backend computes and
+   * persists the authoritative deduction.
+   */
+  qualityDeductionKg?: number;
   reason?: string;
+  /** Actual moisture % measured for this consignment (formula path — cargo type has moistureTargetPercent configured). */
+  actualMoisturePercent?: number;
+  /** Actual foreign matter % measured for this consignment (formula path — cargo type has foreignMatterLimitPercent configured). */
+  actualForeignMatterPercent?: number;
 }
 
 /** Vehicle tare weight history entry */
@@ -749,4 +771,8 @@ export interface VehicleTareHistory {
   stationName?: string;
   source: string;
   notes?: string;
+  /** Operator who recorded this tare weight (may be absent on older records or until the backend field lands). */
+  recordedByUserId?: string;
+  /** Display name of the operator who recorded this tare weight. */
+  recordedByName?: string;
 }

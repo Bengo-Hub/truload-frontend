@@ -23,6 +23,10 @@ export interface CargoType {
   category?: string;
   isHazardous?: boolean;
   requiresPermit?: boolean;
+  /** Target moisture percentage; actual readings above this trigger a quality deduction at weighing. */
+  moistureTargetPercent?: number;
+  /** Foreign matter limit percentage; actual readings above this trigger a quality deduction at weighing. */
+  foreignMatterLimitPercent?: number;
 }
 
 export interface CreateCargoTypeRequest {
@@ -32,6 +36,8 @@ export interface CreateCargoTypeRequest {
   category?: string;
   isHazardous?: boolean;
   requiresPermit?: boolean;
+  moistureTargetPercent?: number;
+  foreignMatterLimitPercent?: number;
 }
 
 interface CargoTypeModalProps {
@@ -72,6 +78,8 @@ export function CargoTypeModal({
   const [category, setCategory] = useState('');
   const [isHazardous, setIsHazardous] = useState(false);
   const [requiresPermit, setRequiresPermit] = useState(false);
+  const [moistureTargetPercent, setMoistureTargetPercent] = useState('');
+  const [foreignMatterLimitPercent, setForeignMatterLimitPercent] = useState('');
 
   const isViewMode = mode === 'view';
 
@@ -85,6 +93,8 @@ export function CargoTypeModal({
         setCategory(cargoType.category || '');
         setIsHazardous(cargoType.isHazardous || false);
         setRequiresPermit(cargoType.requiresPermit || false);
+        setMoistureTargetPercent(cargoType.moistureTargetPercent != null ? String(cargoType.moistureTargetPercent) : '');
+        setForeignMatterLimitPercent(cargoType.foreignMatterLimitPercent != null ? String(cargoType.foreignMatterLimitPercent) : '');
       } else {
         // Reset for create mode
         setCode('');
@@ -93,6 +103,8 @@ export function CargoTypeModal({
         setCategory('');
         setIsHazardous(false);
         setRequiresPermit(false);
+        setMoistureTargetPercent('');
+        setForeignMatterLimitPercent('');
       }
     }
   }, [open, mode, cargoType]);
@@ -104,6 +116,9 @@ export function CargoTypeModal({
       return;
     }
 
+    const moistureTarget = moistureTargetPercent.trim() ? parseFloat(moistureTargetPercent) : undefined;
+    const foreignMatterLimit = foreignMatterLimitPercent.trim() ? parseFloat(foreignMatterLimitPercent) : undefined;
+
     await onSave({
       code: code.trim().toUpperCase(),
       name: name.trim(),
@@ -111,6 +126,8 @@ export function CargoTypeModal({
       category: category.trim() || undefined,
       isHazardous,
       requiresPermit,
+      moistureTargetPercent: moistureTarget != null && !isNaN(moistureTarget) ? moistureTarget : undefined,
+      foreignMatterLimitPercent: foreignMatterLimit != null && !isNaN(foreignMatterLimit) ? foreignMatterLimit : undefined,
     });
   };
 
@@ -179,6 +196,41 @@ export function CargoTypeModal({
               disabled={isSaving || isViewMode}
             />
           </div>
+
+          {/* Quality parameters */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="cargo-moisture-target">Moisture Target %</Label>
+              <Input
+                id="cargo-moisture-target"
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                value={moistureTargetPercent}
+                onChange={(e) => setMoistureTargetPercent(e.target.value)}
+                placeholder="e.g. 12.5"
+                disabled={isSaving || isViewMode}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cargo-fm-limit">Foreign Matter Limit %</Label>
+              <Input
+                id="cargo-fm-limit"
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                value={foreignMatterLimitPercent}
+                onChange={(e) => setForeignMatterLimitPercent(e.target.value)}
+                placeholder="e.g. 2.0"
+                disabled={isSaving || isViewMode}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 -mt-2">
+            Optional. If set, quality deductions can be computed automatically when actual moisture/foreign matter readings exceed these values.
+          </p>
 
           {/* Description */}
           <div className="space-y-2">

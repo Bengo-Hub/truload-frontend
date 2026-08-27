@@ -40,6 +40,14 @@ export interface ReportDefinition {
   chartOptions?: ReportChartOption[];
   /** Present only on report types that opted into the structured filter catalog - shows only the filters this report actually supports. */
   filters?: ReportFilterDefinition[];
+  /**
+   * Permission code required to see/generate this report (e.g. 'analytics.read'), when the
+   * report catalog restricts it beyond the general `analytics.read` gate on the reporting page
+   * as a whole. Absent means no extra restriction — every user with page-level access sees it.
+   */
+  requiredPermission?: string;
+  /** Role name required to see/generate this report, when restricted by role rather than permission. */
+  requiredRole?: string;
 }
 
 export interface ReportModuleCatalog {

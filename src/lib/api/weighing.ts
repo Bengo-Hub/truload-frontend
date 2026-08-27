@@ -494,6 +494,14 @@ export async function deleteTransporter(id: string): Promise<void> {
   await apiClient.delete(`/transporters/${id}`);
 }
 
+/**
+ * Invite a transporter to the self-service portal using their on-file email address.
+ */
+export async function inviteTransporterToPortal(id: string): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(`/transporters/${id}/invite-portal`);
+  return data;
+}
+
 // ============================================================================
 // Weighing Transaction API
 // ============================================================================
@@ -651,6 +659,10 @@ export interface CargoType {
   code?: string;
   description?: string;
   isActive?: boolean;
+  /** Target moisture percentage for this cargo type; actual readings above this trigger a quality deduction. */
+  moistureTargetPercent?: number;
+  /** Foreign matter limit percentage for this cargo type; actual readings above this trigger a quality deduction. */
+  foreignMatterLimitPercent?: number;
 }
 
 export interface OriginDestination {
@@ -671,6 +683,13 @@ export interface CreateCargoTypeRequest {
   code: string;
   name: string;
   category?: 'General' | 'Hazardous' | 'Perishable';
+  description?: string;
+  isHazardous?: boolean;
+  requiresPermit?: boolean;
+  /** Target moisture percentage; used with UpdateQualityDeductionRequest.actualMoisturePercent to compute quality deductions. */
+  moistureTargetPercent?: number;
+  /** Foreign matter limit percentage; used with UpdateQualityDeductionRequest.actualForeignMatterPercent to compute quality deductions. */
+  foreignMatterLimitPercent?: number;
 }
 
 export async function createCargoType(payload: CreateCargoTypeRequest): Promise<CargoType> {
@@ -856,6 +875,19 @@ export interface Station {
   countyId?: string;
   subcountyId?: string;
   roadId?: string;
+  /** Operating hours start, e.g. "06:00". Informational only for now. */
+  operatingHoursStart?: string;
+  /** Operating hours end, e.g. "22:00". Informational only for now. */
+  operatingHoursEnd?: string;
+  /** Free-form printer configuration metadata (no print pipeline wired up to this yet). */
+  printerConfig?: string;
+  /** Ticket template identifier/name used when printing weight tickets at this station. */
+  ticketTemplate?: string;
+  /**
+   * Informational/reporting default only — the backend does not yet use this to change
+   * routing behavior between Enforcement and Commercial weighing.
+   */
+  defaultWeighingMode?: 'Enforcement' | 'Commercial';
   createdAt: string;
   updatedAt: string;
 }

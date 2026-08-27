@@ -27,10 +27,11 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReportCatalog, useDownloadReport } from '@/hooks/queries/useReportQueries';
-import { triggerBlobDownload } from '@/lib/api/reports';
+import { triggerBlobDownload, type ReportDefinition } from '@/lib/api/reports';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
 import { ReportPreviewDialog } from './ReportPreviewDialog';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
+import { useAuthStore } from '@/stores/auth.store';
 
 const MODULE_ICONS: Record<string, LucideIcon> = {
   weighing: Scale,
@@ -85,6 +86,26 @@ export function ModuleReportSelector() {
   );
   const downloadMutation = useDownloadReport();
 
+  // Per-report role/permission gating (defense in depth - backend also filters the catalog it
+  // returns). Mirrors the same case-insensitive, superuser-bypass logic as useHasPermission /
+  // useHasRole (@/hooks/useAuth); implemented inline here since those are hooks and the field
+  // being checked varies per report item rather than being a fixed permission code.
+  const user = useAuthStore((s) => s.user);
+  const isReportRoleAllowed = (report: ReportDefinition): boolean => {
+    if (!user) return false;
+    if (user.isSuperUser) return true;
+    if (report.requiredPermission) {
+      const userPermissions = (user.permissions ?? []).filter(Boolean).map((p) => p.toLowerCase());
+      if (!userPermissions.includes(report.requiredPermission.toLowerCase())) return false;
+    }
+    if (report.requiredRole) {
+      const userRoles = (user.roles ?? []).filter(Boolean).map((r) => r.toLowerCase());
+      if (!userRoles.includes(report.requiredRole.toLowerCase())) return false;
+    }
+    // Neither field present (or backend hasn't shipped this yet) - degrade gracefully to "allowed".
+    return true;
+  };
+
   // Map report module keys to tenant module checks (defense in depth - backend also filters)
   const isReportModuleAllowed = (reportModule: string): boolean => {
     switch (reportModule) {
@@ -115,7 +136,8 @@ export function ModuleReportSelector() {
     ?.filter((m) => isReportModuleAllowed(m.module))
     .flatMap((m) =>
       m.reports.map((r) => ({ ...r, moduleDisplayName: m.displayName }))
-    ) ?? [];
+    )
+    .filter((r) => isReportRoleAllowed(r)) ?? [];
 
   const moduleList = catalog?.modules?.filter((m) => isReportModuleAllowed(m.module)) ?? [];
 
