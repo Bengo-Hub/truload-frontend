@@ -38,7 +38,8 @@ export function TransporterModal({
       phone: '',
       email: '',
       address: '',
-
+      creditLimitKes: undefined,
+      onAccountBilling: false,
     },
   });
   const formValues = watch();
@@ -53,7 +54,8 @@ export function TransporterModal({
         phone: transporter.phone || '',
         email: transporter.email || '',
         address: transporter.address || '',
-
+        creditLimitKes: transporter.creditLimitKes,
+        onAccountBilling: transporter.onAccountBilling ?? false,
       });
     } else if (mode === 'create') {
       reset({
@@ -63,7 +65,8 @@ export function TransporterModal({
         phone: '',
         email: '',
         address: '',
-  
+        creditLimitKes: undefined,
+        onAccountBilling: false,
       });
     }
   }, [transporter, mode, reset]);

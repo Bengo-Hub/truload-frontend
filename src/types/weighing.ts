@@ -307,6 +307,10 @@ export interface Transporter {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Credit limit (KES) for on-account billing. Undefined/null = no credit extended. */
+  creditLimitKes?: number;
+  /** When true, commercial weighing invoices settle later instead of collecting payment immediately. */
+  onAccountBilling?: boolean;
 }
 
 export interface CreateTransporterRequest {
@@ -317,6 +321,8 @@ export interface CreateTransporterRequest {
   email?: string;
   address?: string;
   ntacNo?: string;
+  creditLimitKes?: number;
+  onAccountBilling?: boolean;
 }
 
 export interface UpdateTransporterRequest extends Partial<CreateTransporterRequest> {
