@@ -8,7 +8,7 @@
 import * as permitsApi from '@/lib/api/permits';
 import * as weighingApi from '@/lib/api/weighing';
 import { QUERY_KEYS, QUERY_OPTIONS, queryKeys } from '@/lib/query/config';
-import { ExtendPermitRequest, UpdatePermitRequest } from '@/types/weighing';
+import { ExtendPermitRequest, OverrideTareAnomalyRequest, UpdatePermitRequest } from '@/types/weighing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 // ============================================================================
@@ -1007,7 +1007,54 @@ export function useRecordTareWeight() {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.VEHICLES, variables.vehicleId, 'tare-history'] });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.VEHICLES, 'paged'] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLES });
+      queryClient.invalidateQueries({ queryKey: TARE_ANOMALIES_KEY });
     },
+  });
+}
+
+// ============================================================================
+// TARE ANOMALY DETECTION HOOKS (Commercial weighing supervisor review)
+// ============================================================================
+
+const TARE_ANOMALIES_KEY = [...QUERY_KEYS.VEHICLES, 'tare-anomalies', 'flagged'] as const;
+
+/** List currently-flagged, unresolved tare anomalies for the Tare Register's Pending Review section. */
+export function useFlaggedTareAnomalies() {
+  return useQuery({
+    queryKey: TARE_ANOMALIES_KEY,
+    queryFn: weighingApi.getFlaggedTareAnomalies,
+    staleTime: 30_000,
+  });
+}
+
+function invalidateTareAnomalyQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: TARE_ANOMALIES_KEY });
+  queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.VEHICLES, 'paged'] });
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VEHICLES });
+}
+
+export function useApproveTareAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.approveTareAnomaly,
+    onSuccess: () => invalidateTareAnomalyQueries(queryClient),
+  });
+}
+
+export function useRejectTareAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: weighingApi.rejectTareAnomaly,
+    onSuccess: () => invalidateTareAnomalyQueries(queryClient),
+  });
+}
+
+export function useOverrideTareAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: OverrideTareAnomalyRequest }) =>
+      weighingApi.overrideTareAnomaly(id, payload),
+    onSuccess: () => invalidateTareAnomalyQueries(queryClient),
   });
 }
 

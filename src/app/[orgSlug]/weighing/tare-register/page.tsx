@@ -29,15 +29,33 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  useApproveTareAnomaly,
+  useFlaggedTareAnomalies,
+  useOverrideTareAnomaly,
   useRecordTareWeight,
+  useRejectTareAnomaly,
   useVehiclesPaged,
   useVehicleTareHistory,
 } from '@/hooks/queries';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { hardDeleteTare } from '@/lib/api/weighing';
 import type { Vehicle, VehicleTareHistory } from '@/types/weighing';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, Clock, History, Plus, Search, Trash2, Truck, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  History,
+  Loader2,
+  PencilLine,
+  Plus,
+  Search,
+  ShieldCheck,
+  Trash2,
+  Truck,
+  X,
+  XCircle,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -77,6 +95,7 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
   const [source, setSource] = useState<'measured' | 'manual'>('measured');
   const [notes, setNotes] = useState('');
   const [setAsDefault, setSetAsDefault] = useState(true);
+  const [flaggedResult, setFlaggedResult] = useState<VehicleTareHistory | null>(null);
   const recordTare = useRecordTareWeight();
 
   useEffect(() => {
@@ -85,6 +104,7 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
       setSource('measured');
       setNotes('');
       setSetAsDefault(true);
+      setFlaggedResult(null);
     }
   }, [open, vehicle]);
 
@@ -98,7 +118,14 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
     recordTare.mutate(
       { vehicleId: vehicle.id, tareWeightKg: kg, source, notes: notes || undefined, setAsDefault },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
+          if (saved?.tareAnomalyFlaggedAt) {
+            // Flagged as an anomaly — keep the dialog open so the operator sees why, but the
+            // record has already saved and the flow is not blocked.
+            setFlaggedResult(saved);
+            toast.warning(`Tare recorded for ${vehicle.regNo}, but flagged for supervisor review.`);
+            return;
+          }
           toast.success(`Tare recorded for ${vehicle.regNo}`);
           onClose();
         },
@@ -116,6 +143,16 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
             {vehicle ? `Vehicle: ${vehicle.regNo}` : ''}
           </DialogDescription>
         </DialogHeader>
+        {flaggedResult && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-800">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <p className="text-sm">
+              <span className="font-semibold">Tare anomaly flagged.</span>{' '}
+              {flaggedResult.tareAnomalyReason || 'This tare drifted significantly from the vehicle’s previously stored tare.'}{' '}
+              The record has been saved and is pending supervisor review (see Pending Review below).
+            </p>
+          </div>
+        )}
         <div className="space-y-4 py-2">
           <div className="space-y-1">
             <Label>Tare Weight (kg)</Label>
@@ -125,11 +162,12 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
               placeholder="e.g. 8500"
               value={tareKg}
               onChange={(e) => setTareKg(e.target.value)}
+              disabled={!!flaggedResult}
             />
           </div>
           <div className="space-y-1">
             <Label>Source</Label>
-            <Select value={source} onValueChange={(v) => setSource(v as 'measured' | 'manual')}>
+            <Select value={source} onValueChange={(v) => setSource(v as 'measured' | 'manual')} disabled={!!flaggedResult}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -146,6 +184,7 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              disabled={!!flaggedResult}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -155,6 +194,7 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
               checked={setAsDefault}
               onChange={(e) => setSetAsDefault(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300"
+              disabled={!!flaggedResult}
             />
             <Label htmlFor="set-default" className="cursor-pointer font-normal">
               Set as vehicle&apos;s stored tare (used in weighing)
@@ -162,10 +202,16 @@ function RecordTareDialog({ vehicle, open, onClose }: RecordTareDialogProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={recordTare.isPending}>
-            {recordTare.isPending ? 'Saving…' : 'Record Tare'}
-          </Button>
+          {flaggedResult ? (
+            <Button onClick={onClose}>Done</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={recordTare.isPending}>
+                {recordTare.isPending ? 'Saving…' : 'Record Tare'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -274,6 +320,205 @@ function TareHistoryDialog({ vehicle, open, onClose }: TareHistoryDialogProps) {
   );
 }
 
+// ─── Pending Review (Flagged Tare Anomalies) ──────────────────────────────────
+
+interface OverrideAnomalyDialogProps {
+  entry: VehicleTareHistory | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+function OverrideAnomalyDialog({ entry, open, onClose }: OverrideAnomalyDialogProps) {
+  const [correctedTareKg, setCorrectedTareKg] = useState('');
+  const [justification, setJustification] = useState('');
+  const overrideMutation = useOverrideTareAnomaly();
+
+  useEffect(() => {
+    if (open) {
+      setCorrectedTareKg(entry?.tareWeightKg?.toString() ?? '');
+      setJustification('');
+    }
+  }, [open, entry]);
+
+  const handleSubmit = () => {
+    if (!entry) return;
+    const kg = parseInt(correctedTareKg, 10);
+    if (isNaN(kg) || kg <= 0) {
+      toast.error('Enter a valid corrected tare weight in kg');
+      return;
+    }
+    if (!justification.trim()) {
+      toast.error('Justification is required to override a flagged tare');
+      return;
+    }
+    overrideMutation.mutate(
+      { id: entry.id, payload: { correctedTareWeightKg: kg, justification: justification.trim() } },
+      {
+        onSuccess: () => {
+          toast.success(`Tare override recorded for ${entry.vehicleRegNo ?? 'vehicle'}`);
+          onClose();
+        },
+        onError: () => toast.error('Failed to override tare anomaly'),
+      }
+    );
+  };
+
+  const isValid = !!correctedTareKg.trim() && !!justification.trim();
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Override Flagged Tare</DialogTitle>
+          <DialogDescription>
+            {entry?.vehicleRegNo ? `Vehicle: ${entry.vehicleRegNo}` : ''}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1">
+            <Label>Corrected Tare Weight (kg) <span className="text-red-500">*</span></Label>
+            <Input
+              type="number"
+              min={1}
+              placeholder="e.g. 8500"
+              value={correctedTareKg}
+              onChange={(e) => setCorrectedTareKg(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Justification <span className="text-red-500">*</span></Label>
+            <Textarea
+              placeholder="Explain why this corrected tare weight is being applied..."
+              rows={3}
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={overrideMutation.isPending || !isValid}>
+            {overrideMutation.isPending ? 'Saving…' : 'Confirm Override'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PendingReviewSection() {
+  const { data: flagged, isLoading } = useFlaggedTareAnomalies();
+  const canReview = useHasPermission('weighing.override');
+  const approveMutation = useApproveTareAnomaly();
+  const rejectMutation = useRejectTareAnomaly();
+  const [overrideTarget, setOverrideTarget] = useState<VehicleTareHistory | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  const items = flagged ?? [];
+  if (!isLoading && items.length === 0) return null;
+
+  const handleApprove = (entry: VehicleTareHistory) => {
+    setActingId(entry.id);
+    approveMutation.mutate(entry.id, {
+      onSuccess: () => toast.success(`Tare approved for ${entry.vehicleRegNo ?? 'vehicle'}`),
+      onError: () => toast.error('Failed to approve tare anomaly'),
+      onSettled: () => setActingId(null),
+    });
+  };
+
+  const handleReject = (entry: VehicleTareHistory) => {
+    setActingId(entry.id);
+    rejectMutation.mutate(entry.id, {
+      onSuccess: () => toast.success(`Tare rejected — ${entry.vehicleRegNo ?? 'vehicle'} needs re-capture`),
+      onError: () => toast.error('Failed to reject tare anomaly'),
+      onSettled: () => setActingId(null),
+    });
+  };
+
+  return (
+    <>
+      <Card className="border-amber-300 bg-amber-50/40">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Pending Review — Flagged Tare Anomalies</h2>
+              <p className="text-xs text-muted-foreground">
+                Newly-measured tares that drifted too far from the vehicle&apos;s previously stored tare.
+              </p>
+            </div>
+            {!isLoading && <Badge variant="secondary" className="ml-auto">{items.length}</Badge>}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Vehicle Reg</TableHead>
+                <TableHead>Reason / Drift</TableHead>
+                <TableHead>Flagged</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && Array.from({ length: 2 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 4 }).map((__, j) => (
+                    <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                  ))}
+                </TableRow>
+              ))}
+              {!isLoading && items.map((entry) => {
+                const isActing = actingId === entry.id && (approveMutation.isPending || rejectMutation.isPending);
+                return (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-mono font-semibold">{entry.vehicleRegNo ?? '—'}</TableCell>
+                    <TableCell className="text-sm text-amber-800">
+                      {entry.tareAnomalyReason || `New tare ${entry.tareWeightKg.toLocaleString()} kg flagged`}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDateTime(entry.tareAnomalyFlaggedAt)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {canReview ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button size="sm" onClick={() => handleApprove(entry)} disabled={isActing}>
+                            {isActing && approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                            Approve
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleReject(entry)} disabled={isActing}>
+                            {isActing && rejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5 mr-1" />}
+                            Reject
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setOverrideTarget(entry)} disabled={isActing}>
+                            <PencilLine className="h-3.5 w-3.5 mr-1" />
+                            Override
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Awaiting supervisor review</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <OverrideAnomalyDialog
+        entry={overrideTarget}
+        open={!!overrideTarget}
+        onClose={() => setOverrideTarget(null)}
+      />
+    </>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TareRegisterPage() {
@@ -315,6 +560,9 @@ export default function TareRegisterPage() {
               </p>
             </div>
           </div>
+
+          {/* Pending Review — flagged tare anomalies awaiting supervisor action */}
+          <PendingReviewSection />
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">

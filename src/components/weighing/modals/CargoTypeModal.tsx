@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Package } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface CargoType {
   id?: string;
@@ -27,6 +28,8 @@ export interface CargoType {
   moistureTargetPercent?: number;
   /** Foreign matter limit percentage; actual readings above this trigger a quality deduction at weighing. */
   foreignMatterLimitPercent?: number;
+  /** Owning organization id. Null/absent = shared across all tenants (default); set = scoped to that org only. */
+  organizationId?: string;
 }
 
 export interface CreateCargoTypeRequest {
@@ -38,6 +41,8 @@ export interface CreateCargoTypeRequest {
   requiresPermit?: boolean;
   moistureTargetPercent?: number;
   foreignMatterLimitPercent?: number;
+  /** Set to the current org's id to scope this entry to that org only; omit/null to keep it shared across all tenants (default). */
+  organizationId?: string | null;
 }
 
 interface CargoTypeModalProps {
@@ -80,6 +85,8 @@ export function CargoTypeModal({
   const [requiresPermit, setRequiresPermit] = useState(false);
   const [moistureTargetPercent, setMoistureTargetPercent] = useState('');
   const [foreignMatterLimitPercent, setForeignMatterLimitPercent] = useState('');
+  const [orgOnly, setOrgOnly] = useState(false);
+  const { user } = useAuth();
 
   const isViewMode = mode === 'view';
 
@@ -95,8 +102,9 @@ export function CargoTypeModal({
         setRequiresPermit(cargoType.requiresPermit || false);
         setMoistureTargetPercent(cargoType.moistureTargetPercent != null ? String(cargoType.moistureTargetPercent) : '');
         setForeignMatterLimitPercent(cargoType.foreignMatterLimitPercent != null ? String(cargoType.foreignMatterLimitPercent) : '');
+        setOrgOnly(!!cargoType.organizationId);
       } else {
-        // Reset for create mode
+        // Reset for create mode. Default unchecked (shared/global) so existing workflows don't change unless opted in.
         setCode('');
         setName('');
         setDescription('');
@@ -105,6 +113,7 @@ export function CargoTypeModal({
         setRequiresPermit(false);
         setMoistureTargetPercent('');
         setForeignMatterLimitPercent('');
+        setOrgOnly(false);
       }
     }
   }, [open, mode, cargoType]);
@@ -128,6 +137,7 @@ export function CargoTypeModal({
       requiresPermit,
       moistureTargetPercent: moistureTarget != null && !isNaN(moistureTarget) ? moistureTarget : undefined,
       foreignMatterLimitPercent: foreignMatterLimit != null && !isNaN(foreignMatterLimit) ? foreignMatterLimit : undefined,
+      organizationId: orgOnly ? user?.organizationId ?? undefined : undefined,
     });
   };
 
@@ -267,6 +277,23 @@ export function CargoTypeModal({
               />
               <span className="text-sm text-gray-700">Requires Permit</span>
             </label>
+          </div>
+
+          {/* Org scoping */}
+          <div className="space-y-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={orgOnly}
+                onChange={(e) => setOrgOnly(e.target.checked)}
+                disabled={isSaving || isViewMode}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">This organization only</span>
+            </label>
+            <p className="text-xs text-gray-500">
+              Unchecked (default): shared across all sites. Checked: only visible/usable within this organization.
+            </p>
           </div>
 
           <DialogFooter>
