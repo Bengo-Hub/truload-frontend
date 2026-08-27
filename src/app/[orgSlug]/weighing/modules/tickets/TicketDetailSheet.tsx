@@ -1,8 +1,21 @@
 "use client";
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Sheet,
   SheetContent,
@@ -15,7 +28,7 @@ import {
 import type { WeighingTransaction } from '@/lib/api/weighing';
 import { formatFee } from '@/lib/weighing-utils';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Loader2, Printer } from 'lucide-react';
+import { CheckCircle2, Loader2, Printer, XCircle } from 'lucide-react';
 
 interface TicketDetailSheetProps {
   ticket: WeighingTransaction | null;
@@ -27,6 +40,8 @@ interface TicketDetailSheetProps {
   canApproveToleranceException?: boolean;
   onApproveToleranceException?: (ticket: WeighingTransaction) => Promise<void>;
   isApprovingTolerance?: boolean;
+  onRejectToleranceException?: (ticket: WeighingTransaction, reason: string) => Promise<void>;
+  isRejectingTolerance?: boolean;
 }
 
 function formatDateTime(dateStr: string) {
@@ -87,10 +102,22 @@ export default function TicketDetailSheet({
   canApproveToleranceException = false,
   onApproveToleranceException,
   isApprovingTolerance = false,
+  onRejectToleranceException,
+  isRejectingTolerance = false,
 }: TicketDetailSheetProps) {
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+
   if (!ticket) return null;
 
+  const handleRejectConfirm = async () => {
+    if (!ticket || !onRejectToleranceException || !rejectReason.trim()) return;
+    await onRejectToleranceException(ticket, rejectReason.trim());
+    setRejectReason('');
+  };
+
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
@@ -343,12 +370,26 @@ export default function TicketDetailSheet({
                 variant="default"
                 className="bg-amber-600 hover:bg-amber-700"
                 onClick={() => onApproveToleranceException(ticket)}
-                disabled={isApprovingTolerance}
+                disabled={isApprovingTolerance || isRejectingTolerance}
               >
                 {isApprovingTolerance ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Approving...</>
                 ) : (
                   <><CheckCircle2 className="h-4 w-4 mr-2" />Approve Tolerance Exception</>
+                )}
+              </Button>
+            )}
+            {isCommercial && canApproveToleranceException && ticket.toleranceExceeded && !ticket.toleranceExceptionApproved && onRejectToleranceException && (
+              <Button
+                variant="outline"
+                className="border-red-300 text-red-700 hover:bg-red-50"
+                onClick={() => setShowRejectConfirm(true)}
+                disabled={isApprovingTolerance || isRejectingTolerance}
+              >
+                {isRejectingTolerance ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Rejecting...</>
+                ) : (
+                  <><XCircle className="h-4 w-4 mr-2" />Reject Tolerance Exception</>
                 )}
               </Button>
             )}
@@ -362,5 +403,45 @@ export default function TicketDetailSheet({
         ) : null}
       </SheetContent>
     </Sheet>
+
+    <AlertDialog
+      open={showRejectConfirm}
+      onOpenChange={(open) => { setShowRejectConfirm(open); if (!open) setRejectReason(''); }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-red-700">
+            <XCircle className="h-5 w-5" /> Reject Tolerance Exception
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Rejecting voids ticket #{ticket.ticketNumber} — the vehicle will need a fresh weighing
+            from the start. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-1 px-1">
+          <Label htmlFor="ticket-reject-reason">
+            Reason <span className="text-red-500">*</span>
+          </Label>
+          <Textarea
+            id="ticket-reject-reason"
+            placeholder="Explain why this tolerance exception is being rejected..."
+            rows={3}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep Transaction</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleRejectConfirm}
+            disabled={isRejectingTolerance || !rejectReason.trim()}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Reject & Void Transaction
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

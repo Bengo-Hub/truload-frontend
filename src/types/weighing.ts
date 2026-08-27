@@ -796,10 +796,12 @@ export interface VehicleTareHistory {
   tareAnomalyFlaggedAt?: string;
   /** Human-readable reason/drift description for the flag (e.g. "18.4% drift from last stored tare: 8,500 kg -> 10,060 kg"). */
   tareAnomalyReason?: string;
+  /** User ID of the supervisor who resolved the flag. Absent/undefined while still pending review. */
+  tareAnomalyResolvedByUserId?: string;
   /** Set once a supervisor has acted on the flag; absent/undefined while still pending review. */
-  tareAnomalyResolution?: 'approved' | 'rejected' | 'overridden';
   tareAnomalyResolvedAt?: string;
-  tareAnomalyResolvedByName?: string;
+  /** Free-text resolution outcome, e.g. "Approved", "Rejected: reason", or "Overridden: corrected tare 8500kg — justification". */
+  tareAnomalyResolution?: string;
 }
 
 /**
@@ -809,4 +811,25 @@ export interface VehicleTareHistory {
 export interface OverrideTareAnomalyRequest {
   correctedTareWeightKg: number;
   justification: string;
+}
+
+/**
+ * A single flagged, unresolved tare anomaly for the Tare Register "Pending Review" queue
+ * (GET /commercial-weighing/tare-anomalies). `anchorType` distinguishes which entity the anomaly is
+ * anchored on — "WeighingTransaction" for the two-pass capture / stored-tare-override paths
+ * (resolvable via the {id}/approve|reject|override-tare-anomaly transaction endpoints, `ticketNumber`
+ * populated), or "VehicleTareHistory" for the standalone Tare Register "Record Tare" dialog
+ * (resolvable via the tare-history/{id}/approve|reject|override-tare-anomaly endpoints instead).
+ */
+export interface TareAnomaly {
+  anchorType: 'WeighingTransaction' | 'VehicleTareHistory';
+  id: string;
+  vehicleId: string;
+  vehicleRegNo?: string;
+  ticketNumber?: string;
+  flaggedAt?: string;
+  reason?: string;
+  tareWeightKg?: number;
+  stationId?: string;
+  stationName?: string;
 }

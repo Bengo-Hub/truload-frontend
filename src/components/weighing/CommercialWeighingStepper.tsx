@@ -13,6 +13,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { WeighingPageHeader } from '@/components/weighing/WeighingPageHeader';
 import { WeighingStepperNav } from '@/components/weighing/WeighingStepperNav';
 import type { ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
@@ -51,6 +53,7 @@ import {
   getPendingCommercialByPlate,
   getVehicleTareHistory,
   initiateCommercialWeighing,
+  rejectToleranceException,
   updateQualityDeduction,
   useStoredTare,
 } from '@/lib/api/weighing';
@@ -65,7 +68,7 @@ import type {
 } from '@/types/weighing';
 import { cn } from '@/lib/utils';
 import { formatWeight } from '@/lib/weighing-utils';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock, Loader2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock, Loader2, ShieldCheck, XCircle } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -98,6 +101,8 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const [isLoading, setIsLoading] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showToleranceDialog, setShowToleranceDialog] = useState(false);
+  const [showRejectToleranceDialog, setShowRejectToleranceDialog] = useState(false);
+  const [rejectToleranceReason, setRejectToleranceReason] = useState('');
   const [showResumeDialog, setShowResumeDialog] = useState(false);
 
   // Live weight from middleware
@@ -555,6 +560,24 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     toast.success('Weighing cancelled.');
   }, [resetSession]);
 
+  const handleRejectToleranceException = useCallback(async () => {
+    if (!transactionId || !rejectToleranceReason.trim()) return;
+    setIsLoading(true);
+    try {
+      await rejectToleranceException(transactionId, rejectToleranceReason.trim());
+      setShowRejectToleranceDialog(false);
+      setShowToleranceDialog(false);
+      toast.success('Tolerance exception rejected. Transaction voided — a fresh weighing is required.');
+      resetSession();
+    } catch (err) {
+      console.error('Failed to reject tolerance exception:', err);
+      toast.error('Failed to reject tolerance exception.');
+    } finally {
+      setIsLoading(false);
+      setRejectToleranceReason('');
+    }
+  }, [transactionId, rejectToleranceReason, resetSession]);
+
   const handleResumeTransaction = useCallback((transaction: CommercialWeighingResult) => {
     setShowResumeDialog(false);
     setTransactionId(transaction.id);
@@ -610,9 +633,19 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               </span>
             </div>
             {canApproveException && (
-              <Button size="sm" variant="destructive" onClick={() => setShowToleranceDialog(true)}>
-                <ShieldCheck className="h-4 w-4 mr-1" /> Approve Exception
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="destructive" onClick={() => setShowToleranceDialog(true)}>
+                  <ShieldCheck className="h-4 w-4 mr-1" /> Approve Exception
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-300 text-red-700 hover:bg-red-100"
+                  onClick={() => setShowRejectToleranceDialog(true)}
+                >
+                  <XCircle className="h-4 w-4 mr-1" /> Reject Exception
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1033,6 +1066,53 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
                 {isLoading ? 'Approving...' : 'Approve Exception'}
               </AlertDialogAction>
             )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Tolerance exception rejection dialog — reuses the Void state transition on the backend,
+          so the vehicle needs a fresh weighing from the start. A reason is required. */}
+      <AlertDialog
+        open={showRejectToleranceDialog}
+        onOpenChange={(open) => { setShowRejectToleranceDialog(open); if (!open) setRejectToleranceReason(''); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-700">
+              <XCircle className="h-5 w-5" /> Reject Tolerance Exception
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Rejecting voids this transaction — the vehicle will need a fresh weighing from the
+                start. This cannot be undone.
+              </p>
+              <p>
+                Measured net: <strong>{formatWeight(result?.netWeightKg ?? 0)} kg</strong>.
+                Expected: <strong>{formatWeight(result?.expectedNetWeightKg ?? 0)} kg</strong>.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1 px-1">
+            <Label htmlFor="reject-tolerance-reason">
+              Reason <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="reject-tolerance-reason"
+              placeholder="Explain why this tolerance exception is being rejected..."
+              rows={3}
+              value={rejectToleranceReason}
+              onChange={(e) => setRejectToleranceReason(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Transaction</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRejectToleranceException}
+              disabled={isLoading || !rejectToleranceReason.trim()}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isLoading ? 'Rejecting...' : 'Reject & Void Transaction'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

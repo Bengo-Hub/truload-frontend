@@ -30,16 +30,19 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   useApproveTareAnomaly,
+  useApproveTareHistoryAnomaly,
   useFlaggedTareAnomalies,
   useOverrideTareAnomaly,
+  useOverrideTareHistoryAnomaly,
   useRecordTareWeight,
   useRejectTareAnomaly,
+  useRejectTareHistoryAnomaly,
   useVehiclesPaged,
   useVehicleTareHistory,
 } from '@/hooks/queries';
 import { useAuth, useHasPermission } from '@/hooks/useAuth';
 import { hardDeleteTare } from '@/lib/api/weighing';
-import type { Vehicle, VehicleTareHistory } from '@/types/weighing';
+import type { TareAnomaly, Vehicle, VehicleTareHistory } from '@/types/weighing';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -323,7 +326,7 @@ function TareHistoryDialog({ vehicle, open, onClose }: TareHistoryDialogProps) {
 // ─── Pending Review (Flagged Tare Anomalies) ──────────────────────────────────
 
 interface OverrideAnomalyDialogProps {
-  entry: VehicleTareHistory | null;
+  entry: TareAnomaly | null;
   open: boolean;
   onClose: () => void;
 }
@@ -331,7 +334,9 @@ interface OverrideAnomalyDialogProps {
 function OverrideAnomalyDialog({ entry, open, onClose }: OverrideAnomalyDialogProps) {
   const [correctedTareKg, setCorrectedTareKg] = useState('');
   const [justification, setJustification] = useState('');
-  const overrideMutation = useOverrideTareAnomaly();
+  const overrideTxMutation = useOverrideTareAnomaly();
+  const overrideHistoryMutation = useOverrideTareHistoryAnomaly();
+  const overrideMutation = entry?.anchorType === 'VehicleTareHistory' ? overrideHistoryMutation : overrideTxMutation;
 
   useEffect(() => {
     if (open) {
@@ -409,31 +414,44 @@ function OverrideAnomalyDialog({ entry, open, onClose }: OverrideAnomalyDialogPr
 function PendingReviewSection() {
   const { data: flagged, isLoading } = useFlaggedTareAnomalies();
   const canReview = useHasPermission('weighing.override');
-  const approveMutation = useApproveTareAnomaly();
-  const rejectMutation = useRejectTareAnomaly();
-  const [overrideTarget, setOverrideTarget] = useState<VehicleTareHistory | null>(null);
+
+  // Two anchor types share this one queue (see TareAnomaly.anchorType) — "WeighingTransaction" rows
+  // (two-pass capture / stored-tare-override paths) resolve via the transaction-anchored endpoints,
+  // "VehicleTareHistory" rows (standalone Tare Register "Record Tare" dialog) resolve via the
+  // tare-history-anchored ones instead. Each row's action buttons pick the matching mutation below.
+  const approveTxMutation = useApproveTareAnomaly();
+  const rejectTxMutation = useRejectTareAnomaly();
+  const approveHistoryMutation = useApproveTareHistoryAnomaly();
+  const rejectHistoryMutation = useRejectTareHistoryAnomaly();
+  const [overrideTarget, setOverrideTarget] = useState<TareAnomaly | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
 
   const items = flagged ?? [];
   if (!isLoading && items.length === 0) return null;
 
-  const handleApprove = (entry: VehicleTareHistory) => {
+  const handleApprove = (entry: TareAnomaly) => {
     setActingId(entry.id);
-    approveMutation.mutate(entry.id, {
+    const mutation = entry.anchorType === 'VehicleTareHistory' ? approveHistoryMutation : approveTxMutation;
+    mutation.mutate(entry.id, {
       onSuccess: () => toast.success(`Tare approved for ${entry.vehicleRegNo ?? 'vehicle'}`),
       onError: () => toast.error('Failed to approve tare anomaly'),
       onSettled: () => setActingId(null),
     });
   };
 
-  const handleReject = (entry: VehicleTareHistory) => {
+  const handleReject = (entry: TareAnomaly) => {
     setActingId(entry.id);
-    rejectMutation.mutate(entry.id, {
+    const mutation = entry.anchorType === 'VehicleTareHistory' ? rejectHistoryMutation : rejectTxMutation;
+    mutation.mutate(entry.id, {
       onSuccess: () => toast.success(`Tare rejected — ${entry.vehicleRegNo ?? 'vehicle'} needs re-capture`),
       onError: () => toast.error('Failed to reject tare anomaly'),
       onSettled: () => setActingId(null),
     });
   };
+
+  const isMutationPending =
+    approveTxMutation.isPending || rejectTxMutation.isPending ||
+    approveHistoryMutation.isPending || rejectHistoryMutation.isPending;
 
   return (
     <>
@@ -455,6 +473,7 @@ function PendingReviewSection() {
             <TableHeader>
               <TableRow>
                 <TableHead>Vehicle Reg</TableHead>
+                <TableHead>Source</TableHead>
                 <TableHead>Reason / Drift</TableHead>
                 <TableHead>Flagged</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -463,34 +482,41 @@ function PendingReviewSection() {
             <TableBody>
               {isLoading && Array.from({ length: 2 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 4 }).map((__, j) => (
+                  {Array.from({ length: 5 }).map((__, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))}
               {!isLoading && items.map((entry) => {
-                const isActing = actingId === entry.id && (approveMutation.isPending || rejectMutation.isPending);
+                const isActing = actingId === entry.id && isMutationPending;
                 return (
-                  <TableRow key={entry.id}>
+                  <TableRow key={`${entry.anchorType}-${entry.id}`}>
                     <TableCell className="font-mono font-semibold">{entry.vehicleRegNo ?? '—'}</TableCell>
+                    <TableCell className="text-sm">
+                      {entry.anchorType === 'WeighingTransaction' ? (
+                        <Badge variant="outline">Ticket {entry.ticketNumber ?? '—'}</Badge>
+                      ) : (
+                        <Badge variant="outline">Tare Register</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm text-amber-800">
-                      {entry.tareAnomalyReason || `New tare ${entry.tareWeightKg.toLocaleString()} kg flagged`}
+                      {entry.reason || `New tare ${entry.tareWeightKg?.toLocaleString() ?? '—'} kg flagged`}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatDateTime(entry.tareAnomalyFlaggedAt)}
+                        {formatDateTime(entry.flaggedAt)}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {canReview ? (
                         <div className="flex items-center justify-end gap-2">
                           <Button size="sm" onClick={() => handleApprove(entry)} disabled={isActing}>
-                            {isActing && approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                            {isActing && (approveTxMutation.isPending || approveHistoryMutation.isPending) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
                             Approve
                           </Button>
                           <Button size="sm" variant="destructive" onClick={() => handleReject(entry)} disabled={isActing}>
-                            {isActing && rejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5 mr-1" />}
+                            {isActing && (rejectTxMutation.isPending || rejectHistoryMutation.isPending) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5 mr-1" />}
                             Reject
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setOverrideTarget(entry)} disabled={isActing}>
