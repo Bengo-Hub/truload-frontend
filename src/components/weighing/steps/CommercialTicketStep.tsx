@@ -8,8 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { CommercialNetWeightDisplay } from '@/components/weighing/CommercialNetWeightDisplay';
 import { cn } from '@/lib/utils';
 import { formatWeight } from '@/lib/weighing-utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CommercialWeighingResult, UpdateQualityDeductionRequest } from '@/types/weighing';
-import { AlertTriangle, CheckCircle2, CreditCard, FileDown, Printer } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CreditCard, FileDown, Printer, Receipt } from 'lucide-react';
 import { useState } from 'react';
 
 /** The subset of CargoType fields needed to decide whether the formula-driven quality deduction UI applies. */
@@ -33,6 +34,8 @@ interface CommercialTicketStepProps {
   isApplyingDeduction: boolean;
   /** Print ticket callback */
   onPrintTicket: () => void;
+  /** Download raw ESC/POS bytes for an 80mm thermal receipt printer, when available. */
+  onPrintThermalTicket?: () => void;
   /** Complete transaction callback */
   onComplete: () => void;
   /** Open treasury payment modal (commercial only) */
@@ -65,6 +68,7 @@ export function CommercialTicketStep({
   onApplyQualityDeduction,
   isApplyingDeduction,
   onPrintTicket,
+  onPrintThermalTicket,
   onComplete,
   onCollectPayment,
   isLoading,
@@ -420,6 +424,25 @@ export function CommercialTicketStep({
           Print Ticket
         </Button>
         <div className="flex items-center gap-3">
+          {onPrintThermalTicket && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={onPrintThermalTicket}
+                  disabled={isLoading}
+                >
+                  <Receipt className="h-4 w-4" />
+                  Print Thermal
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Downloads raw ESC/POS commands for an 80mm receipt printer. Requires a printer
+                configured to accept raw/generic print jobs on this computer.
+              </TooltipContent>
+            </Tooltip>
+          )}
           <Button
             variant="outline"
             className="gap-2"

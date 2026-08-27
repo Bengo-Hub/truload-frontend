@@ -10,7 +10,7 @@ import {
   useWeighingStatistics,
   useDownloadWeightTicket,
 } from '@/hooks/queries/useWeighingQueries';
-import { getCommercialTicketPdf, approveToleranceException, rejectToleranceException } from '@/lib/api/weighing';
+import { downloadAndSavePdf, getCommercialThermalTicket, getCommercialTicketPdf, approveToleranceException, rejectToleranceException } from '@/lib/api/weighing';
 import { buildEatDateRange } from '@/lib/utils/dateRange';
 import { exportToCSV } from '@/lib/utils/export';
 import { formatFee } from '@/lib/weighing-utils';
@@ -281,6 +281,21 @@ export default function TicketsTab() {
     }
   }, [downloadTicketMutation, isCommercial]);
 
+  // Raw ESC/POS bytes aren't previewable like a PDF, so this downloads directly rather than
+  // opening the PDF preview dialog handlePrint uses.
+  const handlePrintThermal = useCallback(async (ticket: WeighingTransaction) => {
+    try {
+      toast.info('Generating thermal ticket...');
+      await downloadAndSavePdf(
+        () => getCommercialThermalTicket(ticket.id),
+        `ThermalTicket_${ticket.ticketNumber ?? ticket.id}.bin`
+      );
+      toast.success('Thermal ticket downloaded. Send it to a printer configured for raw/generic print jobs.');
+    } catch {
+      toast.error('Failed to generate thermal ticket');
+    }
+  }, []);
+
   return (
     <div className="space-y-4">
       {/* Stats Bar */}
@@ -380,6 +395,7 @@ export default function TicketsTab() {
         open={!!selectedTicket}
         onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}
         onPrint={handlePrint}
+        onPrintThermal={handlePrintThermal}
         canPrint={canExport}
         isCommercial={isCommercial}
         canApproveToleranceException={isCommercial && canOverride}

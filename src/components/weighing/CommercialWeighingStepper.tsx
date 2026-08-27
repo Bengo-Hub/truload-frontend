@@ -48,6 +48,7 @@ import {
   captureSecondWeight,
   downloadAndSavePdf,
   getCommercialResult,
+  getCommercialThermalTicket,
   getCommercialTicketPdf,
   getInterimTicketPdf,
   getPendingCommercialByPlate,
@@ -534,6 +535,20 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     }
   }, [transactionId, result?.firstWeightKg, result?.ticketNumber]);
 
+  const handlePrintThermalTicket = useCallback(async () => {
+    if (!transactionId) return;
+    try {
+      toast.info('Generating thermal ticket...');
+      await downloadAndSavePdf(
+        () => getCommercialThermalTicket(transactionId),
+        `ThermalTicket_${result?.ticketNumber || transactionId}.bin`
+      );
+      toast.success('Thermal ticket downloaded. Send it to a printer configured for raw/generic print jobs.');
+    } catch (err) {
+      toast.error('Failed to generate thermal ticket.');
+    }
+  }, [transactionId, result?.ticketNumber]);
+
   const handleComplete = useCallback(async () => {
     await handlePrintTicket();
     resetSession();
@@ -1006,6 +1021,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               onApplyQualityDeduction={handleApplyQualityDeduction}
               isApplyingDeduction={isApplyingDeduction}
               onPrintTicket={handlePrintTicket}
+              onPrintThermalTicket={handlePrintThermalTicket}
               onComplete={handleComplete}
               onCollectPayment={feeIsConfigured && result.treasuryPaymentUrl ? () => setShowPaymentModal(true) : undefined}
               isLoading={isLoading}
