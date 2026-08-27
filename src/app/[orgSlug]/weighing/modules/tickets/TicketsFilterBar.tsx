@@ -77,6 +77,7 @@ export default function TicketsFilterBar({
     ? [
         { value: 'all', label: 'All Status' },
         { value: 'Pending', label: 'Pending' },
+        { value: 'FirstWeightCaptured', label: 'First Weight Captured' },
         { value: 'Complete', label: 'Complete' },
         { value: 'ToleranceExceeded', label: 'Tolerance Exceeded' },
         { value: 'Voided', label: 'Voided' },

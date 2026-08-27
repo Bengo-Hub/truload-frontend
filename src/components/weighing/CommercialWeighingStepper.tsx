@@ -35,6 +35,7 @@ import {
   useMyStation,
   useVehicleByRegNo,
 } from '@/hooks/queries';
+import { useSettingsByCategory } from '@/hooks/queries/useSettingsQueries';
 import { useMiddleware, WeightData } from '@/hooks/useMiddleware';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useWeighingUI } from '@/hooks/useWeighingUI';
@@ -147,6 +148,16 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const feeIsConfigured = !isFacilityOwned && (orgData?.commercialWeighingFeeKes ?? 0) > 0 && !!orgData?.paymentGateway;
   const tenantSlug = orgData?.ssoTenantSlug ?? '';
 
+  // Commercial pending-weighing threshold (hours) — configured under Setup > Settings > Weighing
+  // (ApplicationSettings key `commercial.pending_weighing_threshold_hours`, editable there). That
+  // endpoint is admin-only, so only fetch it when the current user actually has access; regular
+  // operators fall back to the backend's own default (see getPendingCommercialByPlate).
+  const canReadWeighingSettings = useHasPermission('system.security_policy');
+  const { data: weighingSettings } = useSettingsByCategory('Weighing', canReadWeighingSettings);
+  const pendingThresholdHours = weighingSettings?.find(
+    (s) => s.settingKey === 'commercial.pending_weighing_threshold_hours'
+  )?.settingValue;
+
   const weighingUI = useWeighingUI({ stationId: currentStation?.id });
   const {
     vehiclePlate, setVehiclePlate, debouncedPlate,
@@ -174,8 +185,11 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
   // Check for open (first-weight-only) transactions when plate is entered on the capture step
   const { data: pendingTransactions } = useQuery({
-    queryKey: ['commercial-pending-by-plate', debouncedPlate],
-    queryFn: () => getPendingCommercialByPlate(debouncedPlate),
+    queryKey: ['commercial-pending-by-plate', debouncedPlate, pendingThresholdHours],
+    queryFn: () => getPendingCommercialByPlate(
+      debouncedPlate,
+      pendingThresholdHours != null ? parseInt(pendingThresholdHours, 10) : undefined
+    ),
     enabled: debouncedPlate.length >= 5 && currentStep === 'capture' && !transactionId,
     staleTime: 10_000,
   });

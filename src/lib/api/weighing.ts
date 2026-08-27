@@ -1345,14 +1345,20 @@ export async function approveToleranceException(id: string): Promise<CommercialW
 /**
  * Find open (first-weight-only) commercial transactions for a vehicle plate.
  * Returns transactions where first weight was captured within the configured threshold.
+ *
+ * `thresholdHours` should be the org's actual configured "Commercial Pending Weighing Threshold"
+ * (Setup > Settings > Weighing; ApplicationSettings key `commercial.pending_weighing_threshold_hours`)
+ * — callers should read it via `useSettingsByCategory('Weighing')` rather than hardcoding a value.
+ * When omitted, the param is left off the request entirely and the backend applies its own
+ * configured default.
  */
 export async function getPendingCommercialByPlate(
   regNo: string,
-  thresholdHours: number = 8
+  thresholdHours?: number
 ): Promise<CommercialWeighingResult[]> {
   const { data } = await apiClient.get<CommercialWeighingResult[]>(
     `/commercial-weighing/pending-by-plate/${encodeURIComponent(regNo)}`,
-    { params: { thresholdHours } }
+    { params: thresholdHours != null ? { thresholdHours } : undefined }
   );
   return data;
 }

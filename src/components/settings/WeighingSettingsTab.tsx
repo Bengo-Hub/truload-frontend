@@ -30,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 const KEY_SCALE_TEST_REQUIRED = 'weighing.scale_test_required';
 const KEY_MAX_REWEIGH_CYCLES = 'weighing.max_reweigh_cycles';
 const KEY_CASE_CAPTURE_MODE = 'weighing.case_capture_mode';
+const KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS = 'commercial.pending_weighing_threshold_hours';
 
 export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: boolean }) {
   const { data: settings, isLoading } = useSettingsByCategory('Weighing');
@@ -41,6 +42,7 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
   const [maxReweighCycles, setMaxReweighCycles] = useState<string>('3');
   const [caseCaptureMode, setCaseCaptureMode] = useState<string>('beyond_tolerance');
   const [operationalTolerance, setOperationalTolerance] = useState<string>('200');
+  const [pendingThresholdHours, setPendingThresholdHours] = useState<string>('8');
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -61,6 +63,9 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
 
     const captureModeSetting = get(KEY_CASE_CAPTURE_MODE);
     setCaseCaptureMode(captureModeSetting?.settingValue ?? 'beyond_tolerance');
+
+    const pendingThresholdSetting = get(KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS);
+    setPendingThresholdHours(pendingThresholdSetting?.settingValue ?? '8');
   }, [settings]);
 
   // Load operational tolerance from ToleranceSetting table (single source of truth)
@@ -79,6 +84,9 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
         { settingKey: KEY_MAX_REWEIGH_CYCLES, settingValue: maxReweighCycles },
         { settingKey: KEY_CASE_CAPTURE_MODE, settingValue: caseCaptureMode },
       ];
+      if (isCommercial) {
+        updates.push({ settingKey: KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS, settingValue: pendingThresholdHours });
+      }
       await updateBatch.mutateAsync({ settings: updates });
 
       // Save operational tolerance to ToleranceSetting table (single source of truth)
@@ -97,7 +105,7 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
     } finally {
       setIsSaving(false);
     }
-  }, [scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, updateBatch, opAllowanceSetting, queryClient]);
+  }, [scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, pendingThresholdHours, isCommercial, updateBatch, opAllowanceSetting, queryClient]);
 
   useEffect(() => {
     if (!settings?.length) return;
@@ -106,14 +114,15 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
     const settingsChanged =
       (get(KEY_SCALE_TEST_REQUIRED) === 'true') !== scaleTestRequired ||
       get(KEY_MAX_REWEIGH_CYCLES) !== maxReweighCycles ||
-      (get(KEY_CASE_CAPTURE_MODE) || 'beyond_tolerance') !== caseCaptureMode;
+      (get(KEY_CASE_CAPTURE_MODE) || 'beyond_tolerance') !== caseCaptureMode ||
+      (isCommercial && (get(KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS) || '8') !== pendingThresholdHours);
 
     const toleranceChanged = opAllowanceSetting
       ? String(opAllowanceSetting.toleranceKg ?? 200) !== operationalTolerance
       : false;
 
     setHasChanges(settingsChanged || toleranceChanged);
-  }, [settings, scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, opAllowanceSetting]);
+  }, [settings, scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, pendingThresholdHours, isCommercial, opAllowanceSetting]);
 
   if (isLoading || isLoadingTolerances) {
     return (
@@ -185,6 +194,24 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
             Set to 0 to disable. This value is used by both the frontend compliance display and the backend ticket generation.
           </p>
         </div>
+
+        {isCommercial && (
+          <div className="space-y-2">
+            <Label htmlFor="pending-threshold-hours">Commercial Pending Weighing Threshold (hours)</Label>
+            <Input
+              id="pending-threshold-hours"
+              type="number"
+              min="1"
+              value={pendingThresholdHours}
+              onChange={(e) => setPendingThresholdHours(e.target.value)}
+              className="max-w-[200px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              Hours after first weight capture before a commercial transaction is considered stale
+              (flagged as pending/open on the capture screen and surfaced to managers for follow-up).
+            </p>
+          </div>
+        )}
 
         {!isCommercial && (
           <div className="space-y-2">

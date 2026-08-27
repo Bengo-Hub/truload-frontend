@@ -17,9 +17,10 @@ export default function SystemConfigRedirectPage() {
 
   useEffect(() => {
     if (!orgSlug) return;
-    const tab = searchParams?.get('tab');
-    const query = tab ? `?tab=${encodeURIComponent(tab)}` : '';
-    router.replace(`/${orgSlug}/setup/settings${query}`);
+    // Default to the Weighing tab (not Settings' own default of Branding) since that's where
+    // System Config's settings (scale test, reweigh cycles, pending-weighing threshold, etc.) live.
+    const tab = searchParams?.get('tab') || 'weighing';
+    router.replace(`/${orgSlug}/setup/settings?tab=${encodeURIComponent(tab)}`);
   }, [orgSlug, searchParams, router]);
 
   return (

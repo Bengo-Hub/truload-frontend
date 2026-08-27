@@ -34,13 +34,16 @@ export function useAllSettings() {
 }
 
 /**
- * Get settings by category
+ * Get settings by category.
+ * `enabled` lets callers without the `system.security_policy` permission (e.g. operator-facing
+ * screens that only want to read a single value, not manage settings) skip the request entirely
+ * instead of eating an avoidable 403 - the settings endpoints are admin-only.
  */
-export function useSettingsByCategory(category: string) {
+export function useSettingsByCategory(category: string, enabled: boolean = true) {
   return useQuery({
     queryKey: SETTINGS_QUERY_KEYS.CATEGORY(category),
     queryFn: () => settingsApi.getSettingsByCategory(category),
-    enabled: !!category,
+    enabled: !!category && enabled,
     ...QUERY_OPTIONS.semiStatic,
   });
 }
