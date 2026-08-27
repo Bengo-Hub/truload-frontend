@@ -99,6 +99,9 @@ export function setTenantContext({ organizationId, stationId, isHqUser }: Tenant
     if (isHqUser) {
       localStorage.setItem(IS_HQ_USER_KEY, '1');
       localStorage.removeItem(STATION_ID_KEY);
+      if (stationId) {
+        localStorage.setItem(SELECTED_STATION_ID_KEY, stationId);
+      }
     } else {
       localStorage.removeItem(IS_HQ_USER_KEY);
       if (stationId) localStorage.setItem(STATION_ID_KEY, stationId);
