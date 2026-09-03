@@ -18,6 +18,7 @@ import {
   useCommercialThroughput,
   useTopTransporters,
   useCargoVolumeByType,
+  useTonnageTrend,
 } from '@/hooks/queries';
 import { getIsHqUser, getStationId } from '@/lib/auth/token';
 import { getEatQuickRange } from '@/lib/utils/dateRange';
@@ -87,6 +88,7 @@ function ReportingContent() {
   const { data: throughputData, isLoading: loadingThroughput } = useCommercialThroughput(isCommercial ? filters : undefined);
   const { data: topTransporters, isLoading: loadingTransporters } = useTopTransporters(isCommercial ? filters : undefined);
   const { data: cargoVolume, isLoading: loadingCargo } = useCargoVolumeByType(isCommercial ? filters : undefined);
+  const { data: tonnageTrend, isLoading: loadingTonnageTrend } = useTonnageTrend(isCommercial ? filters : undefined, 'Day');
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -213,6 +215,17 @@ function ReportingContent() {
                   isLoading={loadingRevenue}
                 />
               </div>
+              {isCommercial && (
+                <ChartWrapper
+                  title="Tonnage Trend"
+                  subtitle="Net weight captured per day (kg) — the rollup a tonnage-billed tenant invoices off"
+                  data={(tonnageTrend ?? []).map(t => ({ ...t, totalNetWeightTons: Math.round(t.totalNetWeightKg / 1000) }))}
+                  series={[{ dataKey: 'totalNetWeightTons', name: 'Net Weight (tons)', color: '#0891b2' }]}
+                  defaultChartType="line"
+                  allowedChartTypes={['line', 'bar']}
+                  isLoading={loadingTonnageTrend}
+                />
+              )}
               {isCommercial && (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <ChartWrapper
