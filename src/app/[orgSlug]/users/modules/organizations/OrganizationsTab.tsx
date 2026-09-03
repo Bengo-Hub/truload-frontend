@@ -66,6 +66,17 @@ const ORG_TYPE_OPTIONS = [
   { value: "Private", label: "Private" },
 ] as const;
 
+// Keys match TruLoad.Backend.Constants.CommercialVerticals - only meaningful (and only shown) when
+// tenantType is "CommercialWeighing"; applied server-side at creation into Organization.MetadataJson.
+const COMMERCIAL_VERTICAL_OPTIONS = [
+  { value: "waste_management", label: "Waste Management" },
+  { value: "quarry", label: "Quarry / Mining" },
+  { value: "factory", label: "Factory / Manufacturing" },
+  { value: "logistics", label: "Logistics & Transport" },
+  { value: "agriculture", label: "Agriculture" },
+  { value: "general", label: "General / Other" },
+] as const;
+
 const NONE_VALUE = "__none__";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -89,6 +100,7 @@ interface CreateOrgFormValues {
   name: string;
   orgType: string;
   tenantType: string;
+  vertical: string;
   contactEmail: string;
   contactPhone: string;
   website: string;
@@ -132,6 +144,7 @@ function CreateOrgDialog({
     handleSubmit,
     control,
     reset,
+    watch,
     formState: { errors },
   } = useForm<CreateOrgFormValues>({
     defaultValues: {
@@ -139,6 +152,7 @@ function CreateOrgDialog({
       name: "",
       orgType: "",
       tenantType: "AxleLoadEnforcement",
+      vertical: "",
       contactEmail: "",
       contactPhone: "",
       website: "",
@@ -165,6 +179,9 @@ function CreateOrgDialog({
     },
   });
 
+  const tenantType = watch("tenantType");
+  const isCommercial = tenantType === "CommercialWeighing";
+
   function handleClose() {
     reset();
     onClose();
@@ -176,6 +193,10 @@ function CreateOrgDialog({
       name: values.name.trim(),
       orgType: values.orgType || undefined,
       tenantType: values.tenantType || undefined,
+      vertical:
+        values.tenantType === "CommercialWeighing" && values.vertical
+          ? values.vertical
+          : undefined,
       contactEmail: values.contactEmail.trim() || undefined,
       contactPhone: values.contactPhone.trim() || undefined,
       website: values.website.trim() || undefined,
@@ -300,6 +321,39 @@ function CreateOrgDialog({
                 )}
               />
             </div>
+
+            {/* Industry / Vertical - commercial tenants only. Applied server-side at creation as
+                the default module preset (see CommercialVerticals on the backend); can be left
+                unset and classified later. */}
+            {isCommercial && (
+              <div className="space-y-2">
+                <Label>Industry / Vertical</Label>
+                <Controller
+                  name="vertical"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value || NONE_VALUE}
+                      onValueChange={(v) =>
+                        field.onChange(v === NONE_VALUE ? "" : v)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select industry (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE_VALUE}>Unclassified</SelectItem>
+                        {COMMERCIAL_VERTICAL_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            )}
 
             {/* Contact Email */}
             <div className="space-y-2">
