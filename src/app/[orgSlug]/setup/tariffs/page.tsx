@@ -44,6 +44,12 @@ interface TariffFormDialogProps {
   onClose: () => void;
 }
 
+const RATE_BASIS_OPTIONS: { value: NonNullable<CommercialTariffRule['rateBasis']>; label: string; hint: string }[] = [
+  { value: 'Flat', label: 'Flat fee', hint: 'A fixed amount per matching weighing' },
+  { value: 'PerTonne', label: 'Per tonne', hint: 'Fee × net weight in tonnes' },
+  { value: 'PerKg', label: 'Per kg', hint: 'Fee × net weight in kg' },
+];
+
 const emptyForm = (): CommercialTariffRule => ({
   transporterId: undefined,
   vehicleType: undefined,
@@ -52,6 +58,7 @@ const emptyForm = (): CommercialTariffRule => ({
   weightBracketMinKg: undefined,
   weightBracketMaxKg: undefined,
   feeKes: 0,
+  rateBasis: 'Flat',
   label: '',
 });
 
@@ -76,6 +83,7 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
               weightBracketMinKg: existing.weightBracketMinKg,
               weightBracketMaxKg: existing.weightBracketMaxKg,
               feeKes: existing.feeKes,
+              rateBasis: existing.rateBasis ?? 'Flat',
               label: existing.label ?? '',
             }
           : emptyForm()
@@ -202,15 +210,40 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
             </>
           )}
 
-          <div className="space-y-1">
-            <Label>Fee (KES)</Label>
-            <Input
-              type="number" min={0} step={1}
-              placeholder="e.g. 500"
-              value={form.feeKes || ''}
-              onChange={(e) => set('feeKes', parseFloat(e.target.value) || 0)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Fee (KES)</Label>
+              <Input
+                type="number" min={0} step={1}
+                placeholder="e.g. 500"
+                value={form.feeKes || ''}
+                onChange={(e) => set('feeKes', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Rate Basis</Label>
+              <Select
+                value={form.rateBasis ?? 'Flat'}
+                onValueChange={(v) => set('rateBasis', v as CommercialTariffRule['rateBasis'])}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RATE_BASIS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground -mt-2">
+            {RATE_BASIS_OPTIONS.find((o) => o.value === (form.rateBasis ?? 'Flat'))?.hint}
+            {form.rateBasis && form.rateBasis !== 'Flat' && form.feeKes > 0 && (
+              <> — e.g. a 25,000 kg net weighing would charge{' '}
+                {(form.rateBasis === 'PerTonne' ? form.feeKes * 25 : form.feeKes * 25000).toLocaleString()} KES</>
+            )}
+          </p>
         </div>
 
         <DialogFooter>
@@ -256,6 +289,13 @@ export default function TariffRulesPage() {
       parts.push(`${(r.weightBracketMinKg ?? 0).toLocaleString()}–${r.weightBracketMaxKg?.toLocaleString() ?? '∞'} kg`);
     }
     return parts.length > 0 ? parts.join(' · ') : 'All vehicles (default bracket)';
+  };
+
+  const formatFee = (r: CommercialTariffRule) => {
+    const amount = r.feeKes.toLocaleString();
+    if (r.rateBasis === 'PerTonne') return `${amount} / tonne`;
+    if (r.rateBasis === 'PerKg') return `${amount} / kg`;
+    return amount;
   };
 
   return (
@@ -331,7 +371,7 @@ export default function TariffRulesPage() {
                   <TableRow key={r.id ?? idx}>
                     <TableCell className="font-medium">{r.label || '—'}</TableCell>
                     <TableCell className="text-sm">{formatScope(r)}</TableCell>
-                    <TableCell className="font-medium">{r.feeKes.toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">{formatFee(r)}</TableCell>
                     <TableCell>
                       <Badge variant={r.isActive === false ? 'secondary' : 'default'}>
                         {r.isActive === false ? 'Inactive' : 'Active'}

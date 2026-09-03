@@ -1665,6 +1665,8 @@ export interface CommercialTariffRule {
   weightBracketMinKg?: number;
   weightBracketMaxKg?: number;
   feeKes: number;
+  /** "Flat" (default), "PerTonne", or "PerKg" — how feeKes is applied to a matching weighing. */
+  rateBasis?: 'Flat' | 'PerTonne' | 'PerKg';
   effectiveFrom?: string;
   effectiveTo?: string;
   label?: string;
