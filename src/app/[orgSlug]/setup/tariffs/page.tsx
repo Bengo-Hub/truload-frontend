@@ -45,9 +45,16 @@ interface TariffFormDialogProps {
 }
 
 const RATE_BASIS_OPTIONS: { value: NonNullable<CommercialTariffRule['rateBasis']>; label: string; hint: string }[] = [
-  { value: 'Flat', label: 'Flat fee', hint: 'A fixed amount per matching weighing' },
   { value: 'PerTonne', label: 'Per tonne', hint: 'Fee × net weight in tonnes' },
   { value: 'PerKg', label: 'Per kg', hint: 'Fee × net weight in kg' },
+  { value: 'Flat', label: 'Flat fee', hint: 'A fixed amount per matching weighing' },
+];
+
+const BILLING_PERIOD_OPTIONS: { value: NonNullable<CommercialTariffRule['billingPeriod']>; label: string; hint: string }[] = [
+  { value: 'Immediate', label: 'Per transaction', hint: 'One invoice as soon as each weighing completes' },
+  { value: 'Daily', label: 'Daily', hint: 'One invoice per day, summing that day’s weighings' },
+  { value: 'Weekly', label: 'Weekly', hint: 'One invoice per week, summing that week’s weighings' },
+  { value: 'Monthly', label: 'Monthly', hint: 'One invoice per month, summing that month’s weighings' },
 ];
 
 const emptyForm = (): CommercialTariffRule => ({
@@ -58,7 +65,8 @@ const emptyForm = (): CommercialTariffRule => ({
   weightBracketMinKg: undefined,
   weightBracketMaxKg: undefined,
   feeKes: 0,
-  rateBasis: 'Flat',
+  rateBasis: 'PerTonne',
+  billingPeriod: 'Immediate',
   label: '',
 });
 
@@ -83,7 +91,8 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
               weightBracketMinKg: existing.weightBracketMinKg,
               weightBracketMaxKg: existing.weightBracketMaxKg,
               feeKes: existing.feeKes,
-              rateBasis: existing.rateBasis ?? 'Flat',
+              rateBasis: existing.rateBasis ?? 'PerTonne',
+              billingPeriod: existing.billingPeriod ?? 'Immediate',
               label: existing.label ?? '',
             }
           : emptyForm()
@@ -223,7 +232,7 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
             <div className="space-y-1">
               <Label>Rate Basis</Label>
               <Select
-                value={form.rateBasis ?? 'Flat'}
+                value={form.rateBasis ?? 'PerTonne'}
                 onValueChange={(v) => set('rateBasis', v as CommercialTariffRule['rateBasis'])}
               >
                 <SelectTrigger>
@@ -238,12 +247,32 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
             </div>
           </div>
           <p className="text-xs text-muted-foreground -mt-2">
-            {RATE_BASIS_OPTIONS.find((o) => o.value === (form.rateBasis ?? 'Flat'))?.hint}
+            {RATE_BASIS_OPTIONS.find((o) => o.value === (form.rateBasis ?? 'PerTonne'))?.hint}
             {form.rateBasis && form.rateBasis !== 'Flat' && form.feeKes > 0 && (
               <> — e.g. a 25,000 kg net weighing would charge{' '}
                 {(form.rateBasis === 'PerTonne' ? form.feeKes * 25 : form.feeKes * 25000).toLocaleString()} KES</>
             )}
           </p>
+
+          <div className="space-y-1">
+            <Label>Invoiced</Label>
+            <Select
+              value={form.billingPeriod ?? 'Immediate'}
+              onValueChange={(v) => set('billingPeriod', v as CommercialTariffRule['billingPeriod'])}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BILLING_PERIOD_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {BILLING_PERIOD_OPTIONS.find((o) => o.value === (form.billingPeriod ?? 'Immediate'))?.hint}
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
@@ -298,6 +327,9 @@ export default function TariffRulesPage() {
     return amount;
   };
 
+  const formatBilling = (r: CommercialTariffRule) =>
+    BILLING_PERIOD_OPTIONS.find((o) => o.value === (r.billingPeriod ?? 'Immediate'))?.label ?? 'Per transaction';
+
   return (
     <ProtectedRoute requiredPermissions={['billing.tariffs.view']} moduleKey="billing">
       <div className="space-y-6">
@@ -348,6 +380,7 @@ export default function TariffRulesPage() {
                   <TableHead>Label</TableHead>
                   <TableHead>Scope</TableHead>
                   <TableHead>Fee (KES)</TableHead>
+                  <TableHead>Billed</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -355,14 +388,14 @@ export default function TariffRulesPage() {
               <TableBody>
                 {isLoading && Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 5 }).map((__, j) => (
+                    {Array.from({ length: 6 }).map((__, j) => (
                       <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                     ))}
                   </TableRow>
                 ))}
                 {!isLoading && rules.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                       No tariff rules configured — every weighing uses the default commercial fee.
                     </TableCell>
                   </TableRow>
@@ -372,6 +405,7 @@ export default function TariffRulesPage() {
                     <TableCell className="font-medium">{r.label || '—'}</TableCell>
                     <TableCell className="text-sm">{formatScope(r)}</TableCell>
                     <TableCell className="font-medium">{formatFee(r)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatBilling(r)}</TableCell>
                     <TableCell>
                       <Badge variant={r.isActive === false ? 'secondary' : 'default'}>
                         {r.isActive === false ? 'Inactive' : 'Active'}
