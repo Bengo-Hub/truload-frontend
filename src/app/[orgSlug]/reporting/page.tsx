@@ -9,13 +9,18 @@ import { ModuleReportSelector } from '@/components/reporting/ModuleReportSelecto
 import { CustomReportBuilder } from '@/components/reporting/CustomReportBuilder';
 import { SupersetDashboard } from '@/components/reporting/SupersetDashboard';
 import { NaturalLanguageQuery } from '@/components/reporting/NaturalLanguageQuery';
+import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import {
   useComplianceTrend,
   useRevenueByStation,
   useMonthlyRevenueData,
   useCaseTrend,
+  useCommercialThroughput,
+  useTopTransporters,
+  useCargoVolumeByType,
 } from '@/hooks/queries';
 import { getIsHqUser, getStationId } from '@/lib/auth/token';
+import { getEatQuickRange } from '@/lib/utils/dateRange';
 import {
   AlertTriangle,
   ArrowRight,
@@ -28,14 +33,11 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 
+// EAT-anchored (not `new Date().toISOString()`, which shifts the calendar day near EAT midnight
+// depending on the viewer's timezone — see src/lib/utils/dateRange.ts).
 function getDefaultReportDateRange() {
-  const today = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(today.getDate() - 30);
-  return {
-    dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
-    dateTo: today.toISOString().split('T')[0],
-  };
+  const { from, to } = getEatQuickRange('thisMonth');
+  return { dateFrom: from, dateTo: to };
 }
 
 function getDefaultReportStationId(): string {
@@ -58,30 +60,49 @@ function ReportingContent() {
   const { formatAmount } = useCurrency();
   const formatKES = useCallback((v: number) => formatAmount(v, 'KES'), [formatAmount]);
   const [activeTab, setActiveTab] = useState('general');
-  const { isEnforcement } = useModuleAccess();
+  const { isEnforcement, isCommercial } = useModuleAccess();
 
   const defaultRange = useMemo(() => getDefaultReportDateRange(), []);
   const defaultStation = useMemo(() => getDefaultReportStationId(), []);
+  const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom);
+  const [dateTo, setDateTo] = useState(defaultRange.dateTo);
 
   const filters = useMemo(
     () => ({
-      dateFrom: defaultRange.dateFrom,
-      dateTo: defaultRange.dateTo,
+      dateFrom,
+      dateTo,
       stationId: defaultStation,
       weighingType: 'all',
       controlStatus: 'all',
     }),
-    [defaultRange, defaultStation]
+    [dateFrom, dateTo, defaultStation]
   );
 
-  // Chart data for analytics charts
-  const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(filters);
+  // Chart data for analytics charts — enforcement-only queries are skipped (passed undefined) for
+  // commercial tenants rather than fetched and then hidden, matching the Dashboard page's pattern.
+  const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(isEnforcement ? filters : undefined);
   const { data: revenueByStation, isLoading: loadingRevenue } = useRevenueByStation(filters);
-  const { data: monthlyRevenue, isLoading: loadingMonthly } = useMonthlyRevenueData(filters);
-  const { data: caseTrend, isLoading: loadingCaseTrend } = useCaseTrend(filters);
+  const { data: monthlyRevenue, isLoading: loadingMonthly } = useMonthlyRevenueData(isEnforcement ? filters : undefined);
+  const { data: caseTrend, isLoading: loadingCaseTrend } = useCaseTrend(isEnforcement ? filters : undefined);
+  const { data: throughputData, isLoading: loadingThroughput } = useCommercialThroughput(isCommercial ? filters : undefined);
+  const { data: topTransporters, isLoading: loadingTransporters } = useTopTransporters(isCommercial ? filters : undefined);
+  const { data: cargoVolume, isLoading: loadingCargo } = useCargoVolumeByType(isCommercial ? filters : undefined);
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
+      <Card>
+        <CardContent className="pt-4">
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+            onRangeChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:max-w-md"
+          />
+        </CardContent>
+      </Card>
+
       {/* Two-Tab Layout */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
@@ -153,31 +174,67 @@ function ReportingContent() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <ChartWrapper
-                  title="Compliance Trend"
-                  subtitle="Legal vs overloaded vehicles over time"
-                  data={complianceTrend ?? []}
-                  series={[
-                    { dataKey: 'compliant', name: 'Compliant', color: '#10b981' },
-                    { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' },
-                  ]}
-                  defaultChartType="line"
-                  allowedChartTypes={['line', 'bar']}
-                  isLoading={loadingCompliance}
-                />
                 {isEnforcement && (
                   <ChartWrapper
-                    title="Revenue by Station"
-                    subtitle="Fee collection performance"
-                    data={revenueByStation ?? []}
-                    series={[{ dataKey: 'revenue', name: 'Revenue (KES)', color: '#3b82f6' }]}
-                    defaultChartType="bar"
-                    allowedChartTypes={['bar', 'pie']}
-                    valueFormatter={formatKES}
-                    isLoading={loadingRevenue}
+                    title="Compliance Trend"
+                    subtitle="Legal vs overloaded vehicles over time"
+                    data={complianceTrend ?? []}
+                    series={[
+                      { dataKey: 'compliant', name: 'Compliant', color: '#10b981' },
+                      { dataKey: 'overloaded', name: 'Overloaded', color: '#ef4444' },
+                    ]}
+                    defaultChartType="line"
+                    allowedChartTypes={['line', 'bar']}
+                    isLoading={loadingCompliance}
                   />
                 )}
+                {isCommercial && (
+                  <ChartWrapper
+                    title="Top Transporters"
+                    subtitle="Transporters by trip count"
+                    data={topTransporters ?? []}
+                    series={[
+                      { dataKey: 'trips', name: 'Trips', color: '#3b82f6' },
+                      { dataKey: 'totalNetWeightKg', name: 'Net Weight (kg)', color: '#10b981' },
+                    ]}
+                    defaultChartType="bar"
+                    allowedChartTypes={['bar']}
+                    isLoading={loadingTransporters}
+                  />
+                )}
+                <ChartWrapper
+                  title="Revenue by Station"
+                  subtitle="Fee collection performance"
+                  data={revenueByStation ?? []}
+                  series={[{ dataKey: 'revenue', name: 'Revenue (KES)', color: '#3b82f6' }]}
+                  defaultChartType="bar"
+                  allowedChartTypes={['bar', 'pie']}
+                  valueFormatter={formatKES}
+                  isLoading={loadingRevenue}
+                />
               </div>
+              {isCommercial && (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <ChartWrapper
+                    title="Cargo Volume by Type"
+                    subtitle="Weight distribution across cargo types"
+                    data={cargoVolume ?? []}
+                    series={[{ dataKey: 'volumeKg', name: 'Volume (kg)', color: '#8b5cf6' }]}
+                    defaultChartType="donut"
+                    allowedChartTypes={['donut', 'pie', 'bar']}
+                    isLoading={loadingCargo}
+                  />
+                  <ChartWrapper
+                    title="Throughput Trend"
+                    subtitle="Vehicles processed per hour over time"
+                    data={throughputData ?? []}
+                    series={[{ dataKey: 'vehiclesPerHour', name: 'Vehicles/Hour', color: '#06b6d4' }]}
+                    defaultChartType="line"
+                    allowedChartTypes={['line', 'bar']}
+                    isLoading={loadingThroughput}
+                  />
+                </div>
+              )}
               {isEnforcement && (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <ChartWrapper
