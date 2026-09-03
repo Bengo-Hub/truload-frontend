@@ -7,7 +7,7 @@
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { QUERY_OPTIONS } from '@/lib/query/config';
 import * as dashboardApi from '@/lib/api/dashboard';
-import type { DashboardFilterParams } from '@/lib/api/dashboard';
+import type { DashboardFilterParams, TonnageTrendGranularity } from '@/lib/api/dashboard';
 
 // Query keys factory
 export const DASHBOARD_QUERY_KEYS = {
@@ -47,6 +47,8 @@ export const DASHBOARD_QUERY_KEYS = {
   commercialThroughput: (filters?: DashboardFilterParams) => ['dashboard', 'commercial-throughput', filters] as const,
   topTransporters: (filters?: DashboardFilterParams) => ['dashboard', 'top-transporters', filters] as const,
   cargoVolume: (filters?: DashboardFilterParams) => ['dashboard', 'cargo-volume', filters] as const,
+  tonnageTrend: (filters?: DashboardFilterParams, granularity?: string) =>
+    ['dashboard', 'tonnage-trend', filters, granularity] as const,
 };
 
 /**
@@ -351,6 +353,18 @@ export function useCargoVolumeByType(filters?: DashboardFilterParams) {
   return useQuery({
     queryKey: DASHBOARD_QUERY_KEYS.cargoVolume(filters),
     queryFn: () => dashboardApi.getCargoVolumeByType(filters),
+    ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
+  });
+}
+
+export function useTonnageTrend(
+  filters?: DashboardFilterParams,
+  granularity: TonnageTrendGranularity = 'Day'
+) {
+  return useQuery({
+    queryKey: DASHBOARD_QUERY_KEYS.tonnageTrend(filters, granularity),
+    queryFn: () => dashboardApi.getTonnageTrend(filters, granularity),
     ...DASHBOARD_OPTIONS,
     enabled: !!filters,
   });

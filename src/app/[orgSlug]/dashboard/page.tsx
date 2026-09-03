@@ -44,6 +44,7 @@ import {
   useTagsByCategory,
   useTopOffenders,
   useTopTransporters,
+  useTonnageTrend,
   useUserStatistics,
   useUsersByStation,
   useVehicleDistributionData,
@@ -169,6 +170,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
   const { data: throughputData, isLoading: loadingThroughput } = useCommercialThroughput(isCommercial ? filters : undefined);
   const { data: topTransporters, isLoading: loadingTransporters } = useTopTransporters(isCommercial ? filters : undefined);
   const { data: cargoVolume, isLoading: loadingCargo } = useCargoVolumeByType(isCommercial ? filters : undefined);
+  const { data: tonnageTrend, isLoading: loadingTonnageTrend } = useTonnageTrend(isCommercial ? filters : undefined, 'Day');
 
   const isLoading = loadingWeighing;
 
@@ -238,6 +240,23 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
           </>
         )}
       </div>
+
+      {/* Tonnage Trend: full-width, most decision-relevant commercial chart — daily tonnage weighed
+          over the selected range, the same rollup a quarry/waste-treatment tenant bills their own
+          downstream client off (hourly/weekly/monthly views available via the report catalog). */}
+      {isCommercial && (
+        <PermissionGate permissions="weighing.read">
+          <ChartWrapper
+            title="Tonnage Trend"
+            subtitle="Net weight captured per day (kg)"
+            data={(tonnageTrend ?? []).map(t => ({ ...t, totalNetWeightTons: Math.round(t.totalNetWeightKg / 1000) }))}
+            series={[{ dataKey: 'totalNetWeightTons', name: 'Net Weight (tons)', color: '#0891b2' }]}
+            defaultChartType="line"
+            allowedChartTypes={['line', 'bar']}
+            isLoading={loadingTonnageTrend}
+          />
+        </PermissionGate>
+      )}
 
       {/* Row 2: Charts — enforcement: compliance trend + revenue; commercial: top transporters + cargo volume */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

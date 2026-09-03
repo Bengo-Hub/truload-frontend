@@ -572,6 +572,30 @@ export async function getCargoVolumeByType(filters?: DashboardFilterParams) {
   return response.data;
 }
 
+export type TonnageTrendGranularity = 'Hour' | 'Day' | 'Week' | 'Month';
+
+export interface TonnageTrendData {
+  name: string;
+  periodStart: string;
+  totalNetWeightKg: number;
+  transactionCount: number;
+}
+
+/**
+ * Get tonnage weighed over time, bucketed by hour/day/week/month (EAT-local) - for tenants who
+ * bill their own downstream client off periodic tonnage rollups (e.g. quarry/waste-treatment).
+ */
+export async function getTonnageTrend(
+  filters?: DashboardFilterParams,
+  granularity: TonnageTrendGranularity = 'Day'
+) {
+  const response = await apiClient.get<TonnageTrendData[]>(
+    '/weighing-transactions/tonnage-trend',
+    { params: { ...buildParams(filters), granularity } }
+  );
+  return response.data;
+}
+
 // ============================================================================
 // Exported API Object
 // ============================================================================
@@ -612,4 +636,5 @@ export const dashboardApi = {
   getCommercialThroughput,
   getTopTransporters,
   getCargoVolumeByType,
+  getTonnageTrend,
 };
