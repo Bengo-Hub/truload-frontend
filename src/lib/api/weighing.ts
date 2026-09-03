@@ -1665,8 +1665,14 @@ export interface CommercialTariffRule {
   weightBracketMinKg?: number;
   weightBracketMaxKg?: number;
   feeKes: number;
-  /** "Flat" (default), "PerTonne", or "PerKg" — how feeKes is applied to a matching weighing. */
+  /** "PerTonne" (default), "PerKg", or "Flat" — how feeKes is applied to a matching weighing. */
   rateBasis?: 'Flat' | 'PerTonne' | 'PerKg';
+  /**
+   * "Immediate" (default — one invoice per weighing) or "Daily"/"Weekly"/"Monthly" (fees accrue
+   * and are rolled into one invoice per org+transporter+period once that period has elapsed —
+   * e.g. a client paying a transporter monthly based on aggregated tonnage).
+   */
+  billingPeriod?: 'Immediate' | 'Daily' | 'Weekly' | 'Monthly';
   effectiveFrom?: string;
   effectiveTo?: string;
   label?: string;
