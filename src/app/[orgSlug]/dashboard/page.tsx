@@ -206,7 +206,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
             )}
             {isCommercial && (
               <PermissionGate permissions="weighing.read">
-                <StatCard title="Total Net Weight (tons)" value={formatNumber(Math.round(getStatValue(weighingStats, 'totalFeesKes') / 1000))} icon={Package} color="bg-cyan-500" />
+                <StatCard title="Total Net Weight (tons)" value={formatNumber(Math.round(getStatValue(weighingStats, 'totalNetWeightKg') / 1000))} icon={Package} color="bg-cyan-500" />
               </PermissionGate>
             )}
             {isCommercial && (
@@ -229,7 +229,7 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
             )}
             {isCommercial && (
               <PermissionGate permissions="weighing.read">
-                <StatCard title="Transporters Served" value={formatNumber(getStatValue(weighingStats, 'totalWeighings'))} icon={Truck} color="bg-amber-500" />
+                <StatCard title="Transporters Served" value={formatNumber(getStatValue(weighingStats, 'uniqueTransporters'))} icon={Truck} color="bg-amber-500" />
               </PermissionGate>
             )}
             <PermissionGate permissions="user.read">
