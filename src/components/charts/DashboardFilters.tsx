@@ -10,7 +10,7 @@ import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StationSelectFilter } from '@/components/filters/StationSelectFilter';
-import { Input } from '@/components/ui/input';
+import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RotateCcw } from 'lucide-react';
@@ -41,42 +41,23 @@ const WEIGHING_TYPE_OPTIONS = [
 ];
 
 export function DashboardFilters() {
-  const { filters, setFilter, resetFilters } = useDashboardFilters();
+  const { filters, setFilter, setFilters, resetFilters } = useDashboardFilters();
   const { isCommercial } = useModuleAccess();
   const statusOptions = isCommercial ? COMMERCIAL_STATUS_OPTIONS : ENFORCEMENT_STATUS_OPTIONS;
 
   return (
     <Card className="w-full">
-      <CardContent className="pt-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          {/* Date From */}
-          <div className="space-y-2">
-            <Label htmlFor="dateFrom" className="text-sm font-medium">
-              Date From
-            </Label>
-            <Input
-              id="dateFrom"
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilter('dateFrom', e.target.value)}
-              className="h-9"
-            />
-          </div>
-
-          {/* Date To */}
-          <div className="space-y-2">
-            <Label htmlFor="dateTo" className="text-sm font-medium">
-              Date To
-            </Label>
-            <Input
-              id="dateTo"
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilter('dateTo', e.target.value)}
-              className="h-9"
-            />
-          </div>
-
+      <CardContent className="pt-4 space-y-4">
+        {/* Quick date range: Today/This Week/This Month/This Quarter, plus the custom from/to below */}
+        <DateRangePicker
+          dateFrom={filters.dateFrom}
+          dateTo={filters.dateTo}
+          onDateFromChange={(v) => setFilter('dateFrom', v)}
+          onDateToChange={(v) => setFilter('dateTo', v)}
+          onRangeChange={(from, to) => setFilters({ dateFrom: from, dateTo: to })}
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Station - centralized: HQ/superuser get All + stations; others see only assigned station (disabled) */}
           <div className="space-y-2">
             <StationSelectFilter
