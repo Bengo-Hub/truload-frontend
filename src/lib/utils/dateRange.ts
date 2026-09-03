@@ -56,3 +56,60 @@ export function buildEatDateRange(
     toDate: dateTo ? eatDateTimeToUtcIso(dateTo, timeTo, !timeTo) : undefined,
   };
 }
+
+/**
+ * "Right now" shifted into EAT calendar space: `Date.now()` (a true UTC instant) plus the fixed
+ * +3h offset, then read back with the UTC getters. This deliberately does NOT use the browser's
+ * own local timezone (`new Date()` + local getters) - a viewer traveling outside Kenya, or CI
+ * running in UTC, must still get Nairobi's calendar day, matching how the backend always resolves
+ * "today" (see truload-backend's `WeighingQueryHelpers.ResolveEatDayRange`).
+ */
+function eatShiftedNow(): Date {
+  return new Date(Date.now() + EAT_OFFSET_HOURS * 3_600_000);
+}
+
+function toDateOnlyFromEatShifted(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Today's date in the EAT calendar, as `YYYY-MM-DD` - independent of the viewer's own timezone. */
+export function getEatTodayDateOnly(): string {
+  return toDateOnlyFromEatShifted(eatShiftedNow());
+}
+
+export type EatQuickRangePreset = 'today' | 'thisWeek' | 'thisMonth' | 'thisQuarter';
+
+/**
+ * Quick date-range presets (Today / This Week / This Month / This Quarter) anchored to the EAT
+ * calendar, for the Dashboard/Reports/Custom Reports quick-filter row. Weeks start Monday.
+ */
+export function getEatQuickRange(preset: EatQuickRangePreset): { from: string; to: string } {
+  const now = eatShiftedNow();
+  const to = toDateOnlyFromEatShifted(now);
+
+  let from: Date;
+  switch (preset) {
+    case 'today':
+      from = now;
+      break;
+    case 'thisWeek': {
+      const dayOfWeek = now.getUTCDay(); // 0=Sun..6=Sat (of the EAT-shifted instant)
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      from = new Date(now);
+      from.setUTCDate(from.getUTCDate() + diffToMonday);
+      break;
+    }
+    case 'thisMonth':
+      from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      break;
+    case 'thisQuarter': {
+      const quarterStartMonth = Math.floor(now.getUTCMonth() / 3) * 3;
+      from = new Date(Date.UTC(now.getUTCFullYear(), quarterStartMonth, 1));
+      break;
+    }
+  }
+  return { from: toDateOnlyFromEatShifted(from), to };
+}

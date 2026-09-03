@@ -7,6 +7,7 @@
 'use client';
 
 import { getIsHqUser, getStationId } from '@/lib/auth/token';
+import { getEatTodayDateOnly } from '@/lib/utils/dateRange';
 import { createContext, useContext, useState, useCallback, ReactNode, useMemo, useEffect } from 'react';
 
 export interface DashboardFilters {
@@ -25,13 +26,17 @@ interface DashboardFilterContextValue {
 }
 
 const getDefaultDateRange = () => {
-  const today = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(today.getDate() - 30);
+  // EAT-anchored, not `new Date().toISOString().split('T')[0]` (converts to UTC first, which can
+  // shift "today" by a day for a viewer whose local clock is ahead of UTC near midnight EAT — the
+  // exact class of bug `src/lib/utils/dateRange.ts` exists to prevent).
+  const todayEat = getEatTodayDateOnly();
+  const [y, m, d] = todayEat.split('-').map(Number);
+  const thirtyDaysAgo = new Date(Date.UTC(y, m - 1, d));
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
 
   return {
     dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
-    dateTo: today.toISOString().split('T')[0],
+    dateTo: todayEat,
   };
 };
 
