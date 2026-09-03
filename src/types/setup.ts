@@ -69,6 +69,8 @@ export interface OrganizationDto {
   orgType?: string;
   tenantType?: string;
   enabledModules?: string[];
+  /** Commercial vertical/sub-use-case (e.g. "waste_management", "quarry"). Null for unclassified or non-commercial orgs. */
+  vertical?: string | null;
   contactEmail?: string;
   contactPhone?: string;
   website?: string;
@@ -111,6 +113,8 @@ export interface CreateOrganizationRequest {
   name: string;
   orgType?: string;
   tenantType?: string;
+  /** Commercial vertical/sub-use-case (e.g. "waste_management", "quarry") - applied server-side at creation. Only meaningful when tenantType is "CommercialWeighing". */
+  vertical?: string;
   contactEmail?: string;
   contactPhone?: string;
   website?: string;
