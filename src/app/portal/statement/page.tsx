@@ -18,11 +18,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { usePortalStatement } from '@/hooks/queries/usePortalQueries';
-import { Info, Receipt } from 'lucide-react';
+import { Info, Package, Receipt, Scale } from 'lucide-react';
 
 function formatKes(amount: number) {
   return `KES ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+const RATE_BASIS_LABEL: Record<string, string> = {
+  Flat: 'flat rate',
+  PerTonne: 'per tonne',
+  PerKg: 'per kg',
+};
 
 export default function PortalStatementPage() {
   const { data: statement, isLoading } = usePortalStatement();
@@ -99,6 +105,48 @@ export default function PortalStatementPage() {
           </CardContent>
         </Card>
       </div>
+
+      {statement.tonnageSummary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5" />
+              Tonnage Summary
+            </CardTitle>
+            <CardDescription>
+              {new Date(statement.tonnageSummary.periodFrom).toLocaleDateString('en-KE')} to{' '}
+              {new Date(statement.tonnageSummary.periodTo).toLocaleDateString('en-KE')}
+              {' — '}weighed tonnage billed by the applicable tariff rate, alongside the AR ledger above
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Package className="h-3.5 w-3.5" /> Net Weight
+                </p>
+                <p className="text-xl font-semibold">
+                  {(statement.tonnageSummary.totalNetWeightKg / 1000).toLocaleString('en-KE', { maximumFractionDigits: 2 })} t
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Weighings</p>
+                <p className="text-xl font-semibold">{statement.tonnageSummary.weighingCount.toLocaleString('en-KE')}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Tariff Amount</p>
+                <p className="text-xl font-semibold">{formatKes(statement.tonnageSummary.tariffAmountKes)}</p>
+              </div>
+            </div>
+            {statement.tonnageSummary.rateBasis && statement.tonnageSummary.rateKes != null && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Contract rate: {formatKes(statement.tonnageSummary.rateKes)}{' '}
+                {RATE_BASIS_LABEL[statement.tonnageSummary.rateBasis] ?? statement.tonnageSummary.rateBasis}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {statement.onAccountBilling && (
         <Card className="border-blue-100 bg-blue-50">

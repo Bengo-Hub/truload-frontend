@@ -180,6 +180,23 @@ export interface PortalStatementLine {
   status: string;
 }
 
+/**
+ * Matches the backend PortalTonnageSummaryDto exactly. Tonnage-based view of the SAME statement
+ * period, alongside (not instead of) the AR-ledger fields on PortalStatement — the artifact a
+ * quarry/waste-treatment tenant needs to invoice their own downstream client off aggregated
+ * tonnage. rateBasis/rateKes are only set when a single transporter-specific contract rate applied
+ * to every weighing in the period; null means weighings may have matched varying org-wide rates.
+ */
+export interface PortalTonnageSummary {
+  periodFrom: string;
+  periodTo: string;
+  totalNetWeightKg: number;
+  weighingCount: number;
+  tariffAmountKes: number;
+  rateBasis?: string | null;
+  rateKes?: number | null;
+}
+
 /** Matches the backend PortalStatementDto exactly. */
 export interface PortalStatement {
   isLinked: boolean;
@@ -192,6 +209,7 @@ export interface PortalStatement {
   onAccountBilling: boolean;
   creditLimitKes?: number | null;
   lines: PortalStatementLine[];
+  tonnageSummary?: PortalTonnageSummary | null;
 }
 
 export interface SubscriptionPlan {
