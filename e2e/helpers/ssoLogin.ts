@@ -77,8 +77,10 @@ export async function waitForUrlMatch(page: Page, pattern: RegExp, timeoutMs = 3
 }
 
 /** The pre-login station-select page (/{ORG}/auth) renders either a single-station "Continue to
- * sign in" shortcut or a list of stations. Handles both, preferring a match on STATION_CODE. */
-export async function selectStationOnPicker(page: Page): Promise<void> {
+ * sign in" shortcut or a list of stations. Handles both, preferring a match on stationCode (default
+ * STATION_CODE — pass a different outlet's code, e.g. ENF-WB-01, for a non-commercial-primary
+ * persona sharing the same codevertex-demo tenant). */
+export async function selectStationOnPicker(page: Page, stationCode: string = STATION_CODE): Promise<void> {
   await page.waitForLoadState('networkidle').catch(() => {});
   const continueBtn = page.getByRole('button', { name: /continue to sign in/i });
   if (await continueBtn.count().then((c) => c > 0).catch(() => false)) {
@@ -89,7 +91,7 @@ export async function selectStationOnPicker(page: Page): Promise<void> {
   const count = await stationButtons.count();
   for (let i = 0; i < count; i++) {
     const text = (await stationButtons.nth(i).innerText().catch(() => '')) || '';
-    if (text.toUpperCase().includes(STATION_CODE.toUpperCase())) {
+    if (text.toUpperCase().includes(stationCode.toUpperCase())) {
       await stationButtons.nth(i).click();
       return;
     }
@@ -183,18 +185,25 @@ export async function waitForRedirectDismissingInterstitials(
  * full hop-by-hop flow) and returns the resulting truload access token plus the live page (left
  * open for further screenshot evidence — caller is responsible for closing it).
  */
-export async function ssoLogin(browser: Browser, role: string, email: string, password: string): Promise<{ token: string; page: Page }> {
+export async function ssoLogin(
+  browser: Browser,
+  role: string,
+  email: string,
+  password: string,
+  orgSlug: string = ORG,
+  stationCode: string = STATION_CODE,
+): Promise<{ token: string; page: Page }> {
   const page = await browser.newPage();
   const shot = (name: string) =>
     page.screenshot({ path: path.join(SCREENSHOT_DIR, `${slug(role)}-${name}.png`), fullPage: true }).catch(() => {});
 
   try {
-    await page.goto(`${FRONTEND_BASE}/${ORG}/auth`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${FRONTEND_BASE}/${orgSlug}/auth`, { waitUntil: 'domcontentloaded' });
     await shot('01-station-picker');
-    await selectStationOnPicker(page);
+    await selectStationOnPicker(page, stationCode);
 
     // First pass: no SSO exchange token yet, so goToLogin() pushed us to the local login page.
-    await waitForUrlMatch(page, new RegExp(`/${ORG}/auth/login`), 20_000);
+    await waitForUrlMatch(page, new RegExp(`/${orgSlug}/auth/login`), 20_000);
     await shot('02-login-page');
     const ssoButton = page.getByRole('button', { name: /login with sso/i });
     await expect(ssoButton, `${role}: SSO login option should be offered for this commercial tenant`).toBeVisible({ timeout: 20_000 });
@@ -212,12 +221,12 @@ export async function ssoLogin(browser: Browser, role: string, email: string, pa
     // to the station picker again — now WITH an SSO exchange token in sessionStorage. Interstitials
     // (terms acceptance, passkey nudge) are dismissed inline as they appear during this wait, not
     // in a separate pass beforehand - see waitForRedirectDismissingInterstitials's doc comment.
-    await waitForRedirectDismissingInterstitials(page, new RegExp(`${FRONTEND_BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/${ORG}/auth(?:$|[/?])`), 45_000);
+    await waitForRedirectDismissingInterstitials(page, new RegExp(`${FRONTEND_BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/${orgSlug}/auth(?:$|[/?])`), 45_000);
     await shot('04-back-at-station-picker-post-sso');
-    await selectStationOnPicker(page);
+    await selectStationOnPicker(page, stationCode);
 
     // Full session established -> lands on the dashboard (the default sso-return-to).
-    await waitForUrlMatch(page, new RegExp(`/${ORG}/dashboard`), 30_000);
+    await waitForUrlMatch(page, new RegExp(`/${orgSlug}/dashboard`), 30_000);
     await waitForDashboardReady(page);
     await shot('05-dashboard-post-login');
 
