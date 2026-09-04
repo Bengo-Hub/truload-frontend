@@ -183,9 +183,9 @@ function SsoCallbackContent() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="max-w-md w-full rounded-lg border p-6 space-y-4">
           <div className="space-y-1 text-center">
-            <h2 className="text-lg font-semibold">Platform Owner — Choose Organisation</h2>
+            <h2 className="text-lg font-semibold">Choose Organisation</h2>
             <p className="text-sm text-muted-foreground">
-              Signed in as the platform owner. Select which organisation to access.
+              This account has access to more than one organisation. Select which one to enter.
             </p>
           </div>
           <div className="space-y-4 max-h-96 overflow-y-auto">
