@@ -31,6 +31,9 @@ import { CargoTypeModal } from '@/components/weighing/modals/CargoTypeModal';
 import { DriverModal } from '@/components/weighing/modals/DriverModal';
 import { OriginDestinationModal } from '@/components/weighing/modals/OriginDestinationModal';
 import { TransporterModal } from '@/components/weighing/modals/TransporterModal';
+import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
+import { SCALE_TEST_SUCCESS_MESSAGE, SCALE_TEST_SUCCESS_DESCRIPTION } from '@/components/weighing/ScaleTestBanner';
+import type { ScaleTest } from '@/lib/api/weighing';
 import {
   useCreateVehicle,
   useMyScaleTestStatus,
@@ -183,7 +186,21 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     locationModalTarget, setLocationModalTarget,
     isSavingEntity,
     handleSaveDriver, handleSaveTransporter, handleSaveCargoType, handleSaveLocation,
+    isScaleTestModalOpen, setIsScaleTestModalOpen,
   } = weighingUI;
+
+  // Opens the scale test modal — required before Next is enabled on the capture step whenever
+  // this station has no valid scale test on record (see WeighingCaptureStep's canProceedFromCapture
+  // gate). Previously a no-op here (the modal was never imported/rendered at all), which made the
+  // commercial capture screen a permanent dead end for any station that had never had a scale test
+  // recorded — found live via a Playwright agent's first-ever UI-driven weighing capture test.
+  const handleStartScaleTest = useCallback(() => setIsScaleTestModalOpen(true), [setIsScaleTestModalOpen]);
+
+  const handleScaleTestComplete = useCallback((test: ScaleTest) => {
+    if (test.result === 'pass') {
+      toast.success(SCALE_TEST_SUCCESS_MESSAGE, { description: SCALE_TEST_SUCCESS_DESCRIPTION });
+    }
+  }, []);
 
   // Selected cargo type's quality parameters (moisture target / FM limit), used to drive the
   // formula-based quality deduction UI on the ticket step.
@@ -740,7 +757,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
             weighingType={mode}
             isSimulationMode={false}
             handleConnectScales={() => middleware.connect()}
-            handleStartScaleTest={() => {}}
+            handleStartScaleTest={handleStartScaleTest}
             handleToggleScale={() => {}}
             handleChangeWeighingType={() => {}}
             frontViewImage={frontViewImage}
@@ -1163,6 +1180,30 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         onSave={handleSaveLocation}
         isSaving={isSavingEntity}
         mode="create"
+      />
+      <ScaleTestModal
+        open={isScaleTestModalOpen}
+        onOpenChange={setIsScaleTestModalOpen}
+        station={currentStation ?? null}
+        onTestComplete={handleScaleTestComplete}
+        weighingMode={mode}
+        middlewareConnected={middlewareConnected}
+        middlewareWeights={middleware.weights ? {
+          currentWeight: (middleware.weights as any).weight || (middleware.weights as any).currentWeight,
+          scaleA: (middleware.weights as any).scaleA,
+          scaleB: (middleware.weights as any).scaleB,
+          scaleWeightMode: (middleware.weights as any).scaleWeightMode,
+        } : null}
+        middlewareScaleStatus={middleware.scaleStatus ? {
+          scaleA: middleware.scaleStatus.scaleA ? {
+            weight: middleware.scaleStatus.scaleA.weight,
+            connected: middleware.scaleStatus.scaleA.status === 'connected',
+          } : undefined,
+          scaleB: middleware.scaleStatus.scaleB ? {
+            weight: middleware.scaleStatus.scaleB.weight,
+            connected: middleware.scaleStatus.scaleB.status === 'connected',
+          } : undefined,
+        } : undefined}
       />
 
       {/* Resume open transaction dialog — shown when a pending first-weight transaction is found for the entered plate */}
