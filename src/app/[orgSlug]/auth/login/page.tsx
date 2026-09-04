@@ -62,10 +62,16 @@ function TenantAuthLoginContent() {
         if (cancelled) return;
         if (orgData) setOrg(orgData);
 
-        if (tenantInfo?.tenantType === 'CommercialWeighing') {
-          // Commercial tenant — offer SSO as an option (not auto-redirect)
+        // Offer SSO whenever the org actually has an SsoTenantSlug configured — not just for
+        // CommercialWeighing orgs. That used to be an equivalent check (only commercial demo/tenant
+        // orgs ever had one; real enforcement orgs like KURA/KENHA/KERRA never do, since they aren't
+        // auth-api tenants at all), but it broke for the codevertex-demo axle-load-enforcement demo
+        // outlet (CODEVERTEX-DEMO-ENF), which is TenantType=AxleLoadEnforcement yet DOES share the
+        // codevertex-demo SSO tenant like every other demo outlet — its login page silently fell back
+        // to the plain local form with no way to reach the demo persona's actual SSO-only account.
+        if (tenantInfo?.ssoTenantSlug) {
           setSsoAvailable(true);
-          setSsoSlug(tenantInfo.ssoTenantSlug || orgSlug);
+          setSsoSlug(tenantInfo.ssoTenantSlug);
         }
       } catch {
         // Ignore errors — fall through to show local login form
