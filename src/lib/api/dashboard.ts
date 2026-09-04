@@ -100,6 +100,18 @@ export interface WeighingStatistics {
   totalFeesKes: number;
   totalFeesUsd: number;
   avgOverloadKg: number;
+  totalNetWeightKg: number;
+  uniqueTransporters: number;
+  /**
+   * Computed commercial tariff-engine revenue for the selected range — NOT the same as
+   * totalFeesKes above (that's summed from the enforcement axle/overload fee field, which
+   * CommercialWeighingService never writes to, so it's always zero for a commercial-only
+   * tenant). Sourced from CommercialTariffRule-resolved Invoice/CommercialTariffAccrual rows —
+   * see WeighingController.GetStatistics.
+   */
+  tariffRevenueKes: number;
+  /** Count of weighings whose ControlStatus is "ToleranceExceeded" in the selected range. */
+  toleranceExceededCount: number;
 }
 
 // Chart Data Types
@@ -596,6 +608,25 @@ export async function getTonnageTrend(
   return response.data;
 }
 
+export interface ToleranceTrendData {
+  name: string;
+  totalWeighings: number;
+  toleranceExceededCount: number;
+  toleranceExceptionRate: number;
+}
+
+/**
+ * Get the daily tolerance-exception-rate trend (commercial weighing's declared-vs-measured-weight
+ * discrepancy flag) — the commercial counterpart to getComplianceTrend's enforcement breakdown.
+ */
+export async function getToleranceTrend(filters?: DashboardFilterParams) {
+  const response = await apiClient.get<ToleranceTrendData[]>(
+    '/weighing-transactions/tolerance-trend',
+    { params: buildParams(filters) }
+  );
+  return response.data;
+}
+
 // ============================================================================
 // Exported API Object
 // ============================================================================
@@ -637,4 +668,5 @@ export const dashboardApi = {
   getTopTransporters,
   getCargoVolumeByType,
   getTonnageTrend,
+  getToleranceTrend,
 };
