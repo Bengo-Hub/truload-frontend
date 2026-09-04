@@ -2,6 +2,8 @@
 
 import OrganizationsTab from '@/app/[orgSlug]/users/modules/organizations/OrganizationsTab';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { ModuleAccessTab } from '@/components/settings/ModuleAccessTab';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { Lock } from 'lucide-react';
 
@@ -26,5 +28,18 @@ function TenantsContent() {
     );
   }
 
-  return <OrganizationsTab />;
+  return (
+    <Tabs defaultValue="organizations" className="w-full">
+      <TabsList className="mb-4">
+        <TabsTrigger value="organizations">Organizations</TabsTrigger>
+        <TabsTrigger value="module-access">Module Access</TabsTrigger>
+      </TabsList>
+      <TabsContent value="organizations">
+        <OrganizationsTab />
+      </TabsContent>
+      <TabsContent value="module-access">
+        <ModuleAccessTab />
+      </TabsContent>
+    </Tabs>
+  );
 }
