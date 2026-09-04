@@ -84,14 +84,14 @@ export function CommercialEntitySelectors({
             </Label>
             <div className="flex gap-1.5">
               <Select
-                value={selectedDriverId ?? ''}
-                onValueChange={(v) => onDriverIdChange(v || undefined)}
+                value={selectedDriverId ?? 'none'}
+                onValueChange={(v) => onDriverIdChange(v === 'none' ? undefined : v)}
               >
                 <SelectTrigger className="flex-1 text-sm">
                   <SelectValue placeholder="Select driver..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="none">— None —</SelectItem>
                   {drivers.map((d) => (
                     <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>
                   ))}
@@ -116,14 +116,14 @@ export function CommercialEntitySelectors({
             </Label>
             <div className="flex gap-1.5">
               <Select
-                value={selectedTransporterId ?? ''}
-                onValueChange={(v) => onTransporterIdChange(v || undefined)}
+                value={selectedTransporterId ?? 'none'}
+                onValueChange={(v) => onTransporterIdChange(v === 'none' ? undefined : v)}
               >
                 <SelectTrigger className="flex-1 text-sm">
                   <SelectValue placeholder="Select transporter..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="none">— None —</SelectItem>
                   {transporters.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
                   ))}
@@ -150,14 +150,14 @@ export function CommercialEntitySelectors({
           </Label>
           <div className="flex gap-1.5">
             <Select
-              value={selectedCargoId ?? ''}
-              onValueChange={(v) => onCargoIdChange(v || undefined)}
+              value={selectedCargoId ?? 'none'}
+              onValueChange={(v) => onCargoIdChange(v === 'none' ? undefined : v)}
             >
               <SelectTrigger className="flex-1 text-sm">
                 <SelectValue placeholder="Select cargo type..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— None —</SelectItem>
+                <SelectItem value="none">— None —</SelectItem>
                 {cargoTypes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
                 ))}
@@ -184,14 +184,14 @@ export function CommercialEntitySelectors({
             </Label>
             <div className="flex gap-1.5">
               <Select
-                value={selectedOriginId ?? ''}
-                onValueChange={(v) => onOriginIdChange(v || undefined)}
+                value={selectedOriginId ?? 'none'}
+                onValueChange={(v) => onOriginIdChange(v === 'none' ? undefined : v)}
               >
                 <SelectTrigger className="flex-1 text-sm">
                   <SelectValue placeholder="Select origin..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="none">— None —</SelectItem>
                   {locations.map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>
                   ))}
@@ -216,14 +216,14 @@ export function CommercialEntitySelectors({
             </Label>
             <div className="flex gap-1.5">
               <Select
-                value={selectedDestinationId ?? ''}
-                onValueChange={(v) => onDestinationIdChange(v || undefined)}
+                value={selectedDestinationId ?? 'none'}
+                onValueChange={(v) => onDestinationIdChange(v === 'none' ? undefined : v)}
               >
                 <SelectTrigger className="flex-1 text-sm">
                   <SelectValue placeholder="Select destination..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="none">— None —</SelectItem>
                   {locations.map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>
                   ))}

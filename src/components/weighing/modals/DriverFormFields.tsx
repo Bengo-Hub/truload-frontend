@@ -193,15 +193,15 @@ export function DriverFormFields({
             <div className="space-y-2 md:col-span-2">
               <Label className="text-sm font-medium">Transporter / Employer</Label>
               <Select
-                value={values.transporterId ?? ''}
-                onValueChange={(v) => onChange('transporterId', v || undefined)}
+                value={values.transporterId ?? 'none'}
+                onValueChange={(v) => onChange('transporterId', v === 'none' ? undefined : v)}
                 disabled={disabled}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select transporter (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Independent / None —</SelectItem>
+                  <SelectItem value="none">— Independent / None —</SelectItem>
                   {transporters.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}
