@@ -1,4 +1,5 @@
 import { test, expect, request as pwRequest, type APIRequestContext } from '@playwright/test';
+import { humanDelay } from './helpers/ssoLogin';
 
 /**
  * Deployed-backend idempotency E2E (adapted from pos-ui's API-verification flow).
@@ -40,6 +41,7 @@ test.describe('TruLoad backend idempotency (live)', () => {
   const created: { weighingId?: string; caseId?: string; prosecutionId?: string; invoiceId?: string } = {};
 
   test.beforeAll(async () => {
+    await humanDelay(800, 2000);
     const token = await login();
     api = await pwRequest.newContext({
       baseURL: API,
@@ -50,20 +52,31 @@ test.describe('TruLoad backend idempotency (live)', () => {
   test.afterAll(async () => {
     // Clean up everything created (team rule: delete ALL E2E test data), child→parent so FKs
     // don't block: invoice → prosecution → case → weighing.
-    if (created.invoiceId) await api.post(`/api/v1/invoices/${created.invoiceId}/void`, { data: { reason: 'e2e cleanup' } }).catch(() => {});
-    if (created.caseId) await api.delete(`/api/v1/case/cases/${created.caseId}/hard`).catch(() => {});
+    if (created.invoiceId) {
+      await humanDelay();
+      await api.post(`/api/v1/invoices/${created.invoiceId}/void`, { data: { reason: 'e2e cleanup' } }).catch(() => {});
+    }
+    if (created.caseId) {
+      await humanDelay();
+      await api.delete(`/api/v1/case/cases/${created.caseId}/hard`).catch(() => {});
+    }
     // Hard-delete the weighing (soft delete leaves the row → violates the delete-all-test-data rule).
-    if (created.weighingId) await api.delete(`/api/v1/weighing-transactions/${created.weighingId}/hard`).catch(() => {});
+    if (created.weighingId) {
+      await humanDelay();
+      await api.delete(`/api/v1/weighing-transactions/${created.weighingId}/hard`).catch(() => {});
+    }
     await api?.dispose();
   });
 
   test('weighing create is idempotent on clientLocalId', async () => {
     const clientLocalId = uuid();
     const body = { stationId: STATION_ID, vehicleRegNo: `KDE2E${Date.now() % 100000}`, weighingType: 'static', clientLocalId };
+    await humanDelay();
     const r1 = await api.post('/api/v1/weighing-transactions', { data: body });
     expect(r1.ok(), `weighing create #1 (got ${r1.status()})`).toBeTruthy();
     const id1 = (await r1.json()).id;
     created.weighingId = id1; // track for cleanup IMMEDIATELY, before assertions can throw
+    await humanDelay();
     const r2 = await api.post('/api/v1/weighing-transactions', { data: body });
     expect(r2.ok(), `weighing create #2 (got ${r2.status()})`).toBeTruthy();
     const id2 = (await r2.json()).id;
@@ -72,10 +85,12 @@ test.describe('TruLoad backend idempotency (live)', () => {
 
   test('case-from-weighing is idempotent (get-or-create)', async () => {
     expect(created.weighingId, 'needs a weighing from the previous test').toBeTruthy();
+    await humanDelay();
     const r1 = await api.post(`/api/v1/case/cases/from-weighing/${created.weighingId}`, { data: {} });
     expect(r1.ok(), `case create #1 (got ${r1.status()})`).toBeTruthy();
     const id1 = (await r1.json()).id;
     created.caseId = id1; // track for cleanup IMMEDIATELY, before assertions can throw
+    await humanDelay();
     const r2 = await api.post(`/api/v1/case/cases/from-weighing/${created.weighingId}`, { data: {} });
     expect(r2.ok(), `case create #2 should get-or-create, not 400 (got ${r2.status()})`).toBeTruthy();
     const id2 = (await r2.json()).id;
@@ -83,6 +98,7 @@ test.describe('TruLoad backend idempotency (live)', () => {
   });
 
   test('recent-convictions cache endpoint responds', async () => {
+    await humanDelay();
     const res = await api.get('/api/v1/prosecutions/recent-convictions?months=12');
     expect(res.ok(), `recent-convictions should be 200 (got ${res.status()})`).toBeTruthy();
     expect(Array.isArray(await res.json())).toBeTruthy();

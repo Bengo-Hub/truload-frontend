@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { ORG, DEMO_STAFF_PASSWORD, ssoLogin } from './helpers/ssoLogin';
+import { ORG, DEMO_STAFF_PASSWORD, ssoLogin, humanDelay } from './helpers/ssoLogin';
 import { startMockScaleServer, type MockScaleServer } from './helpers/mockScaleServer';
 
 /**
@@ -39,7 +39,7 @@ import { startMockScaleServer, type MockScaleServer } from './helpers/mockScaleS
  */
 
 test.describe('Commercial Operator — weighing capture UI (live)', () => {
-  test.setTimeout(150_000);
+  test.setTimeout(180_000);
 
   const operatorEmail = process.env.E2E_OPERATOR_EMAIL || 'commercial.operator@demo.codevertexafrica.com';
   const operatorPassword = process.env.E2E_OPERATOR_PASSWORD || DEMO_STAFF_PASSWORD;
@@ -48,6 +48,7 @@ test.describe('Commercial Operator — weighing capture UI (live)', () => {
   let scale: MockScaleServer;
 
   test.beforeAll(async ({ browser }) => {
+    await humanDelay(800, 2000);
     // Start the mock scale bridge before login/navigation so useMiddleware's first connection
     // attempt (fired on component mount) succeeds immediately instead of waiting on a retry.
     scale = startMockScaleServer(3030);
@@ -120,6 +121,7 @@ test.describe('Commercial Operator — weighing capture UI (live)', () => {
     await expect(page.getByText('6,000', { exact: false }).first()).toBeVisible({ timeout: 10_000 });
     await assignAxleButton.click();
     await expect(page.getByRole('button', { name: /ASSIGN AXLE/i })).toBeVisible({ timeout: 10_000 });
+    await humanDelay(500, 1000); // two real axle captures a human would space out, not fire back to back
     await page.getByRole('button', { name: /ASSIGN AXLE/i }).click();
 
     // All axles captured -> choose "Tare Weight" for this first pass
@@ -137,6 +139,7 @@ test.describe('Commercial Operator — weighing capture UI (live)', () => {
     await expect(page.getByText('15,000', { exact: false }).first()).toBeVisible({ timeout: 10_000 });
     await assignAxleButton2.click();
     await expect(page.getByRole('button', { name: /ASSIGN AXLE/i })).toBeVisible({ timeout: 10_000 });
+    await humanDelay(500, 1000);
     await page.getByRole('button', { name: /ASSIGN AXLE/i }).click();
 
     // All axles captured -> capture the second weight from the (mock) scale
