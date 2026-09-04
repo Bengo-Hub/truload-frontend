@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { AxleWeightReferenceDto } from '@/types/weighing';
+import type { PortalStatement } from '@/types/portal';
 
 // ============================================================================
 // Types
@@ -503,6 +504,23 @@ export async function deleteTransporter(id: string): Promise<void> {
  */
 export async function inviteTransporterToPortal(id: string): Promise<{ message: string }> {
   const { data } = await apiClient.post<{ message: string }>(`/transporters/${id}/invite-portal`);
+  return data;
+}
+
+/**
+ * Commercial-ops view of a transporter's AR statement (live from treasury-api) — same
+ * PortalStatementDto shape as the transporter's own self-service statement, but resolved from
+ * OUR org's perspective (what this transporter owes THIS org), gated by billing.statements.view.
+ * fromDate/toDate are plain YYYY-MM-DD date-only strings; omit for treasury's "all time" default.
+ */
+export async function getTransporterStatement(
+  id: string,
+  fromDate?: string,
+  toDate?: string
+): Promise<PortalStatement> {
+  const { data } = await apiClient.get<PortalStatement>(`/transporters/${id}/statement`, {
+    params: { fromDate, toDate },
+  });
   return data;
 }
 

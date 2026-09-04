@@ -715,6 +715,24 @@ export function useInviteTransporterToPortal() {
 }
 
 /**
+ * Commercial-ops view of a transporter's AR statement. Gated server-side by
+ * billing.statements.view; only fetches while enabled (dialog open) and an id is present.
+ */
+export function useTransporterStatement(
+  id: string | undefined,
+  fromDate?: string,
+  toDate?: string,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.TRANSPORTERS, id ?? '', 'statement', fromDate ?? '', toDate ?? ''],
+    queryFn: () => weighingApi.getTransporterStatement(id!, fromDate, toDate),
+    enabled: enabled && !!id,
+    staleTime: 60_000,
+  });
+}
+
+/**
  * Update driver mutation
  */
 export function useUpdateDriver() {

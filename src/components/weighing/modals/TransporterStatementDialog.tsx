@@ -1,0 +1,253 @@
+'use client';
+
+/**
+ * TransporterStatementDialog - commercial-ops view of a transporter's AR statement.
+ *
+ * Same PortalStatementDto shape (and largely the same layout) as the transporter's own
+ * self-service statement at src/app/portal/statement/page.tsx, but resolved from OUR org's
+ * perspective and gated behind billing.statements.view rather than portal-account auth.
+ */
+
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { DateRangePicker } from '@/components/shared/DateRangePicker';
+import { useTransporterStatement } from '@/hooks/queries';
+import { Info, Package, Receipt, Scale } from 'lucide-react';
+import { useState } from 'react';
+
+interface TransporterStatementDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  transporterId: string | null;
+  transporterName?: string;
+}
+
+function formatKes(amount: number) {
+  return `KES ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const RATE_BASIS_LABEL: Record<string, string> = {
+  Flat: 'flat rate',
+  PerTonne: 'per tonne',
+  PerKg: 'per kg',
+};
+
+export function TransporterStatementDialog({
+  open,
+  onOpenChange,
+  transporterId,
+  transporterName,
+}: TransporterStatementDialogProps) {
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const { data: statement, isLoading } = useTransporterStatement(
+    transporterId ?? undefined,
+    dateFrom || undefined,
+    dateTo || undefined,
+    open
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            Statement{transporterName ? ` — ${transporterName}` : ''}
+          </DialogTitle>
+          <DialogDescription>
+            Outstanding balance and billing history sourced live from treasury.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+            showPresets={false}
+          />
+
+          {isLoading && (
+            <Card>
+              <CardContent className="pt-6 space-y-3">
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-64" />
+              </CardContent>
+            </Card>
+          )}
+
+          {!isLoading && statement && !statement.isLinked && (
+            <Card className="border-blue-100 bg-blue-50">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium">No billing history yet</p>
+                    <p>
+                      This transporter&apos;s statement will appear here once a commercial
+                      weighing session has resulted in an invoice.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isLoading && statement && statement.isLinked && (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-xs text-muted-foreground">Total Invoiced</p>
+                    <p className="text-xl font-semibold">{formatKes(statement.totalInvoiced)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-xs text-muted-foreground">Total Paid</p>
+                    <p className="text-xl font-semibold">{formatKes(statement.totalPaid)}</p>
+                  </CardContent>
+                </Card>
+                <Card className={statement.closingBalance > 0 ? 'border-amber-200 bg-amber-50' : undefined}>
+                  <CardContent className="pt-6">
+                    <p className="text-xs text-muted-foreground">Outstanding Balance</p>
+                    <p className="text-xl font-semibold">{formatKes(statement.closingBalance)}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {statement.tonnageSummary && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Scale className="h-5 w-5" />
+                      Tonnage Summary
+                    </CardTitle>
+                    <CardDescription>
+                      {new Date(statement.tonnageSummary.periodFrom).toLocaleDateString('en-KE')} to{' '}
+                      {new Date(statement.tonnageSummary.periodTo).toLocaleDateString('en-KE')}
+                      {' — '}weighed tonnage billed by the applicable tariff rate, alongside the AR ledger above
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Package className="h-3.5 w-3.5" /> Net Weight
+                        </p>
+                        <p className="text-xl font-semibold">
+                          {(statement.tonnageSummary.totalNetWeightKg / 1000).toLocaleString('en-KE', { maximumFractionDigits: 2 })} t
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Weighings</p>
+                        <p className="text-xl font-semibold">{statement.tonnageSummary.weighingCount.toLocaleString('en-KE')}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tariff Amount</p>
+                        <p className="text-xl font-semibold">{formatKes(statement.tonnageSummary.tariffAmountKes)}</p>
+                      </div>
+                    </div>
+                    {statement.tonnageSummary.rateBasis && statement.tonnageSummary.rateKes != null && (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        Contract rate: {formatKes(statement.tonnageSummary.rateKes)}{' '}
+                        {RATE_BASIS_LABEL[statement.tonnageSummary.rateBasis] ?? statement.tonnageSummary.rateBasis}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {statement.onAccountBilling && (
+                <Card className="border-blue-100 bg-blue-50">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex gap-3">
+                      <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium">Billed on account</p>
+                        <p>
+                          Weighing fees settle later instead of collecting payment immediately.
+                          {statement.creditLimitKes
+                            ? ` Credit limit: ${formatKes(statement.creditLimitKes)}.`
+                            : ' No credit limit set.'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Receipt className="h-5 w-5" />
+                    Transaction History
+                  </CardTitle>
+                  <CardDescription>
+                    {statement.lines.length} entr{statement.lines.length !== 1 ? 'ies' : 'y'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead className="text-right">Debit</TableHead>
+                        <TableHead className="text-right">Credit</TableHead>
+                        <TableHead className="text-right">Balance</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {statement.lines.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                            No transactions in this period.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {statement.lines.map((line, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="text-sm">{new Date(line.date).toLocaleDateString('en-KE')}</TableCell>
+                          <TableCell className="text-sm">{line.docType}</TableCell>
+                          <TableCell className="text-sm font-mono">{line.reference}</TableCell>
+                          <TableCell className="text-right text-sm">{line.debit > 0 ? formatKes(line.debit) : '—'}</TableCell>
+                          <TableCell className="text-right text-sm">{line.credit > 0 ? formatKes(line.credit) : '—'}</TableCell>
+                          <TableCell className="text-right text-sm font-medium">{formatKes(line.balance)}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="capitalize text-[10px]">{line.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
