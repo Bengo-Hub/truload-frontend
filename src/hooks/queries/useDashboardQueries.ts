@@ -49,6 +49,7 @@ export const DASHBOARD_QUERY_KEYS = {
   cargoVolume: (filters?: DashboardFilterParams) => ['dashboard', 'cargo-volume', filters] as const,
   tonnageTrend: (filters?: DashboardFilterParams, granularity?: string) =>
     ['dashboard', 'tonnage-trend', filters, granularity] as const,
+  toleranceTrend: (filters?: DashboardFilterParams) => ['dashboard', 'tolerance-trend', filters] as const,
 };
 
 /**
@@ -365,6 +366,15 @@ export function useTonnageTrend(
   return useQuery({
     queryKey: DASHBOARD_QUERY_KEYS.tonnageTrend(filters, granularity),
     queryFn: () => dashboardApi.getTonnageTrend(filters, granularity),
+    ...DASHBOARD_OPTIONS,
+    enabled: !!filters,
+  });
+}
+
+export function useToleranceTrend(filters?: DashboardFilterParams) {
+  return useQuery({
+    queryKey: DASHBOARD_QUERY_KEYS.toleranceTrend(filters),
+    queryFn: () => dashboardApi.getToleranceTrend(filters),
     ...DASHBOARD_OPTIONS,
     enabled: !!filters,
   });

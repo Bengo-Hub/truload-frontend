@@ -19,6 +19,8 @@ import {
   useTopTransporters,
   useCargoVolumeByType,
   useTonnageTrend,
+  useToleranceTrend,
+  useStationPerformance,
 } from '@/hooks/queries';
 import { getIsHqUser, getStationId } from '@/lib/auth/token';
 import { getEatQuickRange } from '@/lib/utils/dateRange';
@@ -89,6 +91,16 @@ function ReportingContent() {
   const { data: topTransporters, isLoading: loadingTransporters } = useTopTransporters(isCommercial ? filters : undefined);
   const { data: cargoVolume, isLoading: loadingCargo } = useCargoVolumeByType(isCommercial ? filters : undefined);
   const { data: tonnageTrend, isLoading: loadingTonnageTrend } = useTonnageTrend(isCommercial ? filters : undefined, 'Day');
+  const { data: toleranceTrend, isLoading: loadingToleranceTrend } = useToleranceTrend(isCommercial ? filters : undefined);
+  const { data: stationPerf, isLoading: loadingStationPerf } = useStationPerformance(isCommercial ? filters : undefined);
+
+  const stationUtilizationDisplay = useMemo(() =>
+    (stationPerf ?? []).map(s => ({
+      name: s.stationName,
+      weighings: s.totalWeighings,
+      avgProcessingMinutes: Math.round((s.avgProcessingTime / 60) * 10) / 10,
+    })),
+    [stationPerf]);
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -245,6 +257,34 @@ function ReportingContent() {
                     defaultChartType="line"
                     allowedChartTypes={['line', 'bar']}
                     isLoading={loadingThroughput}
+                  />
+                </div>
+              )}
+              {isCommercial && (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <ChartWrapper
+                    title="Tolerance Exception Trend"
+                    subtitle="Declared-vs-measured weight discrepancy rate over time"
+                    data={toleranceTrend ?? []}
+                    series={[
+                      { dataKey: 'toleranceExceptionRate', name: 'Exception Rate (%)', color: '#f43f5e' },
+                      { dataKey: 'toleranceExceededCount', name: 'Exceptions', color: '#f97316' },
+                    ]}
+                    defaultChartType="line"
+                    allowedChartTypes={['line', 'bar']}
+                    isLoading={loadingToleranceTrend}
+                  />
+                  <ChartWrapper
+                    title="Station Utilization"
+                    subtitle="Weighings processed and avg. turnaround (min) per station"
+                    data={stationUtilizationDisplay}
+                    series={[
+                      { dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' },
+                      { dataKey: 'avgProcessingMinutes', name: 'Avg. Turnaround (min)', color: '#f59e0b' },
+                    ]}
+                    defaultChartType="bar"
+                    allowedChartTypes={['bar', 'line']}
+                    isLoading={loadingStationPerf}
                   />
                 </div>
               )}

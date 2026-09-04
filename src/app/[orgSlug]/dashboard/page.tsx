@@ -45,6 +45,7 @@ import {
   useTopOffenders,
   useTopTransporters,
   useTonnageTrend,
+  useToleranceTrend,
   useUserStatistics,
   useUsersByStation,
   useVehicleDistributionData,
@@ -62,11 +63,13 @@ import {
   CheckCircle,
   FileText,
   Gavel,
+  Landmark,
   LayoutDashboard,
   Package,
   Percent,
   RefreshCcw,
   Scale,
+  ShieldAlert,
   Tag,
   TrendingUp,
   Truck,
@@ -163,16 +166,25 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
   const { data: userStats, isLoading: loadingUserStats } = useUserStatistics();
   const { data: complianceTrend, isLoading: loadingCompliance } = useComplianceTrend(isEnforcement ? filters : undefined);
   const { data: revenueByStation, isLoading: loadingRevStation } = useRevenueByStation(filters);
-  // Station performance has compliance rates — enforcement only
-  const { data: stationPerf, isLoading: loadingStations } = useStationPerformance(isEnforcement ? filters : undefined);
+  // Station performance is used by both: enforcement reads its compliance rates, commercial reads
+  // it as a "weighings/avg processing time per station" utilization comparison instead.
+  const { data: stationPerf, isLoading: loadingStations } = useStationPerformance(filters);
   const { data: usersByStation, isLoading: loadingUsersByStation } = useUsersByStation();
   // Commercial-only charts
   const { data: throughputData, isLoading: loadingThroughput } = useCommercialThroughput(isCommercial ? filters : undefined);
   const { data: topTransporters, isLoading: loadingTransporters } = useTopTransporters(isCommercial ? filters : undefined);
   const { data: cargoVolume, isLoading: loadingCargo } = useCargoVolumeByType(isCommercial ? filters : undefined);
   const { data: tonnageTrend, isLoading: loadingTonnageTrend } = useTonnageTrend(isCommercial ? filters : undefined, 'Day');
+  const { data: toleranceTrend, isLoading: loadingToleranceTrend } = useToleranceTrend(isCommercial ? filters : undefined);
 
   const isLoading = loadingWeighing;
+
+  const tariffRevenueKes = getStatValue(weighingStats, 'tariffRevenueKes');
+  const toleranceExceededCount = getStatValue(weighingStats, 'toleranceExceededCount');
+  const totalWeighingsForRate = getStatValue(weighingStats, 'totalWeighings');
+  const toleranceExceptionRate = totalWeighingsForRate > 0
+    ? Math.round((toleranceExceededCount / totalWeighingsForRate) * 1000) / 10
+    : 0;
 
   const revenueByStationDisplay = useMemo(() =>
     (revenueByStation ?? []).map(r => ({
@@ -190,12 +202,24 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
     })),
     [stationPerf]);
 
+  // Commercial-appropriate framing of the same station-performance data: weighings processed and
+  // average turnaround per station, without the compliance-rate column that only means something
+  // for enforcement. Deliberately not a fabricated "capacity %" — Station.OperatingHoursStart/End
+  // exist but aren't populated widely enough yet to divide by real available hours honestly.
+  const stationUtilizationDisplay = useMemo(() =>
+    (stationPerf ?? []).map(s => ({
+      name: s.stationName,
+      weighings: s.totalWeighings,
+      avgProcessingMinutes: Math.round((s.avgProcessingTime / 60) * 10) / 10,
+    })),
+    [stationPerf]);
+
   return (
     <div className="space-y-6">
       {/* Row 1: KPI stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading || loadingUserStats ? (
-          Array.from({ length: isCommercial ? 5 : 6 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: isCommercial ? 8 : 6 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <PermissionGate permissions="weighing.read">
@@ -232,6 +256,16 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
             {isCommercial && (
               <PermissionGate permissions="weighing.read">
                 <StatCard title="Transporters Served" value={formatNumber(getStatValue(weighingStats, 'uniqueTransporters'))} icon={Truck} color="bg-amber-500" />
+              </PermissionGate>
+            )}
+            {isCommercial && (
+              <PermissionGate permissions="weighing.read">
+                <StatCard title="Tariff Revenue (KES)" value={formatAmount(tariffRevenueKes, 'KES')} rawValue={tariffRevenueKes} icon={Landmark} color="bg-teal-600" />
+              </PermissionGate>
+            )}
+            {isCommercial && (
+              <PermissionGate permissions="weighing.read">
+                <StatCard title="Tolerance Exception Rate" value={`${toleranceExceptionRate}%`} icon={ShieldAlert} color="bg-rose-500" />
               </PermissionGate>
             )}
             <PermissionGate permissions="user.read">
@@ -275,16 +309,26 @@ function OverviewTab({ filters, isCommercial }: TabProps) {
             <ChartWrapper title="Cargo Volume by Type" subtitle="Weight distribution across cargo types" data={cargoVolume ?? []} series={[{ dataKey: 'volumeKg', name: 'Volume (kg)', color: '#8b5cf6' }]} defaultChartType="donut" allowedChartTypes={['donut', 'pie', 'bar']} isLoading={loadingCargo} />
           </PermissionGate>
         )}
+        {isCommercial && (
+          <PermissionGate permissions="weighing.read">
+            <ChartWrapper title="Tolerance Exception Trend" subtitle="Declared-vs-measured weight discrepancy rate over time" data={toleranceTrend ?? []} series={[{ dataKey: 'toleranceExceptionRate', name: 'Exception Rate (%)', color: '#f43f5e' }, { dataKey: 'toleranceExceededCount', name: 'Exceptions', color: '#f97316' }]} defaultChartType="line" allowedChartTypes={['line', 'bar']} isLoading={loadingToleranceTrend} />
+          </PermissionGate>
+        )}
         <PermissionGate permissions={isCommercial ? 'weighing.read' : 'receipt.read'}>
           <ChartWrapper title="Revenue by Station" subtitle={`Fee collection performance by weighbridge (${selectedCurrency})`} data={revenueByStationDisplay} series={[{ dataKey: 'revenue', name: `Revenue (${selectedCurrency})`, color: '#3b82f6' }]} defaultChartType="bar" allowedChartTypes={['bar', 'pie']} valueFormatter={formatRevenue} isLoading={loadingRevStation} />
         </PermissionGate>
       </div>
 
-      {/* Row 3: Station Performance (enforcement only — has compliance rates) and Users by Station */}
-      <div className={`grid grid-cols-1 gap-6 ${isEnforcement ? 'lg:grid-cols-2' : ''}`}>
+      {/* Row 3: Station Performance/Utilization and Users by Station */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {isEnforcement && (
           <PermissionGate permissions="weighing.read">
             <ChartWrapper title="Station Performance" subtitle="Weighings and compliance rates across stations" data={stationPerfDisplay} series={[{ dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' }, { dataKey: 'compliance', name: 'Compliance %', color: '#10b981' }]} defaultChartType="bar" allowedChartTypes={['bar', 'line']} isLoading={loadingStations} />
+          </PermissionGate>
+        )}
+        {isCommercial && (
+          <PermissionGate permissions="station.read">
+            <ChartWrapper title="Station Utilization" subtitle="Weighings processed and avg. turnaround (min) per station" data={stationUtilizationDisplay} series={[{ dataKey: 'weighings', name: 'Weighings', color: '#3b82f6' }, { dataKey: 'avgProcessingMinutes', name: 'Avg. Turnaround (min)', color: '#f59e0b' }]} defaultChartType="bar" allowedChartTypes={['bar', 'line']} isLoading={loadingStations} />
           </PermissionGate>
         )}
         {isCommercial && (
