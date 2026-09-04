@@ -31,6 +31,9 @@ const KEY_SCALE_TEST_REQUIRED = 'weighing.scale_test_required';
 const KEY_MAX_REWEIGH_CYCLES = 'weighing.max_reweigh_cycles';
 const KEY_CASE_CAPTURE_MODE = 'weighing.case_capture_mode';
 const KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS = 'commercial.pending_weighing_threshold_hours';
+const KEY_TARE_DRIFT_THRESHOLD_PERCENT = 'commercial.tare_drift_anomaly_threshold_percent';
+const KEY_RAPID_TARE_CHANGE_WINDOW_HOURS = 'commercial.rapid_tare_change_window_hours';
+const KEY_RAPID_TARE_CHANGE_MAX_COUNT = 'commercial.rapid_tare_change_max_count';
 
 export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: boolean }) {
   const { data: settings, isLoading } = useSettingsByCategory('Weighing');
@@ -43,6 +46,9 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
   const [caseCaptureMode, setCaseCaptureMode] = useState<string>('beyond_tolerance');
   const [operationalTolerance, setOperationalTolerance] = useState<string>('200');
   const [pendingThresholdHours, setPendingThresholdHours] = useState<string>('8');
+  const [tareDriftThresholdPercent, setTareDriftThresholdPercent] = useState<string>('5');
+  const [rapidTareChangeWindowHours, setRapidTareChangeWindowHours] = useState<string>('24');
+  const [rapidTareChangeMaxCount, setRapidTareChangeMaxCount] = useState<string>('3');
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -66,6 +72,15 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
 
     const pendingThresholdSetting = get(KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS);
     setPendingThresholdHours(pendingThresholdSetting?.settingValue ?? '8');
+
+    const tareDriftSetting = get(KEY_TARE_DRIFT_THRESHOLD_PERCENT);
+    setTareDriftThresholdPercent(tareDriftSetting?.settingValue ?? '5');
+
+    const rapidWindowSetting = get(KEY_RAPID_TARE_CHANGE_WINDOW_HOURS);
+    setRapidTareChangeWindowHours(rapidWindowSetting?.settingValue ?? '24');
+
+    const rapidMaxCountSetting = get(KEY_RAPID_TARE_CHANGE_MAX_COUNT);
+    setRapidTareChangeMaxCount(rapidMaxCountSetting?.settingValue ?? '3');
   }, [settings]);
 
   // Load operational tolerance from ToleranceSetting table (single source of truth)
@@ -86,6 +101,9 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
       ];
       if (isCommercial) {
         updates.push({ settingKey: KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS, settingValue: pendingThresholdHours });
+        updates.push({ settingKey: KEY_TARE_DRIFT_THRESHOLD_PERCENT, settingValue: tareDriftThresholdPercent });
+        updates.push({ settingKey: KEY_RAPID_TARE_CHANGE_WINDOW_HOURS, settingValue: rapidTareChangeWindowHours });
+        updates.push({ settingKey: KEY_RAPID_TARE_CHANGE_MAX_COUNT, settingValue: rapidTareChangeMaxCount });
       }
       await updateBatch.mutateAsync({ settings: updates });
 
@@ -105,7 +123,7 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
     } finally {
       setIsSaving(false);
     }
-  }, [scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, pendingThresholdHours, isCommercial, updateBatch, opAllowanceSetting, queryClient]);
+  }, [scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, pendingThresholdHours, tareDriftThresholdPercent, rapidTareChangeWindowHours, rapidTareChangeMaxCount, isCommercial, updateBatch, opAllowanceSetting, queryClient]);
 
   useEffect(() => {
     if (!settings?.length) return;
@@ -115,14 +133,17 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
       (get(KEY_SCALE_TEST_REQUIRED) === 'true') !== scaleTestRequired ||
       get(KEY_MAX_REWEIGH_CYCLES) !== maxReweighCycles ||
       (get(KEY_CASE_CAPTURE_MODE) || 'beyond_tolerance') !== caseCaptureMode ||
-      (isCommercial && (get(KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS) || '8') !== pendingThresholdHours);
+      (isCommercial && (get(KEY_COMMERCIAL_PENDING_THRESHOLD_HOURS) || '8') !== pendingThresholdHours) ||
+      (isCommercial && (get(KEY_TARE_DRIFT_THRESHOLD_PERCENT) || '5') !== tareDriftThresholdPercent) ||
+      (isCommercial && (get(KEY_RAPID_TARE_CHANGE_WINDOW_HOURS) || '24') !== rapidTareChangeWindowHours) ||
+      (isCommercial && (get(KEY_RAPID_TARE_CHANGE_MAX_COUNT) || '3') !== rapidTareChangeMaxCount);
 
     const toleranceChanged = opAllowanceSetting
       ? String(opAllowanceSetting.toleranceKg ?? 200) !== operationalTolerance
       : false;
 
     setHasChanges(settingsChanged || toleranceChanged);
-  }, [settings, scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, pendingThresholdHours, isCommercial, opAllowanceSetting]);
+  }, [settings, scaleTestRequired, maxReweighCycles, caseCaptureMode, operationalTolerance, pendingThresholdHours, tareDriftThresholdPercent, rapidTareChangeWindowHours, rapidTareChangeMaxCount, isCommercial, opAllowanceSetting]);
 
   if (isLoading || isLoadingTolerances) {
     return (
@@ -209,6 +230,63 @@ export function WeighingSettingsTab({ isCommercial = false }: { isCommercial?: b
             <p className="text-xs text-muted-foreground">
               Hours after first weight capture before a commercial transaction is considered stale
               (flagged as pending/open on the capture screen and surfaced to managers for follow-up).
+            </p>
+          </div>
+        )}
+
+        {isCommercial && (
+          <div className="space-y-4 pt-2">
+            <div>
+              <p className="text-sm font-medium">Tare anomaly detection</p>
+              <p className="text-xs text-muted-foreground">
+                Flags a tare reading for supervisor review in Tare Register &gt; Pending Review. Detection
+                is informational only — it never blocks the weighing capture itself.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tare-drift-threshold">Tare drift anomaly threshold (%)</Label>
+              <Input
+                id="tare-drift-threshold"
+                type="number"
+                min="0"
+                step="0.1"
+                value={tareDriftThresholdPercent}
+                onChange={(e) => setTareDriftThresholdPercent(e.target.value)}
+                className="max-w-[200px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                Flags a vehicle when a newly measured tare differs from its prior stored tare by more
+                than this percentage.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+              <div className="space-y-2">
+                <Label htmlFor="rapid-tare-window-hours">Rapid tare-change window (hours)</Label>
+                <Input
+                  id="rapid-tare-window-hours"
+                  type="number"
+                  min="1"
+                  value={rapidTareChangeWindowHours}
+                  onChange={(e) => setRapidTareChangeWindowHours(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rapid-tare-max-count">Max tare updates in that window</Label>
+                <Input
+                  id="rapid-tare-max-count"
+                  type="number"
+                  min="2"
+                  value={rapidTareChangeMaxCount}
+                  onChange={(e) => setRapidTareChangeMaxCount(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Flags a vehicle that accumulates this many tare re-measurements within the trailing
+              window — repeated changes in a short period outside active calibration/maintenance can
+              indicate a scale problem or an attempt to game the recorded tare.
             </p>
           </div>
         )}
