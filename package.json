@@ -74,6 +74,7 @@
     "@types/node": "^22.19.11",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.24",
     "eslint": "^9.39.2",
     "eslint-config-next": "^15.5.12",
@@ -85,7 +86,8 @@
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3",
-    "workbox-webpack-plugin": "^7.4.0"
+    "workbox-webpack-plugin": "^7.4.0",
+    "ws": "^8.19.0"
   },
   "engines": {
     "node": ">=20.0.0",
