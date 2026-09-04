@@ -1,6 +1,6 @@
 import { test, expect, request as pwRequest, type APIRequestContext, type Page } from '@playwright/test';
 import * as path from 'path';
-import { API, FRONTEND_BASE, ORG, STATION_CODE, DEMO_STAFF_PASSWORD, SCREENSHOT_DIR, slug, ssoLogin } from './helpers/ssoLogin';
+import { API, FRONTEND_BASE, ORG, STATION_CODE, DEMO_STAFF_PASSWORD, SCREENSHOT_DIR, slug, ssoLogin, waitForDashboardReady } from './helpers/ssoLogin';
 
 /**
  * Live-backend verification for the commercial-mode permission-seeding fix
@@ -9,7 +9,7 @@ import { API, FRONTEND_BASE, ORG, STATION_CODE, DEMO_STAFF_PASSWORD, SCREENSHOT_
  * missing analytics.read (Reports/Custom Reports 403) and weighing.read (could capture a weighing
  * but not fetch its result or print its ticket).
  *
- * Uses the existing seeded commercial demo tenant (TRULOAD-DEMO) and its seeded demo personas
+ * Uses the existing seeded commercial demo tenant (CODEVERTEX-DEMO) and its seeded demo personas
  * (commercial.operator@/commercial.finance@/commercial.manager@/commercial.supervisor@/
  * commercial.auditor@demo.codevertexafrica.com) rather than creating new test users, per
  * [[project_demo_tenant]] (never touch real tenant data).
@@ -103,7 +103,11 @@ for (const { role, email, password } of ROLES) {
 
       // Supplementary UI evidence: the Dashboard's StationSelectFilter dropdown is the actual
       // real-world surface this permission gates — confirm it renders without an error state.
-      await browserPage?.goto(`${FRONTEND_BASE}/${ORG}/dashboard`, { waitUntil: 'networkidle' }).catch(() => {});
+      // networkidle alone is not sufficient here (confirmed via live screenshots, 2026-09-04) - the
+      // stations query can still be resolving client-side after the network briefly goes quiet, so
+      // wait for the filter's own placeholder text to actually appear before capturing evidence.
+      await browserPage?.goto(`${FRONTEND_BASE}/${ORG}/dashboard`, { waitUntil: 'domcontentloaded' }).catch(() => {});
+      if (browserPage) await waitForDashboardReady(browserPage);
       await browserPage
         ?.screenshot({ path: path.join(SCREENSHOT_DIR, `${slug(role)}-06-dashboard-stations-check.png`), fullPage: true })
         .catch(() => {});

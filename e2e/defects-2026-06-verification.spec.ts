@@ -30,7 +30,7 @@ import { API, ORG, ssoLogin } from './helpers/ssoLogin';
  *     driverPhone through to ProsecutionSection, whose openPesaflowModal seeds the form with them.
  *
  * Issues 2 and 4 are enforcement/case-management concepts that don't exist on the commercial-
- * weighing demo tenant (TRULOAD-DEMO) this session has SSO credentials for — the original defects
+ * weighing demo tenant (CODEVERTEX-DEMO) this session has SSO credentials for — the original defects
  * were reported on KURA (an axle-load-enforcement tenant). Their checks below are real (not stubs)
  * but gated behind E2E_EMAIL/E2E_PASSWORD against an enforcement tenant (same convention as
  * api-idempotency.spec.ts) and skip without those credentials, which this session does not have.
