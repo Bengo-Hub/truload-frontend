@@ -33,6 +33,7 @@ import { DriverModal } from '@/components/weighing/modals/DriverModal';
 import { EntityModal, type ModalMode } from '@/components/weighing/modals/EntityModal';
 import { OriginDestinationModal } from '@/components/weighing/modals/OriginDestinationModal';
 import { TransporterModal } from '@/components/weighing/modals/TransporterModal';
+import { TransporterStatementDialog } from '@/components/weighing/modals/TransporterStatementDialog';
 import { VehicleMakeModal } from '@/components/weighing/modals/VehicleMakeModal';
 import { VehicleModal } from '@/components/weighing/modals/VehicleModal';
 import {
@@ -76,6 +77,7 @@ import {
     Package,
     Pencil,
     Plus,
+    Receipt,
     Route as RoadIcon,
     Search,
     Send,
@@ -187,6 +189,8 @@ function TransportersTab() {
   const deleteMutation = useDeleteTransporter();
   const invitePortalMutation = useInviteTransporterToPortal();
   const [invitingId, setInvitingId] = useState<string | null>(null);
+  const canViewStatements = useHasPermission('billing.statements.view');
+  const [statementTransporter, setStatementTransporter] = useState<TransporterView | null>(null);
 
   const handleInviteToPortal = async (t: TransporterView) => {
     setInvitingId(t.id);
@@ -289,6 +293,17 @@ function TransportersTab() {
                           <Send className="h-4 w-4" />
                         )}
                       </Button>
+                      {canViewStatements && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setStatementTransporter(t)}
+                          title="View Statement"
+                        >
+                          <Receipt className="h-4 w-4" />
+                        </Button>
+                      )}
                       <ActionButtons
                         onView={() => openModal('view', t)}
                         onEdit={() => openModal('edit', t)}
@@ -319,6 +334,15 @@ function TransportersTab() {
         entityName="transporter"
         isDeleting={deleteMutation.isPending}
       />
+
+      {canViewStatements && (
+        <TransporterStatementDialog
+          open={!!statementTransporter}
+          onOpenChange={(open) => !open && setStatementTransporter(null)}
+          transporterId={statementTransporter?.id ?? null}
+          transporterName={statementTransporter?.name}
+        />
+      )}
     </>
   );
 }
