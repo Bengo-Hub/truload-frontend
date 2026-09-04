@@ -1,5 +1,5 @@
 import { test, expect, request as pwRequest, type APIRequestContext } from '@playwright/test';
-import { API, ORG, ssoLogin } from './helpers/ssoLogin';
+import { API, ORG, ssoLogin, humanDelay } from './helpers/ssoLogin';
 
 /**
  * Live verification for the 4 folded-in 2026-06-02 defects (full original detail in
@@ -54,6 +54,7 @@ async function enforcementLogin(): Promise<string> {
 
 test.describe('Issue 1 — eCitizen/Pesaflow payment callback redirect (live, no auth required)', () => {
   test('legacy GET fallback callback resolves an absolute frontend URL, not a relative 404', async () => {
+    await humanDelay();
     const ctx = await pwRequest.newContext({ baseURL: API });
     const res = await ctx.get('/api/v1/payments/callback/ecitizen-pesaflow?invoice_ref=E2E-NONEXISTENT-INVOICE&status=success', {
       maxRedirects: 0,
@@ -74,6 +75,7 @@ test.describe('Issue 3 — duplicate driver rows (live, commercial demo Operator
   let api: APIRequestContext;
 
   test.beforeAll(async ({ browser }) => {
+    await humanDelay(800, 2000);
     const email = process.env.E2E_OPERATOR_EMAIL || 'commercial.operator@demo.codevertexafrica.com';
     const password = process.env.E2E_OPERATOR_PASSWORD || process.env.SEED_DEMO_STAFF_PASSWORD || 'DemoStaff2024!';
     const { token, page } = await ssoLogin(browser, 'Commercial Operator (driver dedup)', email, password);
@@ -89,12 +91,14 @@ test.describe('Issue 3 — duplicate driver rows (live, commercial demo Operator
   });
 
   test('POST /drivers/deduplicate runs cleanly and is idempotent (2nd run finds 0 groups)', async () => {
+    await humanDelay();
     const first = await api.post('/api/v1/drivers/deduplicate');
     expect(first.ok(), `deduplicate run #1 (got ${first.status()})`).toBeTruthy();
     const firstBody = await first.json();
     // eslint-disable-next-line no-console
     console.log('[issue-3] first dedupe run result:', JSON.stringify(firstBody));
 
+    await humanDelay();
     const second = await api.post('/api/v1/drivers/deduplicate');
     expect(second.ok(), `deduplicate run #2 (got ${second.status()})`).toBeTruthy();
     const secondBody = await second.json();
@@ -108,6 +112,7 @@ test.describe('Issue 2 — case register escalation UX (live, enforcement tenant
 
   let api: APIRequestContext;
   test.beforeAll(async () => {
+    await humanDelay(800, 2000);
     const token = await enforcementLogin();
     api = await pwRequest.newContext({
       baseURL: ENFORCEMENT_API,
@@ -119,6 +124,7 @@ test.describe('Issue 2 — case register escalation UX (live, enforcement tenant
   });
 
   test('case search results carry hasProsecution/prosecutionStatus for the badge + View/Escalate swap', async () => {
+    await humanDelay();
     const res = await api.post('/api/v1/case/cases/search', { data: { page: 1, pageSize: 5 } });
     expect(res.ok(), `case search (got ${res.status()})`).toBeTruthy();
     const body = await res.json();
@@ -133,6 +139,7 @@ test.describe('Issue 4 — Pay Online prefill (live, enforcement tenant)', () =>
 
   let api: APIRequestContext;
   test.beforeAll(async () => {
+    await humanDelay(800, 2000);
     const token = await enforcementLogin();
     api = await pwRequest.newContext({
       baseURL: ENFORCEMENT_API,
@@ -144,6 +151,7 @@ test.describe('Issue 4 — Pay Online prefill (live, enforcement tenant)', () =>
   });
 
   test('a case with a linked driver exposes driverIdNumber/driverPhoneNumber for the Pay Online prefill', async () => {
+    await humanDelay();
     const res = await api.post('/api/v1/case/cases/search', { data: { page: 1, pageSize: 20 } });
     expect(res.ok(), `case search (got ${res.status()})`).toBeTruthy();
     const body = await res.json();

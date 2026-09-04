@@ -45,6 +45,23 @@ export function slug(role: string): string {
 }
 
 /**
+ * "Think time" before a raw APIRequestContext call (api.get/post/etc.) — these bypass the browser
+ * entirely, so playwright.config.ts's launchOptions.slowMo (which paces real click/fill/goto actions)
+ * never touches them. Without an explicit pause here, a test can fire several backend requests back
+ * to back in milliseconds, which is exactly the automation-speed pattern that tripped the live rate
+ * limiter hard enough to restart a backend pod (2026-09-05 — kubelet liveness-probe failures, not
+ * just a theoretical risk). Call this immediately before every direct api.* call in a live-backend
+ * spec. Randomized (not a fixed sleep) so a whole suite run doesn't fall into its own predictable,
+ * still-inhuman rhythm. Override the range with E2E_HUMAN_DELAY_MIN_MS/E2E_HUMAN_DELAY_MAX_MS.
+ */
+export async function humanDelay(minMs?: number, maxMs?: number): Promise<void> {
+  const min = minMs ?? (process.env.E2E_HUMAN_DELAY_MIN_MS ? parseInt(process.env.E2E_HUMAN_DELAY_MIN_MS, 10) : 400);
+  const max = maxMs ?? (process.env.E2E_HUMAN_DELAY_MAX_MS ? parseInt(process.env.E2E_HUMAN_DELAY_MAX_MS, 10) : 1200);
+  const delay = min + Math.random() * (max - min);
+  await new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+/**
  * Waits for the dashboard to be MEANINGFULLY loaded, not just navigated-to. `waitUntil:
  * 'networkidle'` on its own is not sufficient (confirmed via live screenshots, 2026-09-04) - a
  * Next.js page can finish its initial network-idle window before its client-side data queries

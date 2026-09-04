@@ -1,6 +1,6 @@
 import { test, expect, request as pwRequest, type APIRequestContext, type Page } from '@playwright/test';
 import * as path from 'path';
-import { API, FRONTEND_BASE, ORG, STATION_CODE, DEMO_STAFF_PASSWORD, SCREENSHOT_DIR, slug, ssoLogin, waitForDashboardReady } from './helpers/ssoLogin';
+import { API, FRONTEND_BASE, ORG, STATION_CODE, DEMO_STAFF_PASSWORD, SCREENSHOT_DIR, slug, ssoLogin, waitForDashboardReady, humanDelay } from './helpers/ssoLogin';
 
 /**
  * Live-backend verification for the commercial-mode permission-seeding fix
@@ -77,12 +77,16 @@ const ROLES: RoleCreds[] = [
 for (const { role, email, password } of ROLES) {
   test.describe(`${role} — commercial-mode access (live)`, () => {
     test.skip(!email || !password, `no seeded demo persona / E2E_*_EMAIL+PASSWORD available for ${role}`);
-    test.setTimeout(120_000);
+    test.setTimeout(150_000);
 
     let api: APIRequestContext;
     let browserPage: Page | undefined;
 
     test.beforeAll(async ({ browser }) => {
+      // Stagger this persona's login against whichever one ran immediately before it in the same
+      // suite run, rather than firing SSO/login requests back to back the instant the previous
+      // persona's afterAll finishes.
+      await humanDelay(800, 2000);
       const { token, page } = await ssoLogin(browser, role, email!, password!);
       browserPage = page;
       api = await pwRequest.newContext({
@@ -97,6 +101,7 @@ for (const { role, email, password } of ROLES) {
     });
 
     test('Stations list is reachable (was 403 before the fix)', async () => {
+      await humanDelay();
       const res = await api.get('/api/v1/Stations');
       expect(res.status(), 'GET /Stations should not 403').not.toBe(403);
       expect(res.ok(), `GET /Stations (got ${res.status()})`).toBeTruthy();
@@ -114,6 +119,7 @@ for (const { role, email, password } of ROLES) {
     });
 
     test('Reports catalog is reachable', async () => {
+      await humanDelay();
       const res = await api.get('/api/v1/reports/catalog');
       expect(res.status(), 'GET /reports/catalog should not 403').not.toBe(403);
       expect(res.ok(), `GET /reports/catalog (got ${res.status()})`).toBeTruthy();
@@ -139,6 +145,7 @@ test.describe('Commercial Operator — full weighing session end-to-end (live)',
   const created: { weighingId?: string } = {};
 
   test.beforeAll(async ({ browser }) => {
+    await humanDelay(800, 2000);
     const { token, page } = await ssoLogin(browser, 'Commercial Operator (weighing session)', operator.email!, operator.password!);
     browserPage = page;
     api = await pwRequest.newContext({
@@ -157,7 +164,12 @@ test.describe('Commercial Operator — full weighing session end-to-end (live)',
   });
 
   test('initiate -> first weight -> second weight -> fetch result -> ticket pdf', async () => {
+    // Each step below is separated by humanDelay() — a real operator's session has minutes between
+    // a vehicle arriving/weighing/leaving, not milliseconds; back-to-back automation-speed requests
+    // are what tripped the live rate limiter hard enough to restart a backend pod (2026-09-05).
+
     // 1. Resolve the demo station id (Stations must already be reachable per the tests above).
+    await humanDelay();
     const stationsRes = await api.get('/api/v1/Stations');
     expect(stationsRes.ok(), 'resolve stations').toBeTruthy();
     const stations = await stationsRes.json();
@@ -167,6 +179,7 @@ test.describe('Commercial Operator — full weighing session end-to-end (live)',
     expect(station, `station ${STATION_CODE} should exist`).toBeTruthy();
 
     // 2. Initiate a commercial weighing (POST to the controller's base route, not "/initiate").
+    await humanDelay();
     const vehicleRegNo = `KDE2E${Date.now() % 100000}`;
     const initRes = await api.post('/api/v1/commercial-weighing', {
       data: { stationId: station.id, vehicleRegNo, weighingScaleType: 'mobile' },
@@ -177,23 +190,27 @@ test.describe('Commercial Operator — full weighing session end-to-end (live)',
     expect(created.weighingId, 'initiate should return a weighing id').toBeTruthy();
 
     // 3. First weight (tare pass).
+    await humanDelay();
     const firstRes = await api.post(`/api/v1/commercial-weighing/${created.weighingId}/first-weight`, {
       data: { weightKg: 12000, weightType: 'tare' },
     });
     expect(firstRes.ok(), `first-weight (got ${firstRes.status()})`).toBeTruthy();
 
     // 4. Second weight (gross pass — system derives net weight).
+    await humanDelay();
     const secondRes = await api.post(`/api/v1/commercial-weighing/${created.weighingId}/second-weight`, {
       data: { weightKg: 30000 },
     });
     expect(secondRes.ok(), `second-weight (got ${secondRes.status()})`).toBeTruthy();
 
     // 5. Fetch result (GET /{id}) — this is the exact step that 403'd before the weighing.read fix.
+    await humanDelay();
     const resultRes = await api.get(`/api/v1/commercial-weighing/${created.weighingId}`);
     expect(resultRes.status(), 'GetResult should not 403 for an Operator on their own weighing').not.toBe(403);
     expect(resultRes.ok(), `GetResult (got ${resultRes.status()})`).toBeTruthy();
 
     // 6. Print the ticket — also 403'd before the fix. Confirm it's an actual PDF, not just a 200.
+    await humanDelay();
     const ticketRes = await api.get(`/api/v1/commercial-weighing/${created.weighingId}/ticket/pdf`);
     expect(ticketRes.status(), 'ticket/pdf should not 403 for an Operator on their own weighing').not.toBe(403);
     expect(ticketRes.ok(), `ticket/pdf (got ${ticketRes.status()})`).toBeTruthy();

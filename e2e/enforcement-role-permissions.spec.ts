@@ -1,6 +1,6 @@
 import { test, expect, request as pwRequest, type APIRequestContext, type Page } from '@playwright/test';
 import * as path from 'path';
-import { API, FRONTEND_BASE, DEMO_STAFF_PASSWORD, SCREENSHOT_DIR, slug, ssoLogin, waitForDashboardReady } from './helpers/ssoLogin';
+import { API, FRONTEND_BASE, DEMO_STAFF_PASSWORD, SCREENSHOT_DIR, slug, ssoLogin, waitForDashboardReady, humanDelay } from './helpers/ssoLogin';
 
 /**
  * Live-backend verification for the codevertex-demo axle-load-enforcement outlet (CODEVERTEX-DEMO-ENF,
@@ -52,12 +52,13 @@ const ROLES: RoleCreds[] = [
 for (const { role, email, password } of ROLES) {
   test.describe(`${role} — enforcement outlet access (live)`, () => {
     test.skip(!email || !password, `no seeded demo persona / E2E_ENF_*_EMAIL+PASSWORD available for ${role}`);
-    test.setTimeout(120_000);
+    test.setTimeout(150_000);
 
     let api: APIRequestContext;
     let browserPage: Page | undefined;
 
     test.beforeAll(async ({ browser }) => {
+      await humanDelay(800, 2000);
       const { token, page } = await ssoLogin(browser, role, email!, password!, ENF_ORG, ENF_STATION_CODE);
       browserPage = page;
       api = await pwRequest.newContext({
@@ -72,6 +73,7 @@ for (const { role, email, password } of ROLES) {
     });
 
     test('Stations list is reachable for the ENF outlet', async () => {
+      await humanDelay();
       const res = await api.get('/api/v1/Stations');
       expect(res.status(), 'GET /Stations should not 403').not.toBe(403);
       expect(res.ok(), `GET /Stations (got ${res.status()})`).toBeTruthy();
@@ -90,6 +92,7 @@ for (const { role, email, password } of ROLES) {
     });
 
     test('Reports catalog is reachable', async () => {
+      await humanDelay();
       const res = await api.get('/api/v1/reports/catalog');
       expect(res.status(), 'GET /reports/catalog should not 403').not.toBe(403);
       expect(res.ok(), `GET /reports/catalog (got ${res.status()})`).toBeTruthy();
