@@ -10,25 +10,30 @@ import { API, FRONTEND_BASE, ORG, STATION_CODE, DEMO_STAFF_PASSWORD, SCREENSHOT_
  * but not fetch its result or print its ticket).
  *
  * Uses the existing seeded commercial demo tenant (TRULOAD-DEMO) and its seeded demo personas
- * (commercial.operator@demo.codevertexafrica.com / commercial.finance@demo.codevertexafrica.com)
- * rather than creating new test users, per [[project_demo_tenant]] (never touch real tenant data).
+ * (commercial.operator@/commercial.finance@/commercial.manager@/commercial.supervisor@/
+ * commercial.auditor@demo.codevertexafrica.com) rather than creating new test users, per
+ * [[project_demo_tenant]] (never touch real tenant data).
  *
  * Login is driven through the REAL SSO/PKCE browser flow (see ./helpers/ssoLogin.ts) — these demo
  * accounts have no usable local password, so a direct POST /api/v1/auth/login (the old version of
  * this helper) 401s every time. The resulting truload access token is then used to build the same
  * precise API-request-context assertions this spec always had.
  *
- * `COMMERCIAL_SUPERVISOR`/`COMMERCIAL_AUDITOR`/`COMMERCIAL_MANAGER` have NO seeded demo personas at
- * all yet (AuthDemoSyncService only syncs `commercial_weighing_operator`/`commercial_finance` roles
- * from auth-api's seed) — those three stay skipped below rather than inventing accounts. Extending
- * the demo seed to cover them is a separate, cross-repo decision (see the plan's Phase 5b notes).
+ * All 5 commercial roles now have seeded demo personas (auth-api's `truloadDemoStaff`, roles
+ * `commercial_weighing_manager`/`commercial_weighing_supervisor`/`commercial_weighing_auditor`
+ * added alongside the existing `commercial_weighing_operator`/`commercial_finance`, synced by
+ * truload-backend's `AuthDemoSyncService.RoleMap` to `Commercial Weighing Manager`/
+ * `Commercial Supervisor`/`Commercial Auditor`) — completing the full 5-commercial-role sweep this
+ * spec originally set out to cover. Note this still depends on the live infra fixes documented in
+ * the plan (`commercial_tariff_rules` ownership + `Nats:Enabled`) actually landing before
+ * `AuthDemoSyncService` has ever run live — see the top-level plan file's most recent dated
+ * sections before assuming these accounts already exist server-side.
  *
- * Env overrides (all have working live defaults — no env vars required to run Operator/Finance):
+ * Env overrides (all have working live defaults — no env vars required for any of the 5 roles):
  *   TRULOAD_API_URL, TRULOAD_FRONTEND_URL, TRULOAD_AUTH_UI_URL, E2E_COMMERCIAL_ORG_SLUG,
  *   E2E_COMMERCIAL_STATION_CODE, SEED_DEMO_STAFF_PASSWORD — see ./helpers/ssoLogin.ts for defaults.
- *   E2E_OPERATOR_EMAIL/PASSWORD, E2E_FINANCE_EMAIL/PASSWORD — override the demo persona if needed.
- *   E2E_SUPERVISOR_/E2E_AUDITOR_/E2E_MANAGER_*_EMAIL+PASSWORD — set these to un-skip the 3 roles
- *     with no seeded persona, once accounts exist for them.
+ *   E2E_OPERATOR_/E2E_FINANCE_/E2E_MANAGER_/E2E_SUPERVISOR_/E2E_AUDITOR_*_EMAIL+PASSWORD — override
+ *     any individual demo persona if needed.
  *
  * Screenshots are written to test-results/phase0-evidence/ (git-ignored) as before/after evidence
  * for the permission fix — one set per role covering the station picker, the SSO hosted login form,
@@ -52,9 +57,21 @@ const ROLES: RoleCreds[] = [
     email: process.env.E2E_FINANCE_EMAIL || 'commercial.finance@demo.codevertexafrica.com',
     password: process.env.E2E_FINANCE_PASSWORD || DEMO_STAFF_PASSWORD,
   },
-  // No seeded demo persona exists for these three roles yet — stay skipped unless env-provided.
-  { role: 'Commercial Supervisor', email: process.env.E2E_SUPERVISOR_EMAIL, password: process.env.E2E_SUPERVISOR_PASSWORD },
-  { role: 'Commercial Auditor', email: process.env.E2E_AUDITOR_EMAIL, password: process.env.E2E_AUDITOR_PASSWORD },
+  {
+    role: 'Commercial Manager',
+    email: process.env.E2E_MANAGER_EMAIL || 'commercial.manager@demo.codevertexafrica.com',
+    password: process.env.E2E_MANAGER_PASSWORD || DEMO_STAFF_PASSWORD,
+  },
+  {
+    role: 'Commercial Supervisor',
+    email: process.env.E2E_SUPERVISOR_EMAIL || 'commercial.supervisor@demo.codevertexafrica.com',
+    password: process.env.E2E_SUPERVISOR_PASSWORD || DEMO_STAFF_PASSWORD,
+  },
+  {
+    role: 'Commercial Auditor',
+    email: process.env.E2E_AUDITOR_EMAIL || 'commercial.auditor@demo.codevertexafrica.com',
+    password: process.env.E2E_AUDITOR_PASSWORD || DEMO_STAFF_PASSWORD,
+  },
 ];
 
 for (const { role, email, password } of ROLES) {
