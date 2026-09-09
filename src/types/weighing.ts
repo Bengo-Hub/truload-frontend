@@ -635,6 +635,8 @@ export interface CommercialWeighingResult {
   id: string;
   ticketNumber: string;
   controlStatus: string;
+  /** "pending" | "first_weight_captured" | "awaiting_reweigh" | "captured" | "voided". */
+  captureStatus: string;
   weighingMode: 'commercial';
 
   // Vehicle info
@@ -663,6 +665,16 @@ export interface CommercialWeighingResult {
   secondWeightKg?: number;
   secondWeightType?: 'tare' | 'gross';
   secondWeightAt?: string;
+  /** Timestamp of the most recent capture (first weight or latest reweigh). */
+  lastWeightCapturedAt?: string;
+  /**
+   * Only set by getPendingCommercialByPlate: true when this candidate's lastWeightCapturedAt is
+   * within the configured auto-match window (safe to resume without an override), false when
+   * older (resuming requires the manual_weight_override permission + a reason).
+   */
+  isWithinAutoWindow?: boolean;
+  /** Full capture history: first weight, second weight, and any reweighs, in sequence order. */
+  captureEvents: WeighingCaptureEvent[];
 
   tareWeightKg?: number;
   grossWeightKg?: number;
@@ -724,6 +736,24 @@ export interface CommercialAxleWeight {
   pass: 'first' | 'second';
 }
 
+/** One entry in a commercial weighing transaction's full capture history. */
+export interface WeighingCaptureEvent {
+  id: string;
+  sequenceNo: number;
+  /** Null for the 1st/2nd weight; 1, 2, 3... for reweighs. */
+  reweighNo?: number | null;
+  /** "First Weight" | "Second Weight" | "Reweigh #N". */
+  label: string;
+  weightKg: number;
+  weightType: 'tare' | 'gross';
+  capturedAt: string;
+  captureSource: string;
+  isManualEntry: boolean;
+  isFinalizingEvent: boolean;
+  reweighReason?: string;
+  capturedByUserName?: string;
+}
+
 /** Request to initiate a commercial weighing */
 export interface InitiateCommercialWeighingRequest {
   stationId: string;
@@ -753,13 +783,32 @@ export interface CaptureFirstWeightRequest {
   axleWeights?: number[];
 }
 
-/** Request to capture the second weight */
+/** Request to capture the next weight in sequence: the second weight, or a subsequent reweigh. */
 export interface CaptureSecondWeightRequest {
   weightKg: number;
-  /** Per-axle (mobile) or per-deck (multideck) weights for second pass. Optional. */
+  /** Per-axle (mobile) or per-deck (multideck) weights for this pass. Optional. */
   axleWeights?: number[];
   /** Expected net weight from order/dispatch for immediate tolerance evaluation. */
   expectedNetWeightKg?: number | null;
+  /**
+   * true (default) finalizes/bills the transaction. false saves this capture as a reweigh and
+   * keeps the transaction open (captureStatus becomes "awaiting_reweigh") - no invoice yet.
+   * Requires reweighReason when false.
+   */
+  finalize?: boolean;
+  /** Why a reweigh was needed, e.g. "over_limit_adjust_cargo". Required when finalize is false or isOverrideAttach is true. */
+  reweighReason?: string;
+  /**
+   * true when staff explicitly attached this capture to a transaction found OUTSIDE the
+   * auto-match window rather than an auto-matched one. Requires the manual_weight_override
+   * permission and a non-empty reweighReason.
+   */
+  isOverrideAttach?: boolean;
+}
+
+/** Request to void a pending/open commercial weighing transaction. */
+export interface VoidCommercialWeighingRequest {
+  reason: string;
 }
 
 /** Request to use stored tare weight */

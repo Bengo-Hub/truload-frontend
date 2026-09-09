@@ -60,8 +60,11 @@ import {
   rejectToleranceException,
   updateQualityDeduction,
   useStoredTare,
+  voidCommercialWeighing,
 } from '@/lib/api/weighing';
 import { ResumeWeighingDialog } from '@/components/weighing/ResumeWeighingDialog';
+import { ActiveWeighingsBoard } from '@/components/weighing/ActiveWeighingsBoard';
+import type { CaptureNextWeightOptions } from '@/components/weighing/steps/CommercialSecondWeightStep';
 import { getCurrentOrganization } from '@/lib/api/setup';
 import { TreasuryCheckoutDialog } from '@/components/payments/TreasuryCheckoutDialog';
 import type {
@@ -104,6 +107,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const [result, setResult] = useState<CommercialWeighingResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   const [showToleranceDialog, setShowToleranceDialog] = useState(false);
   const [showRejectToleranceDialog, setShowRejectToleranceDialog] = useState(false);
   const [rejectToleranceReason, setRejectToleranceReason] = useState('');
@@ -156,15 +160,20 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const feeIsConfigured = !isFacilityOwned && (orgData?.commercialWeighingFeeKes ?? 0) > 0 && !!orgData?.paymentGateway;
   const tenantSlug = orgData?.ssoTenantSlug ?? '';
 
-  // Commercial pending-weighing threshold (hours) — configured under Setup > Settings > Weighing
-  // (ApplicationSettings key `commercial.pending_weighing_threshold_hours`, editable there). That
+  // Reweigh auto-match window (minutes) — configured under Setup > Settings > Weighing
+  // (ApplicationSettings key `commercial.reweigh_match_window_minutes`, editable there). That
   // endpoint is admin-only, so only fetch it when the current user actually has access; regular
   // operators fall back to the backend's own default (see getPendingCommercialByPlate).
   const canReadWeighingSettings = useHasPermission('system.security_policy');
   const { data: weighingSettings } = useSettingsByCategory('Weighing', canReadWeighingSettings);
-  const pendingThresholdHours = weighingSettings?.find(
-    (s) => s.settingKey === 'commercial.pending_weighing_threshold_hours'
+  const pendingMatchWindowMinutes = weighingSettings?.find(
+    (s) => s.settingKey === 'commercial.reweigh_match_window_minutes'
   )?.settingValue;
+
+  // Manual override for attaching a capture to a transaction found OUTSIDE the auto-match window
+  // (via the resume dialog or the Active Weighings board).
+  const canOverrideAttach = useHasPermission('manual_weight_override');
+  const [pendingOverride, setPendingOverride] = useState<{ isOverrideAttach: boolean; reweighReason?: string } | null>(null);
 
   const weighingUI = useWeighingUI({ stationId: currentStation?.id });
   const {
@@ -211,10 +220,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
   // Check for open (first-weight-only) transactions when plate is entered on the capture step
   const { data: pendingTransactions } = useQuery({
-    queryKey: ['commercial-pending-by-plate', debouncedPlate, pendingThresholdHours],
+    queryKey: ['commercial-pending-by-plate', debouncedPlate, pendingMatchWindowMinutes],
     queryFn: () => getPendingCommercialByPlate(
       debouncedPlate,
-      pendingThresholdHours != null ? parseInt(pendingThresholdHours, 10) : undefined
+      pendingMatchWindowMinutes != null ? parseInt(pendingMatchWindowMinutes, 10) : undefined
     ),
     enabled: debouncedPlate.length >= 5 && currentStep === 'capture' && !transactionId,
     staleTime: 10_000,
@@ -441,7 +450,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     }
   }, [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights]);
 
-  const handleCaptureSecondWeight = useCallback(async (expectedNetWeightKg?: number | null) => {
+  const handleCaptureSecondWeight = useCallback(async (options: CaptureNextWeightOptions) => {
     if (!transactionId) return;
     const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
     if (weightKg <= 0) { toast.error('No weight to capture.'); return; }
@@ -452,18 +461,37 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         ? capturedAxleWeights
         : deckWeights.length > 0 ? deckWeights.map((d) => d.weight) : undefined;
 
-      const updated = await captureSecondWeight(transactionId, { weightKg, axleWeights, expectedNetWeightKg });
+      // isOverrideAttach/its reason only apply the FIRST capture after resuming an out-of-window
+      // transaction - consume it so a later reweigh on the same transaction doesn't keep resending it.
+      const override = pendingOverride;
+      setPendingOverride(null);
+
+      const updated = await captureSecondWeight(transactionId, {
+        weightKg,
+        axleWeights,
+        expectedNetWeightKg: options.expectedNetWeightKg,
+        finalize: options.finalize,
+        reweighReason: options.reweighReason ?? override?.reweighReason,
+        isOverrideAttach: override?.isOverrideAttach,
+      });
       setResult(updated);
-      toast.success(`Second weight captured. Net weight: ${formatWeight(updated.netWeightKg ?? 0)} kg`);
       if (mode === 'mobile') { setCapturedAxleWeights([]); setCurrentAxle(1); }
-      goToNextStep();
+
+      if (options.finalize) {
+        toast.success(`Second weight captured. Net weight: ${formatWeight(updated.netWeightKg ?? 0)} kg`);
+        goToNextStep();
+      } else {
+        toast.info('Reweigh saved. Transaction stays open — resume it when the vehicle returns.');
+        // Stay on this step: CommercialSecondWeightStep already shows the saved summary plus a
+        // ready capture UI for the next reading.
+      }
     } catch (err) {
       console.error('Failed to capture second weight:', err);
       toast.error('Failed to capture weight. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights]);
+  }, [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights, pendingOverride]);
 
   const handleUseStoredTare = useCallback(async (overrideTareKg?: number) => {
     if (!transactionId) return;
@@ -582,15 +610,35 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     setDeckWeights([]); setCapturedAxleWeights([]); setCurrentAxle(1);
     setCargoDetails({ consignmentNo: '', orderReference: '', cargoType: '', origin: '', destination: '', sealNumbers: '', trailerRegNo: '', expectedNetWeightKg: '', remarks: '' });
     setLiveWeightKg(0);
+    setPendingOverride(null);
     if (middleware.connected) middleware.resetSession();
   }, [middleware, setVehiclePlate, setIsPlateDisabled, setFrontViewImage, setOverviewImage,
       setSelectedDriverId, setSelectedTransporterId, setSelectedCargoId, setSelectedOriginId, setSelectedDestinationId]);
 
-  const confirmCancelWeighing = useCallback(() => {
+  // Non-destructive: leaves the backend transaction exactly as-is (still resumable later via plate
+  // or the Active Weighings board) and just clears this screen's local state so the operator can
+  // weigh a different vehicle right away. Distinct from confirmCancelWeighing below, which actually
+  // voids the transaction.
+  const handleSaveAndWeighAnother = useCallback(() => {
+    resetSession();
+    toast.success('Saved. This vehicle stays open — resume it anytime. Ready for the next vehicle.');
+  }, [resetSession]);
+
+  const confirmCancelWeighing = useCallback(async () => {
+    const idToVoid = transactionId;
     setShowCancelConfirm(false);
+    if (idToVoid && result?.captureStatus !== 'captured') {
+      try {
+        await voidCommercialWeighing(idToVoid, { reason: cancelReason.trim() || 'Cancelled by operator' });
+      } catch (err) {
+        console.error('Failed to void cancelled weighing:', err);
+        toast.error('Could not void the transaction on the server — it may still show as open.');
+      }
+    }
+    setCancelReason('');
     resetSession();
     toast.success('Weighing cancelled.');
-  }, [resetSession]);
+  }, [transactionId, result, cancelReason, resetSession]);
 
   const handleRejectToleranceException = useCallback(async () => {
     if (!transactionId || !rejectToleranceReason.trim()) return;
@@ -610,7 +658,11 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     }
   }, [transactionId, rejectToleranceReason, resetSession]);
 
-  const handleResumeTransaction = useCallback((transaction: CommercialWeighingResult) => {
+  const handleResumeTransaction = useCallback((
+    transaction: CommercialWeighingResult,
+    isOverrideAttach: boolean,
+    overrideReason?: string
+  ) => {
     setShowResumeDialog(false);
     setTransactionId(transaction.id);
     setResult(transaction);
@@ -618,6 +670,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     setIsPlateDisabled(true);
     setCurrentStep('second-weight');
     setCompletedSteps(['capture', 'first-weight']);
+    setPendingOverride(isOverrideAttach ? { isOverrideAttach: true, reweighReason: overrideReason } : null);
     toast.info(`Resuming transaction — first weight captured ${transaction.firstWeightKg ?? 0} kg (${transaction.firstWeightType ?? ''})`);
   }, [setVehiclePlate, setIsPlateDisabled]);
 
@@ -734,9 +787,19 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               <span className="font-mono text-xl font-bold text-blue-600">{vehiclePlate}</span>
               <Badge variant="outline" className="text-xs">{mode === 'mobile' ? 'Axle-by-Axle' : 'Multideck'}</Badge>
             </div>
-            <Button variant="destructive" size="sm" onClick={() => setShowCancelConfirm(true)}>
-              CANCEL WEIGHING
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Only meaningful once at least a first weight exists - that's what makes the
+                  transaction findable again later (by plate or on the board). Before that,
+                  there's nothing to save; use Cancel instead. */}
+              {(result?.captureStatus === 'first_weight_captured' || result?.captureStatus === 'awaiting_reweigh') && (
+                <Button variant="outline" size="sm" onClick={handleSaveAndWeighAnother} className="gap-1">
+                  Save &amp; Weigh Another Vehicle
+                </Button>
+              )}
+              <Button variant="destructive" size="sm" onClick={() => setShowCancelConfirm(true)}>
+                CANCEL WEIGHING
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -819,6 +882,21 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               </Card>
             )}
           </WeighingCaptureStep>
+        )}
+
+        {/* Active Weighings board - lets staff weigh a different vehicle while another is out
+            adjusting cargo, then resume any open transaction directly without retyping its plate.
+            Board-sourced resumes never require the override permission/reason regardless of
+            elapsed time - the board's own explicit, elapsed-time-labeled list is already the human
+            confirmation the auto-match window otherwise exists to force; isOverrideAttach only
+            guards the silent, no-confirmation auto-match path. */}
+        {currentStep === 'capture' && !transactionId && (
+          <div className="mt-4">
+            <ActiveWeighingsBoard
+              stationId={currentStation?.id}
+              onResume={(t) => handleResumeTransaction(t, false, undefined)}
+            />
+          </div>
         )}
 
         {/* ── FIRST WEIGHT STEP ────────────────────────────────────────────── */}
@@ -1011,7 +1089,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               <Button variant="outline" onClick={goToPrevStep} className="gap-2">
                 <ChevronLeft className="h-4 w-4" /> Back
               </Button>
-              {(result?.netWeightKg != null) && (
+              {/* Only a FINALIZED capture can proceed to the ticket/invoice step - a saved reweigh
+                  (captureStatus "awaiting_reweigh") also populates netWeightKg for live tolerance
+                  feedback but must not be billable yet. */}
+              {result?.captureStatus === 'captured' && (
                 <Button
                   onClick={goToNextStep}
                   disabled={result.toleranceExceeded && !result.toleranceExceptionApproved}
@@ -1052,8 +1133,27 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Weighing</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to cancel this commercial weighing? All captured data will be lost.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Are you sure you want to cancel this commercial weighing? The transaction will be
+                  voided — if you just want to weigh a different vehicle and come back to this one
+                  later, use &quot;Save &amp; Weigh Another Vehicle&quot; instead.
+                </p>
+                {transactionId && (
+                  <div className="space-y-1">
+                    <Label htmlFor="cancel-reason" className="text-sm">Reason <span className="text-gray-400 font-normal">— optional</span></Label>
+                    <Textarea
+                      id="cancel-reason"
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="e.g. Wrong vehicle selected"
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1210,6 +1310,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       <ResumeWeighingDialog
         open={showResumeDialog}
         transactions={pendingTransactions ?? []}
+        canOverride={canOverrideAttach}
         onResume={handleResumeTransaction}
         onStartNew={handleStartNewFromResume}
       />

@@ -1303,6 +1303,7 @@ import type {
   UpdateQualityDeductionRequest,
   UseStoredTareRequest,
   VehicleTareHistory,
+  VoidCommercialWeighingRequest,
 } from '@/types/weighing';
 
 /**
@@ -1333,7 +1334,8 @@ export async function captureFirstWeight(
 }
 
 /**
- * Capture the second weight (second pass on the scale).
+ * Capture the next weight in sequence: the second weight (second pass on the scale), or a
+ * subsequent reweigh when request.finalize is false.
  */
 export async function captureSecondWeight(
   id: string,
@@ -1342,6 +1344,36 @@ export async function captureSecondWeight(
   const { data } = await apiClient.post<CommercialWeighingResult>(
     `/commercial-weighing/${id}/second-weight`,
     request
+  );
+  return data;
+}
+
+/**
+ * Voids a pending/open commercial weighing transaction (a genuine cancel, not a "save for later" -
+ * see the stepper's "Save & Weigh Another Vehicle" action for the non-destructive alternative).
+ */
+export async function voidCommercialWeighing(
+  id: string,
+  request: VoidCommercialWeighingRequest
+): Promise<CommercialWeighingResult> {
+  const { data } = await apiClient.post<CommercialWeighingResult>(
+    `/commercial-weighing/${id}/void`,
+    request
+  );
+  return data;
+}
+
+/**
+ * Station-wide "Active Weighings" board: every open transaction (first weight captured, or
+ * mid-reweigh) at a station, most-recently-active first. Lets staff resume any of them without
+ * having to retype the vehicle's plate.
+ */
+export async function getPendingCommercialTransactions(
+  stationId: string
+): Promise<CommercialWeighingResult[]> {
+  const { data } = await apiClient.get<CommercialWeighingResult[]>(
+    '/commercial-weighing/pending',
+    { params: { stationId } }
   );
   return data;
 }
@@ -1436,22 +1468,23 @@ export async function rejectToleranceException(id: string, reason: string): Prom
 }
 
 /**
- * Find open (first-weight-only) commercial transactions for a vehicle plate.
- * Returns transactions where first weight was captured within the configured threshold.
+ * Find every open commercial transaction (first weight captured, or already mid-reweigh) for a
+ * vehicle plate. Each result flags `isWithinAutoWindow` (true = safe to auto-resume without an
+ * override).
  *
- * `thresholdHours` should be the org's actual configured "Commercial Pending Weighing Threshold"
- * (Setup > Settings > Weighing; ApplicationSettings key `commercial.pending_weighing_threshold_hours`)
+ * `windowMinutes` should be the org's actual configured "Reweigh Auto-Match Window"
+ * (Setup > Settings > Weighing; ApplicationSettings key `commercial.reweigh_match_window_minutes`)
  * — callers should read it via `useSettingsByCategory('Weighing')` rather than hardcoding a value.
  * When omitted, the param is left off the request entirely and the backend applies its own
- * configured default.
+ * configured default (30 minutes).
  */
 export async function getPendingCommercialByPlate(
   regNo: string,
-  thresholdHours?: number
+  windowMinutes?: number
 ): Promise<CommercialWeighingResult[]> {
   const { data } = await apiClient.get<CommercialWeighingResult[]>(
     `/commercial-weighing/pending-by-plate/${encodeURIComponent(regNo)}`,
-    { params: thresholdHours != null ? { thresholdHours } : undefined }
+    { params: windowMinutes != null ? { windowMinutes } : undefined }
   );
   return data;
 }
