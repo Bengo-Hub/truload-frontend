@@ -13,6 +13,8 @@ import type {
   PortalDashboardStats,
   PortalDriver,
   PortalDriverPerformance,
+  PortalOutstandingInvoice,
+  PortalPaymentIntent,
   PortalRegistrationRequest,
   PortalRegistrationResponse,
   PortalStatement,
@@ -136,6 +138,16 @@ export async function getPortalStatement(fromDate?: string, toDate?: string): Pr
   const { data } = await apiClient.get<PortalStatement>('/portal/statement', {
     params: { fromDate, toDate },
   });
+  return data;
+}
+
+export async function getPortalOutstandingInvoices(): Promise<PortalOutstandingInvoice[]> {
+  const { data } = await apiClient.get<PortalOutstandingInvoice[]>('/portal/invoices/outstanding');
+  return data;
+}
+
+export async function payOutstandingInvoice(invoiceId: string): Promise<PortalPaymentIntent> {
+  const { data } = await apiClient.post<PortalPaymentIntent>(`/portal/invoices/${invoiceId}/pay`);
   return data;
 }
 
