@@ -6,7 +6,9 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -17,8 +19,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { usePortalStatement } from '@/hooks/queries/usePortalQueries';
-import { Info, Package, Receipt, Scale } from 'lucide-react';
+import { usePortalStatement, usePortalOutstandingInvoices, usePayOutstandingInvoice } from '@/hooks/queries/usePortalQueries';
+import { TreasuryCheckoutDialog } from '@/components/payments/TreasuryCheckoutDialog';
+import type { PortalOutstandingInvoice, PortalPaymentIntent } from '@/types/portal';
+import { CreditCard, Info, Loader2, Package, Receipt, Scale } from 'lucide-react';
+import { toast } from 'sonner';
 
 function formatKes(amount: number) {
   return `KES ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -32,6 +37,21 @@ const RATE_BASIS_LABEL: Record<string, string> = {
 
 export default function PortalStatementPage() {
   const { data: statement, isLoading } = usePortalStatement();
+  const { data: outstandingInvoices, isLoading: outstandingLoading } = usePortalOutstandingInvoices();
+  const payMutation = usePayOutstandingInvoice();
+  const [checkoutIntent, setCheckoutIntent] = useState<PortalPaymentIntent | null>(null);
+  const [payingInvoice, setPayingInvoice] = useState<PortalOutstandingInvoice | null>(null);
+
+  const handlePayNow = (invoice: PortalOutstandingInvoice) => {
+    setPayingInvoice(invoice);
+    payMutation.mutate(invoice.id, {
+      onSuccess: (intent) => setCheckoutIntent(intent),
+      onError: () => {
+        toast.error('Could not start payment for this invoice. Please try again.');
+        setPayingInvoice(null);
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -167,6 +187,43 @@ export default function PortalStatementPage() {
         </Card>
       )}
 
+      {!outstandingLoading && outstandingInvoices && outstandingInvoices.length > 0 && (
+        <Card className="border-amber-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CreditCard className="h-5 w-5 text-amber-600" />
+              Outstanding Invoices
+            </CardTitle>
+            <CardDescription>Pay a specific invoice directly instead of waiting for it to settle later.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {outstandingInvoices.map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-3 text-sm">
+                <div className="min-w-0">
+                  <p className="font-mono font-medium truncate">{inv.invoiceNo}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {inv.organizationName ?? 'Weighbridge'}{inv.stationName ? ` — ${inv.stationName}` : ''}
+                    {inv.dueDate ? ` · due ${new Date(inv.dueDate).toLocaleDateString('en-KE')}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-semibold">{formatKes(inv.amountDue)}</span>
+                  <Button
+                    size="sm"
+                    onClick={() => handlePayNow(inv)}
+                    disabled={payMutation.isPending && payingInvoice?.id === inv.id}
+                  >
+                    {payMutation.isPending && payingInvoice?.id === inv.id ? (
+                      <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Starting…</>
+                    ) : inv.hasPendingIntent ? 'Resume Payment' : 'Pay Now'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -215,6 +272,24 @@ export default function PortalStatementPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {payingInvoice && checkoutIntent && (
+        <TreasuryCheckoutDialog
+          open={!!checkoutIntent}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCheckoutIntent(null);
+              setPayingInvoice(null);
+            }
+          }}
+          invoiceNo={payingInvoice.invoiceNo}
+          amountDue={checkoutIntent.amountKes}
+          currency="KES"
+          treasuryPaymentUrl={checkoutIntent.authorizationUrl ?? ''}
+          paymentIntentId={checkoutIntent.intentId}
+          treasuryIntentStatus={checkoutIntent.status}
+        />
+      )}
     </div>
   );
 }

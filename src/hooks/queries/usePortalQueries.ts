@@ -14,6 +14,8 @@ import {
   getDriverPerformance,
   getPortalConsignments,
   getPortalStatement,
+  getPortalOutstandingInvoices,
+  payOutstandingInvoice,
   getPortalSubscription,
   downloadPortalTicketPdf,
   bulkDownloadTickets,
@@ -41,6 +43,7 @@ export const PORTAL_QUERY_KEYS = {
   subscription: ['portal', 'subscription'] as const,
   team: ['portal', 'team'] as const,
   statement: (fromDate?: string, toDate?: string) => ['portal', 'statement', fromDate, toDate] as const,
+  outstandingInvoices: ['portal', 'invoices', 'outstanding'] as const,
 };
 
 export function usePortalDashboard() {
@@ -120,6 +123,25 @@ export function usePortalStatement(fromDate?: string, toDate?: string) {
     queryKey: PORTAL_QUERY_KEYS.statement(fromDate, toDate),
     queryFn: () => getPortalStatement(fromDate, toDate),
     staleTime: 60_000,
+  });
+}
+
+export function usePortalOutstandingInvoices() {
+  return useQuery({
+    queryKey: PORTAL_QUERY_KEYS.outstandingInvoices,
+    queryFn: getPortalOutstandingInvoices,
+    staleTime: 30_000,
+  });
+}
+
+export function usePayOutstandingInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) => payOutstandingInvoice(invoiceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PORTAL_QUERY_KEYS.outstandingInvoices });
+      queryClient.invalidateQueries({ queryKey: ['portal', 'statement'] });
+    },
   });
 }
 

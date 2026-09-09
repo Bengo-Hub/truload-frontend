@@ -212,6 +212,29 @@ export interface PortalStatement {
   tonnageSummary?: PortalTonnageSummary | null;
 }
 
+/** Matches the backend PortalOutstandingInvoiceDto exactly. */
+export interface PortalOutstandingInvoice {
+  id: string;
+  invoiceNo: string;
+  amountDue: number;
+  currency: string;
+  generatedAt: string;
+  dueDate?: string | null;
+  stationName?: string | null;
+  organizationName?: string | null;
+  hasPendingIntent: boolean;
+}
+
+/** Matches the backend PortalPaymentIntentDto exactly. */
+export interface PortalPaymentIntent {
+  invoiceId: string;
+  intentId: string;
+  status: string;
+  amountKes: number;
+  authorizationUrl?: string | null;
+  checkoutRequestId?: string | null;
+}
+
 export interface SubscriptionPlan {
   tier: SubscriptionTier;
   name: string;
