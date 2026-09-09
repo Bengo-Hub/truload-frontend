@@ -10,12 +10,11 @@ import {
   getBillingInfo,
   getBillingPlans,
   getCurrentSubscription,
-  changePlan,
   type BillingInfo,
   type SubscriptionInfo,
   type SubscriptionPlan,
 } from '@/lib/api/billing';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   ArrowUpCircle,
@@ -23,14 +22,23 @@ import {
   Check,
   CheckCircle2,
   CreditCard,
-  Loader2,
+  ExternalLink,
   Package,
   RefreshCcw,
   Zap,
 } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { format, parseISO, differenceInDays } from 'date-fns';
+
+// Self-service plan switching goes through the platform's centralized pricing/subscriptions-ui
+// flow, matching pos-ui/inventory-ui's existing pattern - truload-backend issues its own
+// symmetric HS256 JWTs (see truload-subscription-uniform-integration.md), which subscriptions-api's
+// JWKS-based validator can never verify, so an in-app self-service switch has no real
+// tenant-scoped credential to authenticate with. This page still shows the real plan catalog and
+// current subscription (both fixed to use subscriptions-api's actual data), just not an in-app
+// switch action.
+const SUBSCRIPTIONS_UI_URL =
+  process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || 'https://pricing.codevertexafrica.com';
+const UPGRADE_URL = `${SUBSCRIPTIONS_UI_URL}/plans?service=truload`;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -63,16 +71,13 @@ function daysUntil(d?: string): number | null {
 function PlanCard({
   plan,
   currentPlanCode,
-  onSelect,
-  isChanging,
 }: {
   plan: SubscriptionPlan;
   currentPlanCode?: string;
-  onSelect: (code: string) => void;
-  isChanging: boolean;
 }) {
-  const isCurrent = plan.plan_code === currentPlanCode;
-  const isMonthly = plan.billing_cycle === 'MONTHLY';
+  const isCurrent = plan.planCode === currentPlanCode;
+  const isMonthly = plan.billingCycle === 'MONTHLY';
+  const includedFeatures = plan.features.filter((f) => f.isIncluded);
 
   return (
     <Card className={`relative ${isCurrent ? 'ring-2 ring-emerald-500 shadow-md' : 'hover:shadow-md transition-shadow'}`}>
@@ -92,18 +97,18 @@ function PlanCard({
           <Package className="h-5 w-5 text-gray-400 mt-1" />
         </div>
         <div className="mt-2">
-          <span className="text-2xl font-bold">{formatCurrency(plan.base_price, plan.currency)}</span>
+          <span className="text-2xl font-bold">{formatCurrency(plan.basePrice, plan.currency)}</span>
           <span className="text-sm text-gray-500 ml-1">/{isMonthly ? 'mo' : 'yr'}</span>
         </div>
       </CardHeader>
 
-      {plan.features && plan.features.length > 0 && (
+      {includedFeatures.length > 0 && (
         <CardContent className="pt-0 pb-3">
           <ul className="space-y-1">
-            {plan.features.slice(0, 6).map((f) => (
-              <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
+            {includedFeatures.slice(0, 6).map((f) => (
+              <li key={f.id} className="flex items-center gap-2 text-xs text-gray-600">
                 <Check className="h-3 w-3 text-emerald-500 flex-shrink-0" />
-                {f.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                {f.featureCode.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
               </li>
             ))}
           </ul>
@@ -117,17 +122,11 @@ function PlanCard({
             Current Plan
           </Button>
         ) : (
-          <Button
-            className="w-full"
-            variant={plan.base_price > 0 ? 'default' : 'outline'}
-            onClick={() => onSelect(plan.plan_code)}
-            disabled={isChanging}
-          >
-            {isChanging ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Switching...</>
-            ) : (
-              <><ArrowUpCircle className="h-4 w-4 mr-2" />Select Plan</>
-            )}
+          <Button className="w-full" variant={plan.basePrice > 0 ? 'default' : 'outline'} asChild>
+            <a href={`${UPGRADE_URL}&plan=${encodeURIComponent(plan.planCode)}`} target="_blank" rel="noopener noreferrer">
+              <ArrowUpCircle className="h-4 w-4 mr-2" />
+              Select Plan
+            </a>
           </Button>
         )}
       </CardContent>
@@ -139,7 +138,6 @@ function PlanCard({
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
-  const [confirmPlanCode, setConfirmPlanCode] = useState<string | null>(null);
 
   const { data: subscription, isLoading: subLoading } = useQuery<SubscriptionInfo>({
     queryKey: ['billing', 'subscription'],
@@ -159,24 +157,17 @@ export default function BillingPage() {
     retry: false,
   });
 
-  const changePlanMutation = useMutation({
-    mutationFn: (planCode: string) => changePlan(planCode),
-    onSuccess: () => {
-      toast.success('Plan changed successfully');
-      queryClient.invalidateQueries({ queryKey: ['billing'] });
-      setConfirmPlanCode(null);
-    },
-    onError: () => {
-      toast.error('Failed to change plan. Please try again.');
-    },
-  });
-
-  const renewalDays = daysUntil(subscription?.expires_at ?? billing?.nextRenewalDate);
+  const hasSubscription = !!subscription?.status && subscription.status !== 'NONE';
+  const renewalDate = subscription?.status === 'TRIAL'
+    ? subscription?.trial_ends_at ?? undefined
+    : subscription?.current_period_end ?? billing?.nextRenewalDate;
+  const renewalDays = daysUntil(renewalDate);
   const isExpiringSoon = renewalDays !== null && renewalDays <= 14 && renewalDays >= 0;
-  const isExpired = renewalDays !== null && renewalDays < 0;
+  const isExpired = subscription?.status === 'EXPIRED' || (renewalDays !== null && renewalDays < 0);
 
-  const plans: SubscriptionPlan[] = plansData?.plans ?? [];
+  const plans: SubscriptionPlan[] = plansData?.data ?? [];
   const currentPlanCode = subscription?.plan_code ?? billing?.planCode;
+  const currentPlan = plans.find((p) => p.planCode === currentPlanCode);
 
   return (
     <ProtectedRoute moduleKey="billing">
@@ -218,7 +209,7 @@ export default function BillingPage() {
                   <Skeleton className="h-4 w-64" />
                   <Skeleton className="h-4 w-48" />
                 </div>
-              ) : !billing?.hasSubscription ? (
+              ) : !hasSubscription ? (
                 <div className="text-center py-6">
                   <Package className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">No active subscription. Select a plan below to get started.</p>
@@ -227,21 +218,26 @@ export default function BillingPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Plan</p>
-                    <p className="font-semibold text-sm">{billing.planName ?? subscription?.plan_name ?? '—'}</p>
+                    <p className="font-semibold text-sm">{subscription?.plan_name ?? billing?.planName ?? '—'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Status</p>
-                    {statusBadge(billing.status ?? subscription?.status)}
+                    {statusBadge(subscription?.status ?? billing?.status)}
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Billing</p>
-                    <p className="text-sm">{formatCurrency(billing.amount, billing.currency)}/{billing.billingCycle === 'MONTHLY' ? 'mo' : 'yr'}</p>
+                    <p className="text-sm">
+                      {formatCurrency(currentPlan?.basePrice ?? billing?.amount, currentPlan?.currency ?? billing?.currency)}
+                      /{(subscription?.billing_cycle ?? billing?.billingCycle) === 'MONTHLY' ? 'mo' : 'yr'}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Renewal Date</p>
+                    <p className="text-xs text-gray-500 mb-1">
+                      {subscription?.status === 'TRIAL' ? 'Trial Ends' : 'Renewal Date'}
+                    </p>
                     <div className="flex items-center gap-1.5">
                       <CalendarDays className="h-3.5 w-3.5 text-gray-400" />
-                      <p className="text-sm">{formatDate(billing.nextRenewalDate ?? subscription?.expires_at)}</p>
+                      <p className="text-sm">{formatDate(renewalDate)}</p>
                     </div>
                   </div>
                 </div>
@@ -254,17 +250,27 @@ export default function BillingPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-semibold">Available Plans</h2>
-                <p className="text-sm text-gray-500">Upgrade, downgrade, or switch billing cycle at any time.</p>
+                <p className="text-sm text-gray-500">
+                  Select Plan opens the billing portal to upgrade, downgrade, or switch billing cycle.
+                </p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ['billing', 'plans'] })}
-              >
-                <RefreshCcw className="h-3.5 w-3.5" />
-                Refresh
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['billing', 'plans'] })}
+                >
+                  <RefreshCcw className="h-3.5 w-3.5" />
+                  Refresh
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                  <a href={UPGRADE_URL} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Billing Portal
+                  </a>
+                </Button>
+              </div>
             </div>
 
             {plansLoading ? (
@@ -286,11 +292,9 @@ export default function BillingPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-3">
                 {plans.map((plan) => (
                   <PlanCard
-                    key={plan.id ?? plan.plan_code}
+                    key={plan.id}
                     plan={plan}
                     currentPlanCode={currentPlanCode}
-                    onSelect={(code) => setConfirmPlanCode(code)}
-                    isChanging={changePlanMutation.isPending && confirmPlanCode === plan.plan_code}
                   />
                 ))}
               </div>
@@ -325,38 +329,6 @@ export default function BillingPage() {
           )}
 
         </div>
-
-        {/* Plan change confirmation dialog */}
-        {confirmPlanCode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <Card className="w-full max-w-sm mx-4">
-              <CardHeader>
-                <CardTitle>Confirm Plan Change</CardTitle>
-                <CardDescription>
-                  Switch to <strong>{plans.find((p) => p.plan_code === confirmPlanCode)?.name ?? confirmPlanCode}</strong>?
-                  This takes effect immediately.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-3 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setConfirmPlanCode(null)}
-                  disabled={changePlanMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => changePlanMutation.mutate(confirmPlanCode)}
-                  disabled={changePlanMutation.isPending}
-                >
-                  {changePlanMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Switching...</>
-                  ) : 'Confirm'}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </AppShell>
     </ProtectedRoute>
   );
