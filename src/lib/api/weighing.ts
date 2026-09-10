@@ -1717,6 +1717,14 @@ export interface CommercialTariffRule {
    */
   billedToTransporterId?: string;
   billedToTransporterName?: string;
+  /**
+   * Optional cargo/material type match (e.g. "Sand", "Ballast", "Hazardous Waste") — lets a tenant
+   * price different materials differently, e.g. a quarry charging more per tonne for ballast than
+   * sand, or a waste facility charging more for hazardous than general waste. Undefined = any
+   * cargo type.
+   */
+  cargoTypeId?: string;
+  cargoTypeName?: string;
   vehicleType?: string;
   axleCountMin?: number;
   axleCountMax?: number;
@@ -1725,6 +1733,12 @@ export interface CommercialTariffRule {
   feeKes: number;
   /** "PerTonne" (default), "PerKg", or "Flat" — how feeKes is applied to a matching weighing. */
   rateBasis?: 'Flat' | 'PerTonne' | 'PerKg';
+  /**
+   * Optional minimum charge (KES), applied as a floor when rateBasis is PerTonne or PerKg — e.g. a
+   * waste facility charging a flat minimum for any load under a small threshold, then a per-tonne
+   * rate above it. Ignored for Flat. Undefined = no floor.
+   */
+  minimumChargeKes?: number;
   /**
    * "Immediate" (default — one invoice per weighing) or "Daily"/"Weekly"/"BiWeekly"/"Monthly"/
    * "Quarterly"/"Yearly" (fees accrue and are rolled into one invoice per org+billed-party+period

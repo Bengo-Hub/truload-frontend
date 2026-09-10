@@ -25,6 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  useCargoTypes,
   useCreateTariffRule,
   useDeleteTariffRule,
   useTariffRules,
@@ -63,12 +64,14 @@ const BILLING_PERIOD_OPTIONS: { value: NonNullable<CommercialTariffRule['billing
 const emptyForm = (): CommercialTariffRule => ({
   transporterId: undefined,
   billedToTransporterId: undefined,
+  cargoTypeId: undefined,
   vehicleType: undefined,
   axleCountMin: undefined,
   axleCountMax: undefined,
   weightBracketMinKg: undefined,
   weightBracketMaxKg: undefined,
   feeKes: 0,
+  minimumChargeKes: undefined,
   rateBasis: 'PerTonne',
   billingPeriod: 'Immediate',
   label: '',
@@ -77,6 +80,7 @@ const emptyForm = (): CommercialTariffRule => ({
 function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
   const [form, setForm] = useState(emptyForm());
   const { data: transporters = [] } = useTransporters();
+  const { data: cargoTypes = [] } = useCargoTypes();
   const create = useCreateTariffRule();
   const update = useUpdateTariffRule();
 
@@ -90,12 +94,14 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
           ? {
               transporterId: existing.transporterId,
               billedToTransporterId: existing.billedToTransporterId,
+              cargoTypeId: existing.cargoTypeId,
               vehicleType: existing.vehicleType,
               axleCountMin: existing.axleCountMin,
               axleCountMax: existing.axleCountMax,
               weightBracketMinKg: existing.weightBracketMinKg,
               weightBracketMaxKg: existing.weightBracketMaxKg,
               feeKes: existing.feeKes,
+              minimumChargeKes: existing.minimumChargeKes,
               rateBasis: existing.rateBasis ?? 'PerTonne',
               billingPeriod: existing.billingPeriod ?? 'Immediate',
               label: existing.label ?? '',
@@ -196,6 +202,30 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
             </p>
           </div>
 
+          <div className="space-y-1">
+            <Label>Cargo / Material Type <span className="text-muted-foreground font-normal">optional</span></Label>
+            <Select
+              value={form.cargoTypeId ?? 'all'}
+              onValueChange={(v) => set('cargoTypeId', v === 'all' ? undefined : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Applies to any cargo type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All cargo types</SelectItem>
+                {cargoTypes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Price a specific material differently — e.g. a quarry charging more per tonne for
+              ballast than sand, or a waste facility charging more for hazardous than general
+              waste. Works alongside a transporter contract rate too (a contract narrowed to one
+              material) or a bracket rule below.
+            </p>
+          </div>
+
           {!form.transporterId && (
             <>
               <div className="space-y-1">
@@ -282,6 +312,22 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
             )}
           </p>
 
+          {form.rateBasis && form.rateBasis !== 'Flat' && (
+            <div className="space-y-1">
+              <Label>Minimum Charge (KES) <span className="text-muted-foreground font-normal">optional</span></Label>
+              <Input
+                type="number" min={0} step={1}
+                placeholder="e.g. 200"
+                value={form.minimumChargeKes ?? ''}
+                onChange={(e) => set('minimumChargeKes', e.target.value ? parseFloat(e.target.value) : undefined)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Floor applied when the per-tonne/per-kg amount would be less than this — e.g. a
+                minimum charge for small loads, common at waste transfer stations.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-1">
             <Label>Invoiced</Label>
             <Select
@@ -336,7 +382,7 @@ export default function TariffRulesPage() {
   };
 
   const formatScope = (r: CommercialTariffRule) => {
-    const scope = r.transporterName
+    let scope = r.transporterName
       ? `Contract: ${r.transporterName}`
       : (() => {
           const parts: string[] = [];
@@ -349,13 +395,15 @@ export default function TariffRulesPage() {
           }
           return parts.length > 0 ? parts.join(' · ') : 'All vehicles (default bracket)';
         })();
+    if (r.cargoTypeName) scope = `${scope} · ${r.cargoTypeName}`;
     return r.billedToTransporterName ? `${scope} → billed to ${r.billedToTransporterName}` : scope;
   };
 
   const formatFee = (r: CommercialTariffRule) => {
     const amount = r.feeKes.toLocaleString();
-    if (r.rateBasis === 'PerTonne') return `${amount} / tonne`;
-    if (r.rateBasis === 'PerKg') return `${amount} / kg`;
+    const min = r.minimumChargeKes ? ` (min ${r.minimumChargeKes.toLocaleString()})` : '';
+    if (r.rateBasis === 'PerTonne') return `${amount} / tonne${min}`;
+    if (r.rateBasis === 'PerKg') return `${amount} / kg${min}`;
     return amount;
   };
 
