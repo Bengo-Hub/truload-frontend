@@ -54,11 +54,15 @@ const BILLING_PERIOD_OPTIONS: { value: NonNullable<CommercialTariffRule['billing
   { value: 'Immediate', label: 'Per transaction', hint: 'One invoice as soon as each weighing completes' },
   { value: 'Daily', label: 'Daily', hint: 'One invoice per day, summing that day’s weighings' },
   { value: 'Weekly', label: 'Weekly', hint: 'One invoice per week, summing that week’s weighings' },
+  { value: 'BiWeekly', label: 'Bi-weekly', hint: 'One invoice every two weeks, summing that period’s weighings' },
   { value: 'Monthly', label: 'Monthly', hint: 'One invoice per month, summing that month’s weighings' },
+  { value: 'Quarterly', label: 'Quarterly', hint: 'One invoice per quarter, summing that quarter’s weighings' },
+  { value: 'Yearly', label: 'Yearly', hint: 'One invoice per year, summing that year’s weighings' },
 ];
 
 const emptyForm = (): CommercialTariffRule => ({
   transporterId: undefined,
+  billedToTransporterId: undefined,
   vehicleType: undefined,
   axleCountMin: undefined,
   axleCountMax: undefined,
@@ -85,6 +89,7 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
         existing
           ? {
               transporterId: existing.transporterId,
+              billedToTransporterId: existing.billedToTransporterId,
               vehicleType: existing.vehicleType,
               axleCountMin: existing.axleCountMin,
               axleCountMax: existing.axleCountMax,
@@ -165,6 +170,29 @@ function TariffFormDialog({ existing, open, onClose }: TariffFormDialogProps) {
             </Select>
             <p className="text-xs text-muted-foreground">
               When set, this rule applies only to that transporter and ignores the bracket fields below.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Bill To (if different) <span className="text-muted-foreground font-normal">optional</span></Label>
+            <Select
+              value={form.billedToTransporterId ?? 'none'}
+              onValueChange={(v) => set('billedToTransporterId', v === 'none' ? undefined : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Bill the vehicle's own transporter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Bill the vehicle&apos;s own transporter (default)</SelectItem>
+                {transporters.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Use this when a client commissions the weighing but doesn&apos;t operate the vehicle
+              itself — e.g. a quarry hauling on behalf of a client. Invoices go to this transporter
+              instead, regardless of which hauler&apos;s truck was actually weighed.
             </p>
           </div>
 
@@ -308,16 +336,20 @@ export default function TariffRulesPage() {
   };
 
   const formatScope = (r: CommercialTariffRule) => {
-    if (r.transporterName) return `Contract: ${r.transporterName}`;
-    const parts: string[] = [];
-    if (r.vehicleType) parts.push(r.vehicleType);
-    if (r.axleCountMin || r.axleCountMax) {
-      parts.push(`${r.axleCountMin ?? '0'}–${r.axleCountMax ?? '∞'} axles`);
-    }
-    if (r.weightBracketMinKg || r.weightBracketMaxKg) {
-      parts.push(`${(r.weightBracketMinKg ?? 0).toLocaleString()}–${r.weightBracketMaxKg?.toLocaleString() ?? '∞'} kg`);
-    }
-    return parts.length > 0 ? parts.join(' · ') : 'All vehicles (default bracket)';
+    const scope = r.transporterName
+      ? `Contract: ${r.transporterName}`
+      : (() => {
+          const parts: string[] = [];
+          if (r.vehicleType) parts.push(r.vehicleType);
+          if (r.axleCountMin || r.axleCountMax) {
+            parts.push(`${r.axleCountMin ?? '0'}–${r.axleCountMax ?? '∞'} axles`);
+          }
+          if (r.weightBracketMinKg || r.weightBracketMaxKg) {
+            parts.push(`${(r.weightBracketMinKg ?? 0).toLocaleString()}–${r.weightBracketMaxKg?.toLocaleString() ?? '∞'} kg`);
+          }
+          return parts.length > 0 ? parts.join(' · ') : 'All vehicles (default bracket)';
+        })();
+    return r.billedToTransporterName ? `${scope} → billed to ${r.billedToTransporterName}` : scope;
   };
 
   const formatFee = (r: CommercialTariffRule) => {

@@ -1710,6 +1710,13 @@ export interface CommercialTariffRule {
   id?: string;
   transporterId?: string;
   transporterName?: string;
+  /**
+   * When set, invoices from this rule bill this transporter/customer instead of the vehicle's own
+   * operator — e.g. a client a quarry hauls on behalf of. Undefined = bill the vehicle's own
+   * transporter (the default, unchanged behaviour).
+   */
+  billedToTransporterId?: string;
+  billedToTransporterName?: string;
   vehicleType?: string;
   axleCountMin?: number;
   axleCountMax?: number;
@@ -1719,11 +1726,12 @@ export interface CommercialTariffRule {
   /** "PerTonne" (default), "PerKg", or "Flat" — how feeKes is applied to a matching weighing. */
   rateBasis?: 'Flat' | 'PerTonne' | 'PerKg';
   /**
-   * "Immediate" (default — one invoice per weighing) or "Daily"/"Weekly"/"Monthly" (fees accrue
-   * and are rolled into one invoice per org+transporter+period once that period has elapsed —
-   * e.g. a client paying a transporter monthly based on aggregated tonnage).
+   * "Immediate" (default — one invoice per weighing) or "Daily"/"Weekly"/"BiWeekly"/"Monthly"/
+   * "Quarterly"/"Yearly" (fees accrue and are rolled into one invoice per org+billed-party+period
+   * once that period has elapsed — e.g. a client paying a transporter monthly based on aggregated
+   * tonnage).
    */
-  billingPeriod?: 'Immediate' | 'Daily' | 'Weekly' | 'Monthly';
+  billingPeriod?: 'Immediate' | 'Daily' | 'Weekly' | 'BiWeekly' | 'Monthly' | 'Quarterly' | 'Yearly';
   effectiveFrom?: string;
   effectiveTo?: string;
   label?: string;
