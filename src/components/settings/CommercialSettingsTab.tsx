@@ -13,7 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Info, Loader2, Save, Scale, CreditCard, Clock, Building2 } from 'lucide-react';
+import { Info, Loader2, Save, Scale, CreditCard, Clock, Building2, Gavel } from 'lucide-react';
+
+const NO_LEGAL_FRAMEWORK = '__none__';
 
 interface CommercialSettingsTabProps {
   canEdit: boolean;
@@ -29,12 +31,14 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
   const [feeKes, setFeeKes] = useState<string>('');
   const [tareExpiryDays, setTareExpiryDays] = useState<string>('');
   const [businessModel, setBusinessModel] = useState<string>('ThirdPartyWeighbridge');
+  const [legalFramework, setLegalFramework] = useState<string>(NO_LEGAL_FRAMEWORK);
 
   useEffect(() => {
     if (org) {
       setFeeKes(org.commercialWeighingFeeKes != null ? String(org.commercialWeighingFeeKes) : '');
       setTareExpiryDays(org.defaultTareExpiryDays != null ? String(org.defaultTareExpiryDays) : '');
       setBusinessModel(org.weighingBusinessModel ?? 'ThirdPartyWeighbridge');
+      setLegalFramework(org.selectedLegalFramework || NO_LEGAL_FRAMEWORK);
     }
   }, [org]);
 
@@ -44,7 +48,8 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
     org != null &&
     (String(org.commercialWeighingFeeKes ?? '') !== feeKes ||
       String(org.defaultTareExpiryDays ?? '') !== tareExpiryDays ||
-      (org.weighingBusinessModel ?? 'ThirdPartyWeighbridge') !== businessModel);
+      (org.weighingBusinessModel ?? 'ThirdPartyWeighbridge') !== businessModel ||
+      (org.selectedLegalFramework || NO_LEGAL_FRAMEWORK) !== legalFramework);
 
   const updateMutation = useMutation({
     mutationFn: updateCurrentCommercialSettings,
@@ -72,6 +77,7 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
       commercialWeighingFeeKes: feeValue,
       defaultTareExpiryDays: expiryValue,
       weighingBusinessModel: businessModel,
+      selectedLegalFramework: legalFramework === NO_LEGAL_FRAMEWORK ? '' : legalFramework,
     });
   };
 
@@ -120,6 +126,31 @@ export function CommercialSettingsTab({ canEdit }: CommercialSettingsTabProps) {
             {isFacilityOwned
               ? 'Factory, quarry, or farm that owns their weighbridge. Weighs own fleet — no per-transaction fee is charged to transporters. TruLoad subscription still applies.'
               : 'Public or private commercial weighbridge that charges transporters per session.'}
+          </p>
+        </div>
+
+        {/* Legal framework — optional axle-load pre-compliance check */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Gavel className="h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="legal-framework">Legal framework (pre-compliance check)</Label>
+          </div>
+          <Select value={legalFramework} onValueChange={setLegalFramework} disabled={!canEdit}>
+            <SelectTrigger className="max-w-[320px]" id="legal-framework">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_LEGAL_FRAMEWORK}>None (weight recording only)</SelectItem>
+              <SelectItem value="TRAFFIC_ACT">Traffic Act</SelectItem>
+              <SelectItem value="EAC">EAC Vehicle Load Control Act</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Optional. Lets transporters check their load against an enforcement Act&apos;s axle/GVW
+            tolerances before it reaches an enforcement weighbridge — using the same axle
+            configurations as enforcement weighing. Leave as None if this platform isn&apos;t used
+            in a jurisdiction where the Traffic Act or EAC applies: tickets then record weight
+            only and never calculate or flag compliance.
           </p>
         </div>
 

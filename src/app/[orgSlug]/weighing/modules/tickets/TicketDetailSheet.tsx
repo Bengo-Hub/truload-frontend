@@ -62,10 +62,15 @@ function formatWeight(kg: number) {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  // "NotEvaluated" = a CommercialWeighing tenant with no legal framework configured — pure
+  // weight recording, not a violation, so it must NOT read as destructive/red like a real
+  // overload. See Organization.SelectedLegalFramework / WeighingService.CalculateComplianceAsync.
   const variant = status === 'LEGAL' || status === 'Compliant'
     ? 'default'
     : status === 'WARNING' || status === 'Warning'
     ? 'secondary'
+    : status === 'NotEvaluated'
+    ? 'outline'
     : 'destructive';
 
   return <Badge variant={variant}>{status}</Badge>;
