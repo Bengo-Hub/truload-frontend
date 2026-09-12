@@ -95,12 +95,16 @@ export interface OrganizationDto {
   paymentGateway?: string | null;
   weighingBusinessModel?: string | null;
   ssoTenantSlug?: string | null;
+  /** Optional Act ("TRAFFIC_ACT"/"EAC") a commercial tenant has opted into for axle-load pre-compliance checks. Null = none configured — tickets record weight only. */
+  selectedLegalFramework?: string | null;
 }
 
 export interface UpdateCommercialSettingsRequest {
   commercialWeighingFeeKes?: number | null;
   defaultTareExpiryDays?: number | null;
   weighingBusinessModel?: string | null;
+  /** "TRAFFIC_ACT", "EAC", or "" to explicitly clear back to none. Omit to leave unchanged. */
+  selectedLegalFramework?: string | null;
 }
 
 export interface UpdateOrganizationModulesRequest {
