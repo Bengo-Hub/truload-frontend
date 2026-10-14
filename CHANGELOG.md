@@ -5,6 +5,38 @@ All notable changes to TruLoad Frontend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0](https://github.com/Bengo-Hub/truload-frontend/compare/v1.4.0...v1.5.0) (2026-10-14)
+
+
+### Features
+
+* **auth:** offline PIN unlock (Tier 2, opt-in, encrypt-at-rest) ([4c7ddd5](https://github.com/Bengo-Hub/truload-frontend/commit/4c7ddd56e3e31baf41ee21213aaae7b1243b1110))
+* **invoices:** capture missing driver National ID inline from Generate Invoice ([913ae32](https://github.com/Bengo-Hub/truload-frontend/commit/913ae3212b756bc66db7ec060209f0d33191cd59))
+* **invoices:** capture missing driver National ID inline from Generate Invoice ([1e5df72](https://github.com/Bengo-Hub/truload-frontend/commit/1e5df729e40f69961a49fd7e81726b1e47c665b3))
+* **offline:** background sync — resume queue without reopening the app ([a9dcbf4](https://github.com/Bengo-Hub/truload-frontend/commit/a9dcbf4961461ac197a81534da267bf79fa0eec3))
+* **offline:** parity-validated offline compliance engine ([231e16c](https://github.com/Bengo-Hub/truload-frontend/commit/231e16c5739eb4f30e99bb3282fb0b1b5779adf3))
+* **offline:** parity-validated provisional charges (fee port) ([c90ef7f](https://github.com/Bengo-Hub/truload-frontend/commit/c90ef7f9da9690919afba76bdee354b1c4202344))
+* **offline:** send clientLocalId on weighing capture (Phase 4a) ([10c3ffc](https://github.com/Bengo-Hub/truload-frontend/commit/10c3ffc161837cfe9fbdbc9e74bb592a736db4cc))
+* **offline:** shared offline/sync ribbon wired to the Dexie queue ([c005ad1](https://github.com/Bengo-Hub/truload-frontend/commit/c005ad16647f6ab8f12ed29632e2ea552399c3b4))
+* **offline:** sync engine replays weighing create + capture-weights ([a7fdd7d](https://github.com/Bengo-Hub/truload-frontend/commit/a7fdd7d219932657105a8bd6267218b95f566b42))
+* **offline:** sync-status + dead-letter review UI (Phase 4b) ([c7dbcb9](https://github.com/Bengo-Hub/truload-frontend/commit/c7dbcb9b6b02ccd0c935da656c589ae47cca17ba))
+* **offline:** wire validated compliance engine into weighing capture ([391e28f](https://github.com/Bengo-Hub/truload-frontend/commit/391e28f61dc8f20b94c4712b6590c003ee02b12b))
+* **offline:** workflow Dexie stores + dependency-ordered sync engine (Phase 2-3) ([9dc58ac](https://github.com/Bengo-Hub/truload-frontend/commit/9dc58ac9e5f672e5daff6a22c167254605121cdd))
+* **organizations:** adopt CountrySelect + PhoneInputField (Controller-wrapped) ([b73f39c](https://github.com/Bengo-Hub/truload-frontend/commit/b73f39caaf7d580a0f11e98a257a785691eebac4))
+* **tariffs:** add Bill To selector for third-party client billing ([e8bf635](https://github.com/Bengo-Hub/truload-frontend/commit/e8bf6358ce00f3526a40e3383297534961accdeb))
+* **tariffs:** add cargo type and minimum charge fields to rule form ([a1c8a73](https://github.com/Bengo-Hub/truload-frontend/commit/a1c8a7304735e9b4fb9a7048c9baeeef34f2c789))
+* **ui:** add a Documents tab to the case page ([0fc35ee](https://github.com/Bengo-Hub/truload-frontend/commit/0fc35ee8c384e7a1df05a1f3e5f537abaaed7cd8))
+
+
+### Bug Fixes
+
+* **auth:** preserve session offline instead of bouncing to login ([5568502](https://github.com/Bengo-Hub/truload-frontend/commit/55685020ac3651c015f09267799a091e4ead6ecf))
+* **payments:** open eCitizen payment page directly (remove checkout modal) ([f4b9522](https://github.com/Bengo-Hub/truload-frontend/commit/f4b9522cc29e18e54acaa3a0275ceb31bdae2981))
+* route server-side subscription proxy calls via in-cluster DNS ([504d989](https://github.com/Bengo-Hub/truload-frontend/commit/504d989b7bdfd5ef1a29a79335da1d7556f3041f))
+* **truload-ui:** correct permissions endpoint, tenant-scope accounts list, add remote backup destination form ([fc4ba63](https://github.com/Bengo-Hub/truload-frontend/commit/fc4ba63363bbdbaa9e4bdbc7ef7121a9d9a3d41a))
+* **truload-ui:** hide Generate Invoice when pending exists, role-perm/shift CRUD, receipt path + void fields, wire orphan endpoints ([41d2c69](https://github.com/Bengo-Hub/truload-frontend/commit/41d2c698f1fb6af0ac8498aa5b163b2d048f22f5))
+* **ui:** make Reconcile modal responsive — bigger, scrollable, column layout ([665611d](https://github.com/Bengo-Hub/truload-frontend/commit/665611d0b4ecd719d5c4ca2d92280ec47f5644c5))
+
 ## [1.4.0](https://github.com/Bengo-Hub/truload-frontend/compare/v1.3.0...v1.4.0) (2026-06-07)
 
 
