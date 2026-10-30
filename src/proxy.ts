@@ -17,17 +17,52 @@ const publicPathSuffixes = ['/auth/login', '/auth/forgot-password', '/auth/reset
 
 const SKIP_PREFIXES = ['/_next/', '/api/', '/favicon', '/public/'];
 
-export function proxy(request: NextRequest) {
+const AUTH_API_URL = (process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexafrica.com').replace(/\/+$/, '');
+const RESOLVE_TTL_MS = 60_000;
+const resolved = new Map<string, { slug: string | undefined; at: number }>();
+
+/** The app's own hosts and local development never resolve as a tenant domain. */
+function isPlatformHost(host: string): boolean {
+  return !host || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local') || host.endsWith('codevertexafrica.com');
+}
+
+/**
+ * The org slug for a domain a tenant connected from the SSO Domains screen (service "truload"),
+ * via auth-api's public resolve endpoint. Cached for a minute per host, misses included, so an
+ * unknown host costs at most one lookup a minute; auth-api being down serves the host as is.
+ */
+async function resolveTenantHost(host: string): Promise<string | undefined> {
+  if (isPlatformHost(host)) return undefined;
+  const hit = resolved.get(host);
+  if (hit && Date.now() - hit.at < RESOLVE_TTL_MS) return hit.slug;
+  let slug: string | undefined;
+  try {
+    const res = await fetch(`${AUTH_API_URL}/api/v1/domains/resolve?host=${encodeURIComponent(host)}`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { tenant_slug?: string; service?: string };
+      if (body.service === 'truload' && body.tenant_slug && /^[a-z0-9-]+$/i.test(body.tenant_slug)) slug = body.tenant_slug;
+    }
+  } catch {
+    slug = undefined;
+  }
+  resolved.set(host, { slug, at: Date.now() });
+  return slug;
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const host = (request.headers.get('host') ?? '').split(':')[0];
+  const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '').split(':')[0]!.toLowerCase();
 
   // Allow /api/health without auth
   if (pathname.startsWith('/api/health')) {
     return NextResponse.next();
   }
 
-  // Hostname-based slug injection for tenant-branded domains
-  const tenantSlug = HOSTNAME_SLUG_MAP[host];
+  // Hostname-based slug injection for tenant-branded domains: the fixed map first, then any
+  // domain connected from the SSO Domains screen.
+  const tenantSlug = HOSTNAME_SLUG_MAP[host] ?? (await resolveTenantHost(host));
   if (tenantSlug) {
     // Skip Next.js internals and API routes
     if (SKIP_PREFIXES.some((p) => pathname.startsWith(p))) {
