@@ -238,6 +238,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
   const middleware = useMiddleware({
     stationCode: currentStation?.code || 'DEFAULT',
+    stationName: currentStation?.name,
     bound: 'A',
     mode,
     autoConnect: true,
@@ -369,19 +370,54 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const axleGvw = useMemo(() => capturedAxleWeights.reduce((sum, w) => sum + w, 0), [capturedAxleWeights]);
   const allAxlesCaptured = capturedAxleWeights.length >= totalAxles;
 
+  // Share the plate with TruConnect as it is entered on the first step
+  useEffect(() => {
+    if (middleware.connected && debouncedPlate.length >= 5) {
+      middleware.sendPlate(debouncedPlate);
+    }
+  }, [debouncedPlate, middleware.connected]);
+
+  // Commercial mobile weighing sets an axle count rather than picking a configuration
+  useEffect(() => {
+    if (middleware.connected && mode === 'mobile') {
+      middleware.sendUpdateConfig(totalAxles, '');
+    }
+  }, [totalAxles, mode, middleware.connected]);
+
   const handleCaptureAxle = useCallback(() => {
-    if (liveWeightKg <= 0) return;
+    if (liveWeightKg <= 0) {
+      toast.error('No weight reading. If this scale has a Weighing button, press it on the console first.');
+      return;
+    }
+    const minCaptureWeight = middleware.weights?.minCaptureWeight ?? 0;
+    if (liveWeightKg < minCaptureWeight) {
+      toast.error(`${liveWeightKg} kg is below the ${minCaptureWeight} kg minimum axle capture weight.`);
+      return;
+    }
     setCapturedAxleWeights((prev) => {
       const updated = [...prev, liveWeightKg];
       return updated;
     });
+    // TruConnect needs each capture to subtract earlier axles from a cumulative scale's total
+    middleware.captureAxle(currentAxle, liveWeightKg);
     setCurrentAxle((prev) => prev + 1);
-  }, [liveWeightKg]);
+  }, [liveWeightKg, currentAxle, middleware]);
 
   const handleResetAxles = useCallback(() => {
     setCapturedAxleWeights([]);
     setCurrentAxle(1);
-  }, []);
+    middleware.resetSession();
+    if (transactionId && currentStation) {
+      middleware.syncTransaction({
+        transactionId,
+        vehicleRegNumber: vehiclePlate,
+        axleConfigCode: '',
+        totalAxles,
+        stationId: currentStation.id,
+        weighingMode: mode,
+      });
+    }
+  }, [middleware, transactionId, currentStation, vehiclePlate, totalAxles, mode]);
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   const handleProceedToFirstWeight = useCallback(async () => {
@@ -409,6 +445,17 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
       setTransactionId(txnResult.id);
       setResult(txnResult);
+      // TruLoad owns this transaction, so TruConnect must not auto-submit it as well
+      if (middleware.connected) {
+        middleware.syncTransaction({
+          transactionId: txnResult.id,
+          vehicleRegNumber: vehiclePlate.trim().toUpperCase(),
+          axleConfigCode: '',
+          totalAxles,
+          stationId: currentStation.id,
+          weighingMode: mode,
+        });
+      }
       goToNextStep();
     } catch (err: any) {
       console.error('Failed to initiate commercial weighing:', err);

@@ -289,6 +289,7 @@ export default function MobileWeighingPage() {
   // Middleware hook - handles WebSocket connection to local scale bridge
   const middleware = useMiddleware({
     stationCode: currentStation?.code || '',
+    stationName: currentStation?.name,
     bound: currentBound as 'A' | 'B',
     mode: 'mobile',
     onWeightUpdate: (weight) => {
@@ -547,6 +548,21 @@ export default function MobileWeighingPage() {
     return () => clearTimeout(timeoutId);
   }, [selectedVehicleId, vehiclePlate, vehicleMake, selectedConfig, axleConfigurations, existingVehicle, updateVehicleMutation]);
 
+  // Share the plate with TruConnect as it is entered on the first step
+  useEffect(() => {
+    if (middleware.connected && debouncedPlate.length >= 5) {
+      middleware.sendPlate(debouncedPlate);
+    }
+  }, [debouncedPlate, middleware.connected]);
+
+  // Share the axle configuration with TruConnect before a transaction exists
+  useEffect(() => {
+    if (middleware.connected && !weighingHook.session?.transactionId && selectedConfig) {
+      const config = axleConfigurations.find((c: any) => c.axleCode === selectedConfig);
+      if (config?.axleNumber) middleware.sendUpdateConfig(config.axleNumber, selectedConfig);
+    }
+  }, [selectedConfig, middleware.connected, weighingHook.session?.transactionId, axleConfigurations]);
+
   // Sync axle configuration to middleware when it changes during an active weighing session
   useEffect(() => {
     if (middleware.connected && weighingHook.session?.transactionId && selectedConfig) {
@@ -557,6 +573,7 @@ export default function MobileWeighingPage() {
         transactionId: weighingHook.session.transactionId,
         vehicleRegNumber: vehiclePlate,
         axleConfigCode: selectedConfig,
+        axleConfigurationId: selectedConfigId,
         totalAxles: configAxleCount,
         stationId: currentStation?.id || '',
         bound: currentBound,
@@ -963,7 +980,14 @@ export default function MobileWeighingPage() {
 
     // Use actual weight from scale (currentAxleWeight is updated by middleware WebSocket)
     if (currentAxleWeight <= 0) {
-      toast.error('No weight reading from scale. Check scale connection.');
+      toast.error('No weight reading from scale. Check the connection, or if the scale has a Weighing button, press it on the console first.');
+      return;
+    }
+
+    // Checked before saving, so TruLoad and TruConnect cannot end up with different axles
+    const minCaptureWeight = middleware.weights?.minCaptureWeight ?? 0;
+    if (currentAxleWeight < minCaptureWeight) {
+      toast.error(`${currentAxleWeight} kg is below the ${minCaptureWeight} kg minimum axle capture weight.`);
       return;
     }
 

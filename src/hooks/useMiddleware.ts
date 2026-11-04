@@ -1,7 +1,10 @@
 "use client";
 
 import { ScaleStatus as SharedScaleStatus } from '@/types/weighing';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
+import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 /**
  * useMiddleware - Hybrid Connection Hook for TruConnect Middleware
@@ -50,6 +53,8 @@ export interface WeightData {
   // Mobile fields
   weight?: number;
   currentWeight?: number;  // Alias for weight (API compatibility)
+  minCaptureWeight?: number;  // Readings below this are refused by TruConnect (kg)
+  scaleNotice?: string | null;  // Message for the operator about the scale console
   axleNumber?: number;
   axleWeights?: number[];
   runningTotal?: number;
@@ -150,6 +155,7 @@ export interface MiddlewareState {
 
 export interface UseMiddlewareOptions {
   stationCode: string;
+  stationName?: string;
   bound?: 'A' | 'B';
   mode?: 'mobile' | 'multideck';
   autoConnect?: boolean;
@@ -195,6 +201,7 @@ export interface TransactionSyncData {
   transactionId: string;
   vehicleRegNumber: string;
   axleConfigCode: string;
+  axleConfigurationId?: string;
   totalAxles: number;
   stationId: string;
   bound?: string;
@@ -249,6 +256,7 @@ const isDev = process.env.NODE_ENV === 'development';
 export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareReturn {
   const {
     stationCode,
+    stationName,
     bound = 'A',
     mode = 'mobile',
     autoConnect = true,
@@ -266,6 +274,11 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     onConnectionModeChange,
     onError,
   } = options;
+
+  // Identifies this tenant to TruConnect, and fills the mode in its Weighing Setup section
+  const orgSlug = useOrgSlug();
+  const { isCommercial } = useModuleAccess();
+  const workflow = isCommercial ? 'commercial' : 'enforcement';
 
   const [state, setState] = useState<MiddlewareState>({
     connected: false,
@@ -293,6 +306,8 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     stationCode: string;
     bound: string;
     mode: string;
+    orgSlug: string;
+    workflow: string;
   } | null>(null);
 
   // When polling, try WebSocket once on first successful poll so client can switch immediately
@@ -355,8 +370,18 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         break;
 
       case 'register-ack':
-        const registerData = message.data as { success: boolean };
+        const registerData = message.data as {
+          success: boolean;
+          message?: string;
+          binding?: { status: string; message?: string };
+        };
         setState(s => ({ ...s, registered: registerData.success }));
+        if (!registerData.success) {
+          toast.error(registerData.message || 'TruConnect refused this connection.', { id: 'truconnect-registration' });
+          onError?.(registerData.message || 'TruConnect refused this connection.');
+        } else if (registerData.binding?.status === 'station-changed' && registerData.binding.message) {
+          toast.info(registerData.binding.message, { id: 'truconnect-registration' });
+        }
         break;
 
       case 'weights':
@@ -523,6 +548,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           scaleAStatus: mobileData.scaleAStatus,
           scaleBStatus: mobileData.scaleBStatus,
           scaleInfo: mobileData.scaleInfo,
+          ...(mobileData as unknown as Pick<WeightData, 'minCaptureWeight' | 'scaleNotice'>),
         };
 
         // Build scale status with both Scale A and Scale B (match WebSocket payload so UI shows both)
@@ -651,11 +677,11 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           // Auto-register with client identification
           ws.send(JSON.stringify({
             event: 'register',
-            data: { stationCode, bound, mode, clientName, clientType },
+            data: { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType },
           }));
 
           // Track what we registered with to avoid duplicate registrations
-          lastRegisteredRef.current = { stationCode, bound, mode };
+          lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
 
           safeResolve(true);
         };
@@ -746,8 +772,8 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         connectionAttemptsRef.current = 0;
         setState(s => ({ ...s, connected: true, connectionMode: 'local_ws', isLocalFallback: true, error: null }));
         onConnectionModeChange?.('local_ws', localWsUrl);
-        ws.send(JSON.stringify({ event: 'register', data: { stationCode, bound, mode, clientName, clientType } }));
-        lastRegisteredRef.current = { stationCode, bound, mode };
+        ws.send(JSON.stringify({ event: 'register', data: { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType } }));
+        lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
         ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
@@ -860,9 +886,9 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           // Register
           ws.send(JSON.stringify({
             event: 'register',
-            data: { stationCode, bound, mode, clientName, clientType },
+            data: { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType },
           }));
-          lastRegisteredRef.current = { stationCode, bound, mode };
+          lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
 
           // Set up message handler
           ws.onmessage = (event) => {
@@ -1080,13 +1106,33 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     setTimeout(() => connect(), 100);
   }, [disconnect, connect]);
 
-  // Actions
-  const sendPlate = useCallback((plateNumber: string, data?: Partial<PlateData>) => {
-    sendMessage('plate', { plateNumber, ...data });
-  }, [sendMessage]);
-
   // Base URL for API polling mode (strip /weights from localApiUrl)
   const localApiBase = localApiUrl.replace(/\/weights\/?$/, '');
+
+  // Send over WebSocket, or the matching local API route when polling or the socket is down
+  const sendToTruConnect = useCallback((event: string, path: string, data: Record<string, unknown>) => {
+    if (state.connectionMode !== 'local_api' && sendMessage(event, data)) return;
+    fetch(`${localApiBase}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).catch((err) => console.warn(`[useMiddleware] API ${path} failed`, err));
+  }, [sendMessage, state.connectionMode, localApiBase]);
+
+  // Actions
+  const sendPlate = useCallback((plateNumber: string, data?: Partial<PlateData>) => {
+    sendToTruConnect('plate', '/plate', { plateNumber, stationCode, bound, ...data });
+  }, [sendToTruConnect, stationCode, bound]);
+
+  const sendDriverInstruction = useCallback((instruction: 'enter' | 'move-forward' | 'move-back' | 'stop') => {
+    sendToTruConnect(instruction, '/driver-instruction', { instruction });
+  }, [sendToTruConnect]);
+
+  // A console notice stays on screen once per change, not once per weight message
+  const scaleNotice = state.weights?.scaleNotice;
+  useEffect(() => {
+    if (scaleNotice) toast.warning(scaleNotice, { id: 'scale-notice', duration: 10000 });
+  }, [scaleNotice]);
 
   const captureAxle = useCallback((axleNumber: number, weight: number, axleConfigurationId?: string) => {
     if (state.connectionMode === 'local_api' || state.connectionMode === 'disconnected') {
@@ -1124,20 +1170,21 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   }, [sendMessage, state.connectionMode, localApiBase]);
 
   const queryWeight = useCallback((type: 'current' | 'next-axle' = 'current') => {
-    sendMessage('query-weight', { type });
-  }, [sendMessage]);
+    sendToTruConnect('query-weight', '/query-weight', { type });
+  }, [sendToTruConnect]);
 
   const syncTransaction = useCallback((data: TransactionSyncData) => {
     if (state.connectionMode === 'local_api') {
+      // API polling has no registration step, so the tenant identity travels with the sync
       fetch(`${localApiBase}/transaction-sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, orgSlug, stationCode, stationName }),
       }).catch((err) => console.warn('[useMiddleware] API transaction-sync failed', err));
     } else {
       sendMessage('transaction-sync', { ...data });
     }
-  }, [sendMessage, state.connectionMode, localApiBase]);
+  }, [sendMessage, state.connectionMode, localApiBase, orgSlug, stationCode, stationName]);
 
   const resetSession = useCallback(() => {
     // Clear local weight state immediately (don't wait for middleware ack)
@@ -1231,14 +1278,16 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     if (lastReg &&
       lastReg.stationCode === stationCode &&
       lastReg.bound === bound &&
-      lastReg.mode === mode) {
+      lastReg.mode === mode &&
+      lastReg.orgSlug === orgSlug &&
+      lastReg.workflow === workflow) {
       return; // No change, skip re-registration
     }
     // Values changed - send updated registration
     if (isDev) console.log(`[useMiddleware] Re-registering with updated values: ${stationCode}, bound=${bound}, mode=${mode}`);
-    sendMessage('register', { stationCode, bound, mode, clientName, clientType });
-    lastRegisteredRef.current = { stationCode, bound, mode };
-  }, [stationCode, bound, mode, clientName, clientType, state.connected, state.connectionMode, sendMessage]);
+    sendMessage('register', { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType });
+    lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
+  }, [stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType, state.connected, state.connectionMode, sendMessage]);
 
   return {
     ...state,
@@ -1256,10 +1305,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     sendWeightsCaptured,
     forceLocalConnection,
     forceBackendConnection,
-    sendEnter: () => sendMessage('enter', {}),
-    sendMoveForward: () => sendMessage('move-forward', {}),
-    sendMoveBack: () => sendMessage('move-back', {}),
-    sendStop: () => sendMessage('stop', {}),
+    sendEnter: () => sendDriverInstruction('enter'),
+    sendMoveForward: () => sendDriverInstruction('move-forward'),
+    sendMoveBack: () => sendDriverInstruction('move-back'),
+    sendStop: () => sendDriverInstruction('stop'),
   };
 }
 export default useMiddleware;

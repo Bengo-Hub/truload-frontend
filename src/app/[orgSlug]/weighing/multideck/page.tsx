@@ -246,6 +246,7 @@ export default function MultideckWeighingPage() {
   // useMiddleware hook
   const middleware = useMiddleware({
     stationCode: currentStation?.code || 'DEFAULT',
+    stationName: currentStation?.name,
     bound: (currentBound as 'A' | 'B') || 'A',
     mode: 'multideck',
     autoConnect: true,
@@ -448,6 +449,21 @@ export default function MultideckWeighingPage() {
     geoLng,
     updateVehicleDetails,
   ]);
+
+  // Share the plate with TruConnect as it is entered on the first step
+  useEffect(() => {
+    if (middleware.connected && debouncedPlate.length >= 5) {
+      middleware.sendPlate(debouncedPlate);
+    }
+  }, [debouncedPlate, middleware.connected]);
+
+  // Share the axle configuration with TruConnect before a transaction exists
+  useEffect(() => {
+    if (middleware.connected && !weighingSession?.transactionId && selectedConfig) {
+      const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+      if (config?.axleNumber) middleware.sendUpdateConfig(config.axleNumber, selectedConfig);
+    }
+  }, [selectedConfig, middleware.connected, weighingSession?.transactionId, axleConfigurations]);
 
   // Sync selected axle configuration to TruConnect when on vehicle step (WebSocket or API polling)
   useEffect(() => {
