@@ -503,9 +503,10 @@ export default function MultideckWeighingPage() {
     updateVehicleDetails,
   ]);
 
-  // Show step 2 details on TruConnect's screen. This backend still owns them.
+  // Show step 2 details on TruConnect's screen. This backend still owns them. The plate lookup
+  // can fill them on the first step, so nothing is sent until Next is pressed.
   useEffect(() => {
-    if (!middleware.connected) return;
+    if (!middleware.connected || currentStep === 'capture') return;
     if (!selectedDriverId && !selectedTransporterId && !selectedCargoId && !selectedOriginId && !selectedDestinationId) return;
     middleware.sendVehicleDetails({
       driver: drivers.find((d) => d.id === selectedDriverId)?.fullNames ?? undefined,
@@ -514,22 +515,7 @@ export default function MultideckWeighingPage() {
       origin: locations.find((l) => l.id === selectedOriginId)?.name ?? undefined,
       destination: locations.find((l) => l.id === selectedDestinationId)?.name ?? undefined,
     });
-  }, [middleware.connected, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
-
-  // Share the plate with TruConnect as it is entered on the first step
-  useEffect(() => {
-    if (middleware.connected && debouncedPlate.length >= 5) {
-      middleware.sendPlate(debouncedPlate);
-    }
-  }, [debouncedPlate, middleware.connected]);
-
-  // Share the axle configuration with TruConnect before a transaction exists
-  useEffect(() => {
-    if (middleware.connected && !weighingSession?.transactionId && selectedConfig) {
-      const config = axleConfigurations.find((c) => c.axleCode === selectedConfig);
-      if (config?.axleNumber) middleware.sendUpdateConfig(config.axleNumber, selectedConfig);
-    }
-  }, [selectedConfig, middleware.connected, weighingSession?.transactionId, axleConfigurations]);
+  }, [middleware.connected, currentStep, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
 
   // Sync selected axle configuration to TruConnect when on vehicle step (WebSocket or API polling)
   useEffect(() => {
@@ -562,7 +548,7 @@ export default function MultideckWeighingPage() {
     currentStation,
     currentBound,
     axleConfigurations,
-    middleware,
+    middleware.connected,
   ]);
 
   // Capture state

@@ -91,7 +91,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const COMMERCIAL_STEPS: { id: CommercialWeighingStep; title: string; description: string }[] = [
@@ -140,6 +140,7 @@ export function CommercialWeighingStepper({
   // Mobile axle-by-axle: track per-axle captures
   const [totalAxles, setTotalAxles] = useState(2);
   const [selectedAxleConfig, setSelectedAxleConfig] = useState('');
+  const firstWeightType = useRef<'tare' | 'gross' | null>(null);
   const { data: axleConfigurations = [] } = useWeighingAxleConfigurations();
   const [capturedAxleWeights, setCapturedAxleWeights] = useState<number[]>([]); // index = axle-1
   const [currentAxle, setCurrentAxle] = useState(1);
@@ -439,16 +440,10 @@ export function CommercialWeighingStepper({
   );
   const allAxlesCaptured = capturedAxleWeights.length >= totalAxles;
 
-  // Share the plate with TruConnect as it is entered on the first step
+  // Show step 2 details on TruConnect's screen. This backend still owns them. The plate lookup
+  // can fill them on the first step, so nothing is sent until Next is pressed.
   useEffect(() => {
-    if (middleware.connected && debouncedPlate.length >= 5) {
-      middleware.sendPlate(debouncedPlate);
-    }
-  }, [debouncedPlate, middleware.connected]);
-
-  // Show step 2 details on TruConnect's screen. This backend still owns them.
-  useEffect(() => {
-    if (!middleware.connected) return;
+    if (!middleware.connected || currentStep === 'capture') return;
     if (!selectedDriverId && !selectedTransporterId && !selectedCargoId && !selectedOriginId && !selectedDestinationId) return;
     middleware.sendVehicleDetails({
       driver: drivers.find((d) => d.id === selectedDriverId)?.fullNames ?? undefined,
@@ -457,14 +452,14 @@ export function CommercialWeighingStepper({
       origin: locations.find((l) => l.id === selectedOriginId)?.name ?? undefined,
       destination: locations.find((l) => l.id === selectedDestinationId)?.name ?? undefined,
     });
-  }, [middleware.connected, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
+  }, [middleware.connected, currentStep, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
 
   // Picking a configuration sets the axle count; the +/- buttons below clear the pick
   useEffect(() => {
-    if (middleware.connected && mode === 'mobile') {
+    if (middleware.connected && mode === 'mobile' && currentStep !== 'capture') {
       middleware.sendUpdateConfig(totalAxles, selectedAxleConfig);
     }
-  }, [totalAxles, selectedAxleConfig, mode, middleware.connected]);
+  }, [currentStep, totalAxles, selectedAxleConfig, mode, middleware.connected]);
 
   // TruLoad owns this transaction. Sent on reconnect too, or TruConnect would treat
   // the axles as its own weighing.
@@ -586,6 +581,7 @@ export function CommercialWeighingStepper({
   const handleCaptureFirstWeight = useCallback(
     async (weightType: 'tare' | 'gross') => {
       if (!transactionId) return;
+      firstWeightType.current = weightType;
       middleware.sendUpdateConfig(totalAxles, selectedAxleConfig, weightType);
       const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
       if (weightKg <= 0) {
@@ -627,6 +623,9 @@ export function CommercialWeighingStepper({
   const handleCaptureSecondWeight = useCallback(
     async (options: CaptureNextWeightOptions) => {
       if (!transactionId) return;
+      if (firstWeightType.current) {
+        middleware.sendUpdateConfig(totalAxles, selectedAxleConfig, firstWeightType.current === 'tare' ? 'gross' : 'tare');
+      }
       const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
       if (weightKg <= 0) {
         toast.error('No weight to capture.');

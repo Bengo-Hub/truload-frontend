@@ -628,9 +628,10 @@ export default function MobileWeighingPage() {
     updateVehicleMutation,
   ]);
 
-  // Show step 2 details on TruConnect's screen. This backend still owns them.
+  // Show step 2 details on TruConnect's screen. This backend still owns them. The plate lookup
+  // can fill them on the first step, so nothing is sent until Next is pressed.
   useEffect(() => {
-    if (!middleware.connected) return;
+    if (!middleware.connected || currentStep === 'capture') return;
     if (!selectedDriverId && !selectedTransporterId && !selectedCargoId && !selectedOriginId && !selectedDestinationId) return;
     middleware.sendVehicleDetails({
       driver: drivers.find((d) => d.id === selectedDriverId)?.fullNames ?? undefined,
@@ -639,30 +640,12 @@ export default function MobileWeighingPage() {
       origin: locations.find((l) => l.id === selectedOriginId)?.name ?? undefined,
       destination: locations.find((l) => l.id === selectedDestinationId)?.name ?? undefined,
     });
-  }, [middleware.connected, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
+  }, [middleware.connected, currentStep, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
 
-  // Share the plate with TruConnect as it is entered on the first step
+  // Sync axle configuration to middleware when it changes during an active weighing session.
+  // The plate on the first step is still being typed, so that is sent when Next is pressed.
   useEffect(() => {
-    if (middleware.connected && debouncedPlate.length >= 5) {
-      middleware.sendPlate(debouncedPlate);
-    }
-  }, [debouncedPlate, middleware.connected]);
-
-  // Share the axle configuration with TruConnect before a transaction exists
-  useEffect(() => {
-    if (middleware.connected && !weighingHook.session?.transactionId && selectedConfig) {
-      const config = axleConfigurations.find((c: any) => c.axleCode === selectedConfig);
-      if (config?.axleNumber) middleware.sendUpdateConfig(config.axleNumber, selectedConfig);
-    }
-  }, [
-    selectedConfig,
-    middleware.connected,
-    weighingHook.session?.transactionId,
-    axleConfigurations,
-  ]);
-
-  // Sync axle configuration to middleware when it changes during an active weighing session
-  useEffect(() => {
+    if (currentStep === 'capture') return;
     if (middleware.connected && weighingHook.session?.transactionId && selectedConfig) {
       const config = axleConfigurations.find((c: any) => c.axleCode === selectedConfig);
       const configAxleCount = config?.axleNumber || totalAxles;
@@ -683,10 +666,10 @@ export default function MobileWeighingPage() {
       );
     }
   }, [
+    currentStep,
     selectedConfig,
     middleware.connected,
     weighingHook.session?.transactionId,
-    vehiclePlate,
     currentStation?.id,
     currentBound,
     axleConfigurations,
