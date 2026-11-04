@@ -1,38 +1,37 @@
-"use client";
-
+'use client';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-    AxleConfigurationCard,
-    CargoTypeModal,
-    CommercialWeighingStepper,
-    ComplianceBanner,
-    ComplianceTable,
-    DriverModal,
-    ImageCaptureCard,
-    MultideckWeightsCard,
-    OriginDestinationModal,
-    SCALE_TEST_SUCCESS_DESCRIPTION,
-    SCALE_TEST_SUCCESS_MESSAGE,
-    TransporterModal,
-    VehicleDetailsCard,
-    VehicleMakeModal,
-    WeighingPageHeader,
-    WeighingStepper,
-    WeightConfirmationModal,
+  AxleConfigurationCard,
+  CargoTypeModal,
+  CommercialWeighingStepper,
+  ComplianceBanner,
+  ComplianceTable,
+  DriverModal,
+  ImageCaptureCard,
+  MultideckWeightsCard,
+  OriginDestinationModal,
+  SCALE_TEST_SUCCESS_DESCRIPTION,
+  SCALE_TEST_SUCCESS_MESSAGE,
+  TransporterModal,
+  VehicleDetailsCard,
+  VehicleMakeModal,
+  WeighingPageHeader,
+  WeighingStepper,
+  WeightConfirmationModal,
 } from '@/components/weighing';
 import { MissingFieldsWarningModal } from '@/components/weighing/MissingFieldsWarningModal';
 import { ScaleInfo } from '@/components/weighing/ScaleHealthPanel';
@@ -40,17 +39,17 @@ import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
 import { WeighingCaptureStep } from '@/components/weighing/steps/WeighingCaptureStep';
 import { WeighingDecisionStep } from '@/components/weighing/steps/WeighingDecisionStep';
 import {
-    useAllActs,
-    useAllSettings,
-    useAxleWeightReferences,
-    useCreateVehicle,
-    useDeleteWeighingTransaction,
-    useMyScaleTestStatus,
-    useMyStation,
-    usePendingWeighings,
-    useUpdateVehicle,
-    useVehicleByRegNo,
-    useWeighingAxleConfigurations,
+  useAllActs,
+  useAllSettings,
+  useAxleWeightReferences,
+  useCreateVehicle,
+  useDeleteWeighingTransaction,
+  useMyScaleTestStatus,
+  useMyStation,
+  usePendingWeighings,
+  useUpdateVehicle,
+  useVehicleByRegNo,
+  useWeighingAxleConfigurations,
 } from '@/hooks/queries';
 import { useToleranceSettings } from '@/hooks/queries/useActQueries';
 import { useHasPermission } from '@/hooks/useAuth';
@@ -59,16 +58,15 @@ import { useMiddleware } from '@/hooks/useMiddleware';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useWeighing } from '@/hooks/useWeighing';
 import { useWeighingUI } from '@/hooks/useWeighingUI';
-import { downloadWeightTicketPdf, UpdateWeighingRequest, WeighingTransaction } from '@/lib/api/weighing';
+import {
+  downloadWeightTicketPdf,
+  UpdateWeighingRequest,
+  WeighingTransaction,
+} from '@/lib/api/weighing';
 import { createYardEntry } from '@/lib/api/yard';
 import { calculateOverallStatus, validateRequiredFields } from '@/lib/weighing-utils';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
-import {
-    AxleGroupResult,
-    ComplianceStatus,
-    DeckWeight,
-    WeighingStep
-} from '@/types/weighing';
+import { AxleGroupResult, ComplianceStatus, DeckWeight, WeighingStep } from '@/types/weighing';
 import { ChevronLeft, ChevronRight, Loader2, Scale } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -89,58 +87,91 @@ export default function MultideckWeighingPage() {
   const [completedSteps, setCompletedSteps] = useState<WeighingStep[]>([]);
 
   // TanStack Query hooks
-  const {
-    data: currentStation,
-    isLoading: isLoadingStation,
-    error: stationError,
-  } = useMyStation();
+  const { data: currentStation, isLoading: isLoadingStation, error: stationError } = useMyStation();
 
-  const {
-    data: axleConfigurations = [],
-    isLoading: isLoadingAxleConfigs,
-  } = useWeighingAxleConfigurations();
+  const { data: axleConfigurations = [], isLoading: isLoadingAxleConfigs } =
+    useWeighingAxleConfigurations();
 
   // Fetch pending transactions
   const { data: pendingWeighings } = usePendingWeighings(currentStation?.id, 'multideck');
   const pendingTransactions = pendingWeighings?.items ?? [];
 
   // useWeighingUI hook for unified state management
-  const weighingUI = useWeighingUI({ 
+  const weighingUI = useWeighingUI({
     stationId: currentStation?.id,
-    currentStation
+    currentStation,
   });
   const {
-    frontViewImage, setFrontViewImage, overviewImage, setOverviewImage,
-    handleCaptureFront, handleCaptureOverview, handleScanPlate,
-    vehiclePlate, setVehiclePlate, debouncedPlate,
-    isPlateDisabled, setIsPlateDisabled,
-    selectedCountyId, setSelectedCountyId,
-    selectedSubcountyId, setSelectedSubcountyId,
-    selectedRoadId, setSelectedRoadId,
-    isDriverModalOpen, setIsDriverModalOpen,
-    isTransporterModalOpen, setIsTransporterModalOpen,
-    isLocationModalOpen, setIsLocationModalOpen,
-    locationModalTarget, setLocationModalTarget,
-    isVehicleMakeModalOpen, setIsVehicleMakeModalOpen,
-    isCargoTypeModalOpen, setIsCargoTypeModalOpen,
+    frontViewImage,
+    setFrontViewImage,
+    overviewImage,
+    setOverviewImage,
+    handleCaptureFront,
+    handleCaptureOverview,
+    handleScanPlate,
+    vehiclePlate,
+    setVehiclePlate,
+    debouncedPlate,
+    isPlateDisabled,
+    setIsPlateDisabled,
+    selectedCountyId,
+    setSelectedCountyId,
+    selectedSubcountyId,
+    setSelectedSubcountyId,
+    selectedRoadId,
+    setSelectedRoadId,
+    isDriverModalOpen,
+    setIsDriverModalOpen,
+    isTransporterModalOpen,
+    setIsTransporterModalOpen,
+    isLocationModalOpen,
+    setIsLocationModalOpen,
+    locationModalTarget,
+    setLocationModalTarget,
+    isVehicleMakeModalOpen,
+    setIsVehicleMakeModalOpen,
+    isCargoTypeModalOpen,
+    setIsCargoTypeModalOpen,
     isSavingEntity,
-    isScaleTestModalOpen, setIsScaleTestModalOpen,
-    showCancelConfirm, setShowCancelConfirm,
-    counties, subcounties, roads,
-    drivers, transporters, locations, cargoTypes, vehicleMakesData,
-    selectedDriverId, setSelectedDriverId,
-    selectedTransporterId, setSelectedTransporterId,
-    selectedCargoId, setSelectedCargoId,
-    selectedOriginId, setSelectedOriginId,
-    selectedDestinationId, setSelectedDestinationId,
-    vehicleMake, setVehicleMake,
-    handleSaveDriver, handleSaveTransporter, handleSaveLocation,
-    handleSaveCargoType, handleSaveVehicleMake,
-    selectedVehicleId, setSelectedVehicleId,
-    comment, setComment,
-    permitNo, setPermitNo,
-    trailerNo, setTrailerNo,
-    reliefVehicleReg, setReliefVehicleReg,
+    isScaleTestModalOpen,
+    setIsScaleTestModalOpen,
+    showCancelConfirm,
+    setShowCancelConfirm,
+    counties,
+    subcounties,
+    roads,
+    drivers,
+    transporters,
+    locations,
+    cargoTypes,
+    vehicleMakesData,
+    selectedDriverId,
+    setSelectedDriverId,
+    selectedTransporterId,
+    setSelectedTransporterId,
+    selectedCargoId,
+    setSelectedCargoId,
+    selectedOriginId,
+    setSelectedOriginId,
+    selectedDestinationId,
+    setSelectedDestinationId,
+    vehicleMake,
+    setVehicleMake,
+    handleSaveDriver,
+    handleSaveTransporter,
+    handleSaveLocation,
+    handleSaveCargoType,
+    handleSaveVehicleMake,
+    selectedVehicleId,
+    setSelectedVehicleId,
+    comment,
+    setComment,
+    permitNo,
+    setPermitNo,
+    trailerNo,
+    setTrailerNo,
+    reliefVehicleReg,
+    setReliefVehicleReg,
     refetchVehicleMakes,
   } = weighingUI;
 
@@ -175,7 +206,9 @@ export default function MultideckWeighingPage() {
   const [isSimulationMode, setIsSimulationMode] = useState(false);
 
   // Live deck weights
-  const [liveDeckWeights, setLiveDeckWeights] = useState<{ deck: number; weight: number; status: 'stable' | 'unstable' }[]>([
+  const [liveDeckWeights, setLiveDeckWeights] = useState<
+    { deck: number; weight: number; status: 'stable' | 'unstable' }[]
+  >([
     { deck: 1, weight: 0, status: 'stable' },
     { deck: 2, weight: 0, status: 'stable' },
     { deck: 3, weight: 0, status: 'stable' },
@@ -183,19 +216,20 @@ export default function MultideckWeighingPage() {
   ]);
 
   // Scale test status
-  const {
-    data: scaleTestStatus,
-    isLoading: isLoadingScaleTest,
-  } = useMyScaleTestStatus(currentBound);
+  const { data: scaleTestStatus, isLoading: isLoadingScaleTest } =
+    useMyScaleTestStatus(currentBound);
 
   const isScaleTestCompleted = scaleTestStatus?.hasValidTest ?? false;
-  const lastScaleTestAt = scaleTestStatus?.latestTest ? new Date(scaleTestStatus.latestTest.carriedAt) : undefined;
+  const lastScaleTestAt = scaleTestStatus?.latestTest
+    ? new Date(scaleTestStatus.latestTest.carriedAt)
+    : undefined;
 
   // Combined loading state
   const isLoadingData = isLoadingStation || isLoadingAxleConfigs || isLoadingScaleTest;
-  const loadError = stationError || (currentStation === null && !isLoadingStation)
-    ? 'Failed to load station data. Please ensure you are assigned to a station.'
-    : null;
+  const loadError =
+    stationError || (currentStation === null && !isLoadingStation)
+      ? 'Failed to load station data. Please ensure you are assigned to a station.'
+      : null;
 
   // useWeighing hook
   const weighingHook = useWeighing({
@@ -227,21 +261,27 @@ export default function MultideckWeighingPage() {
   const effectiveActId = selectedActId || defaultActId;
 
   // Resolve legal framework and fetch DB tolerance settings (cached 30min)
-  const effectiveAct = acts.find(a => a.id === effectiveActId);
+  const effectiveAct = acts.find((a) => a.id === effectiveActId);
   const effectiveLegalFramework = effectiveAct?.code || 'TRAFFIC_ACT';
   const { data: toleranceSettings = [] } = useToleranceSettings(effectiveLegalFramework);
 
   // Operational tolerance (kg) from ToleranceSetting table (OPERATIONAL_ALLOWANCE)
   // Single source of truth — same table used by backend CalculateComplianceAsync
   const operationalToleranceKg = useMemo(() => {
-    const opAllowance = toleranceSettings.find((t: any) => t.code === 'OPERATIONAL_ALLOWANCE' && t.isActive);
+    const opAllowance = toleranceSettings.find(
+      (t: any) => t.code === 'OPERATIONAL_ALLOWANCE' && t.isActive
+    );
     if (opAllowance && opAllowance.toleranceKg !== null && opAllowance.toleranceKg !== undefined) {
       return opAllowance.toleranceKg;
     }
     return 200; // Fallback only if setting not found in DB
   }, [toleranceSettings]);
 
-  const { position: geoPosition, refresh: refreshGeolocation, isSupported: isGeolocationSupported } = useGeolocation({ enableHighAccuracy: true, timeout: 10000 });
+  const {
+    position: geoPosition,
+    refresh: refreshGeolocation,
+    isSupported: isGeolocationSupported,
+  } = useGeolocation({ enableHighAccuracy: true, timeout: 10000 });
 
   // useMiddleware hook
   const middleware = useMiddleware({
@@ -294,7 +334,8 @@ export default function MultideckWeighingPage() {
   // Set default axle config
   useEffect(() => {
     if (axleConfigurations.length > 0 && !selectedConfig) {
-      const defaultConfig = axleConfigurations.find(c => c.axleCode === '6C') || axleConfigurations[0];
+      const defaultConfig =
+        axleConfigurations.find((c) => c.axleCode === '6C') || axleConfigurations[0];
       if (defaultConfig) {
         setSelectedConfig(defaultConfig.axleCode);
       }
@@ -304,21 +345,23 @@ export default function MultideckWeighingPage() {
   // Weight references
   const selectedConfigId = useMemo(() => {
     if (!selectedConfig || axleConfigurations.length === 0) return undefined;
-    const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+    const config = axleConfigurations.find((c) => c.axleCode === selectedConfig);
     return config?.id;
   }, [selectedConfig, axleConfigurations]);
 
   const { data: weightReferences = [] } = useAxleWeightReferences(selectedConfigId);
 
   // Vehicle lookup
-  const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
+  const { data: existingVehicle } = useVehicleByRegNo(
+    debouncedPlate.length >= 5 ? debouncedPlate : undefined
+  );
 
   useEffect(() => {
     if (existingVehicle?.id) {
       setSelectedVehicleId(existingVehicle.id);
       if (existingVehicle.transporterId) setSelectedTransporterId(existingVehicle.transporterId);
       if (existingVehicle.axleConfigurationId) {
-        const config = axleConfigurations.find(c => c.id === existingVehicle.axleConfigurationId);
+        const config = axleConfigurations.find((c) => c.id === existingVehicle.axleConfigurationId);
         if (config) setSelectedConfig(config.axleCode);
       }
       if (existingVehicle.makeModel) setVehicleMake(existingVehicle.makeModel);
@@ -344,7 +387,9 @@ export default function MultideckWeighingPage() {
     if (txn.vehicleMake) setVehicleMake(txn.vehicleMake);
     if (txn.axleConfiguration) setSelectedConfig(txn.axleConfiguration);
     if (txn.subcountyId && subcounties?.length) {
-      const sub = (subcounties as { id: string; countyId?: string }[]).find(s => s.id === txn.subcountyId);
+      const sub = (subcounties as { id: string; countyId?: string }[]).find(
+        (s) => s.id === txn.subcountyId
+      );
       if (sub?.countyId) setSelectedCountyId(sub.countyId);
     }
   }, [currentStep, weighingTransaction, subcounties]);
@@ -355,7 +400,7 @@ export default function MultideckWeighingPage() {
     if (!vehicleMake) return;
 
     const timeoutId = setTimeout(() => {
-      const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+      const config = axleConfigurations.find((c) => c.axleCode === selectedConfig);
       const updates: { regNo: string; make?: string; axleConfigurationId?: string } = {
         regNo: vehiclePlate.trim().toUpperCase(),
       };
@@ -379,7 +424,15 @@ export default function MultideckWeighingPage() {
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [selectedVehicleId, vehiclePlate, vehicleMake, selectedConfig, axleConfigurations, existingVehicle, updateVehicleMutation]);
+  }, [
+    selectedVehicleId,
+    vehiclePlate,
+    vehicleMake,
+    selectedConfig,
+    axleConfigurations,
+    existingVehicle,
+    updateVehicleMutation,
+  ]);
 
   // Request location when on vehicle step (optional; used for weighing location coordinates)
   useEffect(() => {
@@ -460,15 +513,22 @@ export default function MultideckWeighingPage() {
   // Share the axle configuration with TruConnect before a transaction exists
   useEffect(() => {
     if (middleware.connected && !weighingSession?.transactionId && selectedConfig) {
-      const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+      const config = axleConfigurations.find((c) => c.axleCode === selectedConfig);
       if (config?.axleNumber) middleware.sendUpdateConfig(config.axleNumber, selectedConfig);
     }
   }, [selectedConfig, middleware.connected, weighingSession?.transactionId, axleConfigurations]);
 
   // Sync selected axle configuration to TruConnect when on vehicle step (WebSocket or API polling)
   useEffect(() => {
-    if (currentStep !== 'vehicle' || !weighingSession?.transactionId || !selectedConfig || !currentStation || !vehiclePlate) return;
-    const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+    if (
+      currentStep !== 'vehicle' ||
+      !weighingSession?.transactionId ||
+      !selectedConfig ||
+      !currentStation ||
+      !vehiclePlate
+    )
+      return;
+    const config = axleConfigurations.find((c) => c.axleCode === selectedConfig);
     const totalAxles = config?.axleNumber ?? 0;
     if (totalAxles === 0) return;
     middleware.syncTransaction({
@@ -480,7 +540,16 @@ export default function MultideckWeighingPage() {
       bound: currentBound || 'A',
       weighingMode: 'multideck',
     });
-  }, [currentStep, weighingSession?.transactionId, selectedConfig, vehiclePlate, currentStation, currentBound, axleConfigurations, middleware]);
+  }, [
+    currentStep,
+    weighingSession?.transactionId,
+    selectedConfig,
+    vehiclePlate,
+    currentStation,
+    currentBound,
+    axleConfigurations,
+    middleware,
+  ]);
 
   // Capture state
   const [isCaptured, setIsCaptured] = useState(false);
@@ -498,15 +567,16 @@ export default function MultideckWeighingPage() {
 
   const deckWeights: DeckWeight[] = liveDeckWeights;
   const isMultideckWeights = middleware.weights?.mode === 'multideck';
-  const totalGVW = isMultideckWeights && middleware.weights?.gvw != null
-    ? middleware.weights.gvw
-    : deckWeights.reduce((sum, d) => sum + d.weight, 0);
+  const totalGVW =
+    isMultideckWeights && middleware.weights?.gvw != null
+      ? middleware.weights.gvw
+      : deckWeights.reduce((sum, d) => sum + d.weight, 0);
 
   // Group results: deck 1 → A, deck 2 → B, deck 3 → C, deck 4 → D. Only 4 decks; axles are grouped per config.
   const localGroupResults: AxleGroupResult[] = useMemo(() => {
     const deckToGroup: Record<number, string> = { 1: 'A', 2: 'B', 3: 'C', 4: 'D' };
     const deckWeightMap = new Map<string, number>();
-    deckWeights.forEach(dw => {
+    deckWeights.forEach((dw) => {
       const group = deckToGroup[dw.deck];
       if (group) deckWeightMap.set(group, dw.weight);
     });
@@ -514,16 +584,22 @@ export default function MultideckWeighingPage() {
     if (weightReferences.length === 0) {
       // Fallback: use tolerance from DB settings, not hardcoded
       const axleTol =
-        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
-        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive);
+        toleranceSettings.find(
+          (t: any) =>
+            t.appliesTo === 'AXLE' &&
+            t.isActive &&
+            t.legalFramework !== 'BOTH' &&
+            t.legalFramework !== 'GLOBAL'
+        ) || toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive);
       return ['A', 'B', 'C', 'D'].map((groupLabel, index) => {
         const deckNum = index + 1;
-        const measuredKg = isCaptured ? (deckWeightMap.get(groupLabel) || 0) : 0;
+        const measuredKg = isCaptured ? deckWeightMap.get(groupLabel) || 0 : 0;
         const permissibleKg = groupLabel === 'A' ? 8000 : 16000;
         let tolKg = 0;
         if (axleTol) {
           if (axleTol.toleranceKg && axleTol.toleranceKg > 0) tolKg = axleTol.toleranceKg;
-          else if (axleTol.tolerancePercentage > 0) tolKg = Math.round(permissibleKg * axleTol.tolerancePercentage / 100);
+          else if (axleTol.tolerancePercentage > 0)
+            tolKg = Math.round((permissibleKg * axleTol.tolerancePercentage) / 100);
         }
         const effectiveLimitKg = permissibleKg + tolKg;
         let status: ComplianceStatus = 'LEGAL';
@@ -548,7 +624,7 @@ export default function MultideckWeighingPage() {
     }
 
     const groupMap = new Map<string, typeof weightReferences>();
-    weightReferences.forEach(ref => {
+    weightReferences.forEach((ref) => {
       const group = ref.axleGrouping || 'A';
       if (!groupMap.has(group)) groupMap.set(group, []);
       groupMap.get(group)!.push(ref);
@@ -562,32 +638,49 @@ export default function MultideckWeighingPage() {
       // Priority: framework-specific → standard law by axle type → 0% strict
       const isSingleAxle = refs.length <= 1;
       const axleTolerance =
-        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
-        toleranceSettings.find((t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework === 'BOTH');
+        toleranceSettings.find(
+          (t: any) =>
+            t.appliesTo === 'AXLE' &&
+            t.isActive &&
+            t.legalFramework !== 'BOTH' &&
+            t.legalFramework !== 'GLOBAL'
+        ) ||
+        toleranceSettings.find(
+          (t: any) => t.appliesTo === 'AXLE' && t.isActive && t.legalFramework === 'BOTH'
+        );
       let toleranceKg = 0;
       if (axleTolerance && (axleTolerance.toleranceKg ?? 0) > 0) {
         toleranceKg = axleTolerance.toleranceKg ?? 0;
       } else if (axleTolerance && axleTolerance.tolerancePercentage > 0) {
-        toleranceKg = Math.round(permissibleKg * axleTolerance.tolerancePercentage / 100);
+        toleranceKg = Math.round((permissibleKg * axleTolerance.tolerancePercentage) / 100);
       }
       // If framework-specific returned 0, check standard law tolerance by axle type
       if (toleranceKg === 0) {
         const standardCode = isSingleAxle ? 'STANDARD_LAW_SINGLE' : 'STANDARD_LAW_GROUP';
-        const standardTolerance = toleranceSettings.find((t: any) => t.code === standardCode && t.isActive);
+        const standardTolerance = toleranceSettings.find(
+          (t: any) => t.code === standardCode && t.isActive
+        );
         if (standardTolerance) {
           if ((standardTolerance.toleranceKg ?? 0) > 0) {
             toleranceKg = standardTolerance.toleranceKg ?? 0;
           } else if (standardTolerance.tolerancePercentage > 0) {
-            toleranceKg = Math.round(permissibleKg * standardTolerance.tolerancePercentage / 100);
+            toleranceKg = Math.round((permissibleKg * standardTolerance.tolerancePercentage) / 100);
           }
         }
       }
       const effectiveLimitKg = permissibleKg + toleranceKg;
-      const measuredKg = isCaptured ? (deckWeightMap.get(groupLabel) || 0) : 0;
+      const measuredKg = isCaptured ? deckWeightMap.get(groupLabel) || 0 : 0;
 
       results.push({
         groupLabel,
-        axleType: refs.length === 1 ? (groupLabel === 'A' ? 'Steering' : 'Single') : (refs.length === 2 ? 'Tandem' : 'Tridem'),
+        axleType:
+          refs.length === 1
+            ? groupLabel === 'A'
+              ? 'Steering'
+              : 'Single'
+            : refs.length === 2
+              ? 'Tandem'
+              : 'Tridem',
         axleCount: refs.length,
         permissibleKg,
         toleranceKg,
@@ -596,8 +689,17 @@ export default function MultideckWeighingPage() {
         overloadKg: Math.max(0, measuredKg - effectiveLimitKg),
         pavementDamageFactor: 0,
         operationalToleranceKg,
-        status: measuredKg > effectiveLimitKg ? 'OVERLOAD' : (measuredKg > permissibleKg ? 'WARNING' : 'LEGAL'),
-        axles: refs.map(r => ({ axleNumber: r.axlePosition, measuredKg: Math.round(measuredKg / refs.length), permissibleKg: r.axleLegalWeightKg })),
+        status:
+          measuredKg > effectiveLimitKg
+            ? 'OVERLOAD'
+            : measuredKg > permissibleKg
+              ? 'WARNING'
+              : 'LEGAL',
+        axles: refs.map((r) => ({
+          axleNumber: r.axlePosition,
+          measuredKg: Math.round(measuredKg / refs.length),
+          permissibleKg: r.axleLegalWeightKg,
+        })),
       });
     }
     return results;
@@ -609,7 +711,7 @@ export default function MultideckWeighingPage() {
     if (!complianceResult?.groupResults || complianceResult.groupResults.length === 0) {
       return localGroupResults;
     }
-    return complianceResult.groupResults.map(bg => ({
+    return complianceResult.groupResults.map((bg) => ({
       groupLabel: bg.groupLabel,
       axleType: bg.axleType,
       axleCount: bg.axleCount,
@@ -621,7 +723,7 @@ export default function MultideckWeighingPage() {
       pavementDamageFactor: bg.pavementDamageFactor,
       status: (bg.status as ComplianceStatus) || 'LEGAL',
       operationalToleranceKg: bg.operationalToleranceKg,
-      axles: bg.axles.map(a => ({
+      axles: bg.axles.map((a) => ({
         axleNumber: a.axleNumber,
         measuredKg: a.measuredWeightKg,
         permissibleKg: a.permissibleWeightKg,
@@ -629,21 +731,32 @@ export default function MultideckWeighingPage() {
     }));
   }, [complianceResult?.groupResults, localGroupResults]);
 
-  const gvwPermissible = complianceResult?.gvwPermissibleKg || effectiveGroupResults.reduce((sum, g) => sum + g.permissibleKg, 0) || 56000;
+  const gvwPermissible =
+    complianceResult?.gvwPermissibleKg ||
+    effectiveGroupResults.reduce((sum, g) => sum + g.permissibleKg, 0) ||
+    56000;
   const gvwMeasured = complianceResult?.gvwMeasuredKg || (isCaptured ? totalGVW : 0);
 
   // Compute GVW tolerance from DB settings (local fallback before backend submission)
   const localGvwTolerance = useMemo(() => {
     // Prefer framework-specific GVW tolerance over BOTH/GLOBAL wildcard
     const gvwTolerance =
-      toleranceSettings.find((t: any) => t.appliesTo === 'GVW' && t.isActive && t.legalFramework !== 'BOTH' && t.legalFramework !== 'GLOBAL') ||
-      toleranceSettings.find((t: any) => t.appliesTo === 'GVW' && t.isActive);
+      toleranceSettings.find(
+        (t: any) =>
+          t.appliesTo === 'GVW' &&
+          t.isActive &&
+          t.legalFramework !== 'BOTH' &&
+          t.legalFramework !== 'GLOBAL'
+      ) || toleranceSettings.find((t: any) => t.appliesTo === 'GVW' && t.isActive);
     if (!gvwTolerance) return { kg: 0, display: '0% (strict)' };
     if (gvwTolerance.toleranceKg && gvwTolerance.toleranceKg > 0) {
-      return { kg: gvwTolerance.toleranceKg, display: `${gvwTolerance.toleranceKg.toLocaleString()} kg` };
+      return {
+        kg: gvwTolerance.toleranceKg,
+        display: `${gvwTolerance.toleranceKg.toLocaleString()} kg`,
+      };
     }
     if (gvwTolerance.tolerancePercentage > 0) {
-      const kg = Math.round(gvwPermissible * gvwTolerance.tolerancePercentage / 100);
+      const kg = Math.round((gvwPermissible * gvwTolerance.tolerancePercentage) / 100);
       return { kg, display: `${gvwTolerance.tolerancePercentage}%` };
     }
     return { kg: 0, display: '0% (strict)' };
@@ -654,8 +767,11 @@ export default function MultideckWeighingPage() {
   const gvwToleranceDisplay = complianceResult?.gvwToleranceDisplay ?? localGvwTolerance.display;
   const gvwEffectiveLimitKg = gvwPermissible + gvwToleranceKg;
 
-  const gvwOverload = complianceResult?.gvwOverloadKg ?? Math.max(0, gvwMeasured - gvwEffectiveLimitKg);
-  const overallStatus: ComplianceStatus = (complianceResult?.overallStatus as ComplianceStatus) || (isCaptured ? calculateOverallStatus(effectiveGroupResults, gvwOverload) : 'LEGAL');
+  const gvwOverload =
+    complianceResult?.gvwOverloadKg ?? Math.max(0, gvwMeasured - gvwEffectiveLimitKg);
+  const overallStatus: ComplianceStatus =
+    (complianceResult?.overallStatus as ComplianceStatus) ||
+    (isCaptured ? calculateOverallStatus(effectiveGroupResults, gvwOverload) : 'LEGAL');
 
   // Actions
   const handleProceedToDecision = async () => {
@@ -716,10 +832,10 @@ export default function MultideckWeighingPage() {
   };
 
   const handleCapture = useCallback(async () => {
-    const deck1Groups = localGroupResults.filter(g => g.groupLabel === 'A');
-    const deck2Groups = localGroupResults.filter(g => g.groupLabel === 'B');
-    const deck3Groups = localGroupResults.filter(g => g.groupLabel === 'C');
-    const deck4Groups = localGroupResults.filter(g => g.groupLabel === 'D');
+    const deck1Groups = localGroupResults.filter((g) => g.groupLabel === 'A');
+    const deck2Groups = localGroupResults.filter((g) => g.groupLabel === 'B');
+    const deck3Groups = localGroupResults.filter((g) => g.groupLabel === 'C');
+    const deck4Groups = localGroupResults.filter((g) => g.groupLabel === 'D');
 
     const captureGroup = async (groups: AxleGroupResult[]) => {
       for (const group of groups) {
@@ -742,7 +858,7 @@ export default function MultideckWeighingPage() {
     // Ensure last minute details are saved
     await handleProceedToDecision();
     if (weighingSession?.transactionId) {
-       await downloadWeightTicketPdf(weighingSession.transactionId);
+      await downloadWeightTicketPdf(weighingSession.transactionId);
     }
     resetSession();
     middleware.resetSession();
@@ -778,9 +894,9 @@ export default function MultideckWeighingPage() {
     await handleProceedToDecision();
     try {
       await createYardEntry({
-         weighingId: weighingSession.transactionId,
-         stationId: currentStation.id,
-         reason: `Overload of ${gvwOverload.toLocaleString()} kg`
+        weighingId: weighingSession.transactionId,
+        stationId: currentStation.id,
+        reason: `Overload of ${gvwOverload.toLocaleString()} kg`,
       });
       toast.success('Vehicle sent to yard.');
       handleFinishAndNew();
@@ -793,7 +909,9 @@ export default function MultideckWeighingPage() {
     if (!weighingSession?.transactionId) return;
     // Flush details before special release
     await handleProceedToDecision();
-    router.push(`/${orgSlug}/weighing/special-release?transactionId=${weighingSession?.transactionId}`);
+    router.push(
+      `/${orgSlug}/weighing/special-release?transactionId=${weighingSession?.transactionId}`
+    );
   }, [weighingSession, router, orgSlug, handleProceedToDecision]);
 
   const handleReweigh = useCallback(async () => {
@@ -824,11 +942,11 @@ export default function MultideckWeighingPage() {
         console.error('Failed to delete pending transaction:', err);
       }
     }
-    
+
     // Explicitly reset middleware and frontend session
     middleware.resetSession();
     resetSession();
-    
+
     setIsCaptured(false);
     setVehiclePlate('');
     setIsPlateDisabled(false);
@@ -849,39 +967,57 @@ export default function MultideckWeighingPage() {
     toast.success('Weighing cancelled.');
   }, [weighingSession, resetSession, middleware, deleteWeighingMutation]);
 
-  const handleResumeTransaction = useCallback((txn: WeighingTransaction) => {
-    resetSession();
-    if (middleware.connected) middleware.resetSession();
-    setVehiclePlate(txn.vehicleRegNumber || '');
-    setIsPlateDisabled(true);
-    if (txn.driverId) setSelectedDriverId(txn.driverId);
-    if (txn.transporterId) setSelectedTransporterId(txn.transporterId);
-    if (txn.originId) setSelectedOriginId(txn.originId);
-    if (txn.destinationId) setSelectedDestinationId(txn.destinationId);
-    if (txn.cargoId) setSelectedCargoId(txn.cargoId);
-    setCurrentStep('vehicle');
-    toast.info(`Resuming weighing for ${txn.vehicleRegNumber}`);
-  }, [resetSession, middleware]);
+  const handleResumeTransaction = useCallback(
+    (txn: WeighingTransaction) => {
+      resetSession();
+      if (middleware.connected) middleware.resetSession();
+      setVehiclePlate(txn.vehicleRegNumber || '');
+      setIsPlateDisabled(true);
+      if (txn.driverId) setSelectedDriverId(txn.driverId);
+      if (txn.transporterId) setSelectedTransporterId(txn.transporterId);
+      if (txn.originId) setSelectedOriginId(txn.originId);
+      if (txn.destinationId) setSelectedDestinationId(txn.destinationId);
+      if (txn.cargoId) setSelectedCargoId(txn.cargoId);
+      setCurrentStep('vehicle');
+      toast.info(`Resuming weighing for ${txn.vehicleRegNumber}`);
+    },
+    [resetSession, middleware]
+  );
 
-  const handleDiscardTransaction = useCallback(async (txn: WeighingTransaction) => {
-    try {
-      await deleteWeighingMutation.mutateAsync(txn.id);
-      toast.success(`Transaction ${txn.vehicleRegNumber} discarded successfully.`);
-    } catch (error) {
-      console.error('Failed to discard transaction:', error);
-      toast.error('Failed to discard transaction.');
-    }
-  }, [deleteWeighingMutation]);
+  const handleDiscardTransaction = useCallback(
+    async (txn: WeighingTransaction) => {
+      try {
+        await deleteWeighingMutation.mutateAsync(txn.id);
+        toast.success(`Transaction ${txn.vehicleRegNumber} discarded successfully.`);
+      } catch (error) {
+        console.error('Failed to discard transaction:', error);
+        toast.error('Failed to discard transaction.');
+      }
+    },
+    [deleteWeighingMutation]
+  );
 
-  const validationResult = useMemo(() => validateRequiredFields({
-    driverId: selectedDriverId,
-    transporterId: selectedTransporterId,
-    originId: selectedOriginId,
-    destinationId: selectedDestinationId,
-    cargoId: selectedCargoId,
-    roadId: selectedRoadId,
-    subcountyId: selectedSubcountyId,
-  }), [selectedDriverId, selectedTransporterId, selectedOriginId, selectedDestinationId, selectedCargoId, selectedRoadId, selectedSubcountyId]);
+  const validationResult = useMemo(
+    () =>
+      validateRequiredFields({
+        driverId: selectedDriverId,
+        transporterId: selectedTransporterId,
+        originId: selectedOriginId,
+        destinationId: selectedDestinationId,
+        cargoId: selectedCargoId,
+        roadId: selectedRoadId,
+        subcountyId: selectedSubcountyId,
+      }),
+    [
+      selectedDriverId,
+      selectedTransporterId,
+      selectedOriginId,
+      selectedDestinationId,
+      selectedCargoId,
+      selectedRoadId,
+      selectedSubcountyId,
+    ]
+  );
 
   useEffect(() => {
     if (validationResult.isValid && highlightMissingVehicleFields.length > 0) {
@@ -941,12 +1077,24 @@ export default function MultideckWeighingPage() {
       setIsCapturingWeight(false);
       setIsConfirmModalOpen(false);
     }
-  }, [handleCapture, confirmWeight, isCaptured, localGroupResults, gvwMeasured, weighingSession?.transactionId, selectedConfig, middleware]);
+  }, [
+    handleCapture,
+    confirmWeight,
+    isCaptured,
+    localGroupResults,
+    gvwMeasured,
+    weighingSession?.transactionId,
+    selectedConfig,
+    middleware,
+  ]);
 
-  const getTotalAxles = useCallback((config: string): number => {
-    const configObj = axleConfigurations.find(c => c.axleCode === config);
-    return configObj?.axleNumber || 2;
-  }, [axleConfigurations]);
+  const getTotalAxles = useCallback(
+    (config: string): number => {
+      const configObj = axleConfigurations.find((c) => c.axleCode === config);
+      return configObj?.axleNumber || 2;
+    },
+    [axleConfigurations]
+  );
 
   // Proceed to vehicle step - auto-create vehicle if needed and initialize transaction (same as mobile)
   const handleProceedToVehicle = useCallback(async () => {
@@ -987,19 +1135,34 @@ export default function MultideckWeighingPage() {
     } else {
       toast.error('Could not create transaction. Please check your connection and try again.');
     }
-  }, [existingVehicle, vehiclePlate, createVehicleMutation, middleware, selectedConfig, axleConfigurations, initializeTransaction, currentStation, currentBound, getTotalAxles, handleNextStep]);
+  }, [
+    existingVehicle,
+    vehiclePlate,
+    createVehicleMutation,
+    middleware,
+    selectedConfig,
+    axleConfigurations,
+    initializeTransaction,
+    currentStation,
+    currentBound,
+    getTotalAxles,
+    handleNextStep,
+  ]);
 
   const canProceedFromCapture = vehiclePlate.length >= 5;
   const canProceedFromVehicle = selectedConfig !== '' && !!complianceResult;
-  const stationDisplayName = currentStation ? `${currentStation.name} (${currentBound || 'A'})` : 'Loading...';
-
-
+  const stationDisplayName = currentStation
+    ? `${currentStation.name} (${currentBound || 'A'})`
+    : 'Loading...';
 
   if (isLoadingData) {
     return (
-      <AppShell title={isCommercial ? 'Commercial Weighing' : 'Multideck Weighing'} subtitle="Loading...">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+      <AppShell
+        title={isCommercial ? 'Commercial Weighing' : 'Multideck Weighing'}
+        subtitle="Loading..."
+      >
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Loader2 className="mb-4 h-12 w-12 animate-spin text-blue-600" />
         </div>
       </AppShell>
     );
@@ -1036,64 +1199,68 @@ export default function MultideckWeighingPage() {
             {currentStep === 'capture' && (
               <div className="rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5">
                 <WeighingCaptureStep
-                stationId={currentStation?.id}
-                currentStation={currentStation}
-                currentBound={currentBound}
-                middlewareConnected={middlewareConnected}
-                scales={indicators}
-                isScalesConnected={isIndicatorConnected}
-                isScaleTestCompleted={isScaleTestCompleted}
-                lastScaleTestAt={lastScaleTestAt}
-                weighingType="multideck"
-                isSimulationMode={isSimulationMode}
-                isCommercial={isCommercial}
-                handleResumeTransaction={handleResumeTransaction}
-                handleDiscardTransaction={handleDiscardTransaction}
-                handleStartScaleTest={() => setIsScaleTestModalOpen(true)}
-                handleConnectScales={() => middleware.connect()}
-                handleToggleScale={() => {}}
-                handleChangeWeighingType={() => router.push(`/${orgSlug}/weighing/mobile`)}
-                selectedCountyId={selectedCountyId}
-                setSelectedCountyId={setSelectedCountyId}
-                selectedSubcountyId={selectedSubcountyId}
-                setSelectedSubcountyId={setSelectedSubcountyId}
-                selectedRoadId={selectedRoadId}
-                setSelectedRoadId={setSelectedRoadId}
-                frontViewImage={frontViewImage}
-                setFrontViewImage={setFrontViewImage}
-                overviewImage={overviewImage}
-                setOverviewImage={setOverviewImage}
-                handleCaptureFront={handleCaptureFront}
-                handleCaptureOverview={handleCaptureOverview}
-                vehiclePlate={vehiclePlate}
-                setVehiclePlate={setVehiclePlate}
-                isPlateDisabled={isPlateDisabled}
-                handleScanPlate={handleScanPlate}
-                handleEditPlate={() => setIsPlateDisabled(false)}
-                handleProceedToVehicle={handleProceedToVehicle}
-                canProceedFromCapture={canProceedFromCapture}
-                handleBoundChange={setCurrentBoundState}
-                pendingTransactions={pendingTransactions}
-              >
-                <MultideckWeightsCard
-                  platformName={currentStation?.code || 'ROMIA'}
-                  deckWeights={deckWeights}
-                  totalGVW={totalGVW}
-                  vehicleOnDeck={vehiclePlate.length > 0}
-                />
+                  stationId={currentStation?.id}
+                  currentStation={currentStation}
+                  currentBound={currentBound}
+                  middlewareConnected={middlewareConnected}
+                  scales={indicators}
+                  isScalesConnected={isIndicatorConnected}
+                  isScaleTestCompleted={isScaleTestCompleted}
+                  lastScaleTestAt={lastScaleTestAt}
+                  weighingType="multideck"
+                  isSimulationMode={isSimulationMode}
+                  isCommercial={isCommercial}
+                  handleResumeTransaction={handleResumeTransaction}
+                  handleDiscardTransaction={handleDiscardTransaction}
+                  handleStartScaleTest={() => setIsScaleTestModalOpen(true)}
+                  handleConnectScales={() => middleware.connect()}
+                  handleToggleScale={() => {}}
+                  handleChangeWeighingType={() => router.push(`/${orgSlug}/weighing/mobile`)}
+                  selectedCountyId={selectedCountyId}
+                  setSelectedCountyId={setSelectedCountyId}
+                  selectedSubcountyId={selectedSubcountyId}
+                  setSelectedSubcountyId={setSelectedSubcountyId}
+                  selectedRoadId={selectedRoadId}
+                  setSelectedRoadId={setSelectedRoadId}
+                  frontViewImage={frontViewImage}
+                  setFrontViewImage={setFrontViewImage}
+                  overviewImage={overviewImage}
+                  setOverviewImage={setOverviewImage}
+                  handleCaptureFront={handleCaptureFront}
+                  handleCaptureOverview={handleCaptureOverview}
+                  vehiclePlate={vehiclePlate}
+                  setVehiclePlate={setVehiclePlate}
+                  isPlateDisabled={isPlateDisabled}
+                  handleScanPlate={handleScanPlate}
+                  handleEditPlate={() => setIsPlateDisabled(false)}
+                  handleProceedToVehicle={handleProceedToVehicle}
+                  canProceedFromCapture={canProceedFromCapture}
+                  handleBoundChange={setCurrentBoundState}
+                  pendingTransactions={pendingTransactions}
+                >
+                  <MultideckWeightsCard
+                    platformName={currentStation?.code || 'ROMIA'}
+                    deckWeights={deckWeights}
+                    totalGVW={totalGVW}
+                    vehicleOnDeck={vehiclePlate.length > 0}
+                  />
                 </WeighingCaptureStep>
               </div>
             )}
 
             {currentStep === 'vehicle' && (
-              <div className="flex flex-col min-h-0 gap-4">
+              <div className="flex min-h-0 flex-col gap-4">
                 {/* Ticket row + Cancel Weighing (same as mobile) */}
-                <Card className="border-gray-200 shrink-0">
-                  <CardContent className="p-4 flex items-center justify-between">
+                <Card className="shrink-0 border-gray-200">
+                  <CardContent className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
-                      <span className="font-mono font-bold text-lg">{weighingSession?.ticketNumber || ticketNumber || 'PENDING'}</span>
+                      <span className="font-mono text-lg font-bold">
+                        {weighingSession?.ticketNumber || ticketNumber || 'PENDING'}
+                      </span>
                       <span className="text-gray-400">|</span>
-                      <span className="font-mono text-xl font-bold text-blue-600">{vehiclePlate}</span>
+                      <span className="font-mono text-xl font-bold text-blue-600">
+                        {vehiclePlate}
+                      </span>
                     </div>
                     <Button variant="destructive" size="sm" onClick={handleCancelWeighing}>
                       CANCEL WEIGHING
@@ -1101,9 +1268,9 @@ export default function MultideckWeighingPage() {
                   </CardContent>
                 </Card>
 
-                <div className="rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5 flex flex-col min-h-0">
+                <div className="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5">
                   {/* MULTIDECK card at top (read-only display of deck weights / GVW) */}
-                  <div className="mb-4 md:mb-5 shrink-0">
+                  <div className="mb-4 shrink-0 md:mb-5">
                     <MultideckWeightsCard
                       platformName={currentStation?.code || 'ROMIA'}
                       deckWeights={deckWeights}
@@ -1115,7 +1282,7 @@ export default function MultideckWeighingPage() {
                   {/* Left column sets height (no scroll); right column scrolls when it exceeds that height */}
                   <div className="relative">
                     {/* Left: in flow — defines height, never scrolls */}
-                    <div className="w-full lg:w-1/2 lg:pr-5 space-y-4">
+                    <div className="w-full space-y-4 lg:w-1/2 lg:pr-5">
                       <AxleConfigurationCard
                         axleConfigurations={axleConfigurations}
                         selectedConfig={selectedConfig}
@@ -1133,7 +1300,11 @@ export default function MultideckWeighingPage() {
                         />
                       </div>
                       <div className="space-y-3">
-                        <ComplianceBanner status={overallStatus} gvwMeasured={gvwMeasured} gvwOverload={gvwOverload} />
+                        <ComplianceBanner
+                          status={overallStatus}
+                          gvwMeasured={gvwMeasured}
+                          gvwOverload={gvwOverload}
+                        />
                         <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
                           <ComplianceTable
                             groupResults={effectiveGroupResults}
@@ -1150,8 +1321,8 @@ export default function MultideckWeighingPage() {
                     </div>
 
                     {/* Right: on lg, absolute so height = left; scrolls when content exceeds left height */}
-                    <div className="mt-4 lg:mt-0 lg:absolute lg:top-0 lg:right-0 lg:w-[calc(50%-0.625rem)] lg:h-full lg:overflow-hidden flex flex-col">
-                      <div className="min-h-0 flex-1 flex flex-col overflow-hidden lg:h-full">
+                    <div className="mt-4 flex flex-col lg:absolute lg:right-0 lg:top-0 lg:mt-0 lg:h-full lg:w-[calc(50%-0.625rem)] lg:overflow-hidden">
+                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:h-full">
                         <VehicleDetailsCard
                           selectedDriverId={selectedDriverId}
                           onDriverIdChange={setSelectedDriverId}
@@ -1191,8 +1362,14 @@ export default function MultideckWeighingPage() {
                           showPermitSection={true}
                           onAddDriver={() => setIsDriverModalOpen(true)}
                           onAddTransporter={() => setIsTransporterModalOpen(true)}
-                          onAddOriginLocation={() => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); }}
-                          onAddDestinationLocation={() => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); }}
+                          onAddOriginLocation={() => {
+                            setLocationModalTarget('origin');
+                            setIsLocationModalOpen(true);
+                          }}
+                          onAddDestinationLocation={() => {
+                            setLocationModalTarget('destination');
+                            setIsLocationModalOpen(true);
+                          }}
                           onAddVehicleMake={() => setIsVehicleMakeModalOpen(true)}
                           onAddCargoType={() => setIsCargoTypeModalOpen(true)}
                           axleConfigurations={axleConfigurations}
@@ -1206,14 +1383,19 @@ export default function MultideckWeighingPage() {
 
                 {/* Single row: Back, Take Weight, Proceed to Decision */}
                 <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
-                  <Button variant="outline" onClick={handlePrevStep} className="gap-2 shrink-0" disabled={isCapturingWeight}>
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevStep}
+                    className="shrink-0 gap-2"
+                    disabled={isCapturingWeight}
+                  >
                     <ChevronLeft className="h-4 w-4" /> Back
                   </Button>
                   <div className="flex items-center gap-3">
                     {!complianceResult && (
                       <Button
                         onClick={handleTakeWeight}
-                        className="bg-green-600 hover:bg-green-700 text-white gap-2 shrink-0"
+                        className="shrink-0 gap-2 bg-green-600 text-white hover:bg-green-700"
                         disabled={isCapturingWeight || !selectedConfig || !vehiclePlate}
                       >
                         <Scale className="h-4 w-4" />
@@ -1222,44 +1404,50 @@ export default function MultideckWeighingPage() {
                     )}
                     <Button
                       onClick={() => void handleProceedToDecision()}
-                      disabled={!canProceedFromVehicle || isCapturingWeight || isFlushingVehicleDetails}
-                      className="gap-2 shrink-0"
+                      disabled={
+                        !canProceedFromVehicle || isCapturingWeight || isFlushingVehicleDetails
+                      }
+                      className="shrink-0 gap-2"
                     >
-                      {isCapturingWeight || isFlushingVehicleDetails ? 'Processing...' : 'Proceed to Decision'}
-                      {!isCapturingWeight && !isFlushingVehicleDetails && <ChevronRight className="h-4 w-4" />}
+                      {isCapturingWeight || isFlushingVehicleDetails
+                        ? 'Processing...'
+                        : 'Proceed to Decision'}
+                      {!isCapturingWeight && !isFlushingVehicleDetails && (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
               </div>
             )}
 
-             {currentStep === 'decision' && (
-               <WeighingDecisionStep
-                 ticketNumber={ticketNumber || 'PENDING'}
-                 vehiclePlate={vehiclePlate}
-                 gvwMeasured={gvwMeasured}
-                 overallStatus={overallStatus}
-                 totalFeeUsd={complianceResult?.totalFeeUsd ?? 0}
-                 totalFeeKes={complianceResult?.totalFeeKes}
-                 chargingCurrency={complianceResult?.chargingCurrency}
-                 reweighCycleNo={reweighCycleNo}
-                 isValid={validationResult.isValid}
-                 missingFields={validationResult.missingFields}
-                 onFinishOnly={handleFinishExit}
-                 onFinishAndNew={handleFinishAndNew}
-                 onSendToYard={handleSendToYard}
-                 onSpecialRelease={handleSpecialRelease}
-                 onReweigh={handleReweigh}
-                 onPrintTicket={handleFinishAndNew}
-                 canPrint={canPrint}
-                 canSendToYard={canSendToYard}
-                 canSpecialRelease={canSpecialRelease}
-                 canReweigh={false}
-                 isSentToYard={complianceResult?.isSentToYard ?? false}
-                 onBack={handlePrevStep}
-                 operationalToleranceKg={operationalToleranceKg}
-               />
-             )}
+            {currentStep === 'decision' && (
+              <WeighingDecisionStep
+                ticketNumber={ticketNumber || 'PENDING'}
+                vehiclePlate={vehiclePlate}
+                gvwMeasured={gvwMeasured}
+                overallStatus={overallStatus}
+                totalFeeUsd={complianceResult?.totalFeeUsd ?? 0}
+                totalFeeKes={complianceResult?.totalFeeKes}
+                chargingCurrency={complianceResult?.chargingCurrency}
+                reweighCycleNo={reweighCycleNo}
+                isValid={validationResult.isValid}
+                missingFields={validationResult.missingFields}
+                onFinishOnly={handleFinishExit}
+                onFinishAndNew={handleFinishAndNew}
+                onSendToYard={handleSendToYard}
+                onSpecialRelease={handleSpecialRelease}
+                onReweigh={handleReweigh}
+                onPrintTicket={handleFinishAndNew}
+                canPrint={canPrint}
+                canSendToYard={canSendToYard}
+                canSpecialRelease={canSpecialRelease}
+                canReweigh={false}
+                isSentToYard={complianceResult?.isSentToYard ?? false}
+                onBack={handlePrevStep}
+                operationalToleranceKg={operationalToleranceKg}
+              />
+            )}
           </div>
         </div>
 
@@ -1270,14 +1458,14 @@ export default function MultideckWeighingPage() {
           onConfirm={handleConfirmWeight}
           vehiclePlate={vehiclePlate}
           axleType={selectedConfig}
-          axleGroups={effectiveGroupResults.map(g => ({
+          axleGroups={effectiveGroupResults.map((g) => ({
             group: g.groupLabel,
             permissible: g.permissibleKg,
             tolerance: g.toleranceKg > 0 ? `${g.toleranceKg.toLocaleString()} kg` : '0% (strict)',
             operationalTolerance: g.operationalToleranceKg,
             actual: g.measuredKg,
             overload: g.overloadKg,
-            result: g.overloadKg > 0 ? 'Overload' as const : 'Legal' as const,
+            result: g.overloadKg > 0 ? ('Overload' as const) : ('Legal' as const),
           }))}
           gvw={{
             permissible: gvwPermissible,
@@ -1318,16 +1506,34 @@ export default function MultideckWeighingPage() {
           middlewareConnected={middlewareConnected}
         />
 
-        <DriverModal open={isDriverModalOpen} onOpenChange={setIsDriverModalOpen} onSave={handleSaveDriver} isSaving={isSavingEntity} mode="create" />
-        <TransporterModal open={isTransporterModalOpen} onOpenChange={setIsTransporterModalOpen} onSave={handleSaveTransporter} isSaving={isSavingEntity} mode="create" />
-        <OriginDestinationModal open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen} onSave={handleSaveLocation} isSaving={isSavingEntity} mode="create" />
+        <DriverModal
+          open={isDriverModalOpen}
+          onOpenChange={setIsDriverModalOpen}
+          onSave={handleSaveDriver}
+          isSaving={isSavingEntity}
+          mode="create"
+        />
+        <TransporterModal
+          open={isTransporterModalOpen}
+          onOpenChange={setIsTransporterModalOpen}
+          onSave={handleSaveTransporter}
+          isSaving={isSavingEntity}
+          mode="create"
+        />
+        <OriginDestinationModal
+          open={isLocationModalOpen}
+          onOpenChange={setIsLocationModalOpen}
+          onSave={handleSaveLocation}
+          isSaving={isSavingEntity}
+          mode="create"
+        />
         <VehicleMakeModal
           open={isVehicleMakeModalOpen}
           onOpenChange={setIsVehicleMakeModalOpen}
           onSave={async (data) => {
             await handleSaveVehicleMake(data);
             if (selectedVehicleId && data.name) {
-              const config = axleConfigurations.find(c => c.axleCode === selectedConfig);
+              const config = axleConfigurations.find((c) => c.axleCode === selectedConfig);
               updateVehicleMutation.mutate({
                 id: selectedVehicleId,
                 payload: {
@@ -1340,7 +1546,13 @@ export default function MultideckWeighingPage() {
           isSaving={isSavingEntity}
           mode="create"
         />
-        <CargoTypeModal open={isCargoTypeModalOpen} onOpenChange={setIsCargoTypeModalOpen} onSave={handleSaveCargoType} isSaving={isSavingEntity} mode="create" />
+        <CargoTypeModal
+          open={isCargoTypeModalOpen}
+          onOpenChange={setIsCargoTypeModalOpen}
+          onSave={handleSaveCargoType}
+          isSaving={isSavingEntity}
+          mode="create"
+        />
 
         {/* Cancel Weighing confirmation (same as mobile) */}
         <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
@@ -1353,7 +1565,10 @@ export default function MultideckWeighingPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Continue Weighing</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmCancelWeighing} className="bg-red-600 hover:bg-red-700">
+              <AlertDialogAction
+                onClick={confirmCancelWeighing}
+                className="bg-red-600 hover:bg-red-700"
+              >
                 Cancel Weighing
               </AlertDialogAction>
             </AlertDialogFooter>

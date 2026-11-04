@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   AlertDialog,
@@ -32,7 +32,10 @@ import { DriverModal } from '@/components/weighing/modals/DriverModal';
 import { OriginDestinationModal } from '@/components/weighing/modals/OriginDestinationModal';
 import { TransporterModal } from '@/components/weighing/modals/TransporterModal';
 import { ScaleTestModal } from '@/components/weighing/ScaleTestModal';
-import { SCALE_TEST_SUCCESS_MESSAGE, SCALE_TEST_SUCCESS_DESCRIPTION } from '@/components/weighing/ScaleTestBanner';
+import {
+  SCALE_TEST_SUCCESS_MESSAGE,
+  SCALE_TEST_SUCCESS_DESCRIPTION,
+} from '@/components/weighing/ScaleTestBanner';
 import type { ScaleTest } from '@/lib/api/weighing';
 import {
   useCreateVehicle,
@@ -75,7 +78,16 @@ import type {
 } from '@/types/weighing';
 import { cn } from '@/lib/utils';
 import { formatWeight } from '@/lib/weighing-utils';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock, Loader2, ShieldCheck, XCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Loader2,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -94,7 +106,10 @@ interface CommercialWeighingStepperProps {
   className?: string;
 }
 
-export function CommercialWeighingStepper({ mode = 'multideck', className }: CommercialWeighingStepperProps) {
+export function CommercialWeighingStepper({
+  mode = 'multideck',
+  className,
+}: CommercialWeighingStepperProps) {
   const orgSlug = useOrgSlug();
   const canApproveException = useHasPermission('weighing.override');
 
@@ -157,7 +172,8 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     staleTime: 5 * 60 * 1000,
   });
   const isFacilityOwned = orgData?.weighingBusinessModel === 'FacilityOwnedScale';
-  const feeIsConfigured = !isFacilityOwned && (orgData?.commercialWeighingFeeKes ?? 0) > 0 && !!orgData?.paymentGateway;
+  const feeIsConfigured =
+    !isFacilityOwned && (orgData?.commercialWeighingFeeKes ?? 0) > 0 && !!orgData?.paymentGateway;
   const tenantSlug = orgData?.ssoTenantSlug ?? '';
 
   // Reweigh auto-match window (minutes) — configured under Setup > Settings > Weighing
@@ -173,29 +189,56 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   // Manual override for attaching a capture to a transaction found OUTSIDE the auto-match window
   // (via the resume dialog or the Active Weighings board).
   const canOverrideAttach = useHasPermission('manual_weight_override');
-  const [pendingOverride, setPendingOverride] = useState<{ isOverrideAttach: boolean; reweighReason?: string } | null>(null);
+  const [pendingOverride, setPendingOverride] = useState<{
+    isOverrideAttach: boolean;
+    reweighReason?: string;
+  } | null>(null);
 
   const weighingUI = useWeighingUI({ stationId: currentStation?.id });
   const {
-    vehiclePlate, setVehiclePlate, debouncedPlate,
-    isPlateDisabled, setIsPlateDisabled,
-    handleScanPlate, handleCaptureFront, handleCaptureOverview,
-    frontViewImage, setFrontViewImage,
-    overviewImage, setOverviewImage,
-    selectedDriverId, setSelectedDriverId,
-    selectedTransporterId, setSelectedTransporterId,
-    selectedCargoId, setSelectedCargoId,
-    selectedOriginId, setSelectedOriginId,
-    selectedDestinationId, setSelectedDestinationId,
-    drivers, transporters, cargoTypes, locations,
-    isDriverModalOpen, setIsDriverModalOpen,
-    isTransporterModalOpen, setIsTransporterModalOpen,
-    isCargoTypeModalOpen, setIsCargoTypeModalOpen,
-    isLocationModalOpen, setIsLocationModalOpen,
-    locationModalTarget, setLocationModalTarget,
+    vehiclePlate,
+    setVehiclePlate,
+    debouncedPlate,
+    isPlateDisabled,
+    setIsPlateDisabled,
+    handleScanPlate,
+    handleCaptureFront,
+    handleCaptureOverview,
+    frontViewImage,
+    setFrontViewImage,
+    overviewImage,
+    setOverviewImage,
+    selectedDriverId,
+    setSelectedDriverId,
+    selectedTransporterId,
+    setSelectedTransporterId,
+    selectedCargoId,
+    setSelectedCargoId,
+    selectedOriginId,
+    setSelectedOriginId,
+    selectedDestinationId,
+    setSelectedDestinationId,
+    drivers,
+    transporters,
+    cargoTypes,
+    locations,
+    isDriverModalOpen,
+    setIsDriverModalOpen,
+    isTransporterModalOpen,
+    setIsTransporterModalOpen,
+    isCargoTypeModalOpen,
+    setIsCargoTypeModalOpen,
+    isLocationModalOpen,
+    setIsLocationModalOpen,
+    locationModalTarget,
+    setLocationModalTarget,
     isSavingEntity,
-    handleSaveDriver, handleSaveTransporter, handleSaveCargoType, handleSaveLocation,
-    isScaleTestModalOpen, setIsScaleTestModalOpen,
+    handleSaveDriver,
+    handleSaveTransporter,
+    handleSaveCargoType,
+    handleSaveLocation,
+    isScaleTestModalOpen,
+    setIsScaleTestModalOpen,
   } = weighingUI;
 
   // Opens the scale test modal — required before Next is enabled on the capture step whenever
@@ -203,7 +246,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   // gate). Previously a no-op here (the modal was never imported/rendered at all), which made the
   // commercial capture screen a permanent dead end for any station that had never had a scale test
   // recorded — found live via a Playwright agent's first-ever UI-driven weighing capture test.
-  const handleStartScaleTest = useCallback(() => setIsScaleTestModalOpen(true), [setIsScaleTestModalOpen]);
+  const handleStartScaleTest = useCallback(
+    () => setIsScaleTestModalOpen(true),
+    [setIsScaleTestModalOpen]
+  );
 
   const handleScaleTestComplete = useCallback((test: ScaleTest) => {
     if (test.result === 'pass') {
@@ -216,22 +262,30 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   const selectedCargoType = cargoTypes.find((c) => c.id === selectedCargoId);
 
   const createVehicleMutation = useCreateVehicle();
-  const { data: existingVehicle } = useVehicleByRegNo(debouncedPlate.length >= 5 ? debouncedPlate : undefined);
+  const { data: existingVehicle } = useVehicleByRegNo(
+    debouncedPlate.length >= 5 ? debouncedPlate : undefined
+  );
 
   // Check for open (first-weight-only) transactions when plate is entered on the capture step
   const { data: pendingTransactions } = useQuery({
     queryKey: ['commercial-pending-by-plate', debouncedPlate, pendingMatchWindowMinutes],
-    queryFn: () => getPendingCommercialByPlate(
-      debouncedPlate,
-      pendingMatchWindowMinutes != null ? parseInt(pendingMatchWindowMinutes, 10) : undefined
-    ),
+    queryFn: () =>
+      getPendingCommercialByPlate(
+        debouncedPlate,
+        pendingMatchWindowMinutes != null ? parseInt(pendingMatchWindowMinutes, 10) : undefined
+      ),
     enabled: debouncedPlate.length >= 5 && currentStep === 'capture' && !transactionId,
     staleTime: 10_000,
   });
 
   // Show the resume dialog as soon as pending transactions are found
   useEffect(() => {
-    if (pendingTransactions && pendingTransactions.length > 0 && currentStep === 'capture' && !transactionId) {
+    if (
+      pendingTransactions &&
+      pendingTransactions.length > 0 &&
+      currentStep === 'capture' &&
+      !transactionId
+    ) {
       setShowResumeDialog(true);
     }
   }, [pendingTransactions?.length, currentStep, transactionId]);
@@ -278,21 +332,26 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     : undefined;
 
   // Derive a single scale entry from middleware connection state for the capture step
-  const captureStepScales = useMemo<ScaleInfo[]>(() => [{
-    id: 'platform-scale',
-    name: mode === 'multideck' ? 'Platform Scale' : 'Portable Scale',
-    status: middlewareConnected ? ('connected' as const) : ('disconnected' as const),
-    weight: liveWeightKg,
-    temperature: 0,
-    battery: 100,
-    signalStrength: 100,
-    capacity: mode === 'multideck' ? 100000 : 30000,
-    lastReading: new Date(),
-    isActive: middlewareConnected,
-    make: '',
-    model: '',
-    syncType: 'API' as const,
-  }], [middlewareConnected, liveWeightKg, mode]);
+  const captureStepScales = useMemo<ScaleInfo[]>(
+    () => [
+      {
+        id: 'platform-scale',
+        name: mode === 'multideck' ? 'Platform Scale' : 'Portable Scale',
+        status: middlewareConnected ? ('connected' as const) : ('disconnected' as const),
+        weight: liveWeightKg,
+        temperature: 0,
+        battery: 100,
+        signalStrength: 100,
+        capacity: mode === 'multideck' ? 100000 : 30000,
+        lastReading: new Date(),
+        isActive: middlewareConnected,
+        make: '',
+        model: '',
+        syncType: 'API' as const,
+      },
+    ],
+    [middlewareConnected, liveWeightKg, mode]
+  );
 
   // Tare expiry computation
   useEffect(() => {
@@ -342,7 +401,11 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         remarks: result.remarks || prev.remarks,
       }));
       // Show tolerance dialog when net weight calculation is done and tolerance exceeded
-      if (result.toleranceExceeded && !result.toleranceExceptionApproved && result.netWeightKg != null) {
+      if (
+        result.toleranceExceeded &&
+        !result.toleranceExceptionApproved &&
+        result.netWeightKg != null
+      ) {
         setShowToleranceDialog(true);
       }
     }
@@ -367,7 +430,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   };
 
   // ── Mobile axle-by-axle helpers ──────────────────────────────────────────────
-  const axleGvw = useMemo(() => capturedAxleWeights.reduce((sum, w) => sum + w, 0), [capturedAxleWeights]);
+  const axleGvw = useMemo(
+    () => capturedAxleWeights.reduce((sum, w) => sum + w, 0),
+    [capturedAxleWeights]
+  );
   const allAxlesCaptured = capturedAxleWeights.length >= totalAxles;
 
   // Share the plate with TruConnect as it is entered on the first step
@@ -386,12 +452,16 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
   const handleCaptureAxle = useCallback(() => {
     if (liveWeightKg <= 0) {
-      toast.error('No weight reading. If this scale has a Weighing button, press it on the console first.');
+      toast.error(
+        'No weight reading. If this scale has a Weighing button, press it on the console first.'
+      );
       return;
     }
     const minCaptureWeight = middleware.weights?.minCaptureWeight ?? 0;
     if (liveWeightKg < minCaptureWeight) {
-      toast.error(`${liveWeightKg} kg is below the ${minCaptureWeight} kg minimum axle capture weight.`);
+      toast.error(
+        `${liveWeightKg} kg is below the ${minCaptureWeight} kg minimum axle capture weight.`
+      );
       return;
     }
     setCapturedAxleWeights((prev) => {
@@ -421,14 +491,23 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   const handleProceedToFirstWeight = useCallback(async () => {
-    if (!currentStation?.id) { toast.error('No station assigned.'); return; }
-    if (vehiclePlate.length < 5) { toast.error('Enter a valid plate number (at least 5 characters).'); return; }
+    if (!currentStation?.id) {
+      toast.error('No station assigned.');
+      return;
+    }
+    if (vehiclePlate.length < 5) {
+      toast.error('Enter a valid plate number (at least 5 characters).');
+      return;
+    }
 
     setIsLoading(true);
     try {
       if (!existingVehicle && vehiclePlate.length >= 5) {
-        try { await createVehicleMutation.mutateAsync({ regNo: vehiclePlate }); }
-        catch { /* Vehicle creation is best-effort */ }
+        try {
+          await createVehicleMutation.mutateAsync({ regNo: vehiclePlate });
+        } catch {
+          /* Vehicle creation is best-effort */
+        }
       }
       if (middleware.connected) middleware.sendPlate(vehiclePlate);
 
@@ -470,95 +549,143 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     } finally {
       setIsLoading(false);
     }
-  }, [currentStation, vehiclePlate, existingVehicle, createVehicleMutation, middleware, orgSlug,
-      selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId]);
+  }, [
+    currentStation,
+    vehiclePlate,
+    existingVehicle,
+    createVehicleMutation,
+    middleware,
+    orgSlug,
+    selectedDriverId,
+    selectedTransporterId,
+    selectedCargoId,
+    selectedOriginId,
+    selectedDestinationId,
+  ]);
 
-  const handleCaptureFirstWeight = useCallback(async (weightType: 'tare' | 'gross') => {
-    if (!transactionId) return;
-    const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
-    if (weightKg <= 0) { toast.error('No weight to capture.'); return; }
-
-    setIsLoading(true);
-    try {
-      const axleWeights = mode === 'mobile'
-        ? capturedAxleWeights
-        : deckWeights.length > 0 ? deckWeights.map((d) => d.weight) : undefined;
-
-      const updated = await captureFirstWeight(transactionId, { weightKg, weightType, axleWeights });
-      setResult(updated);
-      toast.success(`First weight captured: ${formatWeight(weightKg)} kg (${weightType})`);
-      if (mode === 'mobile') { setCapturedAxleWeights([]); setCurrentAxle(1); }
-      goToNextStep();
-    } catch (err) {
-      console.error('Failed to capture first weight:', err);
-      toast.error('Failed to capture weight. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights]);
-
-  const handleCaptureSecondWeight = useCallback(async (options: CaptureNextWeightOptions) => {
-    if (!transactionId) return;
-    const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
-    if (weightKg <= 0) { toast.error('No weight to capture.'); return; }
-
-    setIsLoading(true);
-    try {
-      const axleWeights = mode === 'mobile'
-        ? capturedAxleWeights
-        : deckWeights.length > 0 ? deckWeights.map((d) => d.weight) : undefined;
-
-      // isOverrideAttach/its reason only apply the FIRST capture after resuming an out-of-window
-      // transaction - consume it so a later reweigh on the same transaction doesn't keep resending it.
-      const override = pendingOverride;
-      setPendingOverride(null);
-
-      const updated = await captureSecondWeight(transactionId, {
-        weightKg,
-        axleWeights,
-        expectedNetWeightKg: options.expectedNetWeightKg,
-        finalize: options.finalize,
-        reweighReason: options.reweighReason ?? override?.reweighReason,
-        isOverrideAttach: override?.isOverrideAttach,
-      });
-      setResult(updated);
-      if (mode === 'mobile') { setCapturedAxleWeights([]); setCurrentAxle(1); }
-
-      if (options.finalize) {
-        toast.success(`Second weight captured. Net weight: ${formatWeight(updated.netWeightKg ?? 0)} kg`);
-        goToNextStep();
-      } else {
-        toast.info('Reweigh saved. Transaction stays open — resume it when the vehicle returns.');
-        // Stay on this step: CommercialSecondWeightStep already shows the saved summary plus a
-        // ready capture UI for the next reading.
+  const handleCaptureFirstWeight = useCallback(
+    async (weightType: 'tare' | 'gross') => {
+      if (!transactionId) return;
+      const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
+      if (weightKg <= 0) {
+        toast.error('No weight to capture.');
+        return;
       }
-    } catch (err) {
-      console.error('Failed to capture second weight:', err);
-      toast.error('Failed to capture weight. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights, pendingOverride]);
 
-  const handleUseStoredTare = useCallback(async (overrideTareKg?: number) => {
-    if (!transactionId) return;
-    if (isTareExpired && !overrideTareKg) {
-      toast.error('Stored tare has expired. Please re-weigh the vehicle or enter a manual tare weight.');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const updated = await useStoredTare(transactionId, { overrideTareWeightKg: overrideTareKg });
-      setResult(updated);
-      toast.success(`Stored tare used. Net weight: ${formatWeight(updated.netWeightKg ?? 0)} kg`);
-      goToNextStep();
-    } catch (err) {
-      console.error('Failed to use stored tare:', err);
-      toast.error('Failed to use stored tare. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [transactionId, isTareExpired]);
+      setIsLoading(true);
+      try {
+        const axleWeights =
+          mode === 'mobile'
+            ? capturedAxleWeights
+            : deckWeights.length > 0
+              ? deckWeights.map((d) => d.weight)
+              : undefined;
+
+        const updated = await captureFirstWeight(transactionId, {
+          weightKg,
+          weightType,
+          axleWeights,
+        });
+        setResult(updated);
+        toast.success(`First weight captured: ${formatWeight(weightKg)} kg (${weightType})`);
+        if (mode === 'mobile') {
+          setCapturedAxleWeights([]);
+          setCurrentAxle(1);
+        }
+        goToNextStep();
+      } catch (err) {
+        console.error('Failed to capture first weight:', err);
+        toast.error('Failed to capture weight. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights]
+  );
+
+  const handleCaptureSecondWeight = useCallback(
+    async (options: CaptureNextWeightOptions) => {
+      if (!transactionId) return;
+      const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
+      if (weightKg <= 0) {
+        toast.error('No weight to capture.');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const axleWeights =
+          mode === 'mobile'
+            ? capturedAxleWeights
+            : deckWeights.length > 0
+              ? deckWeights.map((d) => d.weight)
+              : undefined;
+
+        // isOverrideAttach/its reason only apply the FIRST capture after resuming an out-of-window
+        // transaction - consume it so a later reweigh on the same transaction doesn't keep resending it.
+        const override = pendingOverride;
+        setPendingOverride(null);
+
+        const updated = await captureSecondWeight(transactionId, {
+          weightKg,
+          axleWeights,
+          expectedNetWeightKg: options.expectedNetWeightKg,
+          finalize: options.finalize,
+          reweighReason: options.reweighReason ?? override?.reweighReason,
+          isOverrideAttach: override?.isOverrideAttach,
+        });
+        setResult(updated);
+        if (mode === 'mobile') {
+          setCapturedAxleWeights([]);
+          setCurrentAxle(1);
+        }
+
+        if (options.finalize) {
+          toast.success(
+            `Second weight captured. Net weight: ${formatWeight(updated.netWeightKg ?? 0)} kg`
+          );
+          goToNextStep();
+        } else {
+          toast.info('Reweigh saved. Transaction stays open — resume it when the vehicle returns.');
+          // Stay on this step: CommercialSecondWeightStep already shows the saved summary plus a
+          // ready capture UI for the next reading.
+        }
+      } catch (err) {
+        console.error('Failed to capture second weight:', err);
+        toast.error('Failed to capture weight. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [transactionId, mode, axleGvw, liveWeightKg, capturedAxleWeights, deckWeights, pendingOverride]
+  );
+
+  const handleUseStoredTare = useCallback(
+    async (overrideTareKg?: number) => {
+      if (!transactionId) return;
+      if (isTareExpired && !overrideTareKg) {
+        toast.error(
+          'Stored tare has expired. Please re-weigh the vehicle or enter a manual tare weight.'
+        );
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const updated = await useStoredTare(transactionId, {
+          overrideTareWeightKg: overrideTareKg,
+        });
+        setResult(updated);
+        toast.success(`Stored tare used. Net weight: ${formatWeight(updated.netWeightKg ?? 0)} kg`);
+        goToNextStep();
+      } catch (err) {
+        console.error('Failed to use stored tare:', err);
+        toast.error('Failed to use stored tare. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [transactionId, isTareExpired]
+  );
 
   const handleApproveToleranceException = useCallback(async () => {
     if (!transactionId) return;
@@ -576,22 +703,26 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     }
   }, [transactionId]);
 
-  const handleApplyQualityDeduction = useCallback(async (payload: UpdateQualityDeductionRequest) => {
-    if (!transactionId) return;
-    const hasManualKg = payload.qualityDeductionKg != null && payload.qualityDeductionKg > 0;
-    const hasActuals = payload.actualMoisturePercent != null || payload.actualForeignMatterPercent != null;
-    if (!hasManualKg && !hasActuals) return;
-    setIsApplyingDeduction(true);
-    try {
-      const updated = await updateQualityDeduction(transactionId, payload);
-      setResult(updated);
-      toast.success('Quality deduction applied.');
-    } catch (err) {
-      toast.error('Failed to apply quality deduction.');
-    } finally {
-      setIsApplyingDeduction(false);
-    }
-  }, [transactionId]);
+  const handleApplyQualityDeduction = useCallback(
+    async (payload: UpdateQualityDeductionRequest) => {
+      if (!transactionId) return;
+      const hasManualKg = payload.qualityDeductionKg != null && payload.qualityDeductionKg > 0;
+      const hasActuals =
+        payload.actualMoisturePercent != null || payload.actualForeignMatterPercent != null;
+      if (!hasManualKg && !hasActuals) return;
+      setIsApplyingDeduction(true);
+      try {
+        const updated = await updateQualityDeduction(transactionId, payload);
+        setResult(updated);
+        toast.success('Quality deduction applied.');
+      } catch (err) {
+        toast.error('Failed to apply quality deduction.');
+      } finally {
+        setIsApplyingDeduction(false);
+      }
+    },
+    [transactionId]
+  );
 
   const handlePrintTicket = useCallback(async () => {
     if (!transactionId) return;
@@ -600,9 +731,14 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       const blob = await getCommercialTicketPdf(transactionId);
       const url = window.URL.createObjectURL(blob);
       const printWindow = window.open(url, '_blank');
-      if (printWindow) { printWindow.focus(); toast.success('Weight ticket generated.'); }
-      else {
-        await downloadAndSavePdf(() => Promise.resolve(blob), `WeightTicket_${result?.ticketNumber || transactionId}.pdf`);
+      if (printWindow) {
+        printWindow.focus();
+        toast.success('Weight ticket generated.');
+      } else {
+        await downloadAndSavePdf(
+          () => Promise.resolve(blob),
+          `WeightTicket_${result?.ticketNumber || transactionId}.pdf`
+        );
         toast.success('Weight ticket downloaded.');
       }
     } catch (err) {
@@ -617,9 +753,14 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       const blob = await getInterimTicketPdf(transactionId);
       const url = window.URL.createObjectURL(blob);
       const printWindow = window.open(url, '_blank');
-      if (printWindow) { printWindow.focus(); toast.success('Interim ticket generated.'); }
-      else {
-        await downloadAndSavePdf(() => Promise.resolve(blob), `InterimTicket_${result.ticketNumber}.pdf`);
+      if (printWindow) {
+        printWindow.focus();
+        toast.success('Interim ticket generated.');
+      } else {
+        await downloadAndSavePdf(
+          () => Promise.resolve(blob),
+          `InterimTicket_${result.ticketNumber}.pdf`
+        );
         toast.success('Interim ticket downloaded.');
       }
     } catch (err) {
@@ -635,7 +776,9 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         () => getCommercialThermalTicket(transactionId),
         `ThermalTicket_${result?.ticketNumber || transactionId}.bin`
       );
-      toast.success('Thermal ticket downloaded. Send it to a printer configured for raw/generic print jobs.');
+      toast.success(
+        'Thermal ticket downloaded. Send it to a printer configured for raw/generic print jobs.'
+      );
     } catch (err) {
       toast.error('Failed to generate thermal ticket.');
     }
@@ -648,19 +791,48 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   }, [handlePrintTicket]);
 
   const resetSession = useCallback(() => {
-    setTransactionId(null); setResult(null);
-    setCurrentStep('capture'); setCompletedSteps([]);
-    setVehiclePlate(''); setIsPlateDisabled(false);
-    setFrontViewImage(undefined); setOverviewImage(undefined);
-    setSelectedDriverId(undefined); setSelectedTransporterId(undefined);
-    setSelectedCargoId(undefined); setSelectedOriginId(undefined); setSelectedDestinationId(undefined);
-    setDeckWeights([]); setCapturedAxleWeights([]); setCurrentAxle(1);
-    setCargoDetails({ consignmentNo: '', orderReference: '', cargoType: '', origin: '', destination: '', sealNumbers: '', trailerRegNo: '', expectedNetWeightKg: '', remarks: '' });
+    setTransactionId(null);
+    setResult(null);
+    setCurrentStep('capture');
+    setCompletedSteps([]);
+    setVehiclePlate('');
+    setIsPlateDisabled(false);
+    setFrontViewImage(undefined);
+    setOverviewImage(undefined);
+    setSelectedDriverId(undefined);
+    setSelectedTransporterId(undefined);
+    setSelectedCargoId(undefined);
+    setSelectedOriginId(undefined);
+    setSelectedDestinationId(undefined);
+    setDeckWeights([]);
+    setCapturedAxleWeights([]);
+    setCurrentAxle(1);
+    setCargoDetails({
+      consignmentNo: '',
+      orderReference: '',
+      cargoType: '',
+      origin: '',
+      destination: '',
+      sealNumbers: '',
+      trailerRegNo: '',
+      expectedNetWeightKg: '',
+      remarks: '',
+    });
     setLiveWeightKg(0);
     setPendingOverride(null);
     if (middleware.connected) middleware.resetSession();
-  }, [middleware, setVehiclePlate, setIsPlateDisabled, setFrontViewImage, setOverviewImage,
-      setSelectedDriverId, setSelectedTransporterId, setSelectedCargoId, setSelectedOriginId, setSelectedDestinationId]);
+  }, [
+    middleware,
+    setVehiclePlate,
+    setIsPlateDisabled,
+    setFrontViewImage,
+    setOverviewImage,
+    setSelectedDriverId,
+    setSelectedTransporterId,
+    setSelectedCargoId,
+    setSelectedOriginId,
+    setSelectedDestinationId,
+  ]);
 
   // Non-destructive: leaves the backend transaction exactly as-is (still resumable later via plate
   // or the Active Weighings board) and just clears this screen's local state so the operator can
@@ -668,7 +840,9 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
   // voids the transaction.
   const handleSaveAndWeighAnother = useCallback(() => {
     resetSession();
-    toast.success('Saved. This vehicle stays open — resume it anytime. Ready for the next vehicle.');
+    toast.success(
+      'Saved. This vehicle stays open — resume it anytime. Ready for the next vehicle.'
+    );
   }, [resetSession]);
 
   const confirmCancelWeighing = useCallback(async () => {
@@ -676,7 +850,9 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     setShowCancelConfirm(false);
     if (idToVoid && result?.captureStatus !== 'captured') {
       try {
-        await voidCommercialWeighing(idToVoid, { reason: cancelReason.trim() || 'Cancelled by operator' });
+        await voidCommercialWeighing(idToVoid, {
+          reason: cancelReason.trim() || 'Cancelled by operator',
+        });
       } catch (err) {
         console.error('Failed to void cancelled weighing:', err);
         toast.error('Could not void the transaction on the server — it may still show as open.');
@@ -694,7 +870,9 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       await rejectToleranceException(transactionId, rejectToleranceReason.trim());
       setShowRejectToleranceDialog(false);
       setShowToleranceDialog(false);
-      toast.success('Tolerance exception rejected. Transaction voided — a fresh weighing is required.');
+      toast.success(
+        'Tolerance exception rejected. Transaction voided — a fresh weighing is required.'
+      );
       resetSession();
     } catch (err) {
       console.error('Failed to reject tolerance exception:', err);
@@ -705,21 +883,24 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     }
   }, [transactionId, rejectToleranceReason, resetSession]);
 
-  const handleResumeTransaction = useCallback((
-    transaction: CommercialWeighingResult,
-    isOverrideAttach: boolean,
-    overrideReason?: string
-  ) => {
-    setShowResumeDialog(false);
-    setTransactionId(transaction.id);
-    setResult(transaction);
-    setVehiclePlate(transaction.vehicleRegNumber);
-    setIsPlateDisabled(true);
-    setCurrentStep('second-weight');
-    setCompletedSteps(['capture', 'first-weight']);
-    setPendingOverride(isOverrideAttach ? { isOverrideAttach: true, reweighReason: overrideReason } : null);
-    toast.info(`Resuming transaction — first weight captured ${transaction.firstWeightKg ?? 0} kg (${transaction.firstWeightType ?? ''})`);
-  }, [setVehiclePlate, setIsPlateDisabled]);
+  const handleResumeTransaction = useCallback(
+    (transaction: CommercialWeighingResult, isOverrideAttach: boolean, overrideReason?: string) => {
+      setShowResumeDialog(false);
+      setTransactionId(transaction.id);
+      setResult(transaction);
+      setVehiclePlate(transaction.vehicleRegNumber);
+      setIsPlateDisabled(true);
+      setCurrentStep('second-weight');
+      setCompletedSteps(['capture', 'first-weight']);
+      setPendingOverride(
+        isOverrideAttach ? { isOverrideAttach: true, reweighReason: overrideReason } : null
+      );
+      toast.info(
+        `Resuming transaction — first weight captured ${transaction.firstWeightKg ?? 0} kg (${transaction.firstWeightType ?? ''})`
+      );
+    },
+    [setVehiclePlate, setIsPlateDisabled]
+  );
 
   const handleStartNewFromResume = useCallback(() => {
     setShowResumeDialog(false);
@@ -730,7 +911,7 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
   if (isLoadingStation) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
       </div>
     );
@@ -754,38 +935,46 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       />
 
       {/* Tolerance exception banner */}
-      {result?.toleranceExceeded && !result.toleranceExceptionApproved && result.netWeightKg != null && (
-        <Card className="border-red-300 bg-red-50">
-          <CardContent className="p-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-red-800 text-sm">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>
-                Weight discrepancy exceeds tolerance ({result.toleranceDisplay}).
-                {canApproveException ? ' Supervisor approval required to complete.' : ' Contact a supervisor to approve.'}
-              </span>
-            </div>
-            {canApproveException && (
-              <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" variant="destructive" onClick={() => setShowToleranceDialog(true)}>
-                  <ShieldCheck className="h-4 w-4 mr-1" /> Approve Exception
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-red-300 text-red-700 hover:bg-red-100"
-                  onClick={() => setShowRejectToleranceDialog(true)}
-                >
-                  <XCircle className="h-4 w-4 mr-1" /> Reject Exception
-                </Button>
+      {result?.toleranceExceeded &&
+        !result.toleranceExceptionApproved &&
+        result.netWeightKg != null && (
+          <Card className="border-red-300 bg-red-50">
+            <CardContent className="flex items-center justify-between gap-3 p-3">
+              <div className="flex items-center gap-2 text-sm text-red-800">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>
+                  Weight discrepancy exceeds tolerance ({result.toleranceDisplay}).
+                  {canApproveException
+                    ? ' Supervisor approval required to complete.'
+                    : ' Contact a supervisor to approve.'}
+                </span>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              {canApproveException && (
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setShowToleranceDialog(true)}
+                  >
+                    <ShieldCheck className="mr-1 h-4 w-4" /> Approve Exception
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                    onClick={() => setShowRejectToleranceDialog(true)}
+                  >
+                    <XCircle className="mr-1 h-4 w-4" /> Reject Exception
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       {result?.toleranceExceptionApproved && (
         <Card className="border-green-300 bg-green-50">
-          <CardContent className="p-3 flex items-center gap-2 text-green-800 text-sm">
+          <CardContent className="flex items-center gap-2 p-3 text-sm text-green-800">
             <ShieldCheck className="h-4 w-4" />
             Tolerance exception approved. Ticket can be issued.
           </CardContent>
@@ -795,11 +984,12 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       {/* Tare anomaly warning — informational only, does not block the flow (unlike the tolerance gate above) */}
       {result?.tareAnomalyFlaggedAt && (
         <Card className="border-amber-300 bg-amber-50">
-          <CardContent className="p-3 flex items-start gap-2 text-amber-800 text-sm">
-            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <CardContent className="flex items-start gap-2 p-3 text-sm text-amber-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               <span className="font-semibold">Tare anomaly flagged.</span>{' '}
-              {result.tareAnomalyReason || 'This tare drifted significantly from the vehicle’s previously stored tare.'}{' '}
+              {result.tareAnomalyReason ||
+                'This tare drifted significantly from the vehicle’s previously stored tare.'}{' '}
               Pending supervisor review — you can continue this weighing normally.
             </p>
           </CardContent>
@@ -809,37 +999,50 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
       {/* Tare expiry warning */}
       {currentStep === 'second-weight' && isTareExpired && storedTareWeightKg && (
         <Card className="border-orange-300 bg-orange-50">
-          <CardContent className="p-3 flex items-center gap-2 text-orange-800 text-sm">
+          <CardContent className="flex items-center gap-2 p-3 text-sm text-orange-800">
             <Clock className="h-4 w-4 shrink-0" />
             Stored tare weight has expired. Re-weigh the vehicle or enter a manual tare override.
           </CardContent>
         </Card>
       )}
-      {currentStep === 'second-weight' && !isTareExpired && tareExpiryDaysLeft !== null && tareExpiryDaysLeft <= 7 && (
-        <Card className="border-yellow-300 bg-yellow-50">
-          <CardContent className="p-3 flex items-center gap-2 text-yellow-800 text-sm">
-            <Clock className="h-4 w-4 shrink-0" />
-            Stored tare expires in {tareExpiryDaysLeft} day{tareExpiryDaysLeft !== 1 ? 's' : ''}.
-          </CardContent>
-        </Card>
-      )}
+      {currentStep === 'second-weight' &&
+        !isTareExpired &&
+        tareExpiryDaysLeft !== null &&
+        tareExpiryDaysLeft <= 7 && (
+          <Card className="border-yellow-300 bg-yellow-50">
+            <CardContent className="flex items-center gap-2 p-3 text-sm text-yellow-800">
+              <Clock className="h-4 w-4 shrink-0" />
+              Stored tare expires in {tareExpiryDaysLeft} day{tareExpiryDaysLeft !== 1 ? 's' : ''}.
+            </CardContent>
+          </Card>
+        )}
 
       {/* Active transaction bar */}
       {transactionId && currentStep !== 'capture' && (
         <Card className="border-gray-200">
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="flex items-center justify-between p-4">
             <div className="flex items-center gap-4">
-              <span className="font-mono font-bold text-lg">{result?.ticketNumber || 'PENDING'}</span>
+              <span className="font-mono text-lg font-bold">
+                {result?.ticketNumber || 'PENDING'}
+              </span>
               <span className="text-gray-400">|</span>
               <span className="font-mono text-xl font-bold text-blue-600">{vehiclePlate}</span>
-              <Badge variant="outline" className="text-xs">{mode === 'mobile' ? 'Axle-by-Axle' : 'Multideck'}</Badge>
+              <Badge variant="outline" className="text-xs">
+                {mode === 'mobile' ? 'Axle-by-Axle' : 'Multideck'}
+              </Badge>
             </div>
             <div className="flex items-center gap-2">
               {/* Only meaningful once at least a first weight exists - that's what makes the
                   transaction findable again later (by plate or on the board). Before that,
                   there's nothing to save; use Cancel instead. */}
-              {(result?.captureStatus === 'first_weight_captured' || result?.captureStatus === 'awaiting_reweigh') && (
-                <Button variant="outline" size="sm" onClick={handleSaveAndWeighAnother} className="gap-1">
+              {(result?.captureStatus === 'first_weight_captured' ||
+                result?.captureStatus === 'awaiting_reweigh') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveAndWeighAnother}
+                  className="gap-1"
+                >
                   Save &amp; Weigh Another Vehicle
                 </Button>
               )}
@@ -853,7 +1056,6 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
       {/* Step content */}
       <div className="min-h-[480px]">
-
         {/* ── CAPTURE STEP ─────────────────────────────────────────────────── */}
         {currentStep === 'capture' && (
           <WeighingCaptureStep
@@ -909,20 +1111,41 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               onOriginIdChange={setSelectedOriginId}
               selectedDestinationId={selectedDestinationId}
               onDestinationIdChange={setSelectedDestinationId}
-              onAddOrigin={() => { setLocationModalTarget('origin'); setIsLocationModalOpen(true); }}
-              onAddDestination={() => { setLocationModalTarget('destination'); setIsLocationModalOpen(true); }}
+              onAddOrigin={() => {
+                setLocationModalTarget('origin');
+                setIsLocationModalOpen(true);
+              }}
+              onAddDestination={() => {
+                setLocationModalTarget('destination');
+                setIsLocationModalOpen(true);
+              }}
             />
 
             {/* Vehicle tare info shown beneath the entity selectors */}
             {existingVehicle && (
               <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="p-3 text-xs space-y-1">
-                  <div className="font-medium text-gray-800">{existingVehicle.make} {existingVehicle.model}</div>
+                <CardContent className="space-y-1 p-3 text-xs">
+                  <div className="font-medium text-gray-800">
+                    {existingVehicle.make} {existingVehicle.model}
+                  </div>
                   {storedTareWeightKg && (
-                    <div className={cn('flex items-center gap-1', isTareExpired ? 'text-orange-600' : 'text-green-600')}>
-                      {isTareExpired ? <Clock className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                    <div
+                      className={cn(
+                        'flex items-center gap-1',
+                        isTareExpired ? 'text-orange-600' : 'text-green-600'
+                      )}
+                    >
+                      {isTareExpired ? (
+                        <Clock className="h-3 w-3" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
                       Stored tare: {formatWeight(storedTareWeightKg)} kg
-                      {isTareExpired ? ' (EXPIRED)' : tareExpiryDaysLeft !== null ? ` (${tareExpiryDaysLeft}d left)` : ''}
+                      {isTareExpired
+                        ? ' (EXPIRED)'
+                        : tareExpiryDaysLeft !== null
+                          ? ` (${tareExpiryDaysLeft}d left)`
+                          : ''}
                     </div>
                   )}
                 </CardContent>
@@ -948,33 +1171,46 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
         {/* ── FIRST WEIGHT STEP ────────────────────────────────────────────── */}
         {currentStep === 'first-weight' && (
-          <div className="rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5 space-y-4">
-
+          <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5">
             {/* Multideck: show per-deck readings */}
             {mode === 'multideck' && deckWeights.length > 0 && (
               <Card className="bg-gray-900 text-white">
-                <CardHeader className="pb-2 pt-4 px-4">
+                <CardHeader className="px-4 pb-2 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-400 tracking-wider">DECK WEIGHTS</span>
-                    <Badge variant="outline" className={cn('font-medium', middlewareConnected && isStable ? 'border-green-500 text-green-400' : 'border-yellow-500 text-yellow-400')}>
+                    <span className="text-sm font-medium tracking-wider text-gray-400">
+                      DECK WEIGHTS
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'font-medium',
+                        middlewareConnected && isStable
+                          ? 'border-green-500 text-green-400'
+                          : 'border-yellow-500 text-yellow-400'
+                      )}
+                    >
                       {middlewareConnected ? (isStable ? 'STABLE' : 'READING...') : 'OFFLINE'}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pb-4 px-4">
+                <CardContent className="px-4 pb-4">
                   <div className={cn('grid gap-3', `grid-cols-${Math.min(deckWeights.length, 4)}`)}>
                     {deckWeights.map((d) => (
-                      <div key={d.deck} className="text-center bg-black rounded-lg p-3">
-                        <div className="text-xs text-gray-500 mb-1">DECK {d.deck}</div>
-                        <div className="font-mono text-2xl font-bold text-yellow-400">{d.weight.toLocaleString()}</div>
+                      <div key={d.deck} className="rounded-lg bg-black p-3 text-center">
+                        <div className="mb-1 text-xs text-gray-500">DECK {d.deck}</div>
+                        <div className="font-mono text-2xl font-bold text-yellow-400">
+                          {d.weight.toLocaleString()}
+                        </div>
                         <div className="text-xs text-gray-500">kg</div>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 text-center border-t border-gray-700 pt-3">
-                    <span className="text-xs text-gray-500 mr-2">TOTAL GVW</span>
-                    <span className="font-mono text-3xl font-bold text-green-400">{liveWeightKg.toLocaleString()}</span>
-                    <span className="text-xs text-gray-400 ml-1">kg</span>
+                  <div className="mt-3 border-t border-gray-700 pt-3 text-center">
+                    <span className="mr-2 text-xs text-gray-500">TOTAL GVW</span>
+                    <span className="font-mono text-3xl font-bold text-green-400">
+                      {liveWeightKg.toLocaleString()}
+                    </span>
+                    <span className="ml-1 text-xs text-gray-400">kg</span>
                   </div>
                 </CardContent>
               </Card>
@@ -984,12 +1220,26 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
             {mode === 'mobile' && !result?.firstWeightKg && (
               <div className="space-y-3">
                 <Card>
-                  <CardContent className="p-3 flex items-center justify-between gap-3">
+                  <CardContent className="flex items-center justify-between gap-3 p-3">
                     <span className="text-sm text-gray-600">Total axles:</span>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setTotalAxles((n) => Math.max(2, n - 1))} disabled={totalAxles <= 2}>−</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setTotalAxles((n) => Math.max(2, n - 1))}
+                        disabled={totalAxles <= 2}
+                      >
+                        −
+                      </Button>
                       <span className="w-6 text-center font-bold">{totalAxles}</span>
-                      <Button size="sm" variant="outline" onClick={() => setTotalAxles((n) => Math.min(8, n + 1))} disabled={totalAxles >= 8}>+</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setTotalAxles((n) => Math.min(8, n + 1))}
+                        disabled={totalAxles >= 8}
+                      >
+                        +
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -998,7 +1248,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
                   currentWeight={liveWeightKg}
                   currentAxle={currentAxle}
                   totalAxles={totalAxles}
-                  capturedAxles={Array.from({ length: capturedAxleWeights.length }, (_, i) => i + 1)}
+                  capturedAxles={Array.from(
+                    { length: capturedAxleWeights.length },
+                    (_, i) => i + 1
+                  )}
                   capturedWeights={capturedAxleWeights}
                   onCaptureAxle={handleCaptureAxle}
                   scaleAStatus={middlewareConnected ? 'connected' : 'disconnected'}
@@ -1009,9 +1262,17 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
                     <CardContent className="p-3">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-blue-800">
-                          {capturedAxleWeights.length}/{totalAxles} axles — GVW: <span className="font-mono font-bold">{formatWeight(axleGvw)} kg</span>
+                          {capturedAxleWeights.length}/{totalAxles} axles — GVW:{' '}
+                          <span className="font-mono font-bold">{formatWeight(axleGvw)} kg</span>
                         </span>
-                        <Button size="sm" variant="ghost" className="text-red-600 h-7" onClick={handleResetAxles}>Reset</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-red-600"
+                          onClick={handleResetAxles}
+                        >
+                          Reset
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1032,15 +1293,32 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               />
             ) : allAxlesCaptured ? (
               <Card>
-                <CardContent className="p-4 space-y-3">
-                  <p className="text-sm text-gray-600">All {totalAxles} axles captured. GVW = <span className="font-mono font-bold">{formatWeight(axleGvw)} kg</span>.</p>
-                  <p className="text-sm text-gray-500">Select whether this first pass is the tare (empty) or gross (loaded) weight:</p>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-sm text-gray-600">
+                    All {totalAxles} axles captured. GVW ={' '}
+                    <span className="font-mono font-bold">{formatWeight(axleGvw)} kg</span>.
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Select whether this first pass is the tare (empty) or gross (loaded) weight:
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
-                    <Button size="lg" variant="outline" className="h-16 flex-col gap-1 border-2 hover:border-blue-500 hover:bg-blue-50" disabled={isLoading} onClick={() => handleCaptureFirstWeight('tare')}>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="h-16 flex-col gap-1 border-2 hover:border-blue-500 hover:bg-blue-50"
+                      disabled={isLoading}
+                      onClick={() => handleCaptureFirstWeight('tare')}
+                    >
                       <span className="text-base font-semibold">Tare Weight</span>
                       <span className="text-xs text-gray-500">Empty vehicle</span>
                     </Button>
-                    <Button size="lg" variant="outline" className="h-16 flex-col gap-1 border-2 hover:border-amber-500 hover:bg-amber-50" disabled={isLoading} onClick={() => handleCaptureFirstWeight('gross')}>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="h-16 flex-col gap-1 border-2 hover:border-amber-500 hover:bg-amber-50"
+                      disabled={isLoading}
+                      onClick={() => handleCaptureFirstWeight('gross')}
+                    >
                       <span className="text-base font-semibold">Gross Weight</span>
                       <span className="text-xs text-gray-500">Loaded vehicle</span>
                     </Button>
@@ -1055,7 +1333,12 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               </Button>
               <div className="flex items-center gap-2">
                 {result?.firstWeightKg != null && (
-                  <Button variant="outline" size="sm" onClick={handlePrintInterimTicket} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrintInterimTicket}
+                    className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+                  >
                     Print Interim Ticket
                   </Button>
                 )}
@@ -1071,55 +1354,78 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
 
         {/* ── SECOND WEIGHT STEP ───────────────────────────────────────────── */}
         {currentStep === 'second-weight' && (
-          <div className="rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5 space-y-4">
-
+          <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50/30 p-4 shadow-sm md:p-5">
             {/* Multideck: show per-deck readings */}
-            {mode === 'multideck' && deckWeights.length > 0 && !(result?.secondWeightKg != null || result?.netWeightKg != null) && (
-              <Card className="bg-gray-900 text-white">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <span className="text-sm font-medium text-gray-400 tracking-wider">DECK WEIGHTS — SECOND PASS</span>
-                </CardHeader>
-                <CardContent className="pb-4 px-4">
-                  <div className={cn('grid gap-3', `grid-cols-${Math.min(deckWeights.length, 4)}`)}>
-                    {deckWeights.map((d) => (
-                      <div key={d.deck} className="text-center bg-black rounded-lg p-3">
-                        <div className="text-xs text-gray-500 mb-1">DECK {d.deck}</div>
-                        <div className="font-mono text-2xl font-bold text-yellow-400">{d.weight.toLocaleString()}</div>
-                        <div className="text-xs text-gray-500">kg</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 text-center border-t border-gray-700 pt-3">
-                    <span className="text-xs text-gray-500 mr-2">TOTAL GVW</span>
-                    <span className="font-mono text-3xl font-bold text-green-400">{liveWeightKg.toLocaleString()}</span>
-                    <span className="text-xs text-gray-400 ml-1">kg</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {mode === 'multideck' &&
+              deckWeights.length > 0 &&
+              !(result?.secondWeightKg != null || result?.netWeightKg != null) && (
+                <Card className="bg-gray-900 text-white">
+                  <CardHeader className="px-4 pb-2 pt-4">
+                    <span className="text-sm font-medium tracking-wider text-gray-400">
+                      DECK WEIGHTS — SECOND PASS
+                    </span>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <div
+                      className={cn('grid gap-3', `grid-cols-${Math.min(deckWeights.length, 4)}`)}
+                    >
+                      {deckWeights.map((d) => (
+                        <div key={d.deck} className="rounded-lg bg-black p-3 text-center">
+                          <div className="mb-1 text-xs text-gray-500">DECK {d.deck}</div>
+                          <div className="font-mono text-2xl font-bold text-yellow-400">
+                            {d.weight.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-gray-500">kg</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 border-t border-gray-700 pt-3 text-center">
+                      <span className="mr-2 text-xs text-gray-500">TOTAL GVW</span>
+                      <span className="font-mono text-3xl font-bold text-green-400">
+                        {liveWeightKg.toLocaleString()}
+                      </span>
+                      <span className="ml-1 text-xs text-gray-400">kg</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
             {/* Mobile: axle-by-axle for second pass */}
-            {mode === 'mobile' && !(result?.secondWeightKg != null || result?.netWeightKg != null) && (
-              <div className="space-y-3">
-                <WeightCaptureCard
-                  currentWeight={liveWeightKg}
-                  currentAxle={currentAxle}
-                  totalAxles={totalAxles}
-                  capturedAxles={Array.from({ length: capturedAxleWeights.length }, (_, i) => i + 1)}
-                  capturedWeights={capturedAxleWeights}
-                  onCaptureAxle={handleCaptureAxle}
-                  scaleAStatus={middlewareConnected ? 'connected' : 'disconnected'}
-                />
-                {capturedAxleWeights.length > 0 && (
-                  <Card className="border-blue-200 bg-blue-50">
-                    <CardContent className="p-3 flex items-center justify-between text-sm">
-                      <span className="text-blue-800">{capturedAxleWeights.length}/{totalAxles} axles — GVW: <span className="font-mono font-bold">{formatWeight(axleGvw)} kg</span></span>
-                      <Button size="sm" variant="ghost" className="text-red-600 h-7" onClick={handleResetAxles}>Reset</Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
+            {mode === 'mobile' &&
+              !(result?.secondWeightKg != null || result?.netWeightKg != null) && (
+                <div className="space-y-3">
+                  <WeightCaptureCard
+                    currentWeight={liveWeightKg}
+                    currentAxle={currentAxle}
+                    totalAxles={totalAxles}
+                    capturedAxles={Array.from(
+                      { length: capturedAxleWeights.length },
+                      (_, i) => i + 1
+                    )}
+                    capturedWeights={capturedAxleWeights}
+                    onCaptureAxle={handleCaptureAxle}
+                    scaleAStatus={middlewareConnected ? 'connected' : 'disconnected'}
+                  />
+                  {capturedAxleWeights.length > 0 && (
+                    <Card className="border-blue-200 bg-blue-50">
+                      <CardContent className="flex items-center justify-between p-3 text-sm">
+                        <span className="text-blue-800">
+                          {capturedAxleWeights.length}/{totalAxles} axles — GVW:{' '}
+                          <span className="font-mono font-bold">{formatWeight(axleGvw)} kg</span>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-red-600"
+                          onClick={handleResetAxles}
+                        >
+                          Reset
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
 
             <CommercialSecondWeightStep
               liveWeightKg={mode === 'mobile' ? axleGvw : liveWeightKg}
@@ -1128,7 +1434,13 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
               result={result}
               storedTareWeightKg={isTareExpired ? undefined : storedTareWeightKg}
               isCapturing={isLoading}
-              onCaptureSecondWeight={mode === 'mobile' ? (allAxlesCaptured ? handleCaptureSecondWeight : () => toast.error(`Capture all ${totalAxles} axles first.`)) : handleCaptureSecondWeight}
+              onCaptureSecondWeight={
+                mode === 'mobile'
+                  ? allAxlesCaptured
+                    ? handleCaptureSecondWeight
+                    : () => toast.error(`Capture all ${totalAxles} axles first.`)
+                  : handleCaptureSecondWeight
+              }
               onUseStoredTare={handleUseStoredTare}
             />
 
@@ -1158,17 +1470,27 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
             <CommercialTicketStep
               result={result}
               cargoDetails={cargoDetails}
-              onCargoDetailsChange={(partial) => setCargoDetails((prev) => ({ ...prev, ...partial }))}
-              cargoQualityParams={selectedCargoType ? {
-                moistureTargetPercent: selectedCargoType.moistureTargetPercent,
-                foreignMatterLimitPercent: selectedCargoType.foreignMatterLimitPercent,
-              } : undefined}
+              onCargoDetailsChange={(partial) =>
+                setCargoDetails((prev) => ({ ...prev, ...partial }))
+              }
+              cargoQualityParams={
+                selectedCargoType
+                  ? {
+                      moistureTargetPercent: selectedCargoType.moistureTargetPercent,
+                      foreignMatterLimitPercent: selectedCargoType.foreignMatterLimitPercent,
+                    }
+                  : undefined
+              }
               onApplyQualityDeduction={handleApplyQualityDeduction}
               isApplyingDeduction={isApplyingDeduction}
               onPrintTicket={handlePrintTicket}
               onPrintThermalTicket={handlePrintThermalTicket}
               onComplete={handleComplete}
-              onCollectPayment={feeIsConfigured && result.treasuryPaymentUrl ? () => setShowPaymentModal(true) : undefined}
+              onCollectPayment={
+                feeIsConfigured && result.treasuryPaymentUrl
+                  ? () => setShowPaymentModal(true)
+                  : undefined
+              }
               isLoading={isLoading}
             />
           </div>
@@ -1189,7 +1511,9 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
                 </p>
                 {transactionId && (
                   <div className="space-y-1">
-                    <Label htmlFor="cancel-reason" className="text-sm">Reason <span className="text-gray-400 font-normal">— optional</span></Label>
+                    <Label htmlFor="cancel-reason" className="text-sm">
+                      Reason <span className="font-normal text-gray-400">— optional</span>
+                    </Label>
                     <Textarea
                       id="cancel-reason"
                       value={cancelReason}
@@ -1205,7 +1529,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Continue Weighing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCancelWeighing} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction
+              onClick={confirmCancelWeighing}
+              className="bg-red-600 hover:bg-red-700"
+            >
               Cancel Weighing
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1221,12 +1548,14 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                The weight discrepancy exceeds the configured tolerance band ({result?.toleranceDisplay}).
+                The weight discrepancy exceeds the configured tolerance band (
+                {result?.toleranceDisplay}).
               </p>
               <p>
                 Measured net: <strong>{formatWeight(result?.netWeightKg ?? 0)} kg</strong>.
                 Expected: <strong>{formatWeight(result?.expectedNetWeightKg ?? 0)} kg</strong>.
-                Discrepancy: <strong>{formatWeight(Math.abs(result?.weightDiscrepancyKg ?? 0))} kg</strong>.
+                Discrepancy:{' '}
+                <strong>{formatWeight(Math.abs(result?.weightDiscrepancyKg ?? 0))} kg</strong>.
               </p>
               <p className="text-sm">
                 {canApproveException
@@ -1254,7 +1583,10 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
           so the vehicle needs a fresh weighing from the start. A reason is required. */}
       <AlertDialog
         open={showRejectToleranceDialog}
-        onOpenChange={(open) => { setShowRejectToleranceDialog(open); if (!open) setRejectToleranceReason(''); }}
+        onOpenChange={(open) => {
+          setShowRejectToleranceDialog(open);
+          if (!open) setRejectToleranceReason('');
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1335,22 +1667,35 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
         onTestComplete={handleScaleTestComplete}
         weighingMode={mode}
         middlewareConnected={middlewareConnected}
-        middlewareWeights={middleware.weights ? {
-          currentWeight: (middleware.weights as any).weight || (middleware.weights as any).currentWeight,
-          scaleA: (middleware.weights as any).scaleA,
-          scaleB: (middleware.weights as any).scaleB,
-          scaleWeightMode: (middleware.weights as any).scaleWeightMode,
-        } : null}
-        middlewareScaleStatus={middleware.scaleStatus ? {
-          scaleA: middleware.scaleStatus.scaleA ? {
-            weight: middleware.scaleStatus.scaleA.weight,
-            connected: middleware.scaleStatus.scaleA.status === 'connected',
-          } : undefined,
-          scaleB: middleware.scaleStatus.scaleB ? {
-            weight: middleware.scaleStatus.scaleB.weight,
-            connected: middleware.scaleStatus.scaleB.status === 'connected',
-          } : undefined,
-        } : undefined}
+        middlewareWeights={
+          middleware.weights
+            ? {
+                currentWeight:
+                  (middleware.weights as any).weight || (middleware.weights as any).currentWeight,
+                scaleA: (middleware.weights as any).scaleA,
+                scaleB: (middleware.weights as any).scaleB,
+                scaleWeightMode: (middleware.weights as any).scaleWeightMode,
+              }
+            : null
+        }
+        middlewareScaleStatus={
+          middleware.scaleStatus
+            ? {
+                scaleA: middleware.scaleStatus.scaleA
+                  ? {
+                      weight: middleware.scaleStatus.scaleA.weight,
+                      connected: middleware.scaleStatus.scaleA.status === 'connected',
+                    }
+                  : undefined,
+                scaleB: middleware.scaleStatus.scaleB
+                  ? {
+                      weight: middleware.scaleStatus.scaleB.weight,
+                      connected: middleware.scaleStatus.scaleB.status === 'connected',
+                    }
+                  : undefined,
+              }
+            : undefined
+        }
       />
 
       {/* Resume open transaction dialog — shown when a pending first-weight transaction is found for the entered plate */}
@@ -1385,4 +1730,3 @@ export function CommercialWeighingStepper({ mode = 'multideck', className }: Com
     </div>
   );
 }
-

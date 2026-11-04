@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { ScaleStatus as SharedScaleStatus } from '@/types/weighing';
 import { useModuleAccess } from '@/hooks/useModuleAccess';
@@ -52,13 +52,13 @@ export interface WeightData {
   gvw: number;
   // Mobile fields
   weight?: number;
-  currentWeight?: number;  // Alias for weight (API compatibility)
-  minCaptureWeight?: number;  // Readings below this are refused by TruConnect (kg)
-  scaleNotice?: string | null;  // Message for the operator about the scale console
+  currentWeight?: number; // Alias for weight (API compatibility)
+  minCaptureWeight?: number; // Readings below this are refused by TruConnect (kg)
+  scaleNotice?: string | null; // Message for the operator about the scale console
   axleNumber?: number;
   axleWeights?: number[];
   runningTotal?: number;
-  runningGvw?: number;  // Alias for runningTotal (API compatibility)
+  runningGvw?: number; // Alias for runningTotal (API compatibility)
   /**
    * Individual scale weights for mobile mode (PAW/Haenni)
    *
@@ -160,16 +160,16 @@ export interface UseMiddlewareOptions {
   mode?: 'mobile' | 'multideck';
   autoConnect?: boolean;
   // Client identification (for handshake/connection pool display)
-  clientName?: string;        // Friendly name e.g. "TruLoad Frontend", "Nairobi Unit 01"
+  clientName?: string; // Friendly name e.g. "TruLoad Frontend", "Nairobi Unit 01"
   clientType?: 'truload-frontend' | 'truload-backend' | 'mobile-app' | 'api-client' | string;
   // Connection URLs
-  backendWsUrl?: string;      // Cloud backend WebSocket (wss://...)
-  localWsUrl?: string;        // Local TruConnect WebSocket
-  localApiUrl?: string;       // Local TruConnect API (polling)
+  backendWsUrl?: string; // Cloud backend WebSocket (wss://...)
+  localWsUrl?: string; // Local TruConnect WebSocket
+  localApiUrl?: string; // Local TruConnect API (polling)
   // Behavior
-  preferBackend?: boolean;    // Try backend first when online (default: true)
+  preferBackend?: boolean; // Try backend first when online (default: true)
   enablePollingFallback?: boolean; // Fall back to API polling (default: true)
-  pollingInterval?: number;   // API polling interval in ms (default: 500)
+  pollingInterval?: number; // API polling interval in ms (default: 500)
   reconnectInterval?: number;
   // Callbacks
   onWeightUpdate?: (weight: WeightData) => void;
@@ -239,9 +239,11 @@ const DEFAULT_POLLING_INTERVAL = 500;
 // Check if we're in development mode
 const isDevelopment = () => {
   if (typeof window !== 'undefined') {
-    return process.env.NODE_ENV === 'development' ||
+    return (
+      process.env.NODE_ENV === 'development' ||
       window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1';
+      window.location.hostname === '127.0.0.1'
+    );
   }
   return process.env.NODE_ENV === 'development';
 };
@@ -262,7 +264,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     autoConnect = true,
     clientName = 'TruLoad Frontend',
     clientType = 'truload-frontend',
-    backendWsUrl = null,  // No backend WS relay — always use local TruConnect
+    backendWsUrl = null, // No backend WS relay — always use local TruConnect
     localWsUrl = DEFAULT_LOCAL_WS_URL,
     localApiUrl = DEFAULT_LOCAL_API_URL,
     preferBackend = false,
@@ -323,7 +325,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     if (typeof window === 'undefined') return;
 
     const handleOnline = () => {
-      setState(s => ({ ...s, isOnline: true }));
+      setState((s) => ({ ...s, isOnline: true }));
       // When coming back online, try to reconnect (potentially to backend)
       if (!state.connected && !forceLocalRef.current) {
         connectionAttemptsRef.current = 0;
@@ -332,7 +334,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     };
 
     const handleOffline = () => {
-      setState(s => ({ ...s, isOnline: false }));
+      setState((s) => ({ ...s, isOnline: false }));
       // When going offline, switch to local if not already
       if (state.connectionMode === 'backend_ws') {
         if (isDev) console.log('[useMiddleware] Network offline, switching to local connection');
@@ -360,391 +362,459 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   }, []);
 
   // Handle incoming WebSocket messages
-  const handleMessage = useCallback((message: { event: string; data: unknown; timestamp: string }) => {
-    switch (message.event) {
-      case 'connected':
-        setState(s => ({
-          ...s,
-          clientId: (message.data as { clientId: number }).clientId,
-        }));
-        break;
+  const handleMessage = useCallback(
+    (message: { event: string; data: unknown; timestamp: string }) => {
+      switch (message.event) {
+        case 'connected':
+          setState((s) => ({
+            ...s,
+            clientId: (message.data as { clientId: number }).clientId,
+          }));
+          break;
 
-      case 'register-ack':
-        const registerData = message.data as {
-          success: boolean;
-          message?: string;
-          binding?: { status: string; message?: string };
-        };
-        setState(s => ({ ...s, registered: registerData.success }));
-        if (!registerData.success) {
-          toast.error(registerData.message || 'TruConnect refused this connection.', { id: 'truconnect-registration' });
-          onError?.(registerData.message || 'TruConnect refused this connection.');
-        } else if (registerData.binding?.status === 'station-changed' && registerData.binding.message) {
-          toast.info(registerData.binding.message, { id: 'truconnect-registration' });
-        }
-        break;
-
-      case 'weights':
-      case 'weight':
-        const weightData = message.data as WeightData;
-
-        // Extract scale status from enhanced weight events (if available)
-        if (weightData.connection || weightData.scaleInfo || weightData.indicatorInfo ||
-          weightData.scaleAStatus || weightData.scaleBStatus) {
-          const scaleStatus: ScaleStatus = {
-            mode: weightData.mode,
-            connected: weightData.connection?.connected ?? true,
-            simulation: weightData.simulation || false,
-            protocol: weightData.connection?.protocol || '',
+        case 'register-ack':
+          const registerData = message.data as {
+            success: boolean;
+            message?: string;
+            binding?: { status: string; message?: string };
           };
+          setState((s) => ({ ...s, registered: registerData.success }));
+          if (!registerData.success) {
+            toast.error(registerData.message || 'TruConnect refused this connection.', {
+              id: 'truconnect-registration',
+            });
+            onError?.(registerData.message || 'TruConnect refused this connection.');
+          } else if (
+            registerData.binding?.status === 'station-changed' &&
+            registerData.binding.message
+          ) {
+            toast.info(registerData.binding.message, { id: 'truconnect-registration' });
+          }
+          break;
 
-          // Add scale info for mobile mode
-          // Now using enhanced scaleAStatus/scaleBStatus from middleware
-          if (weightData.mode === 'mobile') {
-            const currentWeight = weightData.weight || weightData.currentWeight || 0;
+        case 'weights':
+        case 'weight':
+          const weightData = message.data as WeightData;
 
-            // Scale A status
-            if (weightData.scaleAStatus) {
-              scaleStatus.scaleA = {
-                status: weightData.scaleAStatus.connected ? 'connected' : 'disconnected',
-                weight: weightData.scaleAStatus.weight ?? (weightData.scaleA || currentWeight / 2),
-                battery: weightData.scaleAStatus.battery ?? weightData.scaleInfo?.battery,
-                temp: weightData.scaleAStatus.temperature ?? weightData.scaleInfo?.temperature,
-              };
-            } else if (weightData.scaleInfo) {
-              // Legacy fallback
-              scaleStatus.scaleA = {
-                status: weightData.connection?.connected ? 'connected' : 'disconnected',
-                weight: weightData.scaleA || currentWeight / 2,
-                battery: weightData.scaleInfo.battery,
-                temp: weightData.scaleInfo.temperature,
-              };
+          // Extract scale status from enhanced weight events (if available)
+          if (
+            weightData.connection ||
+            weightData.scaleInfo ||
+            weightData.indicatorInfo ||
+            weightData.scaleAStatus ||
+            weightData.scaleBStatus
+          ) {
+            const scaleStatus: ScaleStatus = {
+              mode: weightData.mode,
+              connected: weightData.connection?.connected ?? true,
+              simulation: weightData.simulation || false,
+              protocol: weightData.connection?.protocol || '',
+            };
+
+            // Add scale info for mobile mode
+            // Now using enhanced scaleAStatus/scaleBStatus from middleware
+            if (weightData.mode === 'mobile') {
+              const currentWeight = weightData.weight || weightData.currentWeight || 0;
+
+              // Scale A status
+              if (weightData.scaleAStatus) {
+                scaleStatus.scaleA = {
+                  status: weightData.scaleAStatus.connected ? 'connected' : 'disconnected',
+                  weight:
+                    weightData.scaleAStatus.weight ?? (weightData.scaleA || currentWeight / 2),
+                  battery: weightData.scaleAStatus.battery ?? weightData.scaleInfo?.battery,
+                  temp: weightData.scaleAStatus.temperature ?? weightData.scaleInfo?.temperature,
+                };
+              } else if (weightData.scaleInfo) {
+                // Legacy fallback
+                scaleStatus.scaleA = {
+                  status: weightData.connection?.connected ? 'connected' : 'disconnected',
+                  weight: weightData.scaleA || currentWeight / 2,
+                  battery: weightData.scaleInfo.battery,
+                  temp: weightData.scaleInfo.temperature,
+                };
+              }
+
+              // Scale B status
+              if (weightData.scaleBStatus) {
+                scaleStatus.scaleB = {
+                  status: weightData.scaleBStatus.connected ? 'connected' : 'disconnected',
+                  weight:
+                    weightData.scaleBStatus.weight ?? (weightData.scaleB || currentWeight / 2),
+                  battery: weightData.scaleBStatus.battery ?? weightData.scaleInfo?.battery,
+                  temp: weightData.scaleBStatus.temperature ?? weightData.scaleInfo?.temperature,
+                };
+              } else if (weightData.scaleInfo) {
+                // Legacy fallback - derive scale B from combined weight
+                scaleStatus.scaleB = {
+                  status: weightData.connection?.connected ? 'connected' : 'disconnected',
+                  weight:
+                    weightData.scaleB || currentWeight - (weightData.scaleA || currentWeight / 2),
+                  battery: weightData.scaleInfo.battery,
+                  temp: weightData.scaleInfo.temperature,
+                };
+              }
             }
 
-            // Scale B status
-            if (weightData.scaleBStatus) {
-              scaleStatus.scaleB = {
-                status: weightData.scaleBStatus.connected ? 'connected' : 'disconnected',
-                weight: weightData.scaleBStatus.weight ?? (weightData.scaleB || currentWeight / 2),
-                battery: weightData.scaleBStatus.battery ?? weightData.scaleInfo?.battery,
-                temp: weightData.scaleBStatus.temperature ?? weightData.scaleInfo?.temperature,
-              };
-            } else if (weightData.scaleInfo) {
-              // Legacy fallback - derive scale B from combined weight
-              scaleStatus.scaleB = {
-                status: weightData.connection?.connected ? 'connected' : 'disconnected',
-                weight: weightData.scaleB || (currentWeight - (weightData.scaleA || currentWeight / 2)),
-                battery: weightData.scaleInfo.battery,
-                temp: weightData.scaleInfo.temperature,
-              };
-            }
+            setState((s) => ({
+              ...s,
+              weights: weightData,
+              scaleStatus,
+              simulation: weightData.simulation || false,
+            }));
+            onScaleStatusChange?.(scaleStatus);
+          } else {
+            setState((s) => ({
+              ...s,
+              weights: weightData,
+              simulation: weightData.simulation || false,
+            }));
           }
 
-          setState(s => ({
+          onWeightUpdate?.(weightData);
+          break;
+
+        case 'scale-status':
+          const statusData = message.data as ScaleStatus;
+          setState((s) => ({
             ...s,
-            weights: weightData,
-            scaleStatus,
-            simulation: weightData.simulation || false,
+            scaleStatus: statusData,
+            simulation: statusData.simulation || false,
           }));
-          onScaleStatusChange?.(scaleStatus);
-        } else {
-          setState(s => ({
-            ...s,
-            weights: weightData,
-            simulation: weightData.simulation || false,
-          }));
-        }
+          onScaleStatusChange?.(statusData);
+          break;
 
-        onWeightUpdate?.(weightData);
-        break;
+        case 'plate-ack':
+        case 'axle-captured-ack':
+        case 'vehicle-complete-ack':
+        case 'transaction-sync-ack':
+          // Handle acknowledgements - could emit events here
+          break;
 
-      case 'scale-status':
-        const statusData = message.data as ScaleStatus;
-        setState(s => ({
-          ...s,
-          scaleStatus: statusData,
-          simulation: statusData.simulation || false,
-        }));
-        onScaleStatusChange?.(statusData);
-        break;
+        case 'session-reset-ack':
+          setState((s) => ({ ...s, weights: null }));
+          break;
 
-      case 'plate-ack':
-      case 'axle-captured-ack':
-      case 'vehicle-complete-ack':
-      case 'transaction-sync-ack':
-        // Handle acknowledgements - could emit events here
-        break;
-
-      case 'session-reset-ack':
-        setState(s => ({ ...s, weights: null }));
-        break;
-
-      case 'error':
-        const errorData = message.data as { message: string; code?: string };
-        setState(s => ({ ...s, error: errorData.message }));
-        onError?.(errorData.message);
-        break;
-    }
-  }, [onWeightUpdate, onScaleStatusChange, onError]);
+        case 'error':
+          const errorData = message.data as { message: string; code?: string };
+          setState((s) => ({ ...s, error: errorData.message }));
+          onError?.(errorData.message);
+          break;
+      }
+    },
+    [onWeightUpdate, onScaleStatusChange, onError]
+  );
 
   // Handle API polling response (supports new API format with mode-specific data)
-  const handlePollingResponse = useCallback((response: unknown) => {
-    // Handle new API format: { success, mode, data, connection, timestamp }
-    const apiResponse = response as {
-      success?: boolean;
-      mode?: 'mobile' | 'multideck';
-      data?: unknown;
-      connection?: {
-        source?: string;
-        protocol?: string;
-        type?: string;
-        connected?: boolean;
-        outputMode?: string;
+  const handlePollingResponse = useCallback(
+    (response: unknown) => {
+      // Handle new API format: { success, mode, data, connection, timestamp }
+      const apiResponse = response as {
+        success?: boolean;
+        mode?: 'mobile' | 'multideck';
+        data?: unknown;
+        connection?: {
+          source?: string;
+          protocol?: string;
+          type?: string;
+          connected?: boolean;
+          outputMode?: string;
+        };
+        timestamp?: string;
       };
-      timestamp?: string;
-    };
 
-    // Extract weight data from API response
-    let weightData: WeightData;
+      // Extract weight data from API response
+      let weightData: WeightData;
 
-    if (apiResponse.success && apiResponse.data) {
-      const { data, mode: apiMode, connection } = apiResponse;
+      if (apiResponse.success && apiResponse.data) {
+        const { data, mode: apiMode, connection } = apiResponse;
 
-      if (apiMode === 'mobile') {
-        // Mobile mode response (match API /weights structure with scaleAStatus, scaleBStatus)
-        const mobileData = data as {
-          currentWeight: number;
-          scaleA?: number;
-          scaleB?: number;
-          scaleWeightMode?: 'combined' | 'separate';
-          scaleAStatus?: { connected: boolean; weight: number; battery?: number; temperature?: number; signalStrength?: number };
-          scaleBStatus?: { connected: boolean; weight: number; battery?: number; temperature?: number; signalStrength?: number };
-          runningGvw: number;
-          stable: boolean;
-          session: { currentAxle: number; totalAxles: number; axles: { axleNumber: number; weight: number }[]; gvw: number };
-          scaleInfo?: { battery: number; temperature: number; signalStrength: number; make?: string; model?: string };
-        };
+        if (apiMode === 'mobile') {
+          // Mobile mode response (match API /weights structure with scaleAStatus, scaleBStatus)
+          const mobileData = data as {
+            currentWeight: number;
+            scaleA?: number;
+            scaleB?: number;
+            scaleWeightMode?: 'combined' | 'separate';
+            scaleAStatus?: {
+              connected: boolean;
+              weight: number;
+              battery?: number;
+              temperature?: number;
+              signalStrength?: number;
+            };
+            scaleBStatus?: {
+              connected: boolean;
+              weight: number;
+              battery?: number;
+              temperature?: number;
+              signalStrength?: number;
+            };
+            runningGvw: number;
+            stable: boolean;
+            session: {
+              currentAxle: number;
+              totalAxles: number;
+              axles: { axleNumber: number; weight: number }[];
+              gvw: number;
+            };
+            scaleInfo?: {
+              battery: number;
+              temperature: number;
+              signalStrength: number;
+              make?: string;
+              model?: string;
+            };
+          };
 
-        // runningGvw = captured axles + current weight on scale
-        const runningGvw = mobileData.runningGvw ?? (mobileData.session?.gvw || 0) + mobileData.currentWeight;
-        const isConnected = connection?.connected ?? false;
+          // runningGvw = captured axles + current weight on scale
+          const runningGvw =
+            mobileData.runningGvw ?? (mobileData.session?.gvw || 0) + mobileData.currentWeight;
+          const isConnected = connection?.connected ?? false;
 
-        weightData = {
-          mode: 'mobile',
-          weight: mobileData.currentWeight,
-          currentWeight: mobileData.currentWeight,
-          deck1: mobileData.currentWeight,
-          gvw: runningGvw,
-          stable: mobileData.stable,
-          axleNumber: mobileData.session?.currentAxle || 0,
-          axleWeights: mobileData.session?.axles?.map(a => a.weight) || [],
-          runningTotal: runningGvw,
-          runningGvw,
-          source: connection?.source,
-          connection,
-          scaleA: mobileData.scaleA,
-          scaleB: mobileData.scaleB,
-          scaleWeightMode: mobileData.scaleWeightMode,
-          scaleAStatus: mobileData.scaleAStatus,
-          scaleBStatus: mobileData.scaleBStatus,
-          scaleInfo: mobileData.scaleInfo,
-          ...(mobileData as unknown as Pick<WeightData, 'minCaptureWeight' | 'scaleNotice'>),
-        };
+          weightData = {
+            mode: 'mobile',
+            weight: mobileData.currentWeight,
+            currentWeight: mobileData.currentWeight,
+            deck1: mobileData.currentWeight,
+            gvw: runningGvw,
+            stable: mobileData.stable,
+            axleNumber: mobileData.session?.currentAxle || 0,
+            axleWeights: mobileData.session?.axles?.map((a) => a.weight) || [],
+            runningTotal: runningGvw,
+            runningGvw,
+            source: connection?.source,
+            connection,
+            scaleA: mobileData.scaleA,
+            scaleB: mobileData.scaleB,
+            scaleWeightMode: mobileData.scaleWeightMode,
+            scaleAStatus: mobileData.scaleAStatus,
+            scaleBStatus: mobileData.scaleBStatus,
+            scaleInfo: mobileData.scaleInfo,
+            ...(mobileData as unknown as Pick<WeightData, 'minCaptureWeight' | 'scaleNotice'>),
+          };
 
-        // Build scale status with both Scale A and Scale B (match WebSocket payload so UI shows both)
-        const scaleStatus: ScaleStatus = {
-          mode: 'mobile',
-          connected: isConnected,
-          simulation: false,
-          protocol: connection?.protocol || '',
-          scaleA: {
-            status: (mobileData.scaleAStatus?.connected ?? isConnected) ? 'connected' : 'disconnected',
-            weight: mobileData.scaleAStatus?.weight ?? mobileData.scaleA ?? Math.round(mobileData.currentWeight / 2),
-            battery: mobileData.scaleAStatus?.battery ?? mobileData.scaleInfo?.battery,
-            temp: mobileData.scaleAStatus?.temperature ?? mobileData.scaleInfo?.temperature,
-          },
-          scaleB: {
-            status: (mobileData.scaleBStatus?.connected ?? isConnected) ? 'connected' : 'disconnected',
-            weight: mobileData.scaleBStatus?.weight ?? mobileData.scaleB ?? (mobileData.currentWeight - Math.round(mobileData.currentWeight / 2)),
-            battery: mobileData.scaleBStatus?.battery ?? mobileData.scaleInfo?.battery,
-            temp: mobileData.scaleBStatus?.temperature ?? mobileData.scaleInfo?.temperature,
-          },
-        };
-        setState(s => ({ ...s, scaleStatus }));
-        onScaleStatusChange?.(scaleStatus);
-      } else {
-        // Multideck mode response
-        const multideckData = data as {
-          decks: { index: number; weight: number; stable: boolean }[];
-          gvw: number;
-          vehicleOnDeck: boolean;
-        };
-
-        weightData = {
-          mode: 'multideck',
-          deck1: multideckData.decks?.[0]?.weight || 0,
-          deck2: multideckData.decks?.[1]?.weight || 0,
-          deck3: multideckData.decks?.[2]?.weight || 0,
-          deck4: multideckData.decks?.[3]?.weight || 0,
-          gvw: multideckData.gvw,
-          stable: multideckData.decks?.every(d => d.stable) || false,
-          source: connection?.source,
-        };
-
-        // Update scale status for multideck
-        if (connection) {
+          // Build scale status with both Scale A and Scale B (match WebSocket payload so UI shows both)
           const scaleStatus: ScaleStatus = {
-            mode: 'multideck',
-            connected: connection?.connected || false,
+            mode: 'mobile',
+            connected: isConnected,
             simulation: false,
             protocol: connection?.protocol || '',
+            scaleA: {
+              status:
+                (mobileData.scaleAStatus?.connected ?? isConnected) ? 'connected' : 'disconnected',
+              weight:
+                mobileData.scaleAStatus?.weight ??
+                mobileData.scaleA ??
+                Math.round(mobileData.currentWeight / 2),
+              battery: mobileData.scaleAStatus?.battery ?? mobileData.scaleInfo?.battery,
+              temp: mobileData.scaleAStatus?.temperature ?? mobileData.scaleInfo?.temperature,
+            },
+            scaleB: {
+              status:
+                (mobileData.scaleBStatus?.connected ?? isConnected) ? 'connected' : 'disconnected',
+              weight:
+                mobileData.scaleBStatus?.weight ??
+                mobileData.scaleB ??
+                mobileData.currentWeight - Math.round(mobileData.currentWeight / 2),
+              battery: mobileData.scaleBStatus?.battery ?? mobileData.scaleInfo?.battery,
+              temp: mobileData.scaleBStatus?.temperature ?? mobileData.scaleInfo?.temperature,
+            },
           };
-          setState(s => ({ ...s, scaleStatus }));
+          setState((s) => ({ ...s, scaleStatus }));
           onScaleStatusChange?.(scaleStatus);
-        }
-      }
-    } else {
-      // Legacy format - direct WeightData
-      weightData = response as WeightData;
-    }
+        } else {
+          // Multideck mode response
+          const multideckData = data as {
+            decks: { index: number; weight: number; stable: boolean }[];
+            gvw: number;
+            vehicleOnDeck: boolean;
+          };
 
-    setState(s => ({
-      ...s,
-      weights: weightData,
-      simulation: weightData.simulation || false,
-    }));
-    onWeightUpdate?.(weightData);
-  }, [onWeightUpdate, onScaleStatusChange]);
+          weightData = {
+            mode: 'multideck',
+            deck1: multideckData.decks?.[0]?.weight || 0,
+            deck2: multideckData.decks?.[1]?.weight || 0,
+            deck3: multideckData.decks?.[2]?.weight || 0,
+            deck4: multideckData.decks?.[3]?.weight || 0,
+            gvw: multideckData.gvw,
+            stable: multideckData.decks?.every((d) => d.stable) || false,
+            source: connection?.source,
+          };
+
+          // Update scale status for multideck
+          if (connection) {
+            const scaleStatus: ScaleStatus = {
+              mode: 'multideck',
+              connected: connection?.connected || false,
+              simulation: false,
+              protocol: connection?.protocol || '',
+            };
+            setState((s) => ({ ...s, scaleStatus }));
+            onScaleStatusChange?.(scaleStatus);
+          }
+        }
+      } else {
+        // Legacy format - direct WeightData
+        weightData = response as WeightData;
+      }
+
+      setState((s) => ({
+        ...s,
+        weights: weightData,
+        simulation: weightData.simulation || false,
+      }));
+      onWeightUpdate?.(weightData);
+    },
+    [onWeightUpdate, onScaleStatusChange]
+  );
 
   // Connect to a specific WebSocket URL
-  const connectWebSocket = useCallback((url: string, connectionMode: ConnectionMode): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (wsRef.current?.readyState === WebSocket.OPEN && currentUrlRef.current === url) {
-        resolve(true);
-        return;
-      }
-
-      // Close existing connection
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-
-      let resolved = false;
-      const safeResolve = (value: boolean) => {
-        if (!resolved) {
-          resolved = true;
-          resolve(value);
+  const connectWebSocket = useCallback(
+    (url: string, connectionMode: ConnectionMode): Promise<boolean> => {
+      return new Promise((resolve) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN && currentUrlRef.current === url) {
+          resolve(true);
+          return;
         }
-      };
 
-      try {
-        if (isDev) console.log(`[useMiddleware] Connecting to ${connectionMode}: ${url}`);
-        const ws = new WebSocket(url);
+        // Close existing connection
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
 
-        // Use a shorter timeout for initial connection attempt (2 seconds)
-        // This gives WebSocket priority but doesn't block fallback too long
-        const timeoutId = setTimeout(() => {
-          if (ws.readyState !== WebSocket.OPEN) {
-            if (isDev) console.log(`[useMiddleware] WebSocket connection timeout for ${url}`);
-            ws.close();
-            safeResolve(false);
-          }
-        }, 2000); // 2 second timeout for faster fallback while still giving WS priority
-
-        ws.onopen = () => {
-          clearTimeout(timeoutId);
-          currentUrlRef.current = url;
-          connectionAttemptsRef.current = 0;
-
-          // IMPORTANT: If we were polling, stop it now - WebSocket takes over
-          if (pollingTimer.current) {
-            if (isDev) console.log('[useMiddleware] WebSocket connected, stopping API polling');
-            clearInterval(pollingTimer.current);
-            pollingTimer.current = null;
-          }
-
-          setState(s => ({
-            ...s,
-            connected: true,
-            connectionMode,
-            isLocalFallback: connectionMode === 'local_ws' || connectionMode === 'local_api',
-            error: null,
-          }));
-
-          onConnectionModeChange?.(connectionMode, url);
-
-          // Auto-register with client identification
-          ws.send(JSON.stringify({
-            event: 'register',
-            data: { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType },
-          }));
-
-          // Track what we registered with to avoid duplicate registrations
-          lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
-
-          safeResolve(true);
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            handleMessage(message);
-          } catch (e) {
-            console.error('[useMiddleware] Failed to parse message:', e);
+        let resolved = false;
+        const safeResolve = (value: boolean) => {
+          if (!resolved) {
+            resolved = true;
+            resolve(value);
           }
         };
 
-        ws.onclose = () => {
-          clearTimeout(timeoutId);
-          if (currentUrlRef.current === url) {
-            setState(s => ({
+        try {
+          if (isDev) console.log(`[useMiddleware] Connecting to ${connectionMode}: ${url}`);
+          const ws = new WebSocket(url);
+
+          // Use a shorter timeout for initial connection attempt (2 seconds)
+          // This gives WebSocket priority but doesn't block fallback too long
+          const timeoutId = setTimeout(() => {
+            if (ws.readyState !== WebSocket.OPEN) {
+              if (isDev) console.log(`[useMiddleware] WebSocket connection timeout for ${url}`);
+              ws.close();
+              safeResolve(false);
+            }
+          }, 2000); // 2 second timeout for faster fallback while still giving WS priority
+
+          ws.onopen = () => {
+            clearTimeout(timeoutId);
+            currentUrlRef.current = url;
+            connectionAttemptsRef.current = 0;
+
+            // IMPORTANT: If we were polling, stop it now - WebSocket takes over
+            if (pollingTimer.current) {
+              if (isDev) console.log('[useMiddleware] WebSocket connected, stopping API polling');
+              clearInterval(pollingTimer.current);
+              pollingTimer.current = null;
+            }
+
+            setState((s) => ({
               ...s,
-              connected: false,
-              registered: false,
-              connectionMode: 'disconnected',
+              connected: true,
+              connectionMode,
+              isLocalFallback: connectionMode === 'local_ws' || connectionMode === 'local_api',
+              error: null,
             }));
 
-            if (shouldReconnect.current) {
-              scheduleReconnectRef.current();
+            onConnectionModeChange?.(connectionMode, url);
+
+            // Auto-register with client identification
+            ws.send(
+              JSON.stringify({
+                event: 'register',
+                data: {
+                  stationCode,
+                  stationName,
+                  orgSlug,
+                  workflow,
+                  bound,
+                  mode,
+                  clientName,
+                  clientType,
+                },
+              })
+            );
+
+            // Track what we registered with to avoid duplicate registrations
+            lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
+
+            safeResolve(true);
+          };
+
+          ws.onmessage = (event) => {
+            try {
+              const message = JSON.parse(event.data);
+              handleMessage(message);
+            } catch (e) {
+              console.error('[useMiddleware] Failed to parse message:', e);
             }
-          }
+          };
+
+          ws.onclose = () => {
+            clearTimeout(timeoutId);
+            if (currentUrlRef.current === url) {
+              setState((s) => ({
+                ...s,
+                connected: false,
+                registered: false,
+                connectionMode: 'disconnected',
+              }));
+
+              if (shouldReconnect.current) {
+                scheduleReconnectRef.current();
+              }
+            }
+            safeResolve(false);
+          };
+
+          ws.onerror = (error) => {
+            // Don't resolve on error alone - wait for onclose or timeout
+            // onerror is always followed by onclose, so we let onclose handle resolution
+            if (isDev) console.log(`[useMiddleware] WebSocket error for ${url}:`, error);
+            // Note: We do NOT call safeResolve here - onclose will be called after onerror
+          };
+
+          wsRef.current = ws;
+        } catch (e) {
+          console.error('[useMiddleware] WebSocket creation error:', e);
           safeResolve(false);
-        };
-
-        ws.onerror = (error) => {
-          // Don't resolve on error alone - wait for onclose or timeout
-          // onerror is always followed by onclose, so we let onclose handle resolution
-          if (isDev) console.log(`[useMiddleware] WebSocket error for ${url}:`, error);
-          // Note: We do NOT call safeResolve here - onclose will be called after onerror
-        };
-
-        wsRef.current = ws;
-      } catch (e) {
-        console.error('[useMiddleware] WebSocket creation error:', e);
-        safeResolve(false);
-      }
-    });
-  }, [stationCode, bound, mode, clientName, clientType, handleMessage, onConnectionModeChange]);
+        }
+      });
+    },
+    [stationCode, bound, mode, clientName, clientType, handleMessage, onConnectionModeChange]
+  );
 
   // Check if an API endpoint is reachable (with timeout)
-  const isApiEndpointReachable = useCallback(async (url: string, timeout = 3000): Promise<boolean> => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const isApiEndpointReachable = useCallback(
+    async (url: string, timeout = 3000): Promise<boolean> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch {
-      clearTimeout(timeoutId);
-      return false;
-    }
-  }, []);
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response.ok;
+      } catch {
+        clearTimeout(timeoutId);
+        return false;
+      }
+    },
+    []
+  );
 
   // Start API polling
   const startPolling = useCallback(() => {
@@ -762,7 +832,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       ws.onopen = () => {
         clearTimeout(timeout);
         if (!pollingTimer.current) return;
-        if (isDev) console.log('[useMiddleware] WebSocket connected (upgrade from polling), stopping API polling');
+        if (isDev)
+          console.log(
+            '[useMiddleware] WebSocket connected (upgrade from polling), stopping API polling'
+          );
         const timer = pollingTimer.current as NodeJS.Timeout & { wsRetry?: NodeJS.Timeout };
         if (timer.wsRetry) clearInterval(timer.wsRetry);
         clearInterval(pollingTimer.current);
@@ -770,9 +843,29 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         currentUrlRef.current = localWsUrl;
         wsRef.current = ws;
         connectionAttemptsRef.current = 0;
-        setState(s => ({ ...s, connected: true, connectionMode: 'local_ws', isLocalFallback: true, error: null }));
+        setState((s) => ({
+          ...s,
+          connected: true,
+          connectionMode: 'local_ws',
+          isLocalFallback: true,
+          error: null,
+        }));
         onConnectionModeChange?.('local_ws', localWsUrl);
-        ws.send(JSON.stringify({ event: 'register', data: { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType } }));
+        ws.send(
+          JSON.stringify({
+            event: 'register',
+            data: {
+              stationCode,
+              stationName,
+              orgSlug,
+              workflow,
+              bound,
+              mode,
+              clientName,
+              clientType,
+            },
+          })
+        );
         lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
         ws.onmessage = (event) => {
           try {
@@ -784,20 +877,29 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         };
         ws.onclose = () => {
           if (currentUrlRef.current === localWsUrl) {
-            setState(s => ({ ...s, connected: false, registered: false, connectionMode: 'disconnected' }));
+            setState((s) => ({
+              ...s,
+              connected: false,
+              registered: false,
+              connectionMode: 'disconnected',
+            }));
             if (shouldReconnect.current) scheduleReconnectRef.current?.();
           }
         };
       };
-      ws.onerror = () => { clearTimeout(timeout); };
-      ws.onclose = () => { clearTimeout(timeout); };
+      ws.onerror = () => {
+        clearTimeout(timeout);
+      };
+      ws.onclose = () => {
+        clearTimeout(timeout);
+      };
     };
 
     const poll = async () => {
       try {
         const response = await fetch(localApiUrl, {
           method: 'GET',
-          headers: { 'Accept': 'application/json' },
+          headers: { Accept: 'application/json' },
         });
 
         const data = response.ok ? await response.json() : null;
@@ -808,7 +910,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           handlePollingResponse(data);
 
           if (!state.connected) {
-            setState(s => ({
+            setState((s) => ({
               ...s,
               connected: true,
               connectionMode: 'local_api',
@@ -827,14 +929,17 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           ) {
             upgradeAttemptedFromPollingRef.current = true;
             const wsUrl = apiData?.websocketUrl || localWsUrl;
-            if (isDev) console.log('[useMiddleware] Attempting immediate WebSocket upgrade (middleware acknowledged)...');
+            if (isDev)
+              console.log(
+                '[useMiddleware] Attempting immediate WebSocket upgrade (middleware acknowledged)...'
+              );
             tryWebSocketUpgrade(wsUrl);
           }
         }
       } catch {
         if (!pollingTimer.current) return;
         if (state.connectionMode === 'local_api') {
-          setState(s => ({ ...s, connected: false, connectionMode: 'disconnected' }));
+          setState((s) => ({ ...s, connected: false, connectionMode: 'disconnected' }));
         }
       }
     };
@@ -848,7 +953,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     // Background WebSocket retry: try to upgrade from polling every 2.5s if immediate upgrade did not succeed
     const wsRetryInterval = setInterval(async () => {
       if (pollingTimer.current && !wsRef.current) {
-        if (isDev) console.log('[useMiddleware] Background retry: attempting WebSocket upgrade from polling...');
+        if (isDev)
+          console.log(
+            '[useMiddleware] Background retry: attempting WebSocket upgrade from polling...'
+          );
         // Try WebSocket silently - if it connects, it will stop polling automatically
         const ws = new WebSocket(localWsUrl);
 
@@ -860,7 +968,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
         ws.onopen = () => {
           clearTimeout(retryTimeout);
-          if (isDev) console.log('[useMiddleware] Background WebSocket connected! Upgrading from polling...');
+          if (isDev)
+            console.log(
+              '[useMiddleware] Background WebSocket connected! Upgrading from polling...'
+            );
           // Stop polling
           if (pollingTimer.current) {
             clearInterval(pollingTimer.current);
@@ -873,7 +984,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           wsRef.current = ws;
           connectionAttemptsRef.current = 0;
 
-          setState(s => ({
+          setState((s) => ({
             ...s,
             connected: true,
             connectionMode: 'local_ws',
@@ -884,10 +995,21 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           onConnectionModeChange?.('local_ws', localWsUrl);
 
           // Register
-          ws.send(JSON.stringify({
-            event: 'register',
-            data: { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType },
-          }));
+          ws.send(
+            JSON.stringify({
+              event: 'register',
+              data: {
+                stationCode,
+                stationName,
+                orgSlug,
+                workflow,
+                bound,
+                mode,
+                clientName,
+                clientType,
+              },
+            })
+          );
           lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
 
           // Set up message handler
@@ -902,7 +1024,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
           ws.onclose = () => {
             if (currentUrlRef.current === localWsUrl) {
-              setState(s => ({
+              setState((s) => ({
                 ...s,
                 connected: false,
                 registered: false,
@@ -932,8 +1054,23 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     // Store the retry interval reference for cleanup
     // We'll clear it when stopPolling is called
-    (pollingTimer.current as NodeJS.Timeout & { wsRetry?: NodeJS.Timeout }).wsRetry = wsRetryInterval;
-  }, [localApiUrl, localWsUrl, pollingInterval, handlePollingResponse, handleMessage, state.connected, state.connectionMode, stationCode, bound, mode, clientName, clientType, onConnectionModeChange]);
+    (pollingTimer.current as NodeJS.Timeout & { wsRetry?: NodeJS.Timeout }).wsRetry =
+      wsRetryInterval;
+  }, [
+    localApiUrl,
+    localWsUrl,
+    pollingInterval,
+    handlePollingResponse,
+    handleMessage,
+    state.connected,
+    state.connectionMode,
+    stationCode,
+    bound,
+    mode,
+    clientName,
+    clientType,
+    onConnectionModeChange,
+  ]);
 
   // Stop API polling
   const stopPolling = useCallback(() => {
@@ -961,7 +1098,8 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     // If WebSocket failed, check if API polling is enabled and endpoint is reachable
     if (enablePollingFallback) {
-      if (isDev) console.log('[useMiddleware] Local WebSocket failed, checking if API is reachable...');
+      if (isDev)
+        console.log('[useMiddleware] Local WebSocket failed, checking if API is reachable...');
       const apiReachable = await isApiEndpointReachable(localApiUrl);
 
       if (apiReachable) {
@@ -969,10 +1107,11 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         startPolling();
         return true;
       } else {
-        if (isDev) console.log('[useMiddleware] API endpoint is NOT reachable, staying disconnected');
+        if (isDev)
+          console.log('[useMiddleware] API endpoint is NOT reachable, staying disconnected');
         // Don't switch to polling if API isn't reachable
         // The connection will stay in its current state and retry later
-        setState(s => ({
+        setState((s) => ({
           ...s,
           error: 'Local middleware not available (WebSocket and API both unreachable)',
         }));
@@ -981,7 +1120,14 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     }
 
     return false;
-  }, [localWsUrl, localApiUrl, enablePollingFallback, connectWebSocket, startPolling, isApiEndpointReachable]);
+  }, [
+    localWsUrl,
+    localApiUrl,
+    enablePollingFallback,
+    connectWebSocket,
+    startPolling,
+    isApiEndpointReachable,
+  ]);
 
   // Main connect function with smart priority chain
   // Only switches connections if the new endpoint is actually reachable
@@ -999,13 +1145,19 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     // If forced to local OR in development mode, skip backend
     if (forceLocalRef.current || isDevelopment()) {
       if (isDevelopment() && !forceLocalRef.current) {
-        if (isDev) console.log('[useMiddleware] Development mode detected, using local WebSocket as primary');
+        if (isDev)
+          console.log(
+            '[useMiddleware] Development mode detected, using local WebSocket as primary'
+          );
       }
       stopPolling();
       const localSuccess = await connectToLocal();
       if (!localSuccess && currentlyPolling) {
         // Local failed, but we had working polling - restore it
-        if (isDev) console.log('[useMiddleware] Local connection failed, but polling was working - restoring polling');
+        if (isDev)
+          console.log(
+            '[useMiddleware] Local connection failed, but polling was working - restoring polling'
+          );
         startPolling();
       }
       return;
@@ -1032,7 +1184,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       // All connection attempts failed
       if (currentlyPolling) {
         // We had working polling connection - keep it going
-        if (isDev) console.log('[useMiddleware] All new connections failed, keeping current polling connection');
+        if (isDev)
+          console.log(
+            '[useMiddleware] All new connections failed, keeping current polling connection'
+          );
         // Don't stop polling - it was already working
       } else {
         // Nothing was working, schedule retry
@@ -1040,7 +1195,16 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         scheduleReconnectRef.current?.();
       }
     }
-  }, [state.isOnline, state.connected, backendWsUrl, preferBackend, connectWebSocket, connectToLocal, stopPolling, startPolling]);
+  }, [
+    state.isOnline,
+    state.connected,
+    backendWsUrl,
+    preferBackend,
+    connectWebSocket,
+    connectToLocal,
+    stopPolling,
+    startPolling,
+  ]);
 
   // Schedule reconnection with exponential backoff
   const scheduleReconnect = useCallback(() => {
@@ -1052,7 +1216,10 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
       30000 // Max 30 seconds
     );
 
-    if (isDev) console.log(`[useMiddleware] Scheduling reconnect in ${delay}ms (attempt ${connectionAttemptsRef.current})`);
+    if (isDev)
+      console.log(
+        `[useMiddleware] Scheduling reconnect in ${delay}ms (attempt ${connectionAttemptsRef.current})`
+      );
 
     reconnectTimer.current = setTimeout(() => {
       reconnectTimer.current = null;
@@ -1084,7 +1251,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
 
     currentUrlRef.current = '';
 
-    setState(s => ({
+    setState((s) => ({
       ...s,
       connected: false,
       registered: false,
@@ -1110,23 +1277,32 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
   const localApiBase = localApiUrl.replace(/\/weights\/?$/, '');
 
   // Send over WebSocket, or the matching local API route when polling or the socket is down
-  const sendToTruConnect = useCallback((event: string, path: string, data: Record<string, unknown>) => {
-    if (state.connectionMode !== 'local_api' && sendMessage(event, data)) return;
-    fetch(`${localApiBase}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }).catch((err) => console.warn(`[useMiddleware] API ${path} failed`, err));
-  }, [sendMessage, state.connectionMode, localApiBase]);
+  const sendToTruConnect = useCallback(
+    (event: string, path: string, data: Record<string, unknown>) => {
+      if (state.connectionMode !== 'local_api' && sendMessage(event, data)) return;
+      fetch(`${localApiBase}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).catch((err) => console.warn(`[useMiddleware] API ${path} failed`, err));
+    },
+    [sendMessage, state.connectionMode, localApiBase]
+  );
 
   // Actions
-  const sendPlate = useCallback((plateNumber: string, data?: Partial<PlateData>) => {
-    sendToTruConnect('plate', '/plate', { plateNumber, stationCode, bound, ...data });
-  }, [sendToTruConnect, stationCode, bound]);
+  const sendPlate = useCallback(
+    (plateNumber: string, data?: Partial<PlateData>) => {
+      sendToTruConnect('plate', '/plate', { plateNumber, stationCode, bound, ...data });
+    },
+    [sendToTruConnect, stationCode, bound]
+  );
 
-  const sendDriverInstruction = useCallback((instruction: 'enter' | 'move-forward' | 'move-back' | 'stop') => {
-    sendToTruConnect(instruction, '/driver-instruction', { instruction });
-  }, [sendToTruConnect]);
+  const sendDriverInstruction = useCallback(
+    (instruction: 'enter' | 'move-forward' | 'move-back' | 'stop') => {
+      sendToTruConnect(instruction, '/driver-instruction', { instruction });
+    },
+    [sendToTruConnect]
+  );
 
   // A console notice stays on screen once per change, not once per weight message
   const scaleNotice = state.weights?.scaleNotice;
@@ -1134,63 +1310,77 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     if (scaleNotice) toast.warning(scaleNotice, { id: 'scale-notice', duration: 10000 });
   }, [scaleNotice]);
 
-  const captureAxle = useCallback((axleNumber: number, weight: number, axleConfigurationId?: string) => {
-    if (state.connectionMode === 'local_api' || state.connectionMode === 'disconnected') {
-      // Use HTTP API when polling OR when disconnected (best-effort delivery).
-      // This ensures the middleware's mobileState.axles stays in sync for MCGS
-      // cumulative weight subtraction even during WebSocket reconnection windows.
-      fetch(`${localApiBase}/axle-captured`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ axleNumber, weight, axleConfigurationId }),
-      }).catch((err) => console.warn('[useMiddleware] API axle-captured failed', err));
-    } else {
-      // Try WebSocket first; fall back to HTTP API if WebSocket send fails
-      const wsSent = sendMessage('axle-captured', { axleNumber, weight, axleConfigurationId });
-      if (!wsSent) {
+  const captureAxle = useCallback(
+    (axleNumber: number, weight: number, axleConfigurationId?: string) => {
+      if (state.connectionMode === 'local_api' || state.connectionMode === 'disconnected') {
+        // Use HTTP API when polling OR when disconnected (best-effort delivery).
+        // This ensures the middleware's mobileState.axles stays in sync for MCGS
+        // cumulative weight subtraction even during WebSocket reconnection windows.
         fetch(`${localApiBase}/axle-captured`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ axleNumber, weight, axleConfigurationId }),
-        }).catch((err) => console.warn('[useMiddleware] API axle-captured fallback failed', err));
+        }).catch((err) => console.warn('[useMiddleware] API axle-captured failed', err));
+      } else {
+        // Try WebSocket first; fall back to HTTP API if WebSocket send fails
+        const wsSent = sendMessage('axle-captured', { axleNumber, weight, axleConfigurationId });
+        if (!wsSent) {
+          fetch(`${localApiBase}/axle-captured`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ axleNumber, weight, axleConfigurationId }),
+          }).catch((err) => console.warn('[useMiddleware] API axle-captured fallback failed', err));
+        }
       }
-    }
-  }, [sendMessage, state.connectionMode, localApiBase]);
+    },
+    [sendMessage, state.connectionMode, localApiBase]
+  );
 
-  const completeVehicle = useCallback((data: VehicleCompleteData) => {
-    if (state.connectionMode === 'local_api') {
-      fetch(`${localApiBase}/vehicle-complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }).catch((err) => console.warn('[useMiddleware] API vehicle-complete failed', err));
-    } else {
-      sendMessage('vehicle-complete', { ...data });
-    }
-  }, [sendMessage, state.connectionMode, localApiBase]);
+  const completeVehicle = useCallback(
+    (data: VehicleCompleteData) => {
+      if (state.connectionMode === 'local_api') {
+        fetch(`${localApiBase}/vehicle-complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }).catch((err) => console.warn('[useMiddleware] API vehicle-complete failed', err));
+      } else {
+        sendMessage('vehicle-complete', { ...data });
+      }
+    },
+    [sendMessage, state.connectionMode, localApiBase]
+  );
 
-  const queryWeight = useCallback((type: 'current' | 'next-axle' = 'current') => {
-    sendToTruConnect('query-weight', '/query-weight', { type });
-  }, [sendToTruConnect]);
+  const queryWeight = useCallback(
+    (type: 'current' | 'next-axle' = 'current') => {
+      sendToTruConnect('query-weight', '/query-weight', { type });
+    },
+    [sendToTruConnect]
+  );
 
-  const syncTransaction = useCallback((data: TransactionSyncData) => {
-    if (state.connectionMode === 'local_api') {
-      // API polling has no registration step, so the tenant identity travels with the sync
-      fetch(`${localApiBase}/transaction-sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, orgSlug, stationCode, stationName }),
-      }).catch((err) => console.warn('[useMiddleware] API transaction-sync failed', err));
-    } else {
-      sendMessage('transaction-sync', { ...data });
-    }
-  }, [sendMessage, state.connectionMode, localApiBase, orgSlug, stationCode, stationName]);
+  const syncTransaction = useCallback(
+    (data: TransactionSyncData) => {
+      if (state.connectionMode === 'local_api') {
+        // API polling has no registration step, so the tenant identity travels with the sync
+        fetch(`${localApiBase}/transaction-sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...data, orgSlug, stationCode, stationName }),
+        }).catch((err) => console.warn('[useMiddleware] API transaction-sync failed', err));
+      } else {
+        sendMessage('transaction-sync', { ...data });
+      }
+    },
+    [sendMessage, state.connectionMode, localApiBase, orgSlug, stationCode, stationName]
+  );
 
   const resetSession = useCallback(() => {
     // Clear local weight state immediately (don't wait for middleware ack)
-    setState(s => ({
+    setState((s) => ({
       ...s,
-      weights: s.weights ? { ...s.weights, weight: 0, axleWeights: [], runningTotal: 0, gvw: 0 } : s.weights,
+      weights: s.weights
+        ? { ...s.weights, weight: 0, axleWeights: [], runningTotal: 0, gvw: 0 }
+        : s.weights,
     }));
 
     // Try WebSocket first, fall back to HTTP API if WebSocket is unavailable
@@ -1205,16 +1395,19 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     }
   }, [sendMessage, localApiBase]);
 
-  const switchBound = useCallback((newBound: 'A' | 'B') => {
-    const wsSent = sendMessage('bound-switch', { bound: newBound });
-    if (!wsSent) {
-      fetch(`${localApiBase}/bound-switch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bound: newBound }),
-      }).catch((err) => console.warn('[useMiddleware] API bound-switch fallback failed', err));
-    }
-  }, [sendMessage, localApiBase]);
+  const switchBound = useCallback(
+    (newBound: 'A' | 'B') => {
+      const wsSent = sendMessage('bound-switch', { bound: newBound });
+      if (!wsSent) {
+        fetch(`${localApiBase}/bound-switch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bound: newBound }),
+        }).catch((err) => console.warn('[useMiddleware] API bound-switch fallback failed', err));
+      }
+    },
+    [sendMessage, localApiBase]
+  );
 
   const requestStatus = useCallback(() => {
     sendMessage('status-request', {});
@@ -1224,16 +1417,19 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
    * Send axle configuration update to TruConnect when user changes config on step 2.
    * Updates the expected axle count so middleware knows when all axles are captured.
    */
-  const sendUpdateConfig = useCallback((totalAxles: number, axleConfigurationCode: string) => {
-    const wsSent = sendMessage('update-config', { totalAxles, axleConfigurationCode });
-    if (!wsSent) {
-      fetch(`${localApiBase}/update-config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ totalAxles, axleConfigurationCode }),
-      }).catch((err) => console.warn('[useMiddleware] API update-config fallback failed', err));
-    }
-  }, [sendMessage, localApiBase]);
+  const sendUpdateConfig = useCallback(
+    (totalAxles: number, axleConfigurationCode: string) => {
+      const wsSent = sendMessage('update-config', { totalAxles, axleConfigurationCode });
+      if (!wsSent) {
+        fetch(`${localApiBase}/update-config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ totalAxles, axleConfigurationCode }),
+        }).catch((err) => console.warn('[useMiddleware] API update-config fallback failed', err));
+      }
+    },
+    [sendMessage, localApiBase]
+  );
 
   /**
    * Send weights-captured acknowledgment to TruConnect after frontend processes autoweigh response.
@@ -1275,19 +1471,45 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     const lastReg = lastRegisteredRef.current;
     // Only re-register if stationCode, bound, or mode actually changed
     // Skip if this is the same as what we registered with on connect
-    if (lastReg &&
+    if (
+      lastReg &&
       lastReg.stationCode === stationCode &&
       lastReg.bound === bound &&
       lastReg.mode === mode &&
       lastReg.orgSlug === orgSlug &&
-      lastReg.workflow === workflow) {
+      lastReg.workflow === workflow
+    ) {
       return; // No change, skip re-registration
     }
     // Values changed - send updated registration
-    if (isDev) console.log(`[useMiddleware] Re-registering with updated values: ${stationCode}, bound=${bound}, mode=${mode}`);
-    sendMessage('register', { stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType });
+    if (isDev)
+      console.log(
+        `[useMiddleware] Re-registering with updated values: ${stationCode}, bound=${bound}, mode=${mode}`
+      );
+    sendMessage('register', {
+      stationCode,
+      stationName,
+      orgSlug,
+      workflow,
+      bound,
+      mode,
+      clientName,
+      clientType,
+    });
     lastRegisteredRef.current = { stationCode, bound, mode, orgSlug, workflow };
-  }, [stationCode, stationName, orgSlug, workflow, bound, mode, clientName, clientType, state.connected, state.connectionMode, sendMessage]);
+  }, [
+    stationCode,
+    stationName,
+    orgSlug,
+    workflow,
+    bound,
+    mode,
+    clientName,
+    clientType,
+    state.connected,
+    state.connectionMode,
+    sendMessage,
+  ]);
 
   return {
     ...state,
