@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Pagination, usePagination } from '@/components/ui/pagination';
 import { useHasPermission } from '@/hooks/useAuth';
@@ -10,7 +10,13 @@ import {
   useWeighingStatistics,
   useDownloadWeightTicket,
 } from '@/hooks/queries/useWeighingQueries';
-import { downloadAndSavePdf, getCommercialThermalTicket, getCommercialTicketPdf, approveToleranceException, rejectToleranceException } from '@/lib/api/weighing';
+import {
+  downloadAndSavePdf,
+  getCommercialThermalTicket,
+  getCommercialTicketPdf,
+  approveToleranceException,
+  rejectToleranceException,
+} from '@/lib/api/weighing';
 import { buildEatDateRange } from '@/lib/utils/dateRange';
 import { exportToCSV } from '@/lib/utils/export';
 import { formatFee } from '@/lib/weighing-utils';
@@ -56,7 +62,14 @@ export default function TicketsTab() {
   const [appliedSearchTicketNo, setAppliedSearchTicketNo] = useState('');
 
   // Pagination
-  const { page, pageNumber, pageSize, setPage, setPageSize, reset: resetPagination } = usePagination();
+  const {
+    page,
+    pageNumber,
+    pageSize,
+    setPage,
+    setPageSize,
+    reset: resetPagination,
+  } = usePagination();
   const queryClient = useQueryClient();
 
   // Permissions
@@ -73,7 +86,19 @@ export default function TicketsTab() {
   // Reset pagination when filters change
   useEffect(() => {
     resetPagination();
-  }, [appliedSearchReg, appliedSearchTicketNo, statusFilter, stateFilter, stationFilter, axleTypeFilter, dateFrom, dateTo, timeFrom, timeTo, resetPagination]);
+  }, [
+    appliedSearchReg,
+    appliedSearchTicketNo,
+    statusFilter,
+    stateFilter,
+    stationFilter,
+    axleTypeFilter,
+    dateFrom,
+    dateTo,
+    timeFrom,
+    timeTo,
+    resetPagination,
+  ]);
 
   // Build search params
   const searchParams = useMemo(() => {
@@ -123,7 +148,21 @@ export default function TicketsTab() {
     if (toDate) params.toDate = toDate;
 
     return params;
-  }, [pageNumber, pageSize, myStation?.id, stationFilter, statusFilter, stateFilter, axleTypeFilter, appliedSearchReg, appliedSearchTicketNo, dateFrom, dateTo, timeFrom, timeTo]);
+  }, [
+    pageNumber,
+    pageSize,
+    myStation?.id,
+    stationFilter,
+    statusFilter,
+    stateFilter,
+    axleTypeFilter,
+    appliedSearchReg,
+    appliedSearchTicketNo,
+    dateFrom,
+    dateTo,
+    timeFrom,
+    timeTo,
+  ]);
 
   // Fetch transactions
   const { data: result, isLoading, isFetching, error } = useWeighingTransactions(searchParams);
@@ -139,7 +178,18 @@ export default function TicketsTab() {
   const tickets = result?.items ?? [];
   const totalItems = result?.totalCount ?? 0;
 
-  const hasActiveFilters = !!(dateFrom || dateTo || timeFrom || timeTo || statusFilter !== 'all' || stateFilter !== 'all' || stationFilter !== 'all' || axleTypeFilter !== 'all' || searchReg || searchTicketNo);
+  const hasActiveFilters = !!(
+    dateFrom ||
+    dateTo ||
+    timeFrom ||
+    timeTo ||
+    statusFilter !== 'all' ||
+    stateFilter !== 'all' ||
+    stationFilter !== 'all' ||
+    axleTypeFilter !== 'all' ||
+    searchReg ||
+    searchTicketNo
+  );
 
   const handleSearch = useCallback(() => {
     setAppliedSearchReg(searchReg);
@@ -189,18 +239,27 @@ export default function TicketsTab() {
           { header: 'Driver', accessor: (t) => t.driverName ?? '' },
           { header: 'Cargo Type', accessor: (t) => t.cargoType ?? t.cargoDescription ?? '' },
           { header: 'Tare Weight (kg)', accessor: (t) => t.tareWeightKg ?? '' },
-          { header: 'Gross Weight (kg)', accessor: (t) => t.grossWeightKg ?? t.gvwMeasuredKg ?? '' },
+          {
+            header: 'Gross Weight (kg)',
+            accessor: (t) => t.grossWeightKg ?? t.gvwMeasuredKg ?? '',
+          },
           { header: 'Net Weight (kg)', accessor: (t) => t.netWeightKg ?? '' },
           { header: 'Adjusted Net Weight (kg)', accessor: (t) => t.adjustedNetWeightKg ?? '' },
           { header: 'Tare Source', accessor: (t) => t.tareSource ?? '' },
           { header: 'Status', accessor: 'controlStatus' },
-          { header: 'Fee', accessor: (t) => (t.totalFeeUsd > 0 || (t.totalFeeKes ?? 0) > 0) ? formatFee(t.totalFeeUsd, t.totalFeeKes, t.chargingCurrency) : '' },
+          {
+            header: 'Fee',
+            accessor: (t) =>
+              t.totalFeeUsd > 0 || (t.totalFeeKes ?? 0) > 0
+                ? formatFee(t.totalFeeUsd, t.totalFeeKes, t.chargingCurrency)
+                : '',
+          },
         ],
         'weight-tickets'
       );
     } else {
       exportToCSV(
-        tickets,
+        tickets as (WeighingTransaction & Record<string, unknown>)[],
         [
           { header: 'Ticket No', accessor: 'ticketNumber' },
           { header: 'Vehicle Reg', accessor: 'vehicleRegNumber' },
@@ -233,7 +292,11 @@ export default function TicketsTab() {
     onSuccess: (updated) => {
       toast.success('Tolerance exception approved');
       // Update the selected ticket in place
-      setSelectedTicket((prev) => prev ? { ...prev, toleranceExceptionApproved: updated.toleranceExceptionApproved ?? true } : prev);
+      setSelectedTicket((prev) =>
+        prev
+          ? { ...prev, toleranceExceptionApproved: updated.toleranceExceptionApproved ?? true }
+          : prev
+      );
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
     },
     onError: () => {
@@ -241,17 +304,24 @@ export default function TicketsTab() {
     },
   });
 
-  const handleApproveToleranceException = useCallback(async (ticket: WeighingTransaction) => {
-    await approveToleranceMutation.mutateAsync(ticket.id);
-  }, [approveToleranceMutation]);
+  const handleApproveToleranceException = useCallback(
+    async (ticket: WeighingTransaction) => {
+      await approveToleranceMutation.mutateAsync(ticket.id);
+    },
+    [approveToleranceMutation]
+  );
 
   const rejectToleranceMutation = useMutation({
     mutationFn: ({ ticketId, reason }: { ticketId: string; reason: string }) =>
       rejectToleranceException(ticketId, reason),
     onSuccess: (updated) => {
-      toast.success('Tolerance exception rejected. Transaction voided — a fresh weighing is required.');
+      toast.success(
+        'Tolerance exception rejected. Transaction voided — a fresh weighing is required.'
+      );
       // Update the selected ticket in place
-      setSelectedTicket((prev) => prev ? { ...prev, controlStatus: updated.controlStatus } : prev);
+      setSelectedTicket((prev) =>
+        prev ? { ...prev, controlStatus: updated.controlStatus } : prev
+      );
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEIGHING_TRANSACTIONS });
     },
     onError: () => {
@@ -259,27 +329,33 @@ export default function TicketsTab() {
     },
   });
 
-  const handleRejectToleranceException = useCallback(async (ticket: WeighingTransaction, reason: string) => {
-    await rejectToleranceMutation.mutateAsync({ ticketId: ticket.id, reason });
-  }, [rejectToleranceMutation]);
+  const handleRejectToleranceException = useCallback(
+    async (ticket: WeighingTransaction, reason: string) => {
+      await rejectToleranceMutation.mutateAsync({ ticketId: ticket.id, reason });
+    },
+    [rejectToleranceMutation]
+  );
 
-  const handlePrint = useCallback(async (ticket: WeighingTransaction) => {
-    try {
-      setPreviewFileName(`WeightTicket_${ticket.ticketNumber ?? ticket.id}.pdf`);
-      setPreviewOpen(true);
-      if (isCommercial) {
-        // Commercial mode: use the commercial ticket endpoint
-        const blob = await getCommercialTicketPdf(ticket.id);
-        setPreviewBlob(blob);
-      } else {
-        const result = await downloadTicketMutation.mutateAsync(ticket.id);
-        setPreviewBlob(result.blob);
+  const handlePrint = useCallback(
+    async (ticket: WeighingTransaction) => {
+      try {
+        setPreviewFileName(`WeightTicket_${ticket.ticketNumber ?? ticket.id}.pdf`);
+        setPreviewOpen(true);
+        if (isCommercial) {
+          // Commercial mode: use the commercial ticket endpoint
+          const blob = await getCommercialTicketPdf(ticket.id);
+          setPreviewBlob(blob);
+        } else {
+          const result = await downloadTicketMutation.mutateAsync(ticket.id);
+          setPreviewBlob(result.blob);
+        }
+      } catch {
+        toast.error('Failed to generate weight ticket');
+        setPreviewOpen(false);
       }
-    } catch {
-      toast.error('Failed to generate weight ticket');
-      setPreviewOpen(false);
-    }
-  }, [downloadTicketMutation, isCommercial]);
+    },
+    [downloadTicketMutation, isCommercial]
+  );
 
   // Raw ESC/POS bytes aren't previewable like a PDF, so this downloads directly rather than
   // opening the PDF preview dialog handlePrint uses.
@@ -290,7 +366,9 @@ export default function TicketsTab() {
         () => getCommercialThermalTicket(ticket.id),
         `ThermalTicket_${ticket.ticketNumber ?? ticket.id}.bin`
       );
-      toast.success('Thermal ticket downloaded. Send it to a printer configured for raw/generic print jobs.');
+      toast.success(
+        'Thermal ticket downloaded. Send it to a printer configured for raw/generic print jobs.'
+      );
     } catch {
       toast.error('Failed to generate thermal ticket');
     }
@@ -377,7 +455,7 @@ export default function TicketsTab() {
 
       {/* Pagination */}
       {!isLoading && tickets.length > 0 && (
-        <div className="border border-gray-200 rounded-xl bg-white px-6 py-3">
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-3">
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -393,7 +471,9 @@ export default function TicketsTab() {
       <TicketDetailSheet
         ticket={selectedTicket}
         open={!!selectedTicket}
-        onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTicket(null);
+        }}
         onPrint={handlePrint}
         onPrintThermal={handlePrintThermal}
         canPrint={canExport}

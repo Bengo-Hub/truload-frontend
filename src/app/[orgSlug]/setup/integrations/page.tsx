@@ -1,5 +1,10 @@
 import { redirect } from 'next/navigation';
 
-export default function IntegrationsPage({ params }: { params: { orgSlug: string } }) {
-  redirect(`/${params.orgSlug}/setup/settings`);
+export default async function IntegrationsPage({
+  params,
+}: {
+  params: Promise<{ orgSlug: string }>;
+}) {
+  const { orgSlug } = await params;
+  redirect(`/${orgSlug}/setup/settings`);
 }
