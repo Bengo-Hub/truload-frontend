@@ -197,6 +197,14 @@ export interface VehicleCompleteData {
   transporterId?: string;
 }
 
+export interface VehicleDetailsData {
+  driver?: string;
+  transporter?: string;
+  cargo?: string;
+  origin?: string;
+  destination?: string;
+}
+
 export interface TransactionSyncData {
   transactionId: string;
   vehicleRegNumber: string;
@@ -219,7 +227,8 @@ export interface UseMiddlewareReturn extends MiddlewareState {
   resetSession: () => void;
   switchBound: (bound: 'A' | 'B') => void;
   requestStatus: () => void;
-  sendUpdateConfig: (totalAxles: number, axleConfigurationCode: string) => void;
+  sendUpdateConfig: (totalAxles: number, axleConfigurationCode: string, weighingType?: 'tare' | 'gross') => void;
+  sendVehicleDetails: (details: VehicleDetailsData) => void;
   sendWeightsCaptured: () => void;
   forceLocalConnection: () => void;
   forceBackendConnection: () => void;
@@ -483,6 +492,12 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
           }));
           onScaleStatusChange?.(statusData);
           break;
+
+        case 'autoweigh-submitted': {
+          const ticketNumber = (message.data as { ticketNumber?: string }).ticketNumber;
+          if (ticketNumber) toast.info(`Auto-weigh record saved. Ticket ${ticketNumber}`, { id: 'autoweigh-submitted' });
+          break;
+        }
 
         case 'plate-ack':
         case 'axle-captured-ack':
@@ -1297,6 +1312,13 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     [sendToTruConnect, stationCode, bound]
   );
 
+  const sendVehicleDetails = useCallback(
+    (details: VehicleDetailsData) => {
+      sendToTruConnect('vehicle-details', '/vehicle-details', { ...details });
+    },
+    [sendToTruConnect]
+  );
+
   const sendDriverInstruction = useCallback(
     (instruction: 'enter' | 'move-forward' | 'move-back' | 'stop') => {
       sendToTruConnect(instruction, '/driver-instruction', { instruction });
@@ -1365,13 +1387,13 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
         fetch(`${localApiBase}/transaction-sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...data, orgSlug, stationCode, stationName }),
+          body: JSON.stringify({ ...data, workflow, orgSlug, stationCode, stationName }),
         }).catch((err) => console.warn('[useMiddleware] API transaction-sync failed', err));
       } else {
-        sendMessage('transaction-sync', { ...data });
+        sendMessage('transaction-sync', { ...data, workflow });
       }
     },
-    [sendMessage, state.connectionMode, localApiBase, orgSlug, stationCode, stationName]
+    [sendMessage, state.connectionMode, localApiBase, workflow, orgSlug, stationCode, stationName]
   );
 
   const resetSession = useCallback(() => {
@@ -1418,13 +1440,13 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
    * Updates the expected axle count so middleware knows when all axles are captured.
    */
   const sendUpdateConfig = useCallback(
-    (totalAxles: number, axleConfigurationCode: string) => {
-      const wsSent = sendMessage('update-config', { totalAxles, axleConfigurationCode });
+    (totalAxles: number, axleConfigurationCode: string, weighingType?: 'tare' | 'gross') => {
+      const wsSent = sendMessage('update-config', { totalAxles, axleConfigurationCode, weighingType });
       if (!wsSent) {
         fetch(`${localApiBase}/update-config`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ totalAxles, axleConfigurationCode }),
+          body: JSON.stringify({ totalAxles, axleConfigurationCode, weighingType }),
         }).catch((err) => console.warn('[useMiddleware] API update-config fallback failed', err));
       }
     },
@@ -1524,6 +1546,7 @@ export function useMiddleware(options: UseMiddlewareOptions): UseMiddlewareRetur
     switchBound,
     requestStatus,
     sendUpdateConfig,
+    sendVehicleDetails,
     sendWeightsCaptured,
     forceLocalConnection,
     forceBackendConnection,

@@ -628,6 +628,19 @@ export default function MobileWeighingPage() {
     updateVehicleMutation,
   ]);
 
+  // Show step 2 details on TruConnect's screen. This backend still owns them.
+  useEffect(() => {
+    if (!middleware.connected) return;
+    if (!selectedDriverId && !selectedTransporterId && !selectedCargoId && !selectedOriginId && !selectedDestinationId) return;
+    middleware.sendVehicleDetails({
+      driver: drivers.find((d) => d.id === selectedDriverId)?.fullNames ?? undefined,
+      transporter: transporters.find((t) => t.id === selectedTransporterId)?.name ?? undefined,
+      cargo: cargoTypes.find((c) => c.id === selectedCargoId)?.name ?? undefined,
+      origin: locations.find((l) => l.id === selectedOriginId)?.name ?? undefined,
+      destination: locations.find((l) => l.id === selectedDestinationId)?.name ?? undefined,
+    });
+  }, [middleware.connected, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
+
   // Share the plate with TruConnect as it is entered on the first step
   useEffect(() => {
     if (middleware.connected && debouncedPlate.length >= 5) {

@@ -169,6 +169,26 @@ jobs:
       if: needs.sync-secrets.outputs.result != 'synced'
       uses: actions/checkout@v4
 
+    # next.config.js skips type checking during the build, so it is checked here
+    - name: Set up pnpm
+      if: needs.sync-secrets.outputs.result != 'synced'
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9.9.0
+
+    - name: Set up Node.js
+      if: needs.sync-secrets.outputs.result != 'synced'
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: pnpm
+
+    - name: Type check
+      if: needs.sync-secrets.outputs.result != 'synced'
+      run: |
+        pnpm install --frozen-lockfile
+        pnpm exec tsc --noEmit
+
     - name: Set up Docker Buildx
       if: needs.sync-secrets.outputs.result != 'synced'
       uses: docker/setup-buildx-action@v3

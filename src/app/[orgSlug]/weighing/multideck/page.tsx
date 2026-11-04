@@ -503,6 +503,19 @@ export default function MultideckWeighingPage() {
     updateVehicleDetails,
   ]);
 
+  // Show step 2 details on TruConnect's screen. This backend still owns them.
+  useEffect(() => {
+    if (!middleware.connected) return;
+    if (!selectedDriverId && !selectedTransporterId && !selectedCargoId && !selectedOriginId && !selectedDestinationId) return;
+    middleware.sendVehicleDetails({
+      driver: drivers.find((d) => d.id === selectedDriverId)?.fullNames ?? undefined,
+      transporter: transporters.find((t) => t.id === selectedTransporterId)?.name ?? undefined,
+      cargo: cargoTypes.find((c) => c.id === selectedCargoId)?.name ?? undefined,
+      origin: locations.find((l) => l.id === selectedOriginId)?.name ?? undefined,
+      destination: locations.find((l) => l.id === selectedDestinationId)?.name ?? undefined,
+    });
+  }, [middleware.connected, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
+
   // Share the plate with TruConnect as it is entered on the first step
   useEffect(() => {
     if (middleware.connected && debouncedPlate.length >= 5) {
@@ -535,6 +548,7 @@ export default function MultideckWeighingPage() {
       transactionId: weighingSession.transactionId,
       vehicleRegNumber: vehiclePlate,
       axleConfigCode: selectedConfig,
+      axleConfigurationId: selectedConfigId,
       totalAxles,
       stationId: currentStation.id,
       bound: currentBound || 'A',
@@ -852,7 +866,19 @@ export default function MultideckWeighingPage() {
     await captureGroup(deck4Groups);
 
     setIsCaptured(true);
-  }, [localGroupResults, captureAxleWeight, selectedConfigId]);
+
+    // TruConnect's auto record has to come before the operator's final submit
+    const axleWeights = localGroupResults.flatMap((g) => g.axles.map((a) => a.measuredKg));
+    if (weighingSession?.transactionId && axleWeights.length > 0 && middleware.connected) {
+      middleware.completeVehicle({
+        transactionId: weighingSession.transactionId,
+        totalAxles: axleWeights.length,
+        axleWeights,
+        gvw: axleWeights.reduce((sum, weight) => sum + weight, 0),
+        axleConfigurationCode: selectedConfig,
+      });
+    }
+  }, [localGroupResults, captureAxleWeight, selectedConfigId, weighingSession?.transactionId, middleware, selectedConfig]);
 
   const handleFinishAndNew = useCallback(async () => {
     // Ensure last minute details are saved
@@ -1058,17 +1084,8 @@ export default function MultideckWeighingPage() {
       }
       setIsCaptured(true);
 
-      // Notify TruConnect (weights captured + autoweigh) and reset for next vehicle (WebSocket or API)
-      const axleWeights = localGroupResults.flatMap((g) => g.axles.map((a) => a.measuredKg));
-      const totalAxles = axleWeights.length;
-      if (weighingSession?.transactionId && totalAxles > 0 && middleware.connected) {
-        middleware.completeVehicle({
-          transactionId: weighingSession.transactionId,
-          totalAxles,
-          axleWeights,
-          gvw: gvwMeasured,
-          axleConfigurationCode: selectedConfig,
-        });
+      // Final weights are in, so TruConnect can reset for the next vehicle
+      if (weighingSession?.transactionId && middleware.connected) {
         middleware.resetSession();
       }
     } catch {

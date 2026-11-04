@@ -44,6 +44,7 @@ import {
   useVehicleByRegNo,
 } from '@/hooks/queries';
 import { useSettingsByCategory } from '@/hooks/queries/useSettingsQueries';
+import { useWeighingAxleConfigurations } from '@/hooks/queries/useWeighingQueries';
 import { useMiddleware, WeightData } from '@/hooks/useMiddleware';
 import { useOrgSlug } from '@/hooks/useOrgSlug';
 import { useWeighingUI } from '@/hooks/useWeighingUI';
@@ -138,6 +139,8 @@ export function CommercialWeighingStepper({
 
   // Mobile axle-by-axle: track per-axle captures
   const [totalAxles, setTotalAxles] = useState(2);
+  const [selectedAxleConfig, setSelectedAxleConfig] = useState('');
+  const { data: axleConfigurations = [] } = useWeighingAxleConfigurations();
   const [capturedAxleWeights, setCapturedAxleWeights] = useState<number[]>([]); // index = axle-1
   const [currentAxle, setCurrentAxle] = useState(1);
 
@@ -443,12 +446,40 @@ export function CommercialWeighingStepper({
     }
   }, [debouncedPlate, middleware.connected]);
 
-  // Commercial mobile weighing sets an axle count rather than picking a configuration
+  // Show step 2 details on TruConnect's screen. This backend still owns them.
+  useEffect(() => {
+    if (!middleware.connected) return;
+    if (!selectedDriverId && !selectedTransporterId && !selectedCargoId && !selectedOriginId && !selectedDestinationId) return;
+    middleware.sendVehicleDetails({
+      driver: drivers.find((d) => d.id === selectedDriverId)?.fullNames ?? undefined,
+      transporter: transporters.find((t) => t.id === selectedTransporterId)?.name ?? undefined,
+      cargo: cargoTypes.find((c) => c.id === selectedCargoId)?.name ?? undefined,
+      origin: locations.find((l) => l.id === selectedOriginId)?.name ?? undefined,
+      destination: locations.find((l) => l.id === selectedDestinationId)?.name ?? undefined,
+    });
+  }, [middleware.connected, selectedDriverId, selectedTransporterId, selectedCargoId, selectedOriginId, selectedDestinationId, drivers, transporters, cargoTypes, locations]);
+
+  // Picking a configuration sets the axle count; the +/- buttons below clear the pick
   useEffect(() => {
     if (middleware.connected && mode === 'mobile') {
-      middleware.sendUpdateConfig(totalAxles, '');
+      middleware.sendUpdateConfig(totalAxles, selectedAxleConfig);
     }
-  }, [totalAxles, mode, middleware.connected]);
+  }, [totalAxles, selectedAxleConfig, mode, middleware.connected]);
+
+  // TruLoad owns this transaction. Sent on reconnect too, or TruConnect would treat
+  // the axles as its own weighing.
+  useEffect(() => {
+    if (middleware.connected && transactionId && currentStation) {
+      middleware.syncTransaction({
+        transactionId,
+        vehicleRegNumber: vehiclePlate.trim().toUpperCase(),
+        axleConfigCode: selectedAxleConfig,
+        totalAxles,
+        stationId: currentStation.id,
+        weighingMode: mode,
+      });
+    }
+  }, [middleware.connected, transactionId, currentStation?.id]);
 
   const handleCaptureAxle = useCallback(() => {
     if (liveWeightKg <= 0) {
@@ -481,7 +512,7 @@ export function CommercialWeighingStepper({
       middleware.syncTransaction({
         transactionId,
         vehicleRegNumber: vehiclePlate,
-        axleConfigCode: '',
+        axleConfigCode: selectedAxleConfig,
         totalAxles,
         stationId: currentStation.id,
         weighingMode: mode,
@@ -524,17 +555,6 @@ export function CommercialWeighingStepper({
 
       setTransactionId(txnResult.id);
       setResult(txnResult);
-      // TruLoad owns this transaction, so TruConnect must not auto-submit it as well
-      if (middleware.connected) {
-        middleware.syncTransaction({
-          transactionId: txnResult.id,
-          vehicleRegNumber: vehiclePlate.trim().toUpperCase(),
-          axleConfigCode: '',
-          totalAxles,
-          stationId: currentStation.id,
-          weighingMode: mode,
-        });
-      }
       goToNextStep();
     } catch (err: any) {
       console.error('Failed to initiate commercial weighing:', err);
@@ -566,6 +586,7 @@ export function CommercialWeighingStepper({
   const handleCaptureFirstWeight = useCallback(
     async (weightType: 'tare' | 'gross') => {
       if (!transactionId) return;
+      middleware.sendUpdateConfig(totalAxles, selectedAxleConfig, weightType);
       const weightKg = mode === 'mobile' ? axleGvw : liveWeightKg;
       if (weightKg <= 0) {
         toast.error('No weight to capture.');
@@ -1221,12 +1242,33 @@ export function CommercialWeighingStepper({
               <div className="space-y-3">
                 <Card>
                   <CardContent className="flex items-center justify-between gap-3 p-3">
+                    <select
+                      aria-label="Axle configuration"
+                      className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                      value={selectedAxleConfig}
+                      onChange={(event) => {
+                        const code = event.target.value;
+                        setSelectedAxleConfig(code);
+                        const config = axleConfigurations.find((c) => c.axleCode === code);
+                        if (config?.axleNumber) setTotalAxles(config.axleNumber);
+                      }}
+                    >
+                      <option value="">Axle configuration (optional)</option>
+                      {axleConfigurations.map((c) => (
+                        <option key={c.id} value={c.axleCode}>
+                          {c.axleCode}
+                        </option>
+                      ))}
+                    </select>
                     <span className="text-sm text-gray-600">Total axles:</span>
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setTotalAxles((n) => Math.max(2, n - 1))}
+                        onClick={() => {
+                          setSelectedAxleConfig('');
+                          setTotalAxles((n) => Math.max(2, n - 1));
+                        }}
                         disabled={totalAxles <= 2}
                       >
                         −
@@ -1235,7 +1277,10 @@ export function CommercialWeighingStepper({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setTotalAxles((n) => Math.min(8, n + 1))}
+                        onClick={() => {
+                          setSelectedAxleConfig('');
+                          setTotalAxles((n) => Math.min(8, n + 1));
+                        }}
                         disabled={totalAxles >= 8}
                       >
                         +
