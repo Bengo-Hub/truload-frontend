@@ -176,6 +176,7 @@ export default function TicketsFilterBar({
               <SelectItem value="all">All State</SelectItem>
               <SelectItem value="Active">Active</SelectItem>
               <SelectItem value="Recent">Recent Tickets</SelectItem>
+              {!isCommercial && <SelectItem value="AwaitingCapture">Awaiting Final Capture</SelectItem>}
             </SelectContent>
           </Select>
 
