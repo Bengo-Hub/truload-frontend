@@ -52,6 +52,10 @@ const withPWA = require('@ducanh2912/next-pwa').default({
 const nextConfig = {
   reactStrictMode: true,
 
+  // This app is its own root. Without this, Next picks up D:\Projects\Codevertex\package-lock.json
+  // (the parent workspace) as the tracing root and warns about multiple lockfiles.
+  outputFileTracingRoot: require('path').join(__dirname),
+
   // Transpile packages that don't ship ESM compatible with Turbopack
   transpilePackages: ['@superset-ui/embedded-sdk', '@hookform/resolvers'],
 
