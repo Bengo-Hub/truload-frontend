@@ -66,7 +66,7 @@ export function LoginPageLayout({ org, children, subtitle, primaryColor = '#5B1C
               priority
               unoptimized={platformLogo.startsWith('http') || platformLogo.startsWith('/media')}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = DEFAULT_PLATFORM_LOGO;
+                const img = e.target as HTMLImageElement; if (img.dataset.fellBack) return; img.dataset.fellBack = "1"; img.src = DEFAULT_PLATFORM_LOGO;
               }}
             />
             <span className="mt-1 text-sm font-normal text-gray-600">{tagline}</span>
@@ -95,7 +95,7 @@ export function LoginPageLayout({ org, children, subtitle, primaryColor = '#5B1C
               className="h-16 w-auto max-w-[180px] object-contain object-right opacity-95"
               unoptimized={orgLogo.startsWith('http') || orgLogo.startsWith('/media')}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = FALLBACK_ORG_LOGO;
+                const img = e.target as HTMLImageElement; if (img.dataset.fellBack) return; img.dataset.fellBack = "1"; img.src = FALLBACK_ORG_LOGO;
               }}
             />
           </div>

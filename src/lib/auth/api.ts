@@ -6,7 +6,7 @@
 import { apiClient } from '@/lib/api/client';
 import type { LoginRequest, LoginResponse, RefreshTokenResponse, TenantInfo, User } from '../../types/auth/types';
 import { clearAllScaleTestCaches } from '@/lib/scale-test-cache';
-import { clearTokens, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext, setTokens } from './token';
+import { clearTokens, getAccessToken, getRefreshToken, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext, setTokens } from './token';
 import { clearSsoExchangeToken, clearSsoPkceSession } from './sso';
 
 /**
@@ -96,7 +96,16 @@ export async function loginVerify2FA(twoFactorToken: string, code: string, useRe
  * @returns RefreshTokenResponse with new token expiry
  */
 export async function refreshToken(): Promise<RefreshTokenResponse> {
-  const { data } = await apiClient.post<RefreshTokenResponse>('/auth/refresh', {});
+  // The backend requires both tokens in the body; an empty body was always refused with 400,
+  // so an expired session could never renew.
+  const stored = getRefreshToken();
+  if (!stored) {
+    throw new Error('No refresh token');
+  }
+  const { data } = await apiClient.post<RefreshTokenResponse>('/auth/refresh', {
+    accessToken: getAccessToken() ?? '',
+    refreshToken: stored,
+  });
 
   // Store new tokens if provided
   if (data.accessToken && data.refreshToken && data.expiresIn) {

@@ -159,7 +159,7 @@ export default function TenantAuthStationSelectPage() {
                 className="h-12 w-auto object-contain"
                 priority
                 unoptimized
-                onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_LOGO; }}
+                onError={(e) => { const img = e.target as HTMLImageElement; if (img.dataset.fellBack) return; img.dataset.fellBack = "1"; img.src = FALLBACK_LOGO; }}
               />
             </Link>
             <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Select your station</h1>

@@ -118,6 +118,7 @@ apiClient.interceptors.request.use(
 
     // Wait for a concurrency slot
     await enqueueRequest();
+    (config as unknown as Record<string, unknown>)[SLOT_HELD] = true;
 
     // Get access token from cookies or localStorage
     if (typeof window !== 'undefined') {
@@ -157,32 +158,50 @@ apiClient.interceptors.request.use(
 
     return config;
   },
-  (error) => {
-    dequeueRequest();
-    return Promise.reject(error);
-  }
+  // This handler sees errors from earlier interceptors, before any slot was taken here.
+  (error) => Promise.reject(error)
 );
 
-// Track pending requests waiting for token refresh
-let refreshSubscribers: ((token: string) => void)[] = [];
+// Track pending requests waiting for token refresh. Each waiter is told the outcome either way:
+// dropping them on a failed refresh left their promises pending forever, so pages waiting on them
+// (station and configuration loading) spun until reload.
+type RefreshWaiter = { resolve: (token: string) => void; reject: (err: unknown) => void };
+let refreshSubscribers: RefreshWaiter[] = [];
 
-function subscribeToRefresh(callback: (token: string) => void) {
-  refreshSubscribers.push(callback);
+function subscribeToRefresh(waiter: RefreshWaiter) {
+  refreshSubscribers.push(waiter);
 }
 
 function onRefreshComplete(newToken: string) {
-  refreshSubscribers.forEach((callback) => callback(newToken));
+  const waiters = refreshSubscribers;
   refreshSubscribers = [];
+  waiters.forEach((w) => w.resolve(newToken));
+}
+
+function onRefreshFailed(err: unknown) {
+  const waiters = refreshSubscribers;
+  refreshSubscribers = [];
+  waiters.forEach((w) => w.reject(err));
+}
+
+// Marks a request that holds a concurrency slot, so only those give one back. Auth endpoints skip
+// the limiter; releasing a slot for them drove the counter below zero.
+const SLOT_HELD = '__truloadSlotHeld';
+function releaseSlot(config?: { [SLOT_HELD]?: boolean } | null) {
+  if (config && config[SLOT_HELD]) {
+    config[SLOT_HELD] = false;
+    dequeueRequest();
+  }
 }
 
 // Response interceptor - handle 429 rate limiting and 401 authentication errors
 apiClient.interceptors.response.use(
   (response) => {
-    dequeueRequest();
+    releaseSlot(response.config as never);
     return response;
   },
   async (error: AxiosError) => {
-    dequeueRequest();
+    releaseSlot(error.config as never);
 
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
@@ -222,10 +241,14 @@ apiClient.interceptors.response.use(
 
       // If already refreshing, queue this request to retry after refresh completes
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          subscribeToRefresh((newToken: string) => {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            resolve(apiClient(originalRequest));
+        return new Promise((resolve, reject) => {
+          subscribeToRefresh({
+            resolve: (newToken: string) => {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              resolve(apiClient(originalRequest));
+            },
+            // A failed refresh fails this request too, with its own 401, instead of leaving it pending.
+            reject: () => reject(error),
           });
         });
       }
@@ -248,10 +271,11 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         }
 
+        onRefreshFailed(error);
         return Promise.reject(error);
       } catch (refreshError) {
         isRefreshing = false;
-        refreshSubscribers = [];
+        onRefreshFailed(refreshError);
         // Refresh failed - reject and let app handle navigation
         return Promise.reject(refreshError);
       }

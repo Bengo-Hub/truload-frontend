@@ -181,7 +181,11 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
           className="h-12 w-auto object-contain"
           unoptimized={brand.logoUrl.startsWith('http') || brand.logoUrl.startsWith('/media')}
           onError={(e) => {
-            (e.target as HTMLImageElement).src = '/truload-logo.svg';
+            // Swap to the fallback once; if the fallback fails too, stop instead of looping.
+            const img = e.target as HTMLImageElement;
+            if (img.dataset.fellBack) return;
+            img.dataset.fellBack = '1';
+            img.src = '/truload-logo.svg';
           }}
         />
         {/* Close button - only visible on mobile */}

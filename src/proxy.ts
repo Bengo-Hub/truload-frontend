@@ -17,6 +17,15 @@ const publicPathSuffixes = ['/auth/login', '/auth/forgot-password', '/auth/reset
 
 const SKIP_PREFIXES = ['/_next/', '/api/', '/favicon', '/public/'];
 
+/**
+ * A path whose last segment has a file extension (/truload-logo.svg, /sw.js, /images/x.png) is a
+ * file from public/, never a page, so it must not be rewritten under the tenant slug.
+ */
+export function isStaticFilePath(pathname: string): boolean {
+  const last = pathname.split('/').pop() ?? '';
+  return /\.[a-z0-9]{1,8}$/i.test(last);
+}
+
 const AUTH_API_URL = (process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'https://sso.codevertexafrica.com').replace(/\/+$/, '');
 const RESOLVE_TTL_MS = 60_000;
 const resolved = new Map<string, { slug: string | undefined; at: number }>();
@@ -65,7 +74,7 @@ export async function proxy(request: NextRequest) {
   const tenantSlug = HOSTNAME_SLUG_MAP[host] ?? (await resolveTenantHost(host));
   if (tenantSlug) {
     // Skip Next.js internals and API routes
-    if (SKIP_PREFIXES.some((p) => pathname.startsWith(p))) {
+    if (SKIP_PREFIXES.some((p) => pathname.startsWith(p)) || isStaticFilePath(pathname)) {
       return NextResponse.next();
     }
 
