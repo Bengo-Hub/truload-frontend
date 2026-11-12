@@ -19,7 +19,7 @@ describe('proxy on a tenant domain', () => {
     async (path) => {
       const res = await proxy(req(path));
       expect(res.headers.get('x-middleware-rewrite')).toBeNull();
-    },
+    }
   );
 
   it('still rewrites app pages to the tenant slug', async () => {

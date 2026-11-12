@@ -4,9 +4,23 @@
  */
 
 import { apiClient } from '@/lib/api/client';
-import type { LoginRequest, LoginResponse, RefreshTokenResponse, TenantInfo, User } from '../../types/auth/types';
+import type {
+  LoginRequest,
+  LoginResponse,
+  RefreshTokenResponse,
+  TenantInfo,
+  User,
+} from '../../types/auth/types';
 import { clearAllScaleTestCaches } from '@/lib/scale-test-cache';
-import { clearTokens, getAccessToken, getRefreshToken, PLATFORM_OWNER_ORG_CODE, setIsPlatformOwner, setTenantContext, setTokens } from './token';
+import {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  PLATFORM_OWNER_ORG_CODE,
+  setIsPlatformOwner,
+  setTenantContext,
+  setTokens,
+} from './token';
 import { clearSsoExchangeToken, clearSsoPkceSession } from './sso';
 
 /**
@@ -59,7 +73,11 @@ export async function login(
 /**
  * Complete login after 2FA: verify TOTP or recovery code and receive tokens.
  */
-export async function loginVerify2FA(twoFactorToken: string, code: string, useRecoveryCode = false): Promise<LoginResponse> {
+export async function loginVerify2FA(
+  twoFactorToken: string,
+  code: string,
+  useRecoveryCode = false
+): Promise<LoginResponse> {
   const { data } = await apiClient.post<LoginResponse>('/auth/login/2fa-verify', {
     twoFactorToken,
     code: code.replace(/\s/g, '').replace(/-/g, ''),
@@ -149,7 +167,11 @@ export async function getCurrentUser(): Promise<User> {
 /**
  * Change current user's password.
  */
-export async function changePassword(currentPassword: string, newPassword: string, confirmNewPassword: string): Promise<void> {
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmNewPassword: string
+): Promise<void> {
   await apiClient.post('/auth/change-password', {
     currentPassword,
     newPassword,
@@ -174,13 +196,27 @@ export interface PublicPasswordPolicy {
  */
 export async function getPasswordPolicyPublic(): Promise<PublicPasswordPolicy> {
   const { data } = await apiClient.get<PublicPasswordPolicy>('/auth/password-policy');
-  return data ?? { minLength: 8, requireUppercase: true, requireLowercase: true, requireDigit: true, requireSpecial: false, lockoutThreshold: 5, lockoutMinutes: 15, passwordExpiryDays: 0 };
+  return (
+    data ?? {
+      minLength: 8,
+      requireUppercase: true,
+      requireLowercase: true,
+      requireDigit: true,
+      requireSpecial: false,
+      lockoutThreshold: 5,
+      lockoutMinutes: 15,
+      passwordExpiryDays: 0,
+    }
+  );
 }
 
 /**
  * Change expired password (public). Token comes from login 401 response when password has expired.
  */
-export async function changeExpiredPassword(changePasswordToken: string, newPassword: string): Promise<void> {
+export async function changeExpiredPassword(
+  changePasswordToken: string,
+  newPassword: string
+): Promise<void> {
   await apiClient.post('/auth/change-expired-password', {
     changePasswordToken,
     newPassword,
@@ -195,7 +231,9 @@ export async function changeExpiredPassword(changePasswordToken: string, newPass
  */
 export async function getTenantInfo(orgCode: string): Promise<TenantInfo | null> {
   try {
-    const { data } = await apiClient.get<TenantInfo>(`/auth/tenant-info?code=${encodeURIComponent(orgCode)}`);
+    const { data } = await apiClient.get<TenantInfo>(
+      `/auth/tenant-info?code=${encodeURIComponent(orgCode)}`
+    );
     return data;
   } catch {
     return null;
@@ -254,7 +292,9 @@ export interface SsoPlatformOrganization {
  * so, returns every TruLoad organisation for the picker. Returns null for a non-platform-owner
  * token (403) — the caller should fall through to the normal single-org ssoExchange flow.
  */
-export async function getSsoPlatformOrganizations(accessToken: string): Promise<SsoPlatformOrganization[] | null> {
+export async function getSsoPlatformOrganizations(
+  accessToken: string
+): Promise<SsoPlatformOrganization[] | null> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
   const response = await fetch(`${baseUrl}/api/v1/auth/sso-platform-organizations`, {
     method: 'POST',

@@ -10,30 +10,30 @@ import { getPostLogoutRedirectPath } from '@/lib/auth/lastLoginStation';
 import { useAuthStore } from '@/stores/auth.store';
 import type { LucideIcon } from 'lucide-react';
 import {
-    BarChart3,
-    Bell,
-    BookOpen,
-    Clock4,
-    Cog,
-    CreditCard,
-    Database,
-    FileText,
-    FolderOpen,
-    Gavel,
-    Globe,
-    LayoutDashboard,
-    LayoutList,
-    LogOut,
-    Receipt,
-    Scale,
-    Settings,
-    Shield,
-    ShieldAlert,
-    Sliders,
-    Users,
-    Weight,
-    Wrench,
-    X,
+  BarChart3,
+  Bell,
+  BookOpen,
+  Clock4,
+  Cog,
+  CreditCard,
+  Database,
+  FileText,
+  FolderOpen,
+  Gavel,
+  Globe,
+  LayoutDashboard,
+  LayoutList,
+  LogOut,
+  Receipt,
+  Scale,
+  Settings,
+  Shield,
+  ShieldAlert,
+  Sliders,
+  Users,
+  Weight,
+  Wrench,
+  X,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -68,45 +68,194 @@ const menuSections: MenuSection[] = [
   {
     title: 'Main Menu',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissions: [], moduleKey: 'dashboard' },
-      { href: '/weighing', label: 'Weighing', icon: Weight, permissions: ['weighing.read'], moduleKey: 'weighing' },
-      { href: '/weighing/tare-register', label: 'Tare Register', icon: Scale, permissions: ['weighing.read'], moduleKey: 'tare_register', commercialOnly: true },
-      { href: '/cases', label: 'Case Register', icon: FolderOpen, permissions: ['case.read'], moduleKey: 'cases' },
-      { href: '/case-management', label: 'Case management', icon: LayoutList, permissions: ['case.read'], moduleKey: 'case_management' },
-      { href: '/cases/special-releases', label: 'Special releases', icon: ShieldAlert, permissions: ['case.special_release'], moduleKey: 'special_releases' },
-      { href: '/prosecution', label: 'Prosecution', icon: Gavel, permissions: ['prosecution.read'], moduleKey: 'prosecution' },
-      { href: '/reporting', label: 'Reporting', icon: BarChart3, permissions: ['analytics.read'], moduleKey: 'reporting' },
-      { href: '/users', label: 'Users & Roles', icon: Users, permissions: ['user.read'], moduleKey: 'users' },
-      { href: '/shifts', label: 'Shift Management', icon: Clock4, permissions: ['user.manage_shifts'], moduleKey: 'shifts' },
-      { href: '/technical', label: 'Technical', icon: Wrench, permissions: ['technical.read'], moduleKey: 'technical' },
+      {
+        href: '/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        permissions: [],
+        moduleKey: 'dashboard',
+      },
+      {
+        href: '/weighing',
+        label: 'Weighing',
+        icon: Weight,
+        permissions: ['weighing.read'],
+        moduleKey: 'weighing',
+      },
+      {
+        href: '/weighing/tare-register',
+        label: 'Tare Register',
+        icon: Scale,
+        permissions: ['weighing.read'],
+        moduleKey: 'tare_register',
+        commercialOnly: true,
+      },
+      {
+        href: '/cases',
+        label: 'Case Register',
+        icon: FolderOpen,
+        permissions: ['case.read'],
+        moduleKey: 'cases',
+      },
+      {
+        href: '/case-management',
+        label: 'Case management',
+        icon: LayoutList,
+        permissions: ['case.read'],
+        moduleKey: 'case_management',
+      },
+      {
+        href: '/cases/special-releases',
+        label: 'Special releases',
+        icon: ShieldAlert,
+        permissions: ['case.special_release'],
+        moduleKey: 'special_releases',
+      },
+      {
+        href: '/prosecution',
+        label: 'Prosecution',
+        icon: Gavel,
+        permissions: ['prosecution.read'],
+        moduleKey: 'prosecution',
+      },
+      {
+        href: '/reporting',
+        label: 'Reporting',
+        icon: BarChart3,
+        permissions: ['analytics.read'],
+        moduleKey: 'reporting',
+      },
+      {
+        href: '/users',
+        label: 'Users & Roles',
+        icon: Users,
+        permissions: ['user.read'],
+        moduleKey: 'users',
+      },
+      {
+        href: '/shifts',
+        label: 'Shift Management',
+        icon: Clock4,
+        permissions: ['user.manage_shifts'],
+        moduleKey: 'shifts',
+      },
+      {
+        href: '/technical',
+        label: 'Technical',
+        icon: Wrench,
+        permissions: ['technical.read'],
+        moduleKey: 'technical',
+      },
     ],
   },
   {
     title: 'Financial',
     items: [
-      { href: '/financial/invoices', label: 'Invoices', icon: Receipt, permissions: ['invoice.read'], moduleKey: 'financial_invoices' },
-      { href: '/financial/receipts', label: 'Receipts', icon: CreditCard, permissions: ['receipt.read'], moduleKey: 'financial_receipts' },
-      { href: '/billing', label: 'Billing & Plans', icon: CreditCard, permissions: ['invoice.read'], moduleKey: 'billing', commercialOnly: true },
+      {
+        href: '/financial/invoices',
+        label: 'Invoices',
+        icon: Receipt,
+        permissions: ['invoice.read'],
+        moduleKey: 'financial_invoices',
+      },
+      {
+        href: '/financial/receipts',
+        label: 'Receipts',
+        icon: CreditCard,
+        permissions: ['receipt.read'],
+        moduleKey: 'financial_receipts',
+      },
+      {
+        href: '/billing',
+        label: 'Billing & Plans',
+        icon: CreditCard,
+        permissions: ['invoice.read'],
+        moduleKey: 'billing',
+        commercialOnly: true,
+      },
     ],
   },
   {
     title: 'Setup',
     items: [
-      { href: '/setup/axle-configurations', label: 'Axle Configurations', icon: Cog, permissions: ['config.read'], moduleKey: 'setup_axle' },
-      { href: '/setup/weighing-metadata', label: 'Weighing Setup', icon: Database, permissions: ['config.read'], moduleKey: 'setup_weighing_metadata' },
-      { href: '/setup/acts', label: 'Acts & Compliance', icon: BookOpen, permissions: ['config.read'], moduleKey: 'setup_acts' },
-      { href: '/setup/tolerance', label: 'Tolerance Settings', icon: Sliders, permissions: ['config.read'], moduleKey: 'setup_tolerance', commercialOnly: true },
-      { href: '/setup/tariffs', label: 'Tariff Rules', icon: CreditCard, permissions: ['billing.tariffs.view'], moduleKey: 'billing', commercialOnly: true },
-      { href: '/setup/settings', label: 'Settings', icon: Settings, permissions: ['config.read'], moduleKey: 'setup_settings' },
-      { href: '/setup/notifications', label: 'Notifications', icon: Bell, permissions: ['config.read'], moduleKey: 'setup_notifications' },
-{ href: '/setup/tenants', label: 'Tenants', icon: Globe, permissions: ['config.read'], moduleKey: 'setup_tenants', superuserOnly: true },
+      {
+        href: '/setup/axle-configurations',
+        label: 'Axle Configurations',
+        icon: Cog,
+        permissions: ['config.read'],
+        moduleKey: 'setup_axle',
+      },
+      {
+        href: '/setup/weighing-metadata',
+        label: 'Weighing Setup',
+        icon: Database,
+        permissions: ['config.read'],
+        moduleKey: 'setup_weighing_metadata',
+      },
+      {
+        href: '/setup/acts',
+        label: 'Acts & Compliance',
+        icon: BookOpen,
+        permissions: ['config.read'],
+        moduleKey: 'setup_acts',
+      },
+      {
+        href: '/setup/tolerance',
+        label: 'Tolerance Settings',
+        icon: Sliders,
+        permissions: ['config.read'],
+        moduleKey: 'setup_tolerance',
+        commercialOnly: true,
+      },
+      {
+        href: '/setup/tariffs',
+        label: 'Tariff Rules',
+        icon: CreditCard,
+        permissions: ['billing.tariffs.view'],
+        moduleKey: 'billing',
+        commercialOnly: true,
+      },
+      {
+        href: '/setup/settings',
+        label: 'Settings',
+        icon: Settings,
+        permissions: ['config.read'],
+        moduleKey: 'setup_settings',
+      },
+      {
+        href: '/setup/notifications',
+        label: 'Notifications',
+        icon: Bell,
+        permissions: ['config.read'],
+        moduleKey: 'setup_notifications',
+      },
+      {
+        href: '/setup/tenants',
+        label: 'Tenants',
+        icon: Globe,
+        permissions: ['config.read'],
+        moduleKey: 'setup_tenants',
+        superuserOnly: true,
+      },
     ],
   },
   {
     title: 'Security & Data',
     items: [
-      { href: '/setup/security?tab=password', label: 'Security & Policy', icon: Shield, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
-      { href: '/setup/security?tab=audit', label: 'Audit Logs', icon: FileText, permissions: ['system.security_policy'], moduleKey: 'setup_security' },
+      {
+        href: '/setup/security?tab=password',
+        label: 'Security & Policy',
+        icon: Shield,
+        permissions: ['system.security_policy'],
+        moduleKey: 'setup_security',
+      },
+      {
+        href: '/setup/security?tab=audit',
+        label: 'Audit Logs',
+        icon: FileText,
+        permissions: ['system.security_policy'],
+        moduleKey: 'setup_security',
+      },
     ],
   },
 ];
@@ -128,7 +277,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
     if (mobileOpen && onMobileClose) {
       onMobileClose();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   const handleLogout = async () => {
@@ -147,7 +296,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
     const isSuperUser = user.isSuperUser === true;
     const enabledModules = user.enabledModules ?? [];
     const hasModuleFilter = enabledModules.length > 0;
-    const isCommercial = user.tenantType === 'CommercialWeighing' || user.isCommercialTenant === true;
+    const isCommercial =
+      user.tenantType === 'CommercialWeighing' || user.isCommercialTenant === true;
     return menuSections
       .map((section) => ({
         ...section,
@@ -172,7 +322,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
   const sidebarContent = (
     <>
       {/* Logo - uses tenant brand logo with TruLoad fallback */}
-      <div className="border-b border-gray-200 px-6 py-5 flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
         <Image
           src={brand.logoUrl.startsWith('/media') ? getMediaUrl(brand.logoUrl) : brand.logoUrl}
           alt={brand.orgName}
@@ -190,22 +340,17 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
         />
         {/* Close button - only visible on mobile */}
         {onMobileClose && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden h-8 w-8"
-            onClick={onMobileClose}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8 lg:hidden" onClick={onMobileClose}>
             <X className="h-5 w-5" />
           </Button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
         {filteredSections.map((section) => (
           <div key={section.title}>
-            <div className="text-xs font-semibold uppercase text-gray-500 px-3 mb-3">
+            <div className="mb-3 px-3 text-xs font-semibold uppercase text-gray-500">
               {section.title}
             </div>
             <ul className="space-y-1">
@@ -236,12 +381,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
 
       {/* Logout Button */}
       <div className="border-t border-gray-200 px-4 py-4">
-        <Button
-          variant="outline"
-          className="w-full justify-start"
-          onClick={handleLogout}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
+        <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
           Logout
         </Button>
       </div>
@@ -251,7 +392,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
   return (
     <>
       {/* Desktop sidebar - fixed, always visible on lg+ */}
-      <aside className="hidden fixed top-0 left-0 z-30 h-screen w-72 flex-shrink-0 flex-col border-r border-gray-200 bg-white lg:flex">
+      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 flex-shrink-0 flex-col border-r border-gray-200 bg-white lg:flex">
         {sidebarContent}
       </aside>
 
@@ -259,12 +400,9 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
       {mobileOpen && (
         <>
           {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={onMobileClose}
-          />
+          <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onMobileClose} />
           {/* Drawer */}
-          <aside className="fixed top-0 left-0 z-50 h-screen w-[min(18rem,90vw)] flex flex-col border-r border-gray-200 bg-white lg:hidden animate-in slide-in-from-left duration-200">
+          <aside className="fixed left-0 top-0 z-50 flex h-screen w-[min(18rem,90vw)] flex-col border-r border-gray-200 bg-white duration-200 animate-in slide-in-from-left lg:hidden">
             {sidebarContent}
           </aside>
         </>

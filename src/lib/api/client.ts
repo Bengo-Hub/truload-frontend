@@ -14,8 +14,18 @@ const STATION_ID_HEADER = 'X-Station-ID';
 
 // Path segments that are never org slugs (Next.js internals, auth routes, etc.)
 const NON_ORG_PATH_SEGMENTS = new Set([
-  'auth', 'login', 'logout', 'register', 'forgot-password', 'reset-password',
-  'verify-email', 'sso', 'api', '_next', 'portal', 'favicon.ico',
+  'auth',
+  'login',
+  'logout',
+  'register',
+  'forgot-password',
+  'reset-password',
+  'verify-email',
+  'sso',
+  'api',
+  '_next',
+  'portal',
+  'favicon.ico',
 ]);
 
 /** Extract the org slug from the current URL path (first segment in /[orgSlug]/...). */
@@ -69,7 +79,7 @@ let isRefreshing = false;
  */
 function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
-  
+
   // Try to get from localStorage first (stored by setTokens)
   try {
     return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -85,7 +95,7 @@ function getAccessToken(): string | null {
       }
     }
   }
-  
+
   return null;
 }
 
@@ -129,7 +139,10 @@ apiClient.interceptors.request.use(
 
       // Env routing: test domains always hit the truload DB; live domains hit the tenant DB.
       const hostname = window.location.hostname;
-      const isTestDomain = hostname.includes('kuraweightest') || hostname.includes('localhost') || hostname.includes('truload.codevertex');
+      const isTestDomain =
+        hostname.includes('kuraweightest') ||
+        hostname.includes('localhost') ||
+        hostname.includes('truload.codevertex');
       config.headers['X-Env'] = isTestDomain ? 'test' : 'live';
 
       if (!getIsPlatformOwner()) {
@@ -284,4 +297,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
